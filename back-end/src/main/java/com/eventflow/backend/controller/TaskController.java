@@ -6,6 +6,9 @@ import com.eventflow.backend.dto.StatusUpdateRequest;
 import com.eventflow.backend.dto.TaskAssignmentRequest;
 import com.eventflow.backend.dto.TaskRequestDTO;
 import com.eventflow.backend.dto.TaskResponseDTO;
+import com.eventflow.backend.dto.TaskReviewRequest;
+import com.eventflow.backend.dto.TaskReviewResponseDTO;
+import com.eventflow.backend.dto.TaskWorkUpdateRequest;
 import com.eventflow.backend.security.EventSecurityService;
 import com.eventflow.backend.service.TaskService;
 import jakarta.validation.Valid;
@@ -168,6 +171,20 @@ public class TaskController {
         return ResponseEntity.noContent().build();
     }
 
+    @PatchMapping("/tasks/{taskId}/work-update")
+    public ResponseEntity<TaskResponseDTO> updateTaskWork(
+            @PathVariable Long taskId,
+            @Valid @RequestBody TaskWorkUpdateRequest request,
+            Authentication authentication) {
+
+        Long userId = (Long) authentication.getPrincipal();
+        if (!eventSecurityService.isTaskAssignee(taskId, userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        return ResponseEntity.ok(taskService.updateWork(taskId, request));
+    }
+
     @PatchMapping("/tasks/{taskId}/assignment")
     public ResponseEntity<TaskResponseDTO> updateTaskAssignment(
             @PathVariable Long taskId,
@@ -181,5 +198,34 @@ public class TaskController {
         }
 
         return ResponseEntity.ok(taskService.updateAssignment(taskId, request));
+    }
+
+    @GetMapping("/tasks/{taskId}/reviews")
+    public ResponseEntity<List<TaskReviewResponseDTO>> getTaskReviews(
+            @PathVariable Long taskId,
+            Authentication authentication) {
+
+        Long userId = (Long) authentication.getPrincipal();
+        Long eventId = taskService.getEventIdByTaskId(taskId);
+        if (!eventSecurityService.isMemberOfEvent(eventId, userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        return ResponseEntity.ok(taskService.getTaskReviews(taskId));
+    }
+
+    @PostMapping("/tasks/{taskId}/review")
+    public ResponseEntity<TaskResponseDTO> reviewTask(
+            @PathVariable Long taskId,
+            @Valid @RequestBody TaskReviewRequest request,
+            Authentication authentication) {
+
+        Long userId = (Long) authentication.getPrincipal();
+        Long eventId = taskService.getEventIdByTaskId(taskId);
+        if (!eventSecurityService.isLeaderOfEvent(eventId, userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        return ResponseEntity.ok(taskService.reviewTask(taskId, userId, request));
     }
 }

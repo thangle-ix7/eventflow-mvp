@@ -60,6 +60,7 @@ const TaskEditPage = ({ user, onLogout }) => {
 const TaskEditForm = ({ task, departments, members, mutation, taskId }) => {
   const [form, setForm] = useState({
     title: task.title || '',
+    description: task.description || '',
     departmentId: String(task.departmentId || ''),
     assigneeId: task.assigneeId ? String(task.assigneeId) : '',
     deadline: toDatetimeLocal(task.deadline),
@@ -91,6 +92,7 @@ const TaskEditForm = ({ task, departments, members, mutation, taskId }) => {
       taskId,
       payload: {
         title: form.title,
+        description: form.description,
         departmentId: form.departmentId ? Number(form.departmentId) : null,
         assigneeId: form.assigneeId ? Number(form.assigneeId) : null,
         deadline: form.deadline,
@@ -105,6 +107,17 @@ const TaskEditForm = ({ task, departments, members, mutation, taskId }) => {
       <h2 className="text-2xl font-bold text-gray-900">Cập nhật task</h2>
       {mutation.error && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{mutation.error.userMessage || mutation.error.message}</div>}
       <Field label="Tên task"><input name="title" value={form.title} onChange={handleChange} required className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500" /></Field>
+      <Field label="Mô tả task">
+        <textarea
+          name="description"
+          value={form.description}
+          onChange={handleChange}
+          maxLength={2000}
+          rows={4}
+          className="w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
+          placeholder="Mục tiêu, phạm vi, yêu cầu đầu ra của task..."
+        />
+      </Field>
       <Field label="Department"><select name="departmentId" value={form.departmentId} onChange={handleChange} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500"><option value="">Chưa gán ban</option>{departments.map((department) => <option key={department.id} value={department.id}>{department.name}</option>)}</select></Field>
       <Field label="Assignee"><select name="assigneeId" value={form.assigneeId} onChange={handleChange} disabled={!form.departmentId} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 disabled:bg-gray-50"><option value="">Chưa phân công</option>{assignableMembers.map((member) => <option key={member.userId} value={member.userId}>{member.name}</option>)}</select></Field>
       <Field label="Deadline"><input name="deadline" type="datetime-local" value={form.deadline} onChange={handleChange} required className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500" /></Field>

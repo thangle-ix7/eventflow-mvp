@@ -95,6 +95,23 @@ const taskApi = {
     return response.data;
   },
 
+  updateTaskWork: async ({ taskId, status, progressPercentage }) => {
+    if (!taskId) {
+      throw new Error('taskId không hợp lệ');
+    }
+
+    if (!status) {
+      throw new Error('status không hợp lệ');
+    }
+
+    const response = await apiClient.patch(`/tasks/${taskId}/work-update`, {
+      status,
+      progressPercentage,
+    });
+
+    return response.data;
+  },
+
   updateTaskAssignment: async ({ taskId, departmentId, assigneeId }) => {
     if (!taskId) {
       throw new Error('taskId không hợp lệ');
@@ -105,6 +122,35 @@ const taskApi = {
       assigneeId: assigneeId || null,
     });
 
+    return response.data;
+  },
+
+  getTaskReviews: async (taskId) => {
+    if (!taskId) {
+      throw new Error('taskId không hợp lệ');
+    }
+
+    const response = await apiClient.get(`/tasks/${taskId}/reviews`);
+    return response.data;
+  },
+
+  reviewTask: async ({ taskId, feedback, status }) => {
+    if (!taskId) {
+      throw new Error('taskId không hợp lệ');
+    }
+
+    if (!feedback?.trim()) {
+      throw new Error('Feedback không được để trống');
+    }
+
+    if (!status) {
+      throw new Error('Status mới không hợp lệ');
+    }
+
+    const response = await apiClient.post(`/tasks/${taskId}/review`, {
+      feedback,
+      status,
+    });
     return response.data;
   },
 

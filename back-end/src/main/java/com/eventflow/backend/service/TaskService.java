@@ -5,15 +5,20 @@ import com.eventflow.backend.dto.PageResponse;
 import com.eventflow.backend.dto.TaskAssignmentRequest;
 import com.eventflow.backend.dto.TaskRequestDTO;
 import com.eventflow.backend.dto.TaskResponseDTO;
+import com.eventflow.backend.dto.TaskReviewRequest;
+import com.eventflow.backend.dto.TaskReviewResponseDTO;
+import com.eventflow.backend.dto.TaskWorkUpdateRequest;
 import com.eventflow.backend.entity.Department;
 import com.eventflow.backend.entity.Event;
 import com.eventflow.backend.entity.Task;
+import com.eventflow.backend.entity.TaskReview;
 import com.eventflow.backend.entity.TaskStatus;
 import com.eventflow.backend.entity.User;
 import com.eventflow.backend.repository.DepartmentRepository;
 import com.eventflow.backend.repository.EventMemberRepository;
 import com.eventflow.backend.repository.EventRepository;
 import com.eventflow.backend.repository.TaskRepository;
+import com.eventflow.backend.repository.TaskReviewRepository;
 import com.eventflow.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -40,6 +45,7 @@ public class TaskService {
     private final DepartmentRepository departmentRepository;
     private final UserRepository userRepository;
     private final EventMemberRepository eventMemberRepository;
+    private final TaskReviewRepository taskReviewRepository;
     private final JdbcTemplate jdbcTemplate;
 
     @Transactional(readOnly = true)
@@ -151,6 +157,7 @@ public class TaskService {
                 .department(department)
                 .assignee(assignee)
                 .title(request.getTitle().trim())
+                .description(normalizeOptionalText(request.getDescription()))
                 .status(status)
                 .deadline(request.getDeadline())
                 .progressPercentage(resolveProgress(request.getProgressPercentage(), status, 0))
@@ -174,6 +181,7 @@ public class TaskService {
         task.setDepartment(department);
         task.setAssignee(assignee);
         task.setTitle(request.getTitle().trim());
+        task.setDescription(normalizeOptionalText(request.getDescription()));
         TaskStatus status = parseStatusOrDefault(request.getStatus(), task.getStatus());
         task.setStatus(status);
         task.setDeadline(request.getDeadline());
@@ -215,6 +223,27 @@ public class TaskService {
     }
 
     @Transactional
+    public TaskResponseDTO updateWork(Long taskId, TaskWorkUpdateRequest request) {
+        Task task = taskRepository.findByIdWithDetails(taskId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy task"));
+
+        TaskStatus previousStatus = task.getStatus();
+        TaskStatus status = parseStatus(request.getStatus());
+        task.setStatus(status);
+        task.setProgressPercentage(resolveProgress(
+                request.getProgressPercentage(),
+                status,
+                task.getProgressPercentage()));
+
+        Task savedTask = taskRepository.save(task);
+        if (previousStatus != status) {
+            recordStatusHistory(savedTask);
+        }
+
+        return mapToTaskResponse(savedTask);
+    }
+
+    @Transactional
     public TaskResponseDTO updateAssignment(Long taskId, TaskAssignmentRequest request) {
         Task task = taskRepository.findByIdWithDetails(taskId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy task"));
@@ -225,6 +254,56 @@ public class TaskService {
         task.setAssignee(resolveAssignee(eventId, request.getAssigneeId(), department));
 
         return mapToTaskResponse(taskRepository.save(task));
+    }
+
+    @Transactional(readOnly = true)
+    public List<TaskReviewResponseDTO> getTaskReviews(Long taskId) {
+        if (!taskRepository.existsById(taskId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy task");
+        }
+
+        return taskReviewRepository.findAllByTaskIdWithReviewer(taskId).stream()
+                .map(this::mapReviewToResponse)
+                .toList();
+    }
+
+    @Transactional
+    public TaskResponseDTO reviewTask(Long taskId, Long reviewerId, TaskReviewRequest request) {
+        Task task = taskRepository.findByIdWithDetails(taskId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy task"));
+
+        if (task.getStatus() != TaskStatus.IN_REVIEW) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chỉ review được task đang IN_REVIEW");
+        }
+
+        User reviewer = userRepository.findById(reviewerId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy người review"));
+
+        TaskStatus previousStatus = task.getStatus();
+        TaskStatus nextStatus = parseStatus(request.getStatus());
+        String feedback = validateFeedback(request.getFeedback());
+
+        task.setStatus(nextStatus);
+        if (nextStatus == TaskStatus.DONE) {
+            task.setProgressPercentage(100);
+        } else if (previousStatus == TaskStatus.DONE && task.getProgressPercentage() != null && task.getProgressPercentage() >= 100) {
+            task.setProgressPercentage(99);
+        }
+
+        taskReviewRepository.save(TaskReview.builder()
+                .task(task)
+                .reviewer(reviewer)
+                .statusBefore(previousStatus)
+                .statusAfter(nextStatus)
+                .feedback(feedback)
+                .build());
+
+        Task savedTask = taskRepository.save(task);
+        if (previousStatus != nextStatus) {
+            recordStatusHistory(savedTask);
+        }
+
+        return mapToTaskResponse(savedTask);
     }
 
     public TaskStatus parseStatus(String status) {
@@ -328,6 +407,7 @@ public class TaskService {
                 .departmentId(task.getDepartment() != null ? task.getDepartment().getId() : null)
                 .departmentName(task.getDepartment() != null ? task.getDepartment().getName() : "Chưa gán ban")
                 .title(task.getTitle())
+                .description(task.getDescription())
                 .status(task.getStatus())
                 .deadline(task.getDeadline())
                 .progressPercentage(task.getProgressPercentage() != null ? task.getProgressPercentage() : 0)
@@ -350,6 +430,43 @@ public class TaskService {
         }
 
         return requestedProgress;
+    }
+
+    private String validateFeedback(String feedback) {
+        if (feedback == null || feedback.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Feedback không được để trống");
+        }
+
+        String normalized = feedback.trim();
+        if (normalized.length() > 2000) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Feedback không được vượt quá 2000 ký tự");
+        }
+        return normalized;
+    }
+
+    private String normalizeOptionalText(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+
+        String normalized = value.trim();
+        if (normalized.length() > 2000) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mô tả task không được vượt quá 2000 ký tự");
+        }
+        return normalized;
+    }
+
+    private TaskReviewResponseDTO mapReviewToResponse(TaskReview review) {
+        return TaskReviewResponseDTO.builder()
+                .id(review.getId())
+                .taskId(review.getTask().getId())
+                .reviewerId(review.getReviewer().getId())
+                .reviewerName(review.getReviewer().getName())
+                .statusBefore(review.getStatusBefore())
+                .statusAfter(review.getStatusAfter())
+                .feedback(review.getFeedback())
+                .reviewedAt(review.getReviewedAt())
+                .build();
     }
 
     private void recordStatusHistory(Task task) {

@@ -14,9 +14,13 @@ import EventMembersPage from './pages/EventMembersPage';
 import MemberDetailPage from './pages/MemberDetailPage';
 import ProfilePage from './pages/ProfilePage';
 import TaskCreatePage from './pages/TaskCreatePage';
+import TaskAttachmentsPage from './pages/TaskAttachmentsPage';
 import TaskDetailPage from './pages/TaskDetailPage';
 import TaskEditPage from './pages/TaskEditPage';
 import TaskListPage from './pages/TaskListPage';
+import TaskReportsPage from './pages/TaskReportsPage';
+import TaskReviewsPage from './pages/TaskReviewsPage';
+import TaskUpdatePage from './pages/TaskUpdatePage';
 
 const EventDashboardPage = lazy(() => import('./pages/EventDashboardPage'));
 const DepartmentDashboardPage = lazy(() => import('./pages/DepartmentDashboardPage'));
@@ -109,6 +113,22 @@ function App() {
         <Route
           path="/events/:eventId/tasks/:taskId"
           element={<TaskDetailPage {...protectedProps} />}
+        />
+        <Route
+          path="/events/:eventId/tasks/:taskId/attachments"
+          element={<TaskAttachmentsPage {...protectedProps} />}
+        />
+        <Route
+          path="/events/:eventId/tasks/:taskId/reports"
+          element={<TaskReportsPage {...protectedProps} />}
+        />
+        <Route
+          path="/events/:eventId/tasks/:taskId/update"
+          element={<TaskUpdatePage {...protectedProps} />}
+        />
+        <Route
+          path="/events/:eventId/tasks/:taskId/reviews"
+          element={<TaskReviewsPage {...protectedProps} />}
         />
         <Route
           path="/events/:eventId/tasks/:taskId/edit"

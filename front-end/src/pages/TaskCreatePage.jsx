@@ -17,6 +17,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
   const isDepartmentLocked = Boolean(initialDepartmentId);
   const [form, setForm] = useState({
     title: '',
+    description: '',
     departmentId: initialDepartmentId,
     assigneeId: '',
     deadline: '',
@@ -60,6 +61,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
       eventId,
       payload: {
         title: form.title,
+        description: form.description,
         departmentId: form.departmentId ? Number(form.departmentId) : null,
         assigneeId: form.assigneeId ? Number(form.assigneeId) : null,
         deadline: form.deadline,
@@ -84,6 +86,17 @@ const TaskCreatePage = ({ user, onLogout }) => {
           {mutation.error && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{mutation.error.userMessage || mutation.error.message}</div>}
           <Field label="Tên task">
             <input name="title" value={form.title} onChange={handleChange} required maxLength={255} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500" />
+          </Field>
+          <Field label="Mô tả task">
+            <textarea
+              name="description"
+              value={form.description}
+              onChange={handleChange}
+              maxLength={2000}
+              rows={4}
+              className="w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
+              placeholder="Mục tiêu, phạm vi, yêu cầu đầu ra của task..."
+            />
           </Field>
           <Field label="Department">
             <select name="departmentId" value={form.departmentId} onChange={handleChange} disabled={isDepartmentLocked} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 disabled:bg-gray-50">

@@ -14,6 +14,7 @@ public class TaskResponseDTO {
     private Long departmentId;
     private String departmentName;
     private String title;
+    private String description;
     private TaskStatus status;
     private LocalDateTime deadline;
     private Integer progressPercentage;

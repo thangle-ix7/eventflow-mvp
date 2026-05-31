@@ -139,8 +139,10 @@ public class TaskReportService {
         task.setProgressPercentage(progressPercentage);
         if (progressPercentage >= 100) {
             task.setStatus(TaskStatus.DONE);
-        } else if (progressPercentage > 0 && task.getStatus() == TaskStatus.TODO) {
+        } else if (progressPercentage > 0 && (task.getStatus() == TaskStatus.TODO || task.getStatus() == TaskStatus.DONE)) {
             task.setStatus(TaskStatus.IN_PROGRESS);
+        } else if (progressPercentage == 0 && task.getStatus() == TaskStatus.DONE) {
+            task.setStatus(TaskStatus.TODO);
         }
         taskRepository.save(task);
         if (previousStatus != task.getStatus()) {

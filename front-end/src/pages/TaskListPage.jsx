@@ -124,6 +124,7 @@ const TaskListPage = ({ user, onLogout }) => {
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="font-semibold text-gray-900">{task.title}</p>
+                  {task.description && <p className="mt-1 line-clamp-2 text-sm text-gray-600">{task.description}</p>}
                   <p className="mt-1 text-sm text-gray-500">
                     {task.departmentName || 'Chưa gán ban'} • {task.assigneeName || 'Chưa phân công'} • Deadline {formatDate(task.deadline)}
                   </p>

@@ -20,6 +20,9 @@ public class TaskRequestDTO {
     @Size(max = 255, message = "Tiêu đề task không được vượt quá 255 ký tự")
     private String title;
 
+    @Size(max = 2000, message = "Mô tả task không được vượt quá 2000 ký tự")
+    private String description;
+
     private Long departmentId;
 
     private Long assigneeId;

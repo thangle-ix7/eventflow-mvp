@@ -31,7 +31,7 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             AND (:status IS NULL OR t.status = :status)
             AND (:departmentId IS NULL OR t.department.id = :departmentId)
             AND (:assigneeId IS NULL OR t.assignee.id = :assigneeId)
-            AND (:searchPattern IS NULL OR LOWER(t.title) LIKE :searchPattern)
+            AND (:searchPattern IS NULL OR LOWER(t.title) LIKE :searchPattern OR LOWER(COALESCE(t.description, '')) LIKE :searchPattern)
             """)
     List<Task> findAllByEventIdWithFilters(
             @Param("eventId") Long eventId,
@@ -50,7 +50,7 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             AND (:status IS NULL OR t.status = :status)
             AND (:departmentId IS NULL OR t.department.id = :departmentId)
             AND (:assigneeId IS NULL OR t.assignee.id = :assigneeId)
-            AND (:searchPattern IS NULL OR LOWER(t.title) LIKE :searchPattern)
+            AND (:searchPattern IS NULL OR LOWER(t.title) LIKE :searchPattern OR LOWER(COALESCE(t.description, '')) LIKE :searchPattern)
             """,
             countQuery = """
             SELECT COUNT(t) FROM Task t
@@ -58,7 +58,7 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             AND (:status IS NULL OR t.status = :status)
             AND (:departmentId IS NULL OR t.department.id = :departmentId)
             AND (:assigneeId IS NULL OR t.assignee.id = :assigneeId)
-            AND (:searchPattern IS NULL OR LOWER(t.title) LIKE :searchPattern)
+            AND (:searchPattern IS NULL OR LOWER(t.title) LIKE :searchPattern OR LOWER(COALESCE(t.description, '')) LIKE :searchPattern)
             """)
     Page<Task> findPageByEventIdWithFilters(
             @Param("eventId") Long eventId,
@@ -77,7 +77,7 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             AND (:status IS NULL OR t.status = :status)
             AND (:departmentId IS NULL OR t.department.id = :departmentId)
             AND (:assigneeId IS NULL OR t.assignee.id = :assigneeId)
-            AND (:searchPattern IS NULL OR LOWER(t.title) LIKE :searchPattern)
+            AND (:searchPattern IS NULL OR LOWER(t.title) LIKE :searchPattern OR LOWER(COALESCE(t.description, '')) LIKE :searchPattern)
             AND t.deadline >= :fromDateTime
             AND t.deadline < :toDateTime
             """,
@@ -87,7 +87,7 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             AND (:status IS NULL OR t.status = :status)
             AND (:departmentId IS NULL OR t.department.id = :departmentId)
             AND (:assigneeId IS NULL OR t.assignee.id = :assigneeId)
-            AND (:searchPattern IS NULL OR LOWER(t.title) LIKE :searchPattern)
+            AND (:searchPattern IS NULL OR LOWER(t.title) LIKE :searchPattern OR LOWER(COALESCE(t.description, '')) LIKE :searchPattern)
             AND t.deadline >= :fromDateTime
             AND t.deadline < :toDateTime
             """)
