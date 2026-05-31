@@ -13,12 +13,12 @@ const dashboardApi = {
     return response.data;
   },
 
-  getTaskTrend: async (eventId) => {
+  getTaskTrend: async (eventId, params = {}) => {
     if (!eventId) {
       throw new Error('eventId không hợp lệ');
     }
 
-    const response = await apiClient.get(`/events/${eventId}/dashboard/task-trend`);
+    const response = await apiClient.get(`/events/${eventId}/dashboard/task-trend`, { params });
     return response.data;
   },
 
@@ -40,12 +40,12 @@ const dashboardApi = {
     return response.data;
   },
 
-  getTasksByStatus: async (eventId) => {
+  getTasksByStatus: async (eventId, params = {}) => {
     if (!eventId) {
       throw new Error('eventId không hợp lệ');
     }
 
-    const response = await apiClient.get(`/events/${eventId}/dashboard/tasks-by-status`);
+    const response = await apiClient.get(`/events/${eventId}/dashboard/tasks-by-status`, { params });
     return response.data;
   },
 
@@ -60,13 +60,14 @@ const dashboardApi = {
     return response.data;
   },
 
-  getDepartmentTaskTrend: async ({ eventId, departmentId }) => {
+  getDepartmentTaskTrend: async ({ eventId, departmentId, fromDate, toDate }) => {
     if (!eventId || !departmentId) {
       throw new Error('eventId/departmentId không hợp lệ');
     }
 
     const response = await apiClient.get(
-      `/events/${eventId}/departments/${departmentId}/dashboard/task-trend`
+      `/events/${eventId}/departments/${departmentId}/dashboard/task-trend`,
+      { params: { fromDate, toDate } }
     );
     return response.data;
   },
@@ -82,13 +83,14 @@ const dashboardApi = {
     return response.data;
   },
 
-  getDepartmentTasksByStatus: async ({ eventId, departmentId }) => {
+  getDepartmentTasksByStatus: async ({ eventId, departmentId, fromDate, toDate }) => {
     if (!eventId || !departmentId) {
       throw new Error('eventId/departmentId không hợp lệ');
     }
 
     const response = await apiClient.get(
-      `/events/${eventId}/departments/${departmentId}/dashboard/tasks-by-status`
+      `/events/${eventId}/departments/${departmentId}/dashboard/tasks-by-status`,
+      { params: { fromDate, toDate } }
     );
     return response.data;
   },

@@ -20,6 +20,8 @@ const taskApi = {
     departmentId,
     assigneeId,
     search,
+    fromDate,
+    toDate,
   }) => {
     if (!eventId) {
       throw new Error('eventId không hợp lệ');
@@ -35,6 +37,8 @@ const taskApi = {
         departmentId: departmentId || undefined,
         assigneeId: assigneeId || undefined,
         search: search || undefined,
+        fromDate: fromDate || undefined,
+        toDate: toDate || undefined,
       },
     });
     return response.data;

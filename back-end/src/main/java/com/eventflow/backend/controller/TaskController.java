@@ -15,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -62,6 +63,8 @@ public class TaskController {
             @RequestParam(required = false) Long departmentId,
             @RequestParam(required = false) Long assigneeId,
             @RequestParam(required = false) String search,
+            @RequestParam(required = false) LocalDate fromDate,
+            @RequestParam(required = false) LocalDate toDate,
             Authentication authentication) {
 
         Long userId = (Long) authentication.getPrincipal();
@@ -78,7 +81,9 @@ public class TaskController {
                 status,
                 departmentId,
                 assigneeId,
-                search));
+                search,
+                fromDate,
+                toDate));
     }
 
     @GetMapping("/tasks/{taskId}")

@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -38,13 +39,15 @@ public class DashboardController {
     @GetMapping("/events/{eventId}/dashboard/task-trend")
     public ResponseEntity<List<ChartPointDTO>> getEventTaskTrend(
             @PathVariable Long eventId,
+            @RequestParam(required = false) LocalDate fromDate,
+            @RequestParam(required = false) LocalDate toDate,
             Authentication authentication) {
 
         if (!eventSecurityService.isLeaderOfEvent(eventId, currentUserId(authentication))) {
             return ResponseEntity.status(403).build();
         }
 
-        return ResponseEntity.ok(dashboardService.getEventTaskTrend(eventId));
+        return ResponseEntity.ok(dashboardService.getEventTaskTrend(eventId, fromDate, toDate));
     }
 
     @GetMapping("/events/{eventId}/dashboard/tasks-by-department")
@@ -74,13 +77,15 @@ public class DashboardController {
     @GetMapping("/events/{eventId}/dashboard/tasks-by-status")
     public ResponseEntity<List<CategoryMetricDTO>> getEventTasksByStatus(
             @PathVariable Long eventId,
+            @RequestParam(required = false) LocalDate fromDate,
+            @RequestParam(required = false) LocalDate toDate,
             Authentication authentication) {
 
         if (!eventSecurityService.isLeaderOfEvent(eventId, currentUserId(authentication))) {
             return ResponseEntity.status(403).build();
         }
 
-        return ResponseEntity.ok(dashboardService.getEventTasksByStatus(eventId));
+        return ResponseEntity.ok(dashboardService.getEventTasksByStatus(eventId, fromDate, toDate));
     }
 
     @GetMapping("/events/{eventId}/departments/{departmentId}/dashboard-summary")
@@ -100,13 +105,15 @@ public class DashboardController {
     public ResponseEntity<List<ChartPointDTO>> getDepartmentTaskTrend(
             @PathVariable Long eventId,
             @PathVariable Long departmentId,
+            @RequestParam(required = false) LocalDate fromDate,
+            @RequestParam(required = false) LocalDate toDate,
             Authentication authentication) {
 
         if (!eventSecurityService.isLeaderOfEvent(eventId, currentUserId(authentication))) {
             return ResponseEntity.status(403).build();
         }
 
-        return ResponseEntity.ok(dashboardService.getDepartmentTaskTrend(eventId, departmentId));
+        return ResponseEntity.ok(dashboardService.getDepartmentTaskTrend(eventId, departmentId, fromDate, toDate));
     }
 
     @GetMapping("/events/{eventId}/departments/{departmentId}/dashboard/tasks-by-assignee")
@@ -126,13 +133,15 @@ public class DashboardController {
     public ResponseEntity<List<CategoryMetricDTO>> getDepartmentTasksByStatus(
             @PathVariable Long eventId,
             @PathVariable Long departmentId,
+            @RequestParam(required = false) LocalDate fromDate,
+            @RequestParam(required = false) LocalDate toDate,
             Authentication authentication) {
 
         if (!eventSecurityService.isLeaderOfEvent(eventId, currentUserId(authentication))) {
             return ResponseEntity.status(403).build();
         }
 
-        return ResponseEntity.ok(dashboardService.getDepartmentTasksByStatus(eventId, departmentId));
+        return ResponseEntity.ok(dashboardService.getDepartmentTasksByStatus(eventId, departmentId, fromDate, toDate));
     }
 
     private Long currentUserId(Authentication authentication) {

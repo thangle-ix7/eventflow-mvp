@@ -11,6 +11,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.time.LocalDateTime;
 
 @Repository
 public interface TaskRepository extends JpaRepository<Task, Long> {
@@ -50,6 +51,8 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             AND (:departmentId IS NULL OR t.department.id = :departmentId)
             AND (:assigneeId IS NULL OR t.assignee.id = :assigneeId)
             AND (:searchPattern IS NULL OR LOWER(t.title) LIKE :searchPattern)
+            AND (:fromDateTime IS NULL OR t.deadline >= :fromDateTime)
+            AND (:toDateTime IS NULL OR t.deadline < :toDateTime)
             """,
             countQuery = """
             SELECT COUNT(t) FROM Task t
@@ -58,6 +61,8 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             AND (:departmentId IS NULL OR t.department.id = :departmentId)
             AND (:assigneeId IS NULL OR t.assignee.id = :assigneeId)
             AND (:searchPattern IS NULL OR LOWER(t.title) LIKE :searchPattern)
+            AND (:fromDateTime IS NULL OR t.deadline >= :fromDateTime)
+            AND (:toDateTime IS NULL OR t.deadline < :toDateTime)
             """)
     Page<Task> findPageByEventIdWithFilters(
             @Param("eventId") Long eventId,
@@ -65,6 +70,8 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             @Param("departmentId") Long departmentId,
             @Param("assigneeId") Long assigneeId,
             @Param("searchPattern") String searchPattern,
+            @Param("fromDateTime") LocalDateTime fromDateTime,
+            @Param("toDateTime") LocalDateTime toDateTime,
             Pageable pageable);
 
     @Query("SELECT t FROM Task t JOIN FETCH t.event LEFT JOIN FETCH t.department LEFT JOIN FETCH t.assignee WHERE t.id = :taskId")

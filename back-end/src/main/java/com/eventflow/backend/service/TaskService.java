@@ -27,6 +27,8 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 import java.util.Map;
 import java.util.LinkedHashMap;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.stream.Collectors;
 
 @Service
@@ -95,7 +97,9 @@ public class TaskService {
             String status,
             Long departmentId,
             Long assigneeId,
-            String search) {
+            String search,
+            LocalDate fromDate,
+            LocalDate toDate) {
 
         var pageable = PageRequest.of(
                 Math.max(page, 0),
@@ -108,6 +112,8 @@ public class TaskService {
                         departmentId,
                         assigneeId,
                         normalizeSearch(search),
+                        startOfDay(fromDate),
+                        endExclusive(toDate),
                         pageable)
                 .map(this::mapToTaskResponse));
     }
@@ -277,6 +283,14 @@ public class TaskService {
             return null;
         }
         return "%" + search.trim().toLowerCase() + "%";
+    }
+
+    private LocalDateTime startOfDay(LocalDate date) {
+        return date != null ? date.atStartOfDay() : null;
+    }
+
+    private LocalDateTime endExclusive(LocalDate date) {
+        return date != null ? date.plusDays(1).atStartOfDay() : null;
     }
 
     private Sort.Direction resolveDirection(String direction) {

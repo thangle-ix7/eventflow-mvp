@@ -9,25 +9,40 @@ import taskApi from '../api/taskApi';
 import { formatDate } from '../utils/dateUtils';
 
 const PAGE_SIZE = 8;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+const toDateInput = (date) => date.toISOString().slice(0, 10);
+const addDays = (date, days) => new Date(date.getTime() + days * MS_PER_DAY);
+const getWeekRange = (eventDate, weekIndex) => {
+  const start = new Date(eventDate || Date.now());
+  start.setHours(0, 0, 0, 0);
+  const from = addDays(start, weekIndex * 7);
+  const to = addDays(from, 6);
+  return { fromDate: toDateInput(from), toDate: toDateInput(to) };
+};
 
 const EventDashboardPage = ({ user, onLogout }) => {
   const { eventId } = useParams();
   const [page, setPage] = useState(0);
+  const [weekIndex, setWeekIndex] = useState(0);
 
   const eventQuery = useQuery({ queryKey: ['event', eventId], queryFn: () => eventApi.getEvent(eventId), enabled: Boolean(eventId) });
+  const event = eventQuery.data;
+  const weekRange = getWeekRange(event?.startTime || event?.eventDate, weekIndex);
   const summaryQuery = useQuery({ queryKey: ['dashboardSummary', eventId], queryFn: () => dashboardApi.getSummary(eventId), enabled: Boolean(eventId) });
-  const trendQuery = useQuery({ queryKey: ['eventTaskStatusTrend', eventId], queryFn: () => dashboardApi.getTaskTrend(eventId), enabled: Boolean(eventId) });
-  const statusQuery = useQuery({ queryKey: ['eventTasksByStatus', eventId], queryFn: () => dashboardApi.getTasksByStatus(eventId), enabled: Boolean(eventId) });
+  const trendQuery = useQuery({ queryKey: ['eventTaskStatusTrend', eventId, weekRange.fromDate, weekRange.toDate], queryFn: () => dashboardApi.getTaskTrend(eventId, weekRange), enabled: Boolean(eventId && event) });
+  const statusQuery = useQuery({ queryKey: ['eventTasksByStatus', eventId, weekRange.fromDate, weekRange.toDate], queryFn: () => dashboardApi.getTasksByStatus(eventId, weekRange), enabled: Boolean(eventId && event) });
   const tasksQuery = useQuery({
-    queryKey: ['eventDashboardTasks', eventId, page],
-    queryFn: () => taskApi.getEventTaskPage({ eventId, page, size: PAGE_SIZE, sort: 'deadline', direction: 'asc' }),
-    enabled: Boolean(eventId),
+    queryKey: ['eventDashboardTasks', eventId, page, weekRange.fromDate, weekRange.toDate],
+    queryFn: () => taskApi.getEventTaskPage({ eventId, page, size: PAGE_SIZE, sort: 'deadline', direction: 'asc', ...weekRange }),
+    enabled: Boolean(eventId && event),
   });
 
-  const event = eventQuery.data;
   const summary = summaryQuery.data;
+  const statusData = normalizeStatusData(statusQuery.data);
+  const weeklyTotal = statusData.reduce((sum, item) => sum + (item.totalTasks || 0), 0);
   const tasks = tasksQuery.data?.content || [];
-  const isLoading = summaryQuery.isLoading || trendQuery.isLoading || statusQuery.isLoading || tasksQuery.isLoading;
+  const isLoading = eventQuery.isLoading || summaryQuery.isLoading || trendQuery.isLoading || statusQuery.isLoading || tasksQuery.isLoading;
   const error = summaryQuery.error || trendQuery.error || statusQuery.error || tasksQuery.error;
 
   return (
@@ -46,6 +61,7 @@ const EventDashboardPage = ({ user, onLogout }) => {
             </div>
             <span className="h-fit w-fit rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700">{event?.name || 'Event'}</span>
           </div>
+          <WeekControl weekIndex={weekIndex} setWeekIndex={(next) => { setPage(0); setWeekIndex(next); }} weekRange={weekRange} />
         </section>
 
         {isLoading && <LoadingBlock message="Đang tải dashboard..." />}
@@ -54,10 +70,10 @@ const EventDashboardPage = ({ user, onLogout }) => {
         {summary && !error && (
           <>
             <section className="grid gap-4 md:grid-cols-4">
-              <MetricCard label="Tổng task" value={summary.totalTasks} />
-              <MetricCard label="TODO" value={statusValue(statusQuery.data, 'TODO')} />
-              <MetricCard label="IN_PROGRESS" value={statusValue(statusQuery.data, 'IN_PROGRESS')} />
-              <MetricCard label="DONE" value={statusValue(statusQuery.data, 'DONE')} />
+              <MetricCard label="Tổng task trong tuần" value={weeklyTotal} />
+              <MetricCard label="TODO" value={statusValue(statusData, 'TODO')} />
+              <MetricCard label="IN_PROGRESS" value={statusValue(statusData, 'IN_PROGRESS')} />
+              <MetricCard label="DONE" value={statusValue(statusData, 'DONE')} />
             </section>
 
             <section className="grid gap-4 lg:grid-cols-[1.25fr_0.75fr]">
@@ -65,7 +81,7 @@ const EventDashboardPage = ({ user, onLogout }) => {
                 <StatusLineChart data={trendQuery.data || []} />
               </ChartPanel>
               <ChartPanel icon={<BarChart3 size={18} />} title="Column chart task theo status" description="Số lượng task hiện tại theo từng trạng thái.">
-                <StatusColumnChart data={normalizeStatusData(statusQuery.data)} />
+                <StatusColumnChart data={statusData} />
               </ChartPanel>
             </section>
 
@@ -83,6 +99,18 @@ const normalizeStatusData = (data = []) => STATUS_ORDER.map((status) => ({
   label: status,
   totalTasks: statusValue(data, status),
 }));
+
+const WeekControl = ({ weekIndex, setWeekIndex, weekRange }) => (
+  <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+    <div className="text-sm font-semibold text-gray-700">
+      Tuần {weekIndex + 1}: {weekRange.fromDate} đến {weekRange.toDate}
+    </div>
+    <div className="flex gap-2">
+      <button type="button" onClick={() => setWeekIndex(Math.max(weekIndex - 1, 0))} disabled={weekIndex === 0} className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 disabled:opacity-50">Tuần trước</button>
+      <button type="button" onClick={() => setWeekIndex(weekIndex + 1)} className="rounded-lg border border-blue-600 px-3 py-2 text-sm font-semibold text-blue-600 hover:bg-blue-50">Tuần sau</button>
+    </div>
+  </div>
+);
 
 const MetricCard = ({ label, value }) => (
   <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">

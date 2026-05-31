@@ -13,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -82,12 +83,20 @@ public class DashboardService {
     }
 
     public List<ChartPointDTO> getEventTaskTrend(Long eventId) {
-        return getTaskTrend(eventId, null);
+        return getEventTaskTrend(eventId, null, null);
+    }
+
+    public List<ChartPointDTO> getEventTaskTrend(Long eventId, LocalDate fromDate, LocalDate toDate) {
+        return getTaskTrend(eventId, null, fromDate, toDate);
     }
 
     public List<ChartPointDTO> getDepartmentTaskTrend(Long eventId, Long departmentId) {
+        return getDepartmentTaskTrend(eventId, departmentId, null, null);
+    }
+
+    public List<ChartPointDTO> getDepartmentTaskTrend(Long eventId, Long departmentId, LocalDate fromDate, LocalDate toDate) {
         assertDepartmentExists(eventId, departmentId);
-        return getTaskTrend(eventId, departmentId);
+        return getTaskTrend(eventId, departmentId, fromDate, toDate);
     }
 
     public List<CategoryMetricDTO> getEventTasksByDepartment(Long eventId) {
@@ -129,7 +138,11 @@ public class DashboardService {
     }
 
     public List<CategoryMetricDTO> getEventTasksByStatus(Long eventId) {
-        return getTasksByStatus(eventId, null);
+        return getEventTasksByStatus(eventId, null, null);
+    }
+
+    public List<CategoryMetricDTO> getEventTasksByStatus(Long eventId, LocalDate fromDate, LocalDate toDate) {
+        return getTasksByStatus(eventId, null, fromDate, toDate);
     }
 
     public List<CategoryMetricDTO> getDepartmentTasksByAssignee(Long eventId, Long departmentId) {
@@ -153,19 +166,23 @@ public class DashboardService {
     }
 
     public List<CategoryMetricDTO> getDepartmentTasksByStatus(Long eventId, Long departmentId) {
-        assertDepartmentExists(eventId, departmentId);
-        return getTasksByStatus(eventId, departmentId);
+        return getDepartmentTasksByStatus(eventId, departmentId, null, null);
     }
 
-    private List<ChartPointDTO> getTaskTrend(Long eventId, Long departmentId) {
+    public List<CategoryMetricDTO> getDepartmentTasksByStatus(Long eventId, Long departmentId, LocalDate fromDate, LocalDate toDate) {
+        assertDepartmentExists(eventId, departmentId);
+        return getTasksByStatus(eventId, departmentId, fromDate, toDate);
+    }
+
+    private List<ChartPointDTO> getTaskTrend(Long eventId, Long departmentId, LocalDate fromDate, LocalDate toDate) {
         String departmentClause = departmentId == null ? "" : " AND department_id = ? ";
-        Object[] params = departmentId == null
-                ? new Object[]{eventId, eventId}
-                : new Object[]{eventId, eventId, departmentId};
+        String dateClause = fromDate == null || toDate == null ? "" : " AND deadline >= ? AND deadline < (?::date + INTERVAL '1 day') ";
+        Object[] params = buildTrendParams(eventId, departmentId, fromDate, toDate);
 
         return jdbcTemplate.query("""
                 WITH event_start AS (
-                    SELECT DATE_TRUNC('day', event_date) AS start_day
+                    SELECT COALESCE(?::date, DATE_TRUNC('day', event_date)::date) AS start_day,
+                           COALESCE(?::date, DATE_TRUNC('day', event_date)::date) AS requested_end_day
                     FROM events
                     WHERE id = ?
                 ),
@@ -174,13 +191,14 @@ public class DashboardService {
                     FROM tasks
                     WHERE event_id = ?
                     """ + departmentClause + """
+                    """ + dateClause + """
                 ),
                 bounds AS (
                     SELECT
                         es.start_day,
                         GREATEST(
                             es.start_day,
-                            COALESCE(DATE_TRUNC('day', MAX(ft.deadline)), es.start_day)
+                            COALESCE(es.requested_end_day, DATE_TRUNC('day', MAX(ft.deadline))::date, es.start_day)
                         ) AS end_day
                     FROM event_start es
                     LEFT JOIN filtered_tasks ft ON TRUE
@@ -216,11 +234,34 @@ public class DashboardService {
                 .build(), params);
     }
 
-    private List<CategoryMetricDTO> getTasksByStatus(Long eventId, Long departmentId) {
+    private Object[] buildTrendParams(Long eventId, Long departmentId, LocalDate fromDate, LocalDate toDate) {
+        java.util.ArrayList<Object> params = new java.util.ArrayList<>();
+        params.add(fromDate);
+        params.add(toDate);
+        params.add(eventId);
+        params.add(eventId);
+        if (departmentId != null) {
+            params.add(departmentId);
+        }
+        if (fromDate != null && toDate != null) {
+            params.add(fromDate);
+            params.add(toDate);
+        }
+        return params.toArray();
+    }
+
+    private List<CategoryMetricDTO> getTasksByStatus(Long eventId, Long departmentId, LocalDate fromDate, LocalDate toDate) {
         String departmentClause = departmentId == null ? "" : " AND department_id = ? ";
-        Object[] params = departmentId == null
-                ? new Object[]{eventId}
-                : new Object[]{eventId, departmentId};
+        String dateClause = fromDate == null || toDate == null ? "" : " AND deadline >= ? AND deadline < (?::date + INTERVAL '1 day') ";
+        java.util.ArrayList<Object> params = new java.util.ArrayList<>();
+        params.add(eventId);
+        if (departmentId != null) {
+            params.add(departmentId);
+        }
+        if (fromDate != null && toDate != null) {
+            params.add(fromDate);
+            params.add(toDate);
+        }
 
         return jdbcTemplate.query("""
                 SELECT status AS label,
@@ -228,6 +269,7 @@ public class DashboardService {
                 FROM tasks
                 WHERE event_id = ?
                 """ + departmentClause + """
+                """ + dateClause + """
                 GROUP BY status
                 ORDER BY CASE status
                     WHEN 'TODO' THEN 1
@@ -240,7 +282,7 @@ public class DashboardService {
                 .totalTasks(rs.getLong("total_tasks"))
                 .completedTasks(0L)
                 .overdueTasksCount(0L)
-                .build(), params);
+                .build(), params.toArray());
     }
 
     private Long countTasks(Long eventId, Long departmentId, String status) {
