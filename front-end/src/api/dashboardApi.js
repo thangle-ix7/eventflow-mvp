@@ -40,6 +40,15 @@ const dashboardApi = {
     return response.data;
   },
 
+  getTasksByStatus: async (eventId) => {
+    if (!eventId) {
+      throw new Error('eventId không hợp lệ');
+    }
+
+    const response = await apiClient.get(`/events/${eventId}/dashboard/tasks-by-status`);
+    return response.data;
+  },
+
   getDepartmentSummary: async ({ eventId, departmentId }) => {
     if (!eventId || !departmentId) {
       throw new Error('eventId/departmentId không hợp lệ');
@@ -69,6 +78,17 @@ const dashboardApi = {
 
     const response = await apiClient.get(
       `/events/${eventId}/departments/${departmentId}/dashboard/tasks-by-assignee`
+    );
+    return response.data;
+  },
+
+  getDepartmentTasksByStatus: async ({ eventId, departmentId }) => {
+    if (!eventId || !departmentId) {
+      throw new Error('eventId/departmentId không hợp lệ');
+    }
+
+    const response = await apiClient.get(
+      `/events/${eventId}/departments/${departmentId}/dashboard/tasks-by-status`
     );
     return response.data;
   },

@@ -16,6 +16,7 @@ import com.eventflow.backend.repository.EventRepository;
 import com.eventflow.backend.repository.TaskRepository;
 import com.eventflow.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
@@ -37,6 +38,7 @@ public class TaskService {
     private final DepartmentRepository departmentRepository;
     private final UserRepository userRepository;
     private final EventMemberRepository eventMemberRepository;
+    private final JdbcTemplate jdbcTemplate;
 
     @Transactional(readOnly = true)
     public Long getEventIdByTaskId(Long taskId) {
@@ -137,7 +139,9 @@ public class TaskService {
                 .progressPercentage(resolveProgress(request.getProgressPercentage(), status, 0))
                 .build();
 
-        return mapToTaskResponse(taskRepository.save(task));
+        Task savedTask = taskRepository.save(task);
+        recordStatusHistory(savedTask);
+        return mapToTaskResponse(savedTask);
     }
 
     @Transactional
@@ -146,6 +150,7 @@ public class TaskService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy task"));
 
         Long eventId = task.getEvent().getId();
+        TaskStatus previousStatus = task.getStatus();
         Department department = resolveDepartment(eventId, request.getDepartmentId());
         User assignee = resolveAssignee(eventId, request.getAssigneeId(), department);
 
@@ -160,7 +165,11 @@ public class TaskService {
                 status,
                 task.getProgressPercentage()));
 
-        return mapToTaskResponse(taskRepository.save(task));
+        Task savedTask = taskRepository.save(task);
+        if (previousStatus != status) {
+            recordStatusHistory(savedTask);
+        }
+        return mapToTaskResponse(savedTask);
     }
 
     @Transactional
@@ -176,11 +185,16 @@ public class TaskService {
     public Task updateStatus(Long taskId, TaskStatus status) {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy task"));
+        TaskStatus previousStatus = task.getStatus();
         task.setStatus(status);
         if (status == TaskStatus.DONE) {
             task.setProgressPercentage(100);
         }
-        return taskRepository.save(task);
+        Task savedTask = taskRepository.save(task);
+        if (previousStatus != status) {
+            recordStatusHistory(savedTask);
+        }
+        return savedTask;
     }
 
     @Transactional
@@ -311,5 +325,16 @@ public class TaskService {
         }
 
         return requestedProgress;
+    }
+
+    private void recordStatusHistory(Task task) {
+        jdbcTemplate.update("""
+                INSERT INTO task_status_history (task_id, event_id, department_id, status, changed_at)
+                VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+                """,
+                task.getId(),
+                task.getEvent().getId(),
+                task.getDepartment() != null ? task.getDepartment().getId() : null,
+                task.getStatus().name());
     }
 }

@@ -128,6 +128,10 @@ public class DashboardService {
                 .build(), eventId);
     }
 
+    public List<CategoryMetricDTO> getEventTasksByStatus(Long eventId) {
+        return getTasksByStatus(eventId, null);
+    }
+
     public List<CategoryMetricDTO> getDepartmentTasksByAssignee(Long eventId, Long departmentId) {
         assertDepartmentExists(eventId, departmentId);
         return jdbcTemplate.query("""
@@ -148,6 +152,11 @@ public class DashboardService {
                 .build(), eventId, departmentId);
     }
 
+    public List<CategoryMetricDTO> getDepartmentTasksByStatus(Long eventId, Long departmentId) {
+        assertDepartmentExists(eventId, departmentId);
+        return getTasksByStatus(eventId, departmentId);
+    }
+
     private List<ChartPointDTO> getTaskTrend(Long eventId, Long departmentId) {
         String departmentClause = departmentId == null ? "" : " AND department_id = ? ";
         Object[] params = departmentId == null
@@ -155,22 +164,49 @@ public class DashboardService {
                 : new Object[]{eventId, departmentId};
 
         return jdbcTemplate.query("""
-                SELECT TO_CHAR(DATE_TRUNC('day', deadline), 'YYYY-MM-DD') AS label,
+                SELECT TO_CHAR(DATE_TRUNC('day', changed_at), 'YYYY-MM-DD') AS label,
                        COUNT(*) AS total_tasks,
                        COALESCE(SUM(CASE WHEN status = 'TODO' THEN 1 ELSE 0 END), 0) AS todo_tasks,
                        COALESCE(SUM(CASE WHEN status = 'IN_PROGRESS' THEN 1 ELSE 0 END), 0) AS in_progress_tasks,
                        COALESCE(SUM(CASE WHEN status = 'DONE' THEN 1 ELSE 0 END), 0) AS completed_tasks
-                FROM tasks
+                FROM task_status_history
                 WHERE event_id = ?
                 """ + departmentClause + """
-                GROUP BY DATE_TRUNC('day', deadline)
-                ORDER BY DATE_TRUNC('day', deadline)
+                GROUP BY DATE_TRUNC('day', changed_at)
+                ORDER BY DATE_TRUNC('day', changed_at)
                 """, (rs, rowNum) -> ChartPointDTO.builder()
                 .label(rs.getString("label"))
                 .totalTasks(rs.getLong("total_tasks"))
                 .todoTasks(rs.getLong("todo_tasks"))
                 .inProgressTasks(rs.getLong("in_progress_tasks"))
                 .completedTasks(rs.getLong("completed_tasks"))
+                .build(), params);
+    }
+
+    private List<CategoryMetricDTO> getTasksByStatus(Long eventId, Long departmentId) {
+        String departmentClause = departmentId == null ? "" : " AND department_id = ? ";
+        Object[] params = departmentId == null
+                ? new Object[]{eventId}
+                : new Object[]{eventId, departmentId};
+
+        return jdbcTemplate.query("""
+                SELECT status AS label,
+                       COUNT(*) AS total_tasks
+                FROM tasks
+                WHERE event_id = ?
+                """ + departmentClause + """
+                GROUP BY status
+                ORDER BY CASE status
+                    WHEN 'TODO' THEN 1
+                    WHEN 'IN_PROGRESS' THEN 2
+                    WHEN 'DONE' THEN 3
+                    ELSE 4
+                END
+                """, (rs, rowNum) -> CategoryMetricDTO.builder()
+                .label(rs.getString("label"))
+                .totalTasks(rs.getLong("total_tasks"))
+                .completedTasks(0L)
+                .overdueTasksCount(0L)
                 .build(), params);
     }
 

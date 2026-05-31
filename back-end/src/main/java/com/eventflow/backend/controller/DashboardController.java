@@ -71,6 +71,18 @@ public class DashboardController {
         return ResponseEntity.ok(dashboardService.getEventTasksByAssignee(eventId));
     }
 
+    @GetMapping("/events/{eventId}/dashboard/tasks-by-status")
+    public ResponseEntity<List<CategoryMetricDTO>> getEventTasksByStatus(
+            @PathVariable Long eventId,
+            Authentication authentication) {
+
+        if (!eventSecurityService.isLeaderOfEvent(eventId, currentUserId(authentication))) {
+            return ResponseEntity.status(403).build();
+        }
+
+        return ResponseEntity.ok(dashboardService.getEventTasksByStatus(eventId));
+    }
+
     @GetMapping("/events/{eventId}/departments/{departmentId}/dashboard-summary")
     public ResponseEntity<DepartmentDashboardSummaryDTO> getDepartmentDashboardSummary(
             @PathVariable Long eventId,
@@ -108,6 +120,19 @@ public class DashboardController {
         }
 
         return ResponseEntity.ok(dashboardService.getDepartmentTasksByAssignee(eventId, departmentId));
+    }
+
+    @GetMapping("/events/{eventId}/departments/{departmentId}/dashboard/tasks-by-status")
+    public ResponseEntity<List<CategoryMetricDTO>> getDepartmentTasksByStatus(
+            @PathVariable Long eventId,
+            @PathVariable Long departmentId,
+            Authentication authentication) {
+
+        if (!eventSecurityService.isLeaderOfEvent(eventId, currentUserId(authentication))) {
+            return ResponseEntity.status(403).build();
+        }
+
+        return ResponseEntity.ok(dashboardService.getDepartmentTasksByStatus(eventId, departmentId));
     }
 
     private Long currentUserId(Authentication authentication) {
