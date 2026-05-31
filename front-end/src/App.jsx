@@ -6,6 +6,8 @@ import DepartmentCreatePage from './pages/DepartmentCreatePage';
 import DepartmentDashboardPage from './pages/DepartmentDashboardPage';
 import DepartmentDetailPage from './pages/DepartmentDetailPage';
 import DepartmentListPage from './pages/DepartmentListPage';
+import DepartmentMembersPage from './pages/DepartmentMembersPage';
+import DepartmentTasksPage from './pages/DepartmentTasksPage';
 import EventCreatePage from './pages/EventCreatePage';
 import EventDashboardPage from './pages/EventDashboardPage';
 import EventDetailPage from './pages/EventDetailPage';
@@ -106,6 +108,14 @@ function App() {
         <Route
           path="/events/:eventId/departments/:departmentId/dashboard"
           element={<DepartmentDashboardPage {...protectedProps} />}
+        />
+        <Route
+          path="/events/:eventId/departments/:departmentId/members"
+          element={<DepartmentMembersPage {...protectedProps} />}
+        />
+        <Route
+          path="/events/:eventId/departments/:departmentId/tasks"
+          element={<DepartmentTasksPage {...protectedProps} />}
         />
       </Route>
       <Route path="*" element={<Navigate to={user ? '/' : '/login'} replace />} />

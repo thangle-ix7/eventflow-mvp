@@ -11,7 +11,6 @@ import {
 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import eventApi from '../api/eventApi';
-import eventMemberApi from '../api/eventMemberApi';
 import { formatDate } from '../utils/dateUtils';
 
 const EventDetailPage = ({ user, onLogout }) => {
@@ -20,12 +19,6 @@ const EventDetailPage = ({ user, onLogout }) => {
   const eventQuery = useQuery({
     queryKey: ['event', eventId],
     queryFn: () => eventApi.getEvent(eventId),
-    enabled: Boolean(eventId),
-  });
-
-  const membersQuery = useQuery({
-    queryKey: ['eventMembers', eventId],
-    queryFn: () => eventMemberApi.getMembers(eventId),
     enabled: Boolean(eventId),
   });
 
@@ -110,7 +103,7 @@ const EventDetailPage = ({ user, onLogout }) => {
                 to={`/events/${eventId}/members`}
                 icon={<Users size={22} />}
                 title="Members"
-                description="Xem và thêm thành viên sự kiện."
+                description="Quản lý thành viên sự kiện."
               />
               <QuickLink
                 to={`/events/${eventId}/dashboard`}
@@ -119,47 +112,6 @@ const EventDetailPage = ({ user, onLogout }) => {
                 description="Tổng quan, line chart và column chart."
                 disabled={!isLeader}
               />
-            </section>
-
-            <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">Thành viên</h3>
-                  <p className="text-sm text-gray-500">Người đang tham gia sự kiện này.</p>
-                </div>
-                {isLeader && (
-                  <Link
-                    to={`/events/${eventId}/members`}
-                    className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-                  >
-                    Quản lý
-                  </Link>
-                )}
-              </div>
-
-              {membersQuery.isLoading && (
-                <div className="mt-4 text-sm text-gray-500">Đang tải thành viên...</div>
-              )}
-              {membersQuery.error && (
-                <div className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
-                  {membersQuery.error.userMessage || membersQuery.error.message}
-                </div>
-              )}
-              {membersQuery.data && (
-                <div className="mt-4 divide-y divide-gray-100">
-                  {membersQuery.data.map((member) => (
-                    <div key={member.id} className="flex items-center justify-between py-3">
-                      <div>
-                        <p className="font-semibold text-gray-900">{member.name}</p>
-                        <p className="text-sm text-gray-500">{member.email}</p>
-                      </div>
-                      <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-bold text-gray-700">
-                        {member.role}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
             </section>
           </>
         )}
