@@ -30,6 +30,12 @@ public class User {
     @Column(name = "telegram_chat_id", length = 50)
     private String telegramChatId;
 
+    @Column(name = "telegram_link_token_hash", length = 64)
+    private String telegramLinkTokenHash;
+
+    @Column(name = "telegram_link_token_expires_at")
+    private LocalDateTime telegramLinkTokenExpiresAt;
+
     @Column(name = "created_at", updatable = false)
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();

@@ -6,7 +6,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${DB_USERNAME:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-admin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
       POSTGRES_DB: ${DB_NAME:-eventflow}
     ports:
       - "5432:5432"
@@ -32,14 +32,15 @@ services:
     environment:
       DB_URL: jdbc:postgresql://db:5432/${DB_NAME:-eventflow}
       DB_USERNAME: ${DB_USERNAME:-postgres}
-      DB_PASSWORD: ${DB_PASSWORD:-admin}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
       SERVER_PORT: 8080
-      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-8853907732:AAEx6GQitSYW77fSPZXcsy4wX9k2JKgJNo4}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_LINK_TOKEN_TTL_MINUTES: ${TELEGRAM_LINK_TOKEN_TTL_MINUTES:-10}
       MAIL_HOST: ${MAIL_HOST:-smtp.gmail.com}
       MAIL_PORT: ${MAIL_PORT:-587}
-      MAIL_USERNAME: ${MAIL_USERNAME:-event.flow.corp.vn@gmail.com}
-      MAIL_PASSWORD: ${MAIL_PASSWORD:-jrnvplalmjtxfchs}
-      JWT_SECRET: ${JWT_SECRET:-change_this_to_a_very_long_random_secret_key}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
     ports:
       - "8080:8080"
     healthcheck:

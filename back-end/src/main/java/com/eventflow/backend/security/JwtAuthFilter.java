@@ -2,6 +2,7 @@ package com.eventflow.backend.security;
 
 import com.eventflow.backend.entity.User;
 import com.eventflow.backend.repository.UserRepository;
+import com.eventflow.backend.util.JwtUtil;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -104,6 +105,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
     private String hmacSha256(String data, String secret) {
         try {
+            JwtUtil.requireSecret(secret);
             Mac mac = Mac.getInstance("HmacSHA256");
             SecretKeySpec keySpec = new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
             mac.init(keySpec);

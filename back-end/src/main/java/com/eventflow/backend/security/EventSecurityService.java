@@ -27,6 +27,17 @@ public class EventSecurityService {
         return eventMemberRepository.existsByEventIdAndUserIdAndRole(eventId, userId, role);
     }
 
+    public boolean isMemberOfEvent(Long eventId, Long userId) {
+        if (eventId == null || userId == null) {
+            return false;
+        }
+        return eventMemberRepository.existsByEventIdAndUserId(eventId, userId);
+    }
+
+    public boolean isLeaderOfEvent(Long eventId, Long userId) {
+        return hasRoleInEvent(eventId, userId, UserRole.LEADER.name());
+    }
+
     /**
      * Check if a user is the assignee of a specific task.
      * Uses a direct COUNT query to avoid loading the full Task entity.

@@ -5,7 +5,7 @@ spring:
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/eventflow}
     username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:admin}
+    password: ${DB_PASSWORD:}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -22,10 +22,10 @@ spring:
     baseline-on-migrate: true
 
   mail:
-    host: ${MAIL_HOST:smtp.gmail.com}
+    host: ${MAIL_HOST:}
     port: ${MAIL_PORT:587}
-    username: ${MAIL_USERNAME:event.flow.corp.vn@gmail.com}
-    password: ${MAIL_PASSWORD:jrnvplalmjtxfchs}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
     properties:
       mail:
         smtp:
@@ -38,11 +38,17 @@ server:
 
 telegram:
   bot:
-    token: ${TELEGRAM_BOT_TOKEN:8853907732:AAEx6GQitSYW77fSPZXcsy4wX9k2JKgJNo4}
+    token: ${TELEGRAM_BOT_TOKEN:}
+  link-token:
+    ttl-minutes: ${TELEGRAM_LINK_TOKEN_TTL_MINUTES:10}
 
 jwt:
-  secret: ${JWT_SECRET:eventflow-mvp-secret-2026-summer-change-in-prod}
+  secret: ${JWT_SECRET:}
   expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+
+eventflow:
+  dev:
+    seed-enabled: ${EVENTFLOW_DEV_SEED_ENABLED:false}
 
 management:
   endpoints:

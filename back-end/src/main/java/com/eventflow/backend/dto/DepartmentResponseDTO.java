@@ -9,6 +9,8 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class StatusUpdateRequest {
-    private String status;
+public class DepartmentResponseDTO {
+    private Long id;
+    private Long eventId;
+    private String name;
 }

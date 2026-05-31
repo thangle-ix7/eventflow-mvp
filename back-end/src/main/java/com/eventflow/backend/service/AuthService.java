@@ -8,6 +8,7 @@ import com.eventflow.backend.repository.UserRepository;
 import com.eventflow.backend.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +20,12 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+
+    @Value("${jwt.secret}")
+    private String jwtSecret;
+
+    @Value("${jwt.expiration-ms}")
+    private long jwtExpirationMs;
 
     @Transactional
     public AuthResponse signup(SignupRequest request) {
@@ -33,7 +40,7 @@ public class AuthService {
                 .build();
 
         User saved = userRepository.save(user);
-        String token = JwtUtil.generateToken(saved.getId());
+        String token = JwtUtil.generateToken(saved.getId(), jwtSecret, jwtExpirationMs);
 
         return new AuthResponse(token, saved.getId(), saved.getName(), saved.getEmail());
     }
@@ -47,7 +54,7 @@ public class AuthService {
             throw new IllegalArgumentException("Email hoặc mật khẩu không đúng");
         }
 
-        String token = JwtUtil.generateToken(user.getId());
+        String token = JwtUtil.generateToken(user.getId(), jwtSecret, jwtExpirationMs);
         return new AuthResponse(token, user.getId(), user.getName(), user.getEmail());
     }
 }

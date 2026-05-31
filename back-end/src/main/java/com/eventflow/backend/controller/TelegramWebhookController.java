@@ -31,11 +31,11 @@ public class TelegramWebhookController {
         String text = msg.getText();
         Long chatId = msg.getChat().getId();
 
-        log.info("Telegram: text={}, chatId={}", text, chatId);
-
         if (!text.startsWith("/start")) {
             return ResponseEntity.ok().build();
         }
+
+        log.info("Telegram start command received for chatId={}", chatId);
 
         String[] parts = text.split("\\s+");
 
@@ -45,8 +45,7 @@ public class TelegramWebhookController {
         }
 
         try {
-            Long userId = Long.parseLong(parts[1]);
-            telegramBotService.linkTelegramAccount(userId, chatId.toString());
+            telegramBotService.linkTelegramAccount(parts[1], chatId.toString());
         } catch (Exception e) {
             telegramBotService.sendErrorMessage(chatId.toString());
         }

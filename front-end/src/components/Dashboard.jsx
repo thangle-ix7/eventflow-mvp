@@ -6,6 +6,7 @@ const Dashboard = ({ eventId }) => {
   const { data: summary, isLoading, error } = useQuery({
     queryKey: ['dashboardSummary', eventId],
     queryFn: () => dashboardApi.getSummary(eventId),
+    enabled: Boolean(eventId),
     refetchInterval: 30000,        // Smart polling: refetch every 30s
     refetchIntervalInBackground: false, // Stop when tab is hidden
   });
@@ -35,7 +36,7 @@ const Dashboard = ({ eventId }) => {
   if (error) {
     return (
       <div className="p-6 bg-red-50 border border-red-200 rounded-xl text-red-600">
-        Lỗi tải dữ liệu: {error.message}
+        Lỗi tải dữ liệu: {error.userMessage || error.message}
       </div>
     );
   }

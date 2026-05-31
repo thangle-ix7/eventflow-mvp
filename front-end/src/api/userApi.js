@@ -25,6 +25,15 @@ const userApi = {
     const response = await apiClient.get(`/users/${userId}`);
     return response.data;
   },
+
+  createTelegramLinkToken: async (userId) => {
+    if (!userId) {
+      throw new Error('userId không hợp lệ');
+    }
+
+    const response = await apiClient.post(`/users/${userId}/telegram-link-token`);
+    return response.data;
+  },
 };
 
 export default userApi;

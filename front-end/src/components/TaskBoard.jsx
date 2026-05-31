@@ -65,6 +65,9 @@ const TaskBoard = ({ eventId }) => {
       queryClient.invalidateQueries({
         queryKey: ['eventTasks', eventId],
       });
+      queryClient.invalidateQueries({
+        queryKey: ['dashboardSummary', eventId],
+      });
     },
   });
 

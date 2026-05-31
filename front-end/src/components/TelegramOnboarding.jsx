@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import userApi from '../api/userApi';
 import { appConfig } from '../config/appConfig';
 
@@ -7,6 +7,7 @@ const TelegramOnboarding = ({ userId }) => {
   const [dismissed, setDismissed] = useState(() => {
     return localStorage.getItem('telegram_dismissed') === 'true';
   });
+  const [linkToken, setLinkToken] = useState(null);
 
   const { data: user, refetch, isLoading, error, isFetching } = useQuery({
     queryKey: ['userProfile', userId],
@@ -21,9 +22,17 @@ const TelegramOnboarding = ({ userId }) => {
 
   const isTelegramConnected = Boolean(user?.telegramChatId || user?.telegram_chat_id);
 
+  const createTokenMutation = useMutation({
+    mutationFn: () => userApi.createTelegramLinkToken(userId),
+    onSuccess: (tokenResponse) => setLinkToken(tokenResponse),
+  });
+
   const telegramConnectUrl = useMemo(
-    () => `https://t.me/${appConfig.telegramBotUsername}?start=${userId}`,
-    [userId]
+    () =>
+      linkToken?.token
+        ? `https://t.me/${appConfig.telegramBotUsername}?start=${linkToken.token}`
+        : null,
+    [linkToken]
   );
 
   useEffect(() => {
@@ -44,6 +53,21 @@ const TelegramOnboarding = ({ userId }) => {
     setDismissed(true);
   };
 
+  const handleOpenTelegram = async () => {
+    try {
+      const tokenResponse =
+        linkToken || (await createTokenMutation.mutateAsync());
+
+      window.open(
+        `https://t.me/${appConfig.telegramBotUsername}?start=${tokenResponse.token}`,
+        '_blank',
+        'noopener,noreferrer'
+      );
+    } catch {
+      // Mutation error is rendered below.
+    }
+  };
+
   if (isLoading || isTelegramConnected || dismissed) return null;
 
   return (
@@ -59,27 +83,26 @@ const TelegramOnboarding = ({ userId }) => {
         </div>
 
         <h2 className="text-2xl font-bold text-gray-800 mb-2">Kết nối Telegram</h2>
-        <p className="text-gray-500 text-sm mb-1">
-          ID của bạn: <span className="font-mono font-semibold text-gray-700">{userId}</span>
-        </p>
         <p className="text-gray-600 mb-6 mt-2">
           Kết nối Telegram để nhận nhắc nhở tự động từ EventFlow.
         </p>
 
-        {error && (
+        {(error || createTokenMutation.error) && (
           <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
-            Không thể kiểm tra trạng thái: {error.userMessage || error.message}
+            Không thể tạo/kiểm tra link kết nối:{' '}
+            {(error || createTokenMutation.error).userMessage ||
+              (error || createTokenMutation.error).message}
           </div>
         )}
 
-        <a
-          href={telegramConnectUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="block w-full py-3 px-6 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-colors duration-200 shadow-lg shadow-blue-200"
+        <button
+          type="button"
+          onClick={handleOpenTelegram}
+          disabled={createTokenMutation.isPending}
+          className="block w-full py-3 px-6 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-colors duration-200 shadow-lg shadow-blue-200 disabled:cursor-not-allowed disabled:opacity-70"
         >
-          Mở Telegram và kết nối
-        </a>
+          {createTokenMutation.isPending ? 'Đang tạo link...' : 'Mở Telegram và kết nối'}
+        </button>
 
         <button
           type="button"
@@ -98,10 +121,14 @@ const TelegramOnboarding = ({ userId }) => {
           Bỏ qua, làm sau
         </button>
 
-        <p className="mt-4 text-xs text-gray-400">
-          Hoặc mở Telegram và gõ:{' '}
-          <span className="font-semibold font-mono">/start {userId}</span>
-        </p>
+        {telegramConnectUrl && (
+          <p className="mt-4 break-all text-xs text-gray-400">
+            Hoặc mở Telegram và gõ:{' '}
+            <span className="font-semibold font-mono">
+              /start {linkToken.token}
+            </span>
+          </p>
+        )}
       </div>
     </div>
   );

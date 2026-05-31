@@ -23,7 +23,7 @@ public class DashboardController {
 
         Long userId = (Long) authentication.getPrincipal();
         // Only LEADER can view dashboard summary
-        if (!eventSecurityService.hasRoleInEvent(eventId, userId, "LEADER")) {
+        if (!eventSecurityService.isLeaderOfEvent(eventId, userId)) {
             return ResponseEntity.status(403).build();
         }
 

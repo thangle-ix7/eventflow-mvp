@@ -10,8 +10,12 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class TaskResponseDTO {
     private Long id;
+    private Long eventId;
+    private Long departmentId;
+    private String departmentName;
     private String title;
     private TaskStatus status;
     private LocalDateTime deadline;
+    private Long assigneeId;
     private String assigneeName;
 }

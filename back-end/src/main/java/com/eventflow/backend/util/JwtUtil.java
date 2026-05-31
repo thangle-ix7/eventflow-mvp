@@ -16,18 +16,16 @@ public final class JwtUtil {
 
     private JwtUtil() {}
 
-    public static String generateToken(Long userId) {
-        return generateToken(userId, null);
+    public static String generateToken(Long userId, String secret, Long expirationMs) {
+        return generateToken(userId, requireSecret(secret), expirationMs != null ? expirationMs : 86_400_000L);
     }
 
-    public static String generateToken(Long userId, Long expirationMs) {
+    private static String generateToken(Long userId, String secret, long expirationMs) {
         try {
             String header = Base64.getUrlEncoder().withoutPadding()
                     .encodeToString(new ObjectMapper().writeValueAsBytes(Map.of("alg", "HS256", "typ", "JWT")));
 
-            long exp = (expirationMs != null)
-                    ? System.currentTimeMillis() + expirationMs
-                    : System.currentTimeMillis() + 86_400_000L;
+            long exp = System.currentTimeMillis() + expirationMs;
 
             Map<String, Object> payload = new HashMap<>();
             payload.put("userId", userId);
@@ -38,12 +36,19 @@ public final class JwtUtil {
                     .encodeToString(new ObjectMapper().writeValueAsBytes(payload));
 
             String signingInput = header + "." + payloadB64;
-            String signature = sign(signingInput, getSecret());
+            String signature = sign(signingInput, secret);
 
             return signingInput + "." + signature;
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("Failed to build JWT", e);
         }
+    }
+
+    public static String requireSecret(String secret) {
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException("JWT_SECRET must be configured");
+        }
+        return secret;
     }
 
     static String sign(String data, String secret) {
@@ -56,11 +61,4 @@ public final class JwtUtil {
         }
     }
 
-    static String getSecret() {
-        String secret = System.getenv("JWT_SECRET");
-        if (secret == null || secret.isBlank()) {
-            secret = "eventflow-mvp-secret-2026-summer-change-in-prod";
-        }
-        return secret;
-    }
 }
