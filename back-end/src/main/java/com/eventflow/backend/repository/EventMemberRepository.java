@@ -25,6 +25,18 @@ public interface EventMemberRepository extends JpaRepository<EventMember, Long> 
     @Query("SELECT em FROM EventMember em JOIN FETCH em.user WHERE em.event.id = :eventId ORDER BY em.role ASC, em.user.name ASC")
     List<EventMember> findAllByEventIdWithUser(@Param("eventId") Long eventId);
 
+    @Query("""
+            SELECT em FROM EventMember em
+            JOIN FETCH em.user
+            LEFT JOIN FETCH em.department
+            WHERE em.event.id = :eventId
+            AND em.department.id = :departmentId
+            ORDER BY em.role ASC, em.user.name ASC
+            """)
+    List<EventMember> findAllByEventIdAndDepartmentIdWithUser(
+            @Param("eventId") Long eventId,
+            @Param("departmentId") Long departmentId);
+
     @Query(value = """
             SELECT em FROM EventMember em
             JOIN FETCH em.event e

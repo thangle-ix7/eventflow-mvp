@@ -2,10 +2,14 @@ package com.eventflow.backend.service;
 
 import com.eventflow.backend.dto.DepartmentRequestDTO;
 import com.eventflow.backend.dto.DepartmentResponseDTO;
+import com.eventflow.backend.dto.EventMemberResponseDTO;
 import com.eventflow.backend.dto.PageResponse;
 import com.eventflow.backend.entity.Department;
 import com.eventflow.backend.entity.Event;
+import com.eventflow.backend.entity.EventMember;
+import com.eventflow.backend.entity.User;
 import com.eventflow.backend.repository.DepartmentRepository;
+import com.eventflow.backend.repository.EventMemberRepository;
 import com.eventflow.backend.repository.EventRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -24,6 +28,7 @@ public class DepartmentService {
 
     private final DepartmentRepository departmentRepository;
     private final EventRepository eventRepository;
+    private final EventMemberRepository eventMemberRepository;
 
     @Transactional(readOnly = true)
     public PageResponse<DepartmentResponseDTO> getDepartments(
@@ -51,6 +56,14 @@ public class DepartmentService {
         return departmentRepository.findByIdAndEventId(departmentId, eventId)
                 .map(this::mapToResponse)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy ban"));
+    }
+
+    @Transactional(readOnly = true)
+    public List<EventMemberResponseDTO> getDepartmentMembers(Long eventId, Long departmentId) {
+        assertDepartmentExists(eventId, departmentId);
+        return eventMemberRepository.findAllByEventIdAndDepartmentIdWithUser(eventId, departmentId).stream()
+                .map(this::mapMemberToResponse)
+                .toList();
     }
 
     @Transactional
@@ -86,6 +99,32 @@ public class DepartmentService {
     }
 
     @Transactional
+    public EventMemberResponseDTO assignMember(Long eventId, Long departmentId, Long userId) {
+        Department department = departmentRepository.findByIdAndEventId(departmentId, eventId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy ban"));
+
+        EventMember member = eventMemberRepository.findByEventIdAndUserId(eventId, userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Người dùng chưa là thành viên của sự kiện"));
+
+        member.setDepartment(department);
+        return mapMemberToResponse(eventMemberRepository.save(member));
+    }
+
+    @Transactional
+    public void removeMember(Long eventId, Long departmentId, Long userId) {
+        assertDepartmentExists(eventId, departmentId);
+        EventMember member = eventMemberRepository.findByEventIdAndUserId(eventId, userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy thành viên trong sự kiện"));
+
+        if (member.getDepartment() == null || !member.getDepartment().getId().equals(departmentId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Thành viên không thuộc ban này");
+        }
+
+        member.setDepartment(null);
+        eventMemberRepository.save(member);
+    }
+
+    @Transactional
     public void deleteDepartment(Long eventId, Long departmentId) {
         Department department = departmentRepository.findByIdAndEventId(departmentId, eventId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy ban"));
@@ -103,6 +142,12 @@ public class DepartmentService {
 
     private String normalizeName(String name) {
         return name.trim();
+    }
+
+    private void assertDepartmentExists(Long eventId, Long departmentId) {
+        if (!departmentRepository.existsByIdAndEventId(departmentId, eventId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy ban");
+        }
     }
 
     private Sort.Direction resolveDirection(String direction) {
@@ -125,6 +170,22 @@ public class DepartmentService {
                 .id(department.getId())
                 .eventId(department.getEvent().getId())
                 .name(department.getName())
+                .build();
+    }
+
+    private EventMemberResponseDTO mapMemberToResponse(EventMember member) {
+        User user = member.getUser();
+        Department department = member.getDepartment();
+        return EventMemberResponseDTO.builder()
+                .id(member.getId())
+                .eventId(member.getEvent().getId())
+                .userId(user.getId())
+                .departmentId(department != null ? department.getId() : null)
+                .departmentName(department != null ? department.getName() : null)
+                .name(user.getName())
+                .email(user.getEmail())
+                .role(member.getRole().name())
+                .joinedAt(member.getJoinedAt())
                 .build();
     }
 }

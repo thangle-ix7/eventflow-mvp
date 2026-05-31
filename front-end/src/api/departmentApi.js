@@ -21,6 +21,17 @@ const departmentApi = {
     return response.data;
   },
 
+  getDepartmentMembers: async ({ eventId, departmentId }) => {
+    if (!eventId || !departmentId) {
+      throw new Error('eventId/departmentId không hợp lệ');
+    }
+
+    const response = await apiClient.get(
+      `/events/${eventId}/departments/${departmentId}/members`
+    );
+    return response.data;
+  },
+
   createDepartment: async ({ eventId, payload }) => {
     if (!eventId) {
       throw new Error('eventId không hợp lệ');
@@ -43,6 +54,28 @@ const departmentApi = {
       payload
     );
     return response.data;
+  },
+
+  assignMember: async ({ eventId, departmentId, userId }) => {
+    if (!eventId || !departmentId || !userId) {
+      throw new Error('eventId/departmentId/userId không hợp lệ');
+    }
+
+    const response = await apiClient.post(
+      `/events/${eventId}/departments/${departmentId}/members`,
+      { userId }
+    );
+    return response.data;
+  },
+
+  removeMember: async ({ eventId, departmentId, userId }) => {
+    if (!eventId || !departmentId || !userId) {
+      throw new Error('eventId/departmentId/userId không hợp lệ');
+    }
+
+    await apiClient.delete(
+      `/events/${eventId}/departments/${departmentId}/members/${userId}`
+    );
   },
 
   deleteDepartment: async ({ eventId, departmentId }) => {

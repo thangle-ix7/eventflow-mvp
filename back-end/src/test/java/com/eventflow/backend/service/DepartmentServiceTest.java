@@ -4,6 +4,7 @@ import com.eventflow.backend.dto.DepartmentRequestDTO;
 import com.eventflow.backend.entity.Department;
 import com.eventflow.backend.entity.Event;
 import com.eventflow.backend.repository.DepartmentRepository;
+import com.eventflow.backend.repository.EventMemberRepository;
 import com.eventflow.backend.repository.EventRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -30,11 +31,14 @@ class DepartmentServiceTest {
     @Mock
     private EventRepository eventRepository;
 
+    @Mock
+    private EventMemberRepository eventMemberRepository;
+
     private DepartmentService departmentService;
 
     @BeforeEach
     void setUp() {
-        departmentService = new DepartmentService(departmentRepository, eventRepository);
+        departmentService = new DepartmentService(departmentRepository, eventRepository, eventMemberRepository);
     }
 
     @Test

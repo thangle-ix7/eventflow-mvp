@@ -81,6 +81,8 @@ public class EventMemberService {
                 .id(member.getId())
                 .eventId(member.getEvent().getId())
                 .userId(user.getId())
+                .departmentId(member.getDepartment() != null ? member.getDepartment().getId() : null)
+                .departmentName(member.getDepartment() != null ? member.getDepartment().getName() : null)
                 .name(user.getName())
                 .email(user.getEmail())
                 .role(member.getRole().name())

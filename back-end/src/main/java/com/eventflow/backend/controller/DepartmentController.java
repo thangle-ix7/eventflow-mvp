@@ -1,7 +1,9 @@
 package com.eventflow.backend.controller;
 
+import com.eventflow.backend.dto.DepartmentMemberAssignRequest;
 import com.eventflow.backend.dto.DepartmentRequestDTO;
 import com.eventflow.backend.dto.DepartmentResponseDTO;
+import com.eventflow.backend.dto.EventMemberResponseDTO;
 import com.eventflow.backend.dto.PageResponse;
 import com.eventflow.backend.security.EventSecurityService;
 import com.eventflow.backend.service.DepartmentService;
@@ -11,6 +13,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping({"/api/events/{eventId}/departments", "/api/v1/events/{eventId}/departments"})
@@ -50,6 +54,19 @@ public class DepartmentController {
         return ResponseEntity.ok(departmentService.getDepartment(eventId, departmentId));
     }
 
+    @GetMapping("/{departmentId}/members")
+    public ResponseEntity<List<EventMemberResponseDTO>> getDepartmentMembers(
+            @PathVariable Long eventId,
+            @PathVariable Long departmentId,
+            Authentication authentication) {
+
+        if (!eventSecurityService.isMemberOfEvent(eventId, currentUserId(authentication))) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        return ResponseEntity.ok(departmentService.getDepartmentMembers(eventId, departmentId));
+    }
+
     @PostMapping
     public ResponseEntity<DepartmentResponseDTO> createDepartment(
             @PathVariable Long eventId,
@@ -76,6 +93,35 @@ public class DepartmentController {
         }
 
         return ResponseEntity.ok(departmentService.updateDepartment(eventId, departmentId, request));
+    }
+
+    @PostMapping("/{departmentId}/members")
+    public ResponseEntity<EventMemberResponseDTO> assignMember(
+            @PathVariable Long eventId,
+            @PathVariable Long departmentId,
+            @Valid @RequestBody DepartmentMemberAssignRequest request,
+            Authentication authentication) {
+
+        if (!eventSecurityService.isLeaderOfEvent(eventId, currentUserId(authentication))) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        return ResponseEntity.ok(departmentService.assignMember(eventId, departmentId, request.getUserId()));
+    }
+
+    @DeleteMapping("/{departmentId}/members/{userId}")
+    public ResponseEntity<Void> removeMember(
+            @PathVariable Long eventId,
+            @PathVariable Long departmentId,
+            @PathVariable Long userId,
+            Authentication authentication) {
+
+        if (!eventSecurityService.isLeaderOfEvent(eventId, currentUserId(authentication))) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        departmentService.removeMember(eventId, departmentId, userId);
+        return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/{departmentId}")

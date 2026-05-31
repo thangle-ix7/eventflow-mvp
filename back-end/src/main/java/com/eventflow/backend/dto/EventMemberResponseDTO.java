@@ -15,6 +15,8 @@ public class EventMemberResponseDTO {
     private Long id;
     private Long eventId;
     private Long userId;
+    private Long departmentId;
+    private String departmentName;
     private String name;
     private String email;
     private String role;

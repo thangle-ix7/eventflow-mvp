@@ -21,5 +21,7 @@ public interface DepartmentRepository extends JpaRepository<Department, Long> {
 
     boolean existsByEventIdAndName(Long eventId, String name);
 
+    boolean existsByIdAndEventId(Long departmentId, Long eventId);
+
     boolean existsByEventIdAndNameAndIdNot(Long eventId, String name, Long departmentId);
 }

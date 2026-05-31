@@ -25,6 +25,10 @@ public class EventMember {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "department_id")
+    private Department department;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default
