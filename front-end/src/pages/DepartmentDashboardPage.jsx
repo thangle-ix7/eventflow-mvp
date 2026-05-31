@@ -116,10 +116,13 @@ const StatusLineChart = ({ data }) => {
     { key: 'completedTasks', label: 'DONE', color: '#10b981' },
   ];
   const maxValue = Math.max(...data.flatMap((item) => series.map((line) => item[line.key] || 0)), 1);
+  const labelStep = Math.max(Math.ceil(data.length / 8), 1);
+  const shouldShowXAxisLabel = (index) => index === 0 || index === data.length - 1 || index % labelStep === 0;
+  const formatAxisLabel = (label) => label?.slice(5) || label;
   const pointsFor = (key) => data.map((item, index) => {
     const x = padding + (index * (width - padding * 2)) / Math.max(data.length - 1, 1);
     const y = height - padding - ((item[key] || 0) / maxValue) * (height - padding * 2);
-    return { x, y, label: item.label, value: item[key] || 0 };
+    return { x, y, label: item.label, value: item[key] || 0, index };
   });
 
   return (
@@ -136,20 +139,18 @@ const StatusLineChart = ({ data }) => {
           return (
             <g key={line.key}>
               <path d={path} fill="none" stroke={line.color} strokeWidth="3" />
-              {points.map((point) => (
+              {points.filter((point) => point.value > 0).map((point) => (
                 <g key={`${line.key}-${point.label}`}>
                   <circle cx={point.x} cy={point.y} r="4" fill={line.color} />
-                  {point.value > 0 && (
-                    <text x={point.x} y={point.y - 10} textAnchor="middle" className="fill-gray-700 text-[11px] font-semibold">
-                      {point.value}
-                    </text>
-                  )}
+                  <text x={point.x} y={point.y - 10} textAnchor="middle" className="fill-gray-700 text-[11px] font-semibold">
+                    {point.value}
+                  </text>
                 </g>
               ))}
             </g>
           );
         })}
-        {pointsFor('todoTasks').map((point) => <text key={point.label} x={point.x} y={height - 10} textAnchor="middle" className="fill-gray-500 text-[10px]">{point.label}</text>)}
+        {pointsFor('todoTasks').filter((point) => shouldShowXAxisLabel(point.index)).map((point) => <text key={point.label} x={point.x} y={height - 10} textAnchor="middle" className="fill-gray-500 text-[10px]">{formatAxisLabel(point.label)}</text>)}
       </svg>
     </div>
   );
