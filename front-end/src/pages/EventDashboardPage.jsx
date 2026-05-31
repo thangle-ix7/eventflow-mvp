@@ -1,16 +1,12 @@
-import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, BarChart3, Clock, Loader2, TrendingUp } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
-import departmentApi from '../api/departmentApi';
 import dashboardApi from '../api/dashboardApi';
 import eventApi from '../api/eventApi';
 
 const EventDashboardPage = ({ user, onLogout }) => {
   const { eventId } = useParams();
-  const [departmentId, setDepartmentId] = useState('');
-  const isDepartmentScope = Boolean(departmentId);
 
   const eventQuery = useQuery({
     queryKey: ['event', eventId],
@@ -18,42 +14,27 @@ const EventDashboardPage = ({ user, onLogout }) => {
     enabled: Boolean(eventId),
   });
 
-  const departmentsQuery = useQuery({
-    queryKey: ['eventDepartments', eventId],
-    queryFn: () => departmentApi.getEventDepartments(eventId),
-    enabled: Boolean(eventId),
-  });
-
   const summaryQuery = useQuery({
-    queryKey: ['dashboardSummary', eventId, departmentId || 'all'],
-    queryFn: () =>
-      isDepartmentScope
-        ? dashboardApi.getDepartmentSummary({ eventId, departmentId })
-        : dashboardApi.getSummary(eventId),
+    queryKey: ['dashboardSummary', eventId],
+    queryFn: () => dashboardApi.getSummary(eventId),
     enabled: Boolean(eventId),
   });
 
   const trendQuery = useQuery({
-    queryKey: ['eventTaskTrend', eventId, departmentId || 'all'],
-    queryFn: () =>
-      isDepartmentScope
-        ? dashboardApi.getDepartmentTaskTrend({ eventId, departmentId })
-        : dashboardApi.getTaskTrend(eventId),
+    queryKey: ['eventTaskTrend', eventId],
+    queryFn: () => dashboardApi.getTaskTrend(eventId),
     enabled: Boolean(eventId),
   });
 
   const departmentQuery = useQuery({
     queryKey: ['eventTasksByDepartment', eventId],
     queryFn: () => dashboardApi.getTasksByDepartment(eventId),
-    enabled: Boolean(eventId) && !isDepartmentScope,
+    enabled: Boolean(eventId),
   });
 
   const assigneeQuery = useQuery({
-    queryKey: ['eventTasksByAssignee', eventId, departmentId || 'all'],
-    queryFn: () =>
-      isDepartmentScope
-        ? dashboardApi.getDepartmentTasksByAssignee({ eventId, departmentId })
-        : dashboardApi.getTasksByAssignee(eventId),
+    queryKey: ['eventTasksByAssignee', eventId],
+    queryFn: () => dashboardApi.getTasksByAssignee(eventId),
     enabled: Boolean(eventId),
   });
 
@@ -62,18 +43,13 @@ const EventDashboardPage = ({ user, onLogout }) => {
   const isLoading =
     summaryQuery.isLoading ||
     trendQuery.isLoading ||
-    departmentsQuery.isLoading ||
-    (!isDepartmentScope && departmentQuery.isLoading) ||
+    departmentQuery.isLoading ||
     assigneeQuery.isLoading;
   const error =
     summaryQuery.error ||
     trendQuery.error ||
-    departmentsQuery.error ||
     departmentQuery.error ||
     assigneeQuery.error;
-  const scopeLabel = isDepartmentScope
-    ? summary?.departmentName || 'Department'
-    : 'Toàn bộ sự kiện';
 
   return (
     <AppLayout
@@ -97,29 +73,12 @@ const EventDashboardPage = ({ user, onLogout }) => {
             <div>
               <h2 className="text-2xl font-bold text-gray-900">Dashboard sự kiện</h2>
               <p className="mt-1 text-sm text-gray-500">
-                Tổng quan tiến độ theo toàn bộ sự kiện hoặc theo từng department.
+                Tính toán toàn bộ task thuộc sự kiện này.
               </p>
             </div>
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-              <label className="text-sm font-semibold text-gray-700">
-                Phạm vi
-                <select
-                  value={departmentId}
-                  onChange={(event) => setDepartmentId(event.target.value)}
-                  className="mt-1 block min-w-56 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500"
-                >
-                  <option value="">Toàn bộ sự kiện</option>
-                  {departmentsQuery.data?.map((department) => (
-                    <option key={department.id} value={department.id}>
-                      {department.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <span className="h-fit w-fit rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700">
-                {event?.name || 'Event'}
-              </span>
-            </div>
+            <span className="h-fit w-fit rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700">
+              {event?.name || 'Event'}
+            </span>
           </div>
         </section>
 
@@ -151,57 +110,45 @@ const EventDashboardPage = ({ user, onLogout }) => {
             <section className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
               <ChartPanel
                 icon={<TrendingUp size={18} />}
-                title={`Line chart task: ${scopeLabel}`}
-                description="Số task theo deadline từng ngày trong phạm vi đang chọn."
+                title="Line chart task toàn sự kiện"
+                description="Số task theo deadline từng ngày của toàn bộ sự kiện."
               >
                 <LineChart data={trendQuery.data || []} />
               </ChartPanel>
-              {isDepartmentScope ? (
-                <ChartPanel
-                  icon={<BarChart3 size={18} />}
-                  title="Column chart theo assignee"
-                  description="Workload của member trong department đang chọn."
-                >
-                  <ColumnChart data={assigneeQuery.data || []} />
-                </ChartPanel>
-              ) : (
-                <ChartPanel
-                  icon={<Clock size={18} />}
-                  title="Ngày còn lại"
-                  description="Tính từ hôm nay đến thời gian bắt đầu sự kiện."
-                >
-                  <div className="flex h-64 items-center justify-center">
-                    <div className="text-center">
-                      <p className="text-5xl font-bold text-blue-600">
-                        {summary.daysUntilEvent ?? 'N/A'}
-                      </p>
-                      <p className="mt-2 text-sm font-semibold text-gray-500">
-                        ngày tới sự kiện
-                      </p>
-                    </div>
+              <ChartPanel
+                icon={<Clock size={18} />}
+                title="Ngày còn lại"
+                description="Tính từ hôm nay đến thời gian bắt đầu sự kiện."
+              >
+                <div className="flex h-64 items-center justify-center">
+                  <div className="text-center">
+                    <p className="text-5xl font-bold text-blue-600">
+                      {summary.daysUntilEvent ?? 'N/A'}
+                    </p>
+                    <p className="mt-2 text-sm font-semibold text-gray-500">
+                      ngày tới sự kiện
+                    </p>
                   </div>
-                </ChartPanel>
-              )}
+                </div>
+              </ChartPanel>
             </section>
 
-            {!isDepartmentScope && (
-              <section className="grid gap-4 lg:grid-cols-2">
-                <ChartPanel
-                  icon={<BarChart3 size={18} />}
-                  title="Column chart theo department"
-                  description="Tổng task, task hoàn thành và task quá hạn."
-                >
-                  <ColumnChart data={departmentQuery.data || []} />
-                </ChartPanel>
-                <ChartPanel
-                  icon={<BarChart3 size={18} />}
-                  title="Column chart theo assignee"
-                  description="So sánh khối lượng task theo người phụ trách."
-                >
-                  <ColumnChart data={assigneeQuery.data || []} />
-                </ChartPanel>
-              </section>
-            )}
+            <section className="grid gap-4 lg:grid-cols-2">
+              <ChartPanel
+                icon={<BarChart3 size={18} />}
+                title="Column chart theo department"
+                description="Tổng task, task hoàn thành và task quá hạn của toàn sự kiện."
+              >
+                <ColumnChart data={departmentQuery.data || []} />
+              </ChartPanel>
+              <ChartPanel
+                icon={<BarChart3 size={18} />}
+                title="Column chart theo assignee"
+                description="So sánh khối lượng task theo người phụ trách trong toàn sự kiện."
+              >
+                <ColumnChart data={assigneeQuery.data || []} />
+              </ChartPanel>
+            </section>
           </>
         )}
       </div>
