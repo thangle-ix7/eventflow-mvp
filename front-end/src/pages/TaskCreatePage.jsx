@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import departmentApi from '../api/departmentApi';
@@ -10,11 +10,14 @@ import taskApi from '../api/taskApi';
 
 const TaskCreatePage = ({ user, onLogout }) => {
   const { eventId } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const initialDepartmentId = searchParams.get('departmentId') || '';
+  const isDepartmentLocked = Boolean(initialDepartmentId);
   const [form, setForm] = useState({
     title: '',
-    departmentId: '',
+    departmentId: initialDepartmentId,
     assigneeId: '',
     deadline: '',
     status: 'TODO',
@@ -24,6 +27,14 @@ const TaskCreatePage = ({ user, onLogout }) => {
   const eventQuery = useQuery({ queryKey: ['event', eventId], queryFn: () => eventApi.getEvent(eventId), enabled: Boolean(eventId) });
   const departmentsQuery = useQuery({ queryKey: ['eventDepartments', eventId], queryFn: () => departmentApi.getEventDepartments(eventId), enabled: Boolean(eventId) });
   const membersQuery = useQuery({ queryKey: ['eventMembers', eventId], queryFn: () => eventMemberApi.getMembers(eventId), enabled: Boolean(eventId) });
+
+  const assignableMembers = useMemo(() => {
+    if (!form.departmentId) {
+      return [];
+    }
+
+    return (membersQuery.data || []).filter((member) => String(member.departmentId || '') === form.departmentId);
+  }, [form.departmentId, membersQuery.data]);
 
   const mutation = useMutation({
     mutationFn: taskApi.createTask,
@@ -38,6 +49,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
     setForm((old) => ({
       ...old,
       [name]: value,
+      ...(name === 'departmentId' ? { assigneeId: '' } : {}),
       ...(name === 'status' && value === 'DONE' ? { progressPercentage: 100 } : {}),
     }));
   };
@@ -74,15 +86,15 @@ const TaskCreatePage = ({ user, onLogout }) => {
             <input name="title" value={form.title} onChange={handleChange} required maxLength={255} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500" />
           </Field>
           <Field label="Department">
-            <select name="departmentId" value={form.departmentId} onChange={handleChange} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500">
+            <select name="departmentId" value={form.departmentId} onChange={handleChange} disabled={isDepartmentLocked} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 disabled:bg-gray-50">
               <option value="">Chưa gán ban</option>
               {departmentsQuery.data?.map((department) => <option key={department.id} value={department.id}>{department.name}</option>)}
             </select>
           </Field>
           <Field label="Assignee">
-            <select name="assigneeId" value={form.assigneeId} onChange={handleChange} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500">
+            <select name="assigneeId" value={form.assigneeId} onChange={handleChange} disabled={!form.departmentId} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 disabled:bg-gray-50">
               <option value="">Chưa phân công</option>
-              {membersQuery.data?.map((member) => <option key={member.userId} value={member.userId}>{member.name} ({member.role})</option>)}
+              {assignableMembers.map((member) => <option key={member.userId} value={member.userId}>{member.name} ({member.role})</option>)}
             </select>
           </Field>
           <Field label="Deadline">

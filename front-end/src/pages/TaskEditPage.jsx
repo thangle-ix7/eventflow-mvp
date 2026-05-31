@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Loader2 } from 'lucide-react';
@@ -72,9 +72,18 @@ const TaskEditForm = ({ task, departments, members, mutation, taskId }) => {
     setForm((old) => ({
       ...old,
       [name]: value,
+      ...(name === 'departmentId' ? { assigneeId: '' } : {}),
       ...(name === 'status' && value === 'DONE' ? { progressPercentage: 100 } : {}),
     }));
   };
+
+  const assignableMembers = useMemo(() => {
+    if (!form.departmentId) {
+      return [];
+    }
+
+    return members.filter((member) => String(member.departmentId || '') === form.departmentId);
+  }, [form.departmentId, members]);
 
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -97,7 +106,7 @@ const TaskEditForm = ({ task, departments, members, mutation, taskId }) => {
       {mutation.error && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{mutation.error.userMessage || mutation.error.message}</div>}
       <Field label="Tên task"><input name="title" value={form.title} onChange={handleChange} required className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500" /></Field>
       <Field label="Department"><select name="departmentId" value={form.departmentId} onChange={handleChange} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500"><option value="">Chưa gán ban</option>{departments.map((department) => <option key={department.id} value={department.id}>{department.name}</option>)}</select></Field>
-      <Field label="Assignee"><select name="assigneeId" value={form.assigneeId} onChange={handleChange} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500"><option value="">Chưa phân công</option>{members.map((member) => <option key={member.userId} value={member.userId}>{member.name}</option>)}</select></Field>
+      <Field label="Assignee"><select name="assigneeId" value={form.assigneeId} onChange={handleChange} disabled={!form.departmentId} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 disabled:bg-gray-50"><option value="">Chưa phân công</option>{assignableMembers.map((member) => <option key={member.userId} value={member.userId}>{member.name}</option>)}</select></Field>
       <Field label="Deadline"><input name="deadline" type="datetime-local" value={form.deadline} onChange={handleChange} required className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500" /></Field>
       <Field label="Status"><select name="status" value={form.status} onChange={handleChange} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500"><option value="TODO">TODO</option><option value="IN_PROGRESS">IN_PROGRESS</option><option value="DONE">DONE</option></select></Field>
       <Field label="Tiến độ (%)"><input name="progressPercentage" type="number" min="0" max="100" value={form.progressPercentage} onChange={handleChange} required className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500" /></Field>

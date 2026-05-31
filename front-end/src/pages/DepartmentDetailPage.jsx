@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, BarChart3, ClipboardList, Loader2, UserMinus, UserPlus, Users } from 'lucide-react';
+import { ArrowLeft, BarChart3, ClipboardList, Loader2, Plus, UserMinus, UserPlus, Users } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import departmentApi from '../api/departmentApi';
 import eventApi from '../api/eventApi';
@@ -63,6 +63,7 @@ const DepartmentDetailPage = ({ user, onLogout }) => {
           <h2 className="text-2xl font-bold text-gray-900">{department?.name || 'Department'}</h2>
           <div className="mt-4 flex flex-wrap gap-2">
             <Link to={`/events/${eventId}/departments/${departmentId}/dashboard`} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700"><BarChart3 size={16} />Dashboard ban</Link>
+            {isLeader && <Link to={`/events/${eventId}/tasks/new?departmentId=${departmentId}`} className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-3 py-2 text-sm font-semibold text-white hover:bg-green-700"><Plus size={16} />Tạo task cho ban</Link>}
             <Link to={`/events/${eventId}/tasks?departmentId=${departmentId}`} className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"><ClipboardList size={16} />Xem trong task list</Link>
           </div>
         </section>

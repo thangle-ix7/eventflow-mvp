@@ -64,6 +64,17 @@ public interface EventMemberRepository extends JpaRepository<EventMember, Long> 
 
     boolean existsByEventIdAndUserId(Long eventId, Long userId);
 
+    @Query("""
+            SELECT COUNT(em) > 0 FROM EventMember em
+            WHERE em.event.id = :eventId
+            AND em.user.id = :userId
+            AND em.department.id = :departmentId
+            """)
+    boolean existsByEventIdAndUserIdAndDepartmentId(
+            @Param("eventId") Long eventId,
+            @Param("userId") Long userId,
+            @Param("departmentId") Long departmentId);
+
     // Efficient count query to check role membership without lazy-loading User entity
     @Query("SELECT COUNT(em) > 0 FROM EventMember em WHERE em.event.id = :eventId AND em.user.id = :userId AND em.role = :role")
     boolean existsByEventIdAndUserIdAndRole(

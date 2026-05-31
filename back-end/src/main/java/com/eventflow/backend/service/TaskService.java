@@ -123,7 +123,7 @@ public class TaskService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy sự kiện"));
 
         Department department = resolveDepartment(eventId, request.getDepartmentId());
-        User assignee = resolveAssignee(eventId, request.getAssigneeId());
+        User assignee = resolveAssignee(eventId, request.getAssigneeId(), department);
 
         TaskStatus status = parseStatusOrDefault(request.getStatus(), TaskStatus.TODO);
 
@@ -147,7 +147,7 @@ public class TaskService {
 
         Long eventId = task.getEvent().getId();
         Department department = resolveDepartment(eventId, request.getDepartmentId());
-        User assignee = resolveAssignee(eventId, request.getAssigneeId());
+        User assignee = resolveAssignee(eventId, request.getAssigneeId(), department);
 
         task.setDepartment(department);
         task.setAssignee(assignee);
@@ -189,8 +189,9 @@ public class TaskService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy task"));
 
         Long eventId = task.getEvent().getId();
-        task.setDepartment(resolveDepartment(eventId, request.getDepartmentId()));
-        task.setAssignee(resolveAssignee(eventId, request.getAssigneeId()));
+        Department department = resolveDepartment(eventId, request.getDepartmentId());
+        task.setDepartment(department);
+        task.setAssignee(resolveAssignee(eventId, request.getAssigneeId(), department));
 
         return mapToTaskResponse(taskRepository.save(task));
     }
@@ -212,9 +213,13 @@ public class TaskService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "departmentId không thuộc sự kiện"));
     }
 
-    private User resolveAssignee(Long eventId, Long assigneeId) {
+    private User resolveAssignee(Long eventId, Long assigneeId, Department department) {
         if (assigneeId == null) {
             return null;
+        }
+
+        if (department == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Phải chọn department trước khi gán assignee");
         }
 
         User user = userRepository.findById(assigneeId)
@@ -222,6 +227,13 @@ public class TaskService {
 
         if (!eventMemberRepository.existsByEventIdAndUserId(eventId, assigneeId)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "assigneeId không thuộc sự kiện");
+        }
+
+        if (department != null && !eventMemberRepository.existsByEventIdAndUserIdAndDepartmentId(
+                eventId,
+                assigneeId,
+                department.getId())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "assigneeId không thuộc department đã chọn");
         }
 
         return user;

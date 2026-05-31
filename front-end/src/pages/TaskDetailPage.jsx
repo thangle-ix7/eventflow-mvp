@@ -36,6 +36,18 @@ const TaskDetailPage = ({ user, onLogout }) => {
   const event = eventQuery.data;
   const task = taskQuery.data;
   const isLeader = event?.role === 'LEADER';
+  const assignableMembers = task?.departmentId
+    ? (membersQuery.data || []).filter((member) => member.departmentId === task.departmentId)
+    : [];
+
+  const resolveAssigneeForDepartment = (departmentId) => {
+    if (!departmentId || !task?.assigneeId) {
+      return null;
+    }
+
+    const currentAssignee = membersQuery.data?.find((member) => member.userId === task.assigneeId);
+    return currentAssignee?.departmentId === departmentId ? task.assigneeId : null;
+  };
 
   return (
     <AppLayout user={user} events={event ? [event] : []} selectedEvent={event} onEventChange={() => {}} onLogout={onLogout}>
@@ -97,7 +109,14 @@ const TaskDetailPage = ({ user, onLogout }) => {
                 <>
                   <select
                     defaultValue={task.departmentId || ''}
-                    onChange={(event) => assignmentMutation.mutate({ taskId, departmentId: event.target.value ? Number(event.target.value) : null, assigneeId: task.assigneeId })}
+                    onChange={(event) => {
+                      const nextDepartmentId = event.target.value ? Number(event.target.value) : null;
+                      assignmentMutation.mutate({
+                        taskId,
+                        departmentId: nextDepartmentId,
+                        assigneeId: resolveAssigneeForDepartment(nextDepartmentId),
+                      });
+                    }}
                     className="rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
                   >
                     <option value="">Chưa gán ban</option>
@@ -105,11 +124,12 @@ const TaskDetailPage = ({ user, onLogout }) => {
                   </select>
                   <select
                     defaultValue={task.assigneeId || ''}
+                    disabled={!task.departmentId}
                     onChange={(event) => assignmentMutation.mutate({ taskId, departmentId: task.departmentId, assigneeId: event.target.value ? Number(event.target.value) : null })}
-                    className="rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
+                    className="rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 disabled:bg-gray-50"
                   >
                     <option value="">Chưa phân công</option>
-                    {membersQuery.data?.map((member) => <option key={member.userId} value={member.userId}>{member.name}</option>)}
+                    {assignableMembers.map((member) => <option key={member.userId} value={member.userId}>{member.name}</option>)}
                   </select>
                 </>
               )}
