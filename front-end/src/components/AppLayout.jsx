@@ -1,5 +1,6 @@
 import TelegramOnboarding from './TelegramOnboarding';
 import { Link } from 'react-router-dom';
+import AiChatBox from './AiChatBox';
 
 const AppLayout = ({
   user,
@@ -69,6 +70,8 @@ const AppLayout = ({
           </div>
         </div>
       </footer>
+
+      <AiChatBox />
     </div>
   );
 };

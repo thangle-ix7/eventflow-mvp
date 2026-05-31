@@ -90,6 +90,11 @@ eventflow:
       bucket: ${SUPABASE_STORAGE_BUCKET:}
   dev:
     seed-enabled: ${EVENTFLOW_DEV_SEED_ENABLED:false}
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY:}
+      model: ${OPENAI_MODEL:gpt-4.1-mini}
+      enabled: ${AI_ASSISTANT_OPENAI_ENABLED:true}
 
 management:
   endpoints:
