@@ -359,6 +359,8 @@ const TaskBoard = ({ eventId, canManage = false }) => {
                         className={`text-sm font-semibold rounded-lg px-3 py-1.5 border transition-all outline-none cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed
                           ${task.status === 'DONE'
                             ? 'bg-green-50 text-green-700 border-green-200'
+                            : task.status === 'IN_REVIEW'
+                              ? 'bg-violet-50 text-violet-700 border-violet-200'
                             : task.status === 'IN_PROGRESS'
                               ? 'bg-blue-50 text-blue-700 border-blue-200'
                               : 'bg-gray-50 text-gray-700 border-gray-200'
@@ -367,6 +369,7 @@ const TaskBoard = ({ eventId, canManage = false }) => {
                       >
                         <option value="TODO">TODO</option>
                         <option value="IN_PROGRESS">IN_PROGRESS</option>
+                        <option value="IN_REVIEW">IN_REVIEW</option>
                         <option value="DONE">DONE</option>
                       </select>
                     </div>

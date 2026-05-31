@@ -313,6 +313,7 @@ const TaskDetailPage = ({ user, onLogout }) => {
               >
                 <option value="TODO">TODO</option>
                 <option value="IN_PROGRESS">IN_PROGRESS</option>
+                <option value="IN_REVIEW">IN_REVIEW</option>
                 <option value="DONE">DONE</option>
               </select>
               {isLeader && (

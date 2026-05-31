@@ -213,6 +213,7 @@ public class DashboardService {
                            COUNT(*) AS total_tasks,
                            COALESCE(SUM(CASE WHEN status = 'TODO' THEN 1 ELSE 0 END), 0) AS todo_tasks,
                            COALESCE(SUM(CASE WHEN status = 'IN_PROGRESS' THEN 1 ELSE 0 END), 0) AS in_progress_tasks,
+                           COALESCE(SUM(CASE WHEN status = 'IN_REVIEW' THEN 1 ELSE 0 END), 0) AS in_review_tasks,
                            COALESCE(SUM(CASE WHEN status = 'DONE' THEN 1 ELSE 0 END), 0) AS completed_tasks
                     FROM filtered_tasks
                     GROUP BY DATE_TRUNC('day', deadline)::date
@@ -221,6 +222,7 @@ public class DashboardService {
                        COALESCE(dc.total_tasks, 0) AS total_tasks,
                        COALESCE(dc.todo_tasks, 0) AS todo_tasks,
                        COALESCE(dc.in_progress_tasks, 0) AS in_progress_tasks,
+                       COALESCE(dc.in_review_tasks, 0) AS in_review_tasks,
                        COALESCE(dc.completed_tasks, 0) AS completed_tasks
                 FROM days d
                 LEFT JOIN daily_counts dc ON dc.day = d.day
@@ -230,6 +232,7 @@ public class DashboardService {
                 .totalTasks(rs.getLong("total_tasks"))
                 .todoTasks(rs.getLong("todo_tasks"))
                 .inProgressTasks(rs.getLong("in_progress_tasks"))
+                .inReviewTasks(rs.getLong("in_review_tasks"))
                 .completedTasks(rs.getLong("completed_tasks"))
                 .build(), params);
     }
@@ -274,8 +277,9 @@ public class DashboardService {
                 ORDER BY CASE status
                     WHEN 'TODO' THEN 1
                     WHEN 'IN_PROGRESS' THEN 2
-                    WHEN 'DONE' THEN 3
-                    ELSE 4
+                    WHEN 'IN_REVIEW' THEN 3
+                    WHEN 'DONE' THEN 4
+                    ELSE 5
                 END
                 """, (rs, rowNum) -> CategoryMetricDTO.builder()
                 .label(rs.getString("label"))

@@ -40,7 +40,6 @@ const DepartmentDashboardPage = ({ user, onLogout }) => {
 
   const summary = summaryQuery.data;
   const statusData = normalizeStatusData(statusQuery.data);
-  const weeklyTotal = statusData.reduce((sum, item) => sum + (item.totalTasks || 0), 0);
   const tasks = tasksQuery.data?.content || [];
   const isLoading = eventQuery.isLoading || summaryQuery.isLoading || trendQuery.isLoading || statusQuery.isLoading || tasksQuery.isLoading;
   const error = summaryQuery.error || trendQuery.error || statusQuery.error || tasksQuery.error;
@@ -48,20 +47,21 @@ const DepartmentDashboardPage = ({ user, onLogout }) => {
   return (
     <AppLayout user={user} events={event ? [event] : []} selectedEvent={event} onEventChange={() => {}} onLogout={onLogout}>
       <div className="space-y-6">
-        <Link to={`/events/${eventId}/departments/${departmentId}`} className="inline-flex items-center gap-2 text-sm font-semibold text-blue-600">
-          <ArrowLeft size={16} />
-          Quay lại department
-        </Link>
+        <section className="space-y-4">
+          <Link to={`/events/${eventId}/departments/${departmentId}`} className="inline-flex items-center gap-2 text-sm font-semibold text-blue-600">
+            <ArrowLeft size={16} />
+            Quay lại department
+          </Link>
 
-        <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">Dashboard department</h2>
-              <p className="mt-1 text-sm text-gray-500">Trực quan hóa trạng thái và danh sách task của department.</p>
+              <p className="text-sm font-semibold text-gray-500">
+                {event?.name || 'Event'} / Department / {summary?.departmentName || 'Dashboard'}
+              </p>
+              <h2 className="mt-1 text-2xl font-bold text-gray-900">Dashboard department</h2>
             </div>
-            {summary?.departmentName && <span className="h-fit w-fit rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700">{summary.departmentName}</span>}
+            <WeekControl weekIndex={weekIndex} setWeekIndex={(next) => { setPage(0); setWeekIndex(next); }} weekRange={weekRange} />
           </div>
-          <WeekControl weekIndex={weekIndex} setWeekIndex={(next) => { setPage(0); setWeekIndex(next); }} weekRange={weekRange} />
         </section>
 
         {isLoading && <LoadingBlock message="Đang tải dashboard department..." />}
@@ -69,14 +69,7 @@ const DepartmentDashboardPage = ({ user, onLogout }) => {
 
         {summary && !error && (
           <>
-            <section className="grid gap-4 md:grid-cols-4">
-              <MetricCard label="Tổng task trong tuần" value={weeklyTotal} />
-              <MetricCard label="TODO" value={statusValue(statusData, 'TODO')} />
-              <MetricCard label="IN_PROGRESS" value={statusValue(statusData, 'IN_PROGRESS')} />
-              <MetricCard label="DONE" value={statusValue(statusData, 'DONE')} />
-            </section>
-
-            <section className="grid gap-4 lg:grid-cols-[1.25fr_0.75fr]">
+            <section className="grid gap-4">
               <ChartPanel icon={<TrendingUp size={18} />} title="Line chart task theo ngày" description="Số lượng task theo deadline từng ngày trong department, tách theo trạng thái hiện tại.">
                 <StatusLineChart data={trendQuery.data || []} />
               </ChartPanel>
@@ -94,14 +87,14 @@ const DepartmentDashboardPage = ({ user, onLogout }) => {
 };
 
 const statusValue = (data = [], status) => data.find((item) => item.label === status)?.totalTasks || 0;
-const STATUS_ORDER = ['TODO', 'IN_PROGRESS', 'DONE'];
+const STATUS_ORDER = ['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE'];
 const normalizeStatusData = (data = []) => STATUS_ORDER.map((status) => ({
   label: status,
   totalTasks: statusValue(data, status),
 }));
 
 const WeekControl = ({ weekIndex, setWeekIndex, weekRange }) => (
-  <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+  <div className="flex flex-col gap-1">
     <div className="text-sm font-semibold text-gray-700">
       Tuần {weekIndex + 1}: {weekRange.fromDate} đến {weekRange.toDate}
     </div>
@@ -109,13 +102,6 @@ const WeekControl = ({ weekIndex, setWeekIndex, weekRange }) => (
       <button type="button" onClick={() => setWeekIndex(Math.max(weekIndex - 1, 0))} disabled={weekIndex === 0} className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 disabled:opacity-50">Tuần trước</button>
       <button type="button" onClick={() => setWeekIndex(weekIndex + 1)} className="rounded-lg border border-blue-600 px-3 py-2 text-sm font-semibold text-blue-600 hover:bg-blue-50">Tuần sau</button>
     </div>
-  </div>
-);
-
-const MetricCard = ({ label, value }) => (
-  <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-    <p className="text-sm font-medium text-gray-500">{label}</p>
-    <p className="mt-2 text-3xl font-bold text-gray-900">{value ?? 0}</p>
   </div>
 );
 
@@ -141,6 +127,7 @@ const StatusLineChart = ({ data }) => {
   const series = [
     { key: 'todoTasks', label: 'TODO', color: '#2563eb' },
     { key: 'inProgressTasks', label: 'IN_PROGRESS', color: '#f59e0b' },
+    { key: 'inReviewTasks', label: 'IN_REVIEW', color: '#8b5cf6' },
     { key: 'completedTasks', label: 'DONE', color: '#10b981' },
   ];
   const maxValue = Math.max(...data.flatMap((item) => series.map((line) => item[line.key] || 0)), 1);
@@ -187,10 +174,10 @@ const StatusLineChart = ({ data }) => {
 const StatusColumnChart = ({ data }) => {
   if (!data.length) return <EmptyChart message="Chưa có dữ liệu status." />;
   const maxValue = Math.max(...data.map((item) => item.totalTasks || 0), 1);
-  const colorByStatus = { TODO: 'bg-blue-500', IN_PROGRESS: 'bg-amber-500', DONE: 'bg-emerald-500' };
+  const colorByStatus = { TODO: 'bg-blue-500', IN_PROGRESS: 'bg-amber-500', IN_REVIEW: 'bg-violet-500', DONE: 'bg-emerald-500' };
 
   return (
-    <div className="grid h-72 grid-cols-3 items-end gap-4 border-b border-gray-200 pb-3">
+    <div className="grid h-72 grid-cols-4 items-end gap-4 border-b border-gray-200 pb-3">
       {data.map((item) => (
         <div key={item.label} className="flex h-full flex-col items-center justify-end">
           <div className="flex h-52 w-full items-end justify-center">

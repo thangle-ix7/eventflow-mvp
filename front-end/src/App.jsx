@@ -1,15 +1,13 @@
-import { useState } from 'react';
+import { Suspense, lazy, useState } from 'react';
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import LoginPage from './components/LoginPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import DepartmentCreatePage from './pages/DepartmentCreatePage';
-import DepartmentDashboardPage from './pages/DepartmentDashboardPage';
 import DepartmentDetailPage from './pages/DepartmentDetailPage';
 import DepartmentListPage from './pages/DepartmentListPage';
 import DepartmentMembersPage from './pages/DepartmentMembersPage';
 import DepartmentTasksPage from './pages/DepartmentTasksPage';
 import EventCreatePage from './pages/EventCreatePage';
-import EventDashboardPage from './pages/EventDashboardPage';
 import EventDetailPage from './pages/EventDetailPage';
 import EventListPage from './pages/EventListPage';
 import EventMembersPage from './pages/EventMembersPage';
@@ -19,6 +17,9 @@ import TaskCreatePage from './pages/TaskCreatePage';
 import TaskDetailPage from './pages/TaskDetailPage';
 import TaskEditPage from './pages/TaskEditPage';
 import TaskListPage from './pages/TaskListPage';
+
+const EventDashboardPage = lazy(() => import('./pages/EventDashboardPage'));
+const DepartmentDashboardPage = lazy(() => import('./pages/DepartmentDashboardPage'));
 
 function App() {
   const navigate = useNavigate();
@@ -83,7 +84,11 @@ function App() {
         <Route path="/events/:eventId" element={<EventDetailPage {...protectedProps} />} />
         <Route
           path="/events/:eventId/dashboard"
-          element={<EventDashboardPage {...protectedProps} />}
+          element={
+            <LazyPageFallback>
+              <EventDashboardPage {...protectedProps} />
+            </LazyPageFallback>
+          }
         />
         <Route
           path="/events/:eventId/members"
@@ -123,7 +128,11 @@ function App() {
         />
         <Route
           path="/events/:eventId/departments/:departmentId/dashboard"
-          element={<DepartmentDashboardPage {...protectedProps} />}
+          element={
+            <LazyPageFallback>
+              <DepartmentDashboardPage {...protectedProps} />
+            </LazyPageFallback>
+          }
         />
         <Route
           path="/events/:eventId/departments/:departmentId/members"
@@ -138,5 +147,17 @@ function App() {
     </Routes>
   );
 }
+
+const LazyPageFallback = ({ children }) => (
+  <Suspense
+    fallback={
+      <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 text-sm font-semibold text-gray-600">
+        Đang tải trang...
+      </div>
+    }
+  >
+    {children}
+  </Suspense>
+);
 
 export default App;

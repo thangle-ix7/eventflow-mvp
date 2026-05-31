@@ -14,5 +14,6 @@ public class ChartPointDTO {
     private Long totalTasks;
     private Long todoTasks;
     private Long inProgressTasks;
+    private Long inReviewTasks;
     private Long completedTasks;
 }

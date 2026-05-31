@@ -70,6 +70,7 @@ const DepartmentTasksPage = ({ user, onLogout }) => {
               <option value="">Tất cả status</option>
               <option value="TODO">TODO</option>
               <option value="IN_PROGRESS">IN_PROGRESS</option>
+              <option value="IN_REVIEW">IN_REVIEW</option>
               <option value="DONE">DONE</option>
             </select>
             <button type="submit" className="rounded-lg border border-blue-600 px-4 py-2 text-sm font-semibold text-blue-600 hover:bg-blue-50">Tìm</button>

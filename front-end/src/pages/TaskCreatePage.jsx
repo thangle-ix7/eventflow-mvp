@@ -104,6 +104,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
             <select name="status" value={form.status} onChange={handleChange} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500">
               <option value="TODO">TODO</option>
               <option value="IN_PROGRESS">IN_PROGRESS</option>
+              <option value="IN_REVIEW">IN_REVIEW</option>
               <option value="DONE">DONE</option>
             </select>
           </Field>

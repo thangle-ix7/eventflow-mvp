@@ -93,6 +93,7 @@ const TaskListPage = ({ user, onLogout }) => {
               <option value="">Tất cả status</option>
               <option value="TODO">TODO</option>
               <option value="IN_PROGRESS">IN_PROGRESS</option>
+              <option value="IN_REVIEW">IN_REVIEW</option>
               <option value="DONE">DONE</option>
             </select>
             <select value={departmentId} onChange={(event) => { setPage(0); setDepartmentId(event.target.value); }} className="rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500">
