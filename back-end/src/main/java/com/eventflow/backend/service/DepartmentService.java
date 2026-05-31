@@ -2,12 +2,15 @@ package com.eventflow.backend.service;
 
 import com.eventflow.backend.dto.DepartmentRequestDTO;
 import com.eventflow.backend.dto.DepartmentResponseDTO;
+import com.eventflow.backend.dto.PageResponse;
 import com.eventflow.backend.entity.Department;
 import com.eventflow.backend.entity.Event;
 import com.eventflow.backend.repository.DepartmentRepository;
 import com.eventflow.backend.repository.EventRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,10 +26,24 @@ public class DepartmentService {
     private final EventRepository eventRepository;
 
     @Transactional(readOnly = true)
-    public List<DepartmentResponseDTO> getDepartments(Long eventId) {
-        return departmentRepository.findAllByEventIdOrderByNameAsc(eventId).stream()
-                .map(this::mapToResponse)
-                .toList();
+    public PageResponse<DepartmentResponseDTO> getDepartments(
+            Long eventId,
+            int page,
+            int size,
+            String sort,
+            String direction,
+            String search) {
+
+        var pageable = PageRequest.of(
+                Math.max(page, 0),
+                Math.min(Math.max(size, 1), 100),
+                Sort.by(resolveDirection(direction), resolveSort(sort)));
+
+        return PageResponse.from(departmentRepository.findAllByEventIdAndNameContainingIgnoreCase(
+                        eventId,
+                        search == null ? "" : search.trim(),
+                        pageable)
+                .map(this::mapToResponse));
     }
 
     @Transactional(readOnly = true)
@@ -86,6 +103,21 @@ public class DepartmentService {
 
     private String normalizeName(String name) {
         return name.trim();
+    }
+
+    private Sort.Direction resolveDirection(String direction) {
+        return "desc".equalsIgnoreCase(direction) ? Sort.Direction.DESC : Sort.Direction.ASC;
+    }
+
+    private String resolveSort(String sort) {
+        if (sort == null || sort.isBlank()) {
+            return "name";
+        }
+
+        return switch (sort) {
+            case "id", "name" -> sort;
+            default -> "name";
+        };
     }
 
     private DepartmentResponseDTO mapToResponse(Department department) {

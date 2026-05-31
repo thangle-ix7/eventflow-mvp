@@ -2,6 +2,8 @@ package com.eventflow.backend.repository;
 
 import com.eventflow.backend.entity.EventMember;
 import com.eventflow.backend.entity.UserRole;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -19,6 +21,26 @@ public interface EventMemberRepository extends JpaRepository<EventMember, Long> 
 
     @Query("SELECT em FROM EventMember em JOIN FETCH em.event WHERE em.user.id = :userId ORDER BY em.event.eventDate ASC")
     List<EventMember> findAllByUserIdWithEvent(@Param("userId") Long userId);
+
+    @Query(value = """
+            SELECT em FROM EventMember em
+            JOIN FETCH em.event e
+            WHERE em.user.id = :userId
+            AND (:status IS NULL OR e.status = :status)
+            AND (:search IS NULL OR LOWER(e.name) LIKE LOWER(CONCAT('%', :search, '%')))
+            """,
+            countQuery = """
+            SELECT COUNT(em) FROM EventMember em
+            JOIN em.event e
+            WHERE em.user.id = :userId
+            AND (:status IS NULL OR e.status = :status)
+            AND (:search IS NULL OR LOWER(e.name) LIKE LOWER(CONCAT('%', :search, '%')))
+            """)
+    Page<EventMember> findAllByUserIdWithEvent(
+            @Param("userId") Long userId,
+            @Param("status") String status,
+            @Param("search") String search,
+            Pageable pageable);
 
     @Query("SELECT em FROM EventMember em JOIN FETCH em.event WHERE em.event.id = :eventId AND em.user.id = :userId")
     Optional<EventMember> findByEventIdAndUserIdWithEvent(

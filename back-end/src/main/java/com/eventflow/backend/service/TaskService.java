@@ -1,6 +1,7 @@
 package com.eventflow.backend.service;
 
 import com.eventflow.backend.dto.DepartmentTasksDTO;
+import com.eventflow.backend.dto.PageResponse;
 import com.eventflow.backend.dto.TaskRequestDTO;
 import com.eventflow.backend.dto.TaskResponseDTO;
 import com.eventflow.backend.entity.Department;
@@ -14,6 +15,8 @@ import com.eventflow.backend.repository.EventRepository;
 import com.eventflow.backend.repository.TaskRepository;
 import com.eventflow.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,8 +43,22 @@ public class TaskService {
     }
 
     @Transactional(readOnly = true)
-    public List<DepartmentTasksDTO> getTasksByEvent(Long eventId) {
-        List<Task> tasks = taskRepository.findAllByEventIdWithDetails(eventId);
+    public List<DepartmentTasksDTO> getTasksByEvent(
+            Long eventId,
+            String status,
+            Long departmentId,
+            Long assigneeId,
+            String search,
+            String sort,
+            String direction) {
+
+        List<Task> tasks = taskRepository.findAllByEventIdWithFilters(
+                eventId,
+                parseOptionalStatus(status),
+                departmentId,
+                assigneeId,
+                normalizeSearch(search),
+                Sort.by(resolveDirection(direction), resolveSort(sort)));
 
         // Group tasks by department
         Map<com.eventflow.backend.entity.Department, List<Task>> grouped = tasks.stream()
@@ -61,6 +78,33 @@ public class TaskService {
                             .build();
                 })
                 .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<TaskResponseDTO> getTaskPageByEvent(
+            Long eventId,
+            int page,
+            int size,
+            String sort,
+            String direction,
+            String status,
+            Long departmentId,
+            Long assigneeId,
+            String search) {
+
+        var pageable = PageRequest.of(
+                Math.max(page, 0),
+                Math.min(Math.max(size, 1), 100),
+                Sort.by(resolveDirection(direction), resolveSort(sort)));
+
+        return PageResponse.from(taskRepository.findPageByEventIdWithFilters(
+                        eventId,
+                        parseOptionalStatus(status),
+                        departmentId,
+                        assigneeId,
+                        normalizeSearch(search),
+                        pageable)
+                .map(this::mapToTaskResponse));
     }
 
     @Transactional(readOnly = true)
@@ -163,6 +207,37 @@ public class TaskService {
         } catch (IllegalArgumentException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Trạng thái task không hợp lệ", e);
         }
+    }
+
+    private TaskStatus parseOptionalStatus(String status) {
+        if (status == null || status.isBlank()) {
+            return null;
+        }
+        return parseStatusOrDefault(status, null);
+    }
+
+    private String normalizeSearch(String search) {
+        if (search == null || search.isBlank()) {
+            return null;
+        }
+        return search.trim();
+    }
+
+    private Sort.Direction resolveDirection(String direction) {
+        return "desc".equalsIgnoreCase(direction) ? Sort.Direction.DESC : Sort.Direction.ASC;
+    }
+
+    private String resolveSort(String sort) {
+        if (sort == null || sort.isBlank()) {
+            return "deadline";
+        }
+
+        return switch (sort) {
+            case "title", "status", "deadline", "createdAt" -> sort;
+            case "department" -> "department.name";
+            case "assignee" -> "assignee.name";
+            default -> "deadline";
+        };
     }
 
     private TaskResponseDTO mapToTaskResponse(Task task) {

@@ -2,6 +2,7 @@ package com.eventflow.backend.service;
 
 import com.eventflow.backend.dto.EventRequestDTO;
 import com.eventflow.backend.dto.EventResponseDTO;
+import com.eventflow.backend.dto.PageResponse;
 import com.eventflow.backend.entity.Event;
 import com.eventflow.backend.entity.EventMember;
 import com.eventflow.backend.entity.User;
@@ -10,6 +11,8 @@ import com.eventflow.backend.repository.EventMemberRepository;
 import com.eventflow.backend.repository.EventRepository;
 import com.eventflow.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,10 +29,26 @@ public class EventService {
     private final UserRepository userRepository;
 
     @Transactional(readOnly = true)
-    public List<EventResponseDTO> getEventsForUser(Long userId) {
-        return eventMemberRepository.findAllByUserIdWithEvent(userId).stream()
-                .map(this::mapToResponse)
-                .toList();
+    public PageResponse<EventResponseDTO> getEventsForUser(
+            Long userId,
+            int page,
+            int size,
+            String sort,
+            String direction,
+            String status,
+            String search) {
+
+        var pageable = PageRequest.of(
+                normalizePage(page),
+                normalizeSize(size),
+                Sort.by(resolveDirection(direction), resolveSort(sort)));
+
+        return PageResponse.from(eventMemberRepository.findAllByUserIdWithEvent(
+                        userId,
+                        normalizeStatusFilter(status),
+                        normalizeSearch(search),
+                        pageable)
+                .map(this::mapToResponse));
     }
 
     @Transactional(readOnly = true)
@@ -87,6 +106,46 @@ public class EventService {
         }
 
         return status.trim().toUpperCase();
+    }
+
+    private String normalizeStatusFilter(String status) {
+        if (status == null || status.isBlank()) {
+            return null;
+        }
+        return status.trim().toUpperCase();
+    }
+
+    private String normalizeSearch(String search) {
+        if (search == null || search.isBlank()) {
+            return null;
+        }
+        return search.trim();
+    }
+
+    private int normalizePage(int page) {
+        return Math.max(page, 0);
+    }
+
+    private int normalizeSize(int size) {
+        return Math.min(Math.max(size, 1), 100);
+    }
+
+    private Sort.Direction resolveDirection(String direction) {
+        return "desc".equalsIgnoreCase(direction) ? Sort.Direction.DESC : Sort.Direction.ASC;
+    }
+
+    private String resolveSort(String sort) {
+        if (sort == null || sort.isBlank()) {
+            return "event.eventDate";
+        }
+
+        return switch (sort) {
+            case "name" -> "event.name";
+            case "status" -> "event.status";
+            case "createdAt" -> "event.createdAt";
+            case "eventDate" -> "event.eventDate";
+            default -> "event.eventDate";
+        };
     }
 
     private EventResponseDTO mapToResponse(EventMember member) {

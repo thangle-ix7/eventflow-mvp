@@ -3,6 +3,7 @@ package com.eventflow.backend.service;
 import com.eventflow.backend.dto.TelegramLinkTokenResponse;
 import com.eventflow.backend.entity.User;
 import com.eventflow.backend.repository.UserRepository;
+import com.eventflow.backend.util.SecureTokenUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -10,11 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.SecureRandom;
 import java.time.LocalDateTime;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -25,7 +22,6 @@ public class TelegramBotService {
 
     private final UserRepository userRepository;
     private final RestTemplate restTemplate = new RestTemplate();
-    private final SecureRandom secureRandom = new SecureRandom();
 
     @Value("${telegram.bot.token}")
     private String botToken;
@@ -38,10 +34,10 @@ public class TelegramBotService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found with id: " + userId));
 
-        String token = generateToken();
+        String token = SecureTokenUtil.generateToken();
         LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(linkTokenTtlMinutes);
 
-        user.setTelegramLinkTokenHash(hashToken(token));
+        user.setTelegramLinkTokenHash(SecureTokenUtil.sha256Hex(token));
         user.setTelegramLinkTokenExpiresAt(expiresAt);
         userRepository.save(user);
 
@@ -56,7 +52,7 @@ public class TelegramBotService {
         }
 
         userRepository.findByTelegramLinkTokenHashAndTelegramLinkTokenExpiresAtAfter(
-                        hashToken(rawToken.trim()),
+                        SecureTokenUtil.sha256Hex(rawToken.trim()),
                         LocalDateTime.now())
                 .ifPresentOrElse(user -> {
                     user.setTelegramChatId(chatId);
@@ -85,23 +81,4 @@ public class TelegramBotService {
         }
     }
 
-    private String generateToken() {
-        byte[] bytes = new byte[32];
-        secureRandom.nextBytes(bytes);
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
-    }
-
-    private String hashToken(String token) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(token.getBytes(StandardCharsets.UTF_8));
-            StringBuilder sb = new StringBuilder(hash.length * 2);
-            for (byte b : hash) {
-                sb.append(String.format("%02x", b));
-            }
-            return sb.toString();
-        } catch (Exception e) {
-            throw new IllegalStateException("Failed to hash Telegram link token", e);
-        }
-    }
 }

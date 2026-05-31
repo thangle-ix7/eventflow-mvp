@@ -3,7 +3,7 @@ import apiClient from './apiClient';
 const eventApi = {
   getMyEvents: async () => {
     const response = await apiClient.get('/events');
-    return response.data;
+    return response.data?.content || response.data;
   },
 
   getEvent: async (eventId) => {

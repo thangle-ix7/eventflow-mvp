@@ -18,6 +18,14 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     boolean existsByEmail(String email);
 
+    Optional<User> findByEmailVerificationTokenHashAndEmailVerificationTokenExpiresAtAfter(
+            String tokenHash,
+            LocalDateTime now);
+
+    Optional<User> findByPasswordResetTokenHashAndPasswordResetTokenExpiresAtAfter(
+            String tokenHash,
+            LocalDateTime now);
+
     @Modifying
     @Transactional
     @Query("UPDATE User u SET u.telegramChatId = :chatId WHERE u.id = :userId")

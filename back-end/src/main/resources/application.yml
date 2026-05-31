@@ -26,6 +26,7 @@ spring:
     port: ${MAIL_PORT:587}
     username: ${MAIL_USERNAME:}
     password: ${MAIL_PASSWORD:}
+    from: ${MAIL_FROM:${MAIL_USERNAME:}}
     properties:
       mail:
         smtp:
@@ -47,6 +48,13 @@ jwt:
   expiration-ms: ${JWT_EXPIRATION_MS:86400000}
 
 eventflow:
+  frontend-url: ${APP_FRONTEND_URL:http://localhost:5173}
+  auth:
+    email-verification-token-ttl-minutes: ${AUTH_EMAIL_VERIFICATION_TOKEN_TTL_MINUTES:1440}
+    password-reset-token-ttl-minutes: ${AUTH_PASSWORD_RESET_TOKEN_TTL_MINUTES:30}
+    max-failed-login-attempts: ${AUTH_MAX_FAILED_LOGIN_ATTEMPTS:5}
+    lockout-minutes: ${AUTH_LOCKOUT_MINUTES:15}
+    require-email-delivery: ${AUTH_REQUIRE_EMAIL_DELIVERY:false}
   dev:
     seed-enabled: ${EVENTFLOW_DEV_SEED_ENABLED:false}
 

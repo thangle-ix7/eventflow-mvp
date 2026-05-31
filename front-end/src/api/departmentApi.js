@@ -7,7 +7,7 @@ const departmentApi = {
     }
 
     const response = await apiClient.get(`/events/${eventId}/departments`);
-    return response.data;
+    return response.data?.content || response.data;
   },
 
   getDepartment: async ({ eventId, departmentId }) => {

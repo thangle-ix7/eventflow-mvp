@@ -2,6 +2,7 @@ package com.eventflow.backend.controller;
 
 import com.eventflow.backend.dto.DepartmentRequestDTO;
 import com.eventflow.backend.dto.DepartmentResponseDTO;
+import com.eventflow.backend.dto.PageResponse;
 import com.eventflow.backend.security.EventSecurityService;
 import com.eventflow.backend.service.DepartmentService;
 import jakarta.validation.Valid;
@@ -11,10 +12,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-
 @RestController
-@RequestMapping("/api/events/{eventId}/departments")
+@RequestMapping({"/api/events/{eventId}/departments", "/api/v1/events/{eventId}/departments"})
 @RequiredArgsConstructor
 public class DepartmentController {
 
@@ -22,15 +21,20 @@ public class DepartmentController {
     private final EventSecurityService eventSecurityService;
 
     @GetMapping
-    public ResponseEntity<List<DepartmentResponseDTO>> getDepartments(
+    public ResponseEntity<PageResponse<DepartmentResponseDTO>> getDepartments(
             @PathVariable Long eventId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size,
+            @RequestParam(defaultValue = "name") String sort,
+            @RequestParam(defaultValue = "asc") String direction,
+            @RequestParam(required = false) String search,
             Authentication authentication) {
 
         if (!eventSecurityService.isMemberOfEvent(eventId, currentUserId(authentication))) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
-        return ResponseEntity.ok(departmentService.getDepartments(eventId));
+        return ResponseEntity.ok(departmentService.getDepartments(eventId, page, size, sort, direction, search));
     }
 
     @GetMapping("/{departmentId}")

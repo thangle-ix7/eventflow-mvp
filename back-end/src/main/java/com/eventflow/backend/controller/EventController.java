@@ -2,6 +2,7 @@ package com.eventflow.backend.controller;
 
 import com.eventflow.backend.dto.EventRequestDTO;
 import com.eventflow.backend.dto.EventResponseDTO;
+import com.eventflow.backend.dto.PageResponse;
 import com.eventflow.backend.security.EventSecurityService;
 import com.eventflow.backend.service.EventService;
 import jakarta.validation.Valid;
@@ -11,10 +12,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-
 @RestController
-@RequestMapping("/api/events")
+@RequestMapping({"/api/events", "/api/v1/events"})
 @RequiredArgsConstructor
 public class EventController {
 
@@ -22,8 +21,23 @@ public class EventController {
     private final EventSecurityService eventSecurityService;
 
     @GetMapping
-    public ResponseEntity<List<EventResponseDTO>> getMyEvents(Authentication authentication) {
-        return ResponseEntity.ok(eventService.getEventsForUser(currentUserId(authentication)));
+    public ResponseEntity<PageResponse<EventResponseDTO>> getMyEvents(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "eventDate") String sort,
+            @RequestParam(defaultValue = "asc") String direction,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String search,
+            Authentication authentication) {
+
+        return ResponseEntity.ok(eventService.getEventsForUser(
+                currentUserId(authentication),
+                page,
+                size,
+                sort,
+                direction,
+                status,
+                search));
     }
 
     @GetMapping("/{eventId}")
