@@ -1,0 +1,51 @@
+spring:
+  application:
+    name: eventflow-backend
+  
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/eventflow}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:admin}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:event.flow.corp.vn@gmail.com}
+    password: ${MAIL_PASSWORD:jrnvplalmjtxfchs}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+server:
+  port: ${SERVER_PORT:8080}
+
+telegram:
+  bot:
+    token: ${TELEGRAM_BOT_TOKEN:8853907732:AAEx6GQitSYW77fSPZXcsy4wX9k2JKgJNo4}
+
+jwt:
+  secret: ${JWT_SECRET:eventflow-mvp-secret-2026-summer-change-in-prod}
+  expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics

@@ -1,0 +1,19 @@
+# Spring Boot
+back-end/target/
+*.log
+
+# React
+front-end/node_modules/
+front-end/dist/
+
+# IDE
+.idea/
+.vscode/
+
+# Environment
+.env
+.env.example
+
+# OS
+.DS_Store
+Thumbs.db
