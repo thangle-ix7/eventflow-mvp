@@ -49,6 +49,22 @@ jwt:
 
 eventflow:
   frontend-url: ${APP_FRONTEND_URL:http://localhost:5173}
+  security:
+    audit:
+      enabled: ${AUDIT_LOGGING_ENABLED:true}
+    rate-limit:
+      enabled: ${RATE_LIMIT_ENABLED:true}
+      window-seconds: ${RATE_LIMIT_WINDOW_SECONDS:60}
+      auth-per-minute: ${RATE_LIMIT_AUTH_PER_MINUTE:20}
+      read-per-minute: ${RATE_LIMIT_READ_PER_MINUTE:300}
+      write-per-minute: ${RATE_LIMIT_WRITE_PER_MINUTE:120}
+      webhook-per-minute: ${RATE_LIMIT_WEBHOOK_PER_MINUTE:120}
+    abuse-protection:
+      enabled: ${ABUSE_PROTECTION_ENABLED:true}
+      max-uri-length: ${ABUSE_MAX_URI_LENGTH:2048}
+      max-query-length: ${ABUSE_MAX_QUERY_LENGTH:4096}
+      max-header-length: ${ABUSE_MAX_HEADER_LENGTH:8192}
+      max-content-length-bytes: ${ABUSE_MAX_CONTENT_LENGTH_BYTES:1048576}
   auth:
     email-verification-token-ttl-minutes: ${AUTH_EMAIL_VERIFICATION_TOKEN_TTL_MINUTES:1440}
     password-reset-token-ttl-minutes: ${AUTH_PASSWORD_RESET_TOKEN_TTL_MINUTES:30}

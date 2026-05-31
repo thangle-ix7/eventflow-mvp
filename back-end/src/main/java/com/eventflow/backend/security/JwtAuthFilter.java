@@ -2,6 +2,7 @@ package com.eventflow.backend.security;
 
 import com.eventflow.backend.entity.User;
 import com.eventflow.backend.repository.UserRepository;
+import com.eventflow.backend.service.AuditLogService;
 import com.eventflow.backend.util.JwtUtil;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -64,6 +65,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                     new UsernamePasswordAuthenticationToken(userId, null, Collections.emptyList());
             authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
             SecurityContextHolder.getContext().setAuthentication(authentication);
+            request.setAttribute(AuditLogService.ACTOR_USER_ID_ATTRIBUTE, userId);
 
         } catch (Exception e) {
             log.debug("Invalid JWT token: {}", e.getMessage());
