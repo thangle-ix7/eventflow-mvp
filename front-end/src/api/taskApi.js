@@ -107,6 +107,100 @@ const taskApi = {
 
     return response.data;
   },
+
+  getTaskReports: async (taskId) => {
+    if (!taskId) {
+      throw new Error('taskId không hợp lệ');
+    }
+
+    const response = await apiClient.get(`/tasks/${taskId}/reports`);
+    return response.data;
+  },
+
+  createTaskReport: async ({ taskId, progressPercentage, description, image }) => {
+    if (!taskId) {
+      throw new Error('taskId không hợp lệ');
+    }
+
+    const formData = new FormData();
+    formData.append('progressPercentage', progressPercentage);
+    formData.append('description', description);
+    if (image) {
+      formData.append('image', image);
+    }
+
+    const response = await apiClient.post(`/tasks/${taskId}/reports`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  updateTaskReport: async ({ reportId, progressPercentage, description, image }) => {
+    if (!reportId) {
+      throw new Error('reportId không hợp lệ');
+    }
+
+    const formData = new FormData();
+    formData.append('progressPercentage', progressPercentage);
+    formData.append('description', description);
+    if (image) {
+      formData.append('image', image);
+    }
+
+    const response = await apiClient.put(`/task-reports/${reportId}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  getTaskReportImage: async (reportId) => {
+    if (!reportId) {
+      throw new Error('reportId không hợp lệ');
+    }
+
+    const response = await apiClient.get(`/task-reports/${reportId}/image`, {
+      responseType: 'blob',
+    });
+    return response.data;
+  },
+
+  getTaskAttachments: async (taskId) => {
+    if (!taskId) {
+      throw new Error('taskId không hợp lệ');
+    }
+
+    const response = await apiClient.get(`/tasks/${taskId}/attachments`);
+    return response.data;
+  },
+
+  uploadTaskAttachments: async ({ taskId, files }) => {
+    if (!taskId) {
+      throw new Error('taskId không hợp lệ');
+    }
+
+    if (!files?.length) {
+      throw new Error('Cần chọn ít nhất một file');
+    }
+
+    const formData = new FormData();
+    Array.from(files).forEach((file) => formData.append('files', file));
+
+    const response = await apiClient.post(`/tasks/${taskId}/attachments`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  downloadTaskAttachment: async (attachmentId) => {
+    if (!attachmentId) {
+      throw new Error('attachmentId không hợp lệ');
+    }
+
+    const response = await apiClient.get(`/task-attachments/${attachmentId}/download`, {
+      responseType: 'blob',
+    });
+    return response.data;
+  },
 };
 
 export default taskApi;

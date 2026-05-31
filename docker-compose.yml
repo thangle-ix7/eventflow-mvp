@@ -61,8 +61,17 @@ services:
       ABUSE_MAX_QUERY_LENGTH: ${ABUSE_MAX_QUERY_LENGTH:-4096}
       ABUSE_MAX_HEADER_LENGTH: ${ABUSE_MAX_HEADER_LENGTH:-8192}
       ABUSE_MAX_CONTENT_LENGTH_BYTES: ${ABUSE_MAX_CONTENT_LENGTH_BYTES:-1048576}
+      TASK_REPORT_UPLOAD_DIR: ${TASK_REPORT_UPLOAD_DIR:-/app/uploads/task-reports}
+      SUPABASE_STORAGE_ENABLED: ${SUPABASE_STORAGE_ENABLED:-false}
+      SUPABASE_STORAGE_ENDPOINT: ${SUPABASE_STORAGE_ENDPOINT:-}
+      SUPABASE_STORAGE_REGION: ${SUPABASE_STORAGE_REGION:-}
+      SUPABASE_STORAGE_ACCESS_KEY: ${SUPABASE_STORAGE_ACCESS_KEY:-}
+      SUPABASE_STORAGE_SECRET_KEY: ${SUPABASE_STORAGE_SECRET_KEY:-}
+      SUPABASE_STORAGE_BUCKET: ${SUPABASE_STORAGE_BUCKET:-}
     ports:
       - "8080:8080"
+    volumes:
+      - task_report_uploads:/app/uploads/task-reports
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
       interval: 30s
@@ -86,3 +95,4 @@ services:
 
 volumes:
   postgres_data:
+  task_report_uploads:

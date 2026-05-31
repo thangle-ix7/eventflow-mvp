@@ -21,6 +21,8 @@ RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
 WORKDIR /app
 
+RUN mkdir -p /app/uploads/task-reports && chown -R appuser:appgroup /app/uploads
+
 # Copy JAR from builder stage
 COPY --from=builder /build/target/*.jar app.jar
 
