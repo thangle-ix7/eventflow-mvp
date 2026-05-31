@@ -65,7 +65,7 @@ const EventDashboardPage = ({ user, onLogout }) => {
                 <StatusLineChart data={trendQuery.data || []} />
               </ChartPanel>
               <ChartPanel icon={<BarChart3 size={18} />} title="Column chart task theo status" description="Số lượng task hiện tại theo từng trạng thái.">
-                <StatusColumnChart data={statusQuery.data || []} />
+                <StatusColumnChart data={normalizeStatusData(statusQuery.data)} />
               </ChartPanel>
             </section>
 
@@ -78,6 +78,11 @@ const EventDashboardPage = ({ user, onLogout }) => {
 };
 
 const statusValue = (data = [], status) => data.find((item) => item.label === status)?.totalTasks || 0;
+const STATUS_ORDER = ['TODO', 'IN_PROGRESS', 'DONE'];
+const normalizeStatusData = (data = []) => STATUS_ORDER.map((status) => ({
+  label: status,
+  totalTasks: statusValue(data, status),
+}));
 
 const MetricCard = ({ label, value }) => (
   <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
@@ -128,7 +133,21 @@ const StatusLineChart = ({ data }) => {
         {series.map((line) => {
           const points = pointsFor(line.key);
           const path = points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ');
-          return <path key={line.key} d={path} fill="none" stroke={line.color} strokeWidth="3" />;
+          return (
+            <g key={line.key}>
+              <path d={path} fill="none" stroke={line.color} strokeWidth="3" />
+              {points.map((point) => (
+                <g key={`${line.key}-${point.label}`}>
+                  <circle cx={point.x} cy={point.y} r="4" fill={line.color} />
+                  {point.value > 0 && (
+                    <text x={point.x} y={point.y - 10} textAnchor="middle" className="fill-gray-700 text-[11px] font-semibold">
+                      {point.value}
+                    </text>
+                  )}
+                </g>
+              ))}
+            </g>
+          );
         })}
         {pointsFor('todoTasks').map((point) => (
           <text key={point.label} x={point.x} y={height - 10} textAnchor="middle" className="fill-gray-500 text-[10px]">{point.label}</text>
