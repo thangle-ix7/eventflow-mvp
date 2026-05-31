@@ -59,6 +59,21 @@ public class User {
     @Column(name = "telegram_link_token_expires_at")
     private LocalDateTime telegramLinkTokenExpiresAt;
 
+    @Column(name = "avatar_original_name", length = 255)
+    private String avatarOriginalName;
+
+    @Column(name = "avatar_content_type", length = 100)
+    private String avatarContentType;
+
+    @Column(name = "avatar_size_bytes")
+    private Long avatarSizeBytes;
+
+    @Column(name = "avatar_storage_provider", length = 20)
+    private String avatarStorageProvider;
+
+    @Column(name = "avatar_storage_path", length = 500)
+    private String avatarStoragePath;
+
     @Column(name = "created_at", updatable = false)
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();

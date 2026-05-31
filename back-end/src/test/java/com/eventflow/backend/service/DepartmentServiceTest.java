@@ -34,11 +34,18 @@ class DepartmentServiceTest {
     @Mock
     private EventMemberRepository eventMemberRepository;
 
+    @Mock
+    private UserProfileService userProfileService;
+
     private DepartmentService departmentService;
 
     @BeforeEach
     void setUp() {
-        departmentService = new DepartmentService(departmentRepository, eventRepository, eventMemberRepository);
+        departmentService = new DepartmentService(
+                departmentRepository,
+                eventRepository,
+                eventMemberRepository,
+                userProfileService);
     }
 
     @Test

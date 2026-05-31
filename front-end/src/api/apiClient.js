@@ -24,10 +24,14 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const requestUrl = error.config?.url || '';
+    const isAuthRequest = requestUrl.includes('/auth/');
+
+    if (error.response?.status === 401 && !isAuthRequest) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      window.location.reload();
+      localStorage.setItem('sessionExpired', 'true');
+      window.location.assign('/login');
     }
 
     const fieldErrors = error.response?.data?.fieldErrors;

@@ -13,6 +13,8 @@ import EventDashboardPage from './pages/EventDashboardPage';
 import EventDetailPage from './pages/EventDetailPage';
 import EventListPage from './pages/EventListPage';
 import EventMembersPage from './pages/EventMembersPage';
+import MemberDetailPage from './pages/MemberDetailPage';
+import ProfilePage from './pages/ProfilePage';
 import TaskCreatePage from './pages/TaskCreatePage';
 import TaskDetailPage from './pages/TaskDetailPage';
 import TaskEditPage from './pages/TaskEditPage';
@@ -43,7 +45,16 @@ function App() {
     navigate('/', { replace: true });
   };
 
-  const protectedProps = { user, onLogout: handleLogout };
+  const handleUserUpdate = (nextUser) => {
+    localStorage.setItem('user', JSON.stringify(nextUser));
+    setUser(nextUser);
+  };
+
+  const protectedProps = {
+    user,
+    onLogout: handleLogout,
+    onUserUpdate: handleUserUpdate,
+  };
 
   return (
     <Routes>
@@ -67,6 +78,7 @@ function App() {
       />
       <Route element={<ProtectedRoute user={user} />}>
         <Route path="/" element={<EventListPage {...protectedProps} />} />
+        <Route path="/profile" element={<ProfilePage {...protectedProps} />} />
         <Route path="/events/new" element={<EventCreatePage {...protectedProps} />} />
         <Route path="/events/:eventId" element={<EventDetailPage {...protectedProps} />} />
         <Route
@@ -76,6 +88,10 @@ function App() {
         <Route
           path="/events/:eventId/members"
           element={<EventMembersPage {...protectedProps} />}
+        />
+        <Route
+          path="/events/:eventId/members/:userId"
+          element={<MemberDetailPage {...protectedProps} />}
         />
         <Route
           path="/events/:eventId/tasks"

@@ -19,6 +19,9 @@ public class EventMemberResponseDTO {
     private String departmentName;
     private String name;
     private String email;
+    private String avatarUrl;
+    private Boolean telegramLinked;
     private String role;
     private LocalDateTime joinedAt;
+    private LocalDateTime accountCreatedAt;
 }

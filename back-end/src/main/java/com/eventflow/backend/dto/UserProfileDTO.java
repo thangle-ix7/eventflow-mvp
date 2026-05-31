@@ -12,4 +12,5 @@ public class UserProfileDTO {
     private String name;
     private String email;
     private String telegramChatId;
+    private String avatarUrl;
 }

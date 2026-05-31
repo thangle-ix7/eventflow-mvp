@@ -30,6 +30,7 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthEmailService authEmailService;
+    private final UserProfileService userProfileService;
 
     @Value("${jwt.secret}")
     private String jwtSecret;
@@ -178,7 +179,12 @@ public class AuthService {
 
     private AuthResponse buildAuthResponse(User user) {
         String token = JwtUtil.generateToken(user.getId(), jwtSecret, jwtExpirationMs);
-        return new AuthResponse(token, user.getId(), user.getName(), user.getEmail());
+        return new AuthResponse(
+                token,
+                user.getId(),
+                user.getName(),
+                user.getEmail(),
+                userProfileService.avatarUrl(user.getId(), user.getAvatarStoragePath()));
     }
 
     private ResponseStatusException invalidCredentials() {

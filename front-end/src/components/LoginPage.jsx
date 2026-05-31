@@ -14,7 +14,14 @@ const LoginPage = ({ onLoginSuccess }) => {
   const [mode, setMode] = useState(initialMode); // login | signup | forgot | reset
   const [form, setForm] = useState({ name: '', email: '', password: '' });
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(() => {
+    if (localStorage.getItem('sessionExpired') !== 'true') {
+      return '';
+    }
+
+    localStorage.removeItem('sessionExpired');
+    return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
+  });
   const [message, setMessage] = useState('');
 
   useEffect(() => {
@@ -35,7 +42,12 @@ const LoginPage = ({ onLoginSuccess }) => {
         }
       } catch (err) {
         if (active) {
-          setError(err.userMessage || err.message || 'Không thể xác thực email');
+          setMode('login');
+          setError(
+            err.userMessage ||
+              'Link xác thực email không hợp lệ hoặc đã hết hạn. Nếu tài khoản chưa xác thực, hãy nhập email rồi bấm "Gửi lại email xác thực".'
+          );
+          navigate('/login', { replace: true });
         }
       } finally {
         if (active) {
@@ -48,7 +60,7 @@ const LoginPage = ({ onLoginSuccess }) => {
     return () => {
       active = false;
     };
-  }, [location.pathname, onLoginSuccess, token]);
+  }, [location.pathname, navigate, onLoginSuccess, token]);
 
   const handleChange = (e) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -152,7 +164,25 @@ const LoginPage = ({ onLoginSuccess }) => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+    <div className="flex min-h-screen flex-col bg-gray-50">
+      <header className="border-b border-gray-200 bg-white">
+        <div className="mx-auto flex max-w-6xl flex-col gap-2 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-xl font-extrabold text-gray-900">EventFlow</p>
+            <p className="text-sm text-gray-500">
+              Nhóm EXE • Dự án hỗ trợ sự kiện FPTU
+            </p>
+          </div>
+          <a
+            href="mailto:event.flow.corp.vn@gmail.com"
+            className="text-sm font-semibold text-indigo-600 hover:text-indigo-700"
+          >
+            event.flow.corp.vn@gmail.com
+          </a>
+        </div>
+      </header>
+
+      <main className="flex flex-1 items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-extrabold text-gray-900">{title}</h1>
@@ -292,6 +322,19 @@ const LoginPage = ({ onLoginSuccess }) => {
           </button>
         )}
       </div>
+      </main>
+
+      <footer className="border-t border-gray-200 bg-white">
+        <div className="mx-auto flex max-w-6xl flex-col gap-1 px-6 py-4 text-sm text-gray-500 sm:flex-row sm:items-center sm:justify-between">
+          <span>© EventFlow - Nhóm EXE, dự án hỗ trợ sự kiện FPTU.</span>
+          <a
+            href="mailto:event.flow.corp.vn@gmail.com"
+            className="font-semibold text-gray-700 hover:text-indigo-600"
+          >
+            event.flow.corp.vn@gmail.com
+          </a>
+        </div>
+      </footer>
     </div>
   );
 };

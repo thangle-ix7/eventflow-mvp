@@ -25,12 +25,20 @@ public class EventMemberService {
     private final EventMemberRepository eventMemberRepository;
     private final EventRepository eventRepository;
     private final UserRepository userRepository;
+    private final UserProfileService userProfileService;
 
     @Transactional(readOnly = true)
     public List<EventMemberResponseDTO> getMembers(Long eventId) {
         return eventMemberRepository.findAllByEventIdWithUser(eventId).stream()
                 .map(this::mapToResponse)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public EventMemberResponseDTO getMember(Long eventId, Long userId) {
+        return eventMemberRepository.findMemberDetailByEventIdAndUserId(eventId, userId)
+                .map(this::mapToResponse)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy thành viên trong sự kiện"));
     }
 
     @Transactional
@@ -85,8 +93,11 @@ public class EventMemberService {
                 .departmentName(member.getDepartment() != null ? member.getDepartment().getName() : null)
                 .name(user.getName())
                 .email(user.getEmail())
+                .avatarUrl(userProfileService.avatarUrl(user.getId(), user.getAvatarStoragePath()))
+                .telegramLinked(user.getTelegramChatId() != null && !user.getTelegramChatId().isBlank())
                 .role(member.getRole().name())
                 .joinedAt(member.getJoinedAt())
+                .accountCreatedAt(user.getCreatedAt())
                 .build();
     }
 

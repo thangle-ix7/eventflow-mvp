@@ -41,6 +41,19 @@ public class EventMemberController {
         return ResponseEntity.ok(eventMemberService.getMembers(eventId));
     }
 
+    @GetMapping("/{userId}")
+    public ResponseEntity<EventMemberResponseDTO> getMember(
+            @PathVariable Long eventId,
+            @PathVariable Long userId,
+            Authentication authentication) {
+
+        if (!eventSecurityService.isMemberOfEvent(eventId, currentUserId(authentication))) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        return ResponseEntity.ok(eventMemberService.getMember(eventId, userId));
+    }
+
     @PostMapping
     public ResponseEntity<EventMemberResponseDTO> addMember(
             @PathVariable Long eventId,

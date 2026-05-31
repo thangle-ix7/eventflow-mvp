@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, Loader2, UserMinus, UserPlus, Users } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
+import UserAvatar from '../components/UserAvatar';
 import departmentApi from '../api/departmentApi';
 import eventApi from '../api/eventApi';
 import eventMemberApi from '../api/eventMemberApi';
@@ -106,10 +107,16 @@ const DepartmentMembersPage = ({ user, onLogout }) => {
           {!departmentMembersQuery.isLoading && departmentMembers.length === 0 && <div className="p-8 text-center text-gray-500">Chưa có thành viên trong department này.</div>}
           {departmentMembers.map((member) => (
             <div key={member.id} className="flex flex-col gap-3 border-b border-gray-100 p-4 last:border-b-0 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="font-semibold text-gray-900">{member.name}</p>
-                <p className="text-sm text-gray-500">{member.email} • {member.role}</p>
-              </div>
+              <Link
+                to={`/events/${eventId}/members/${member.userId}`}
+                className="flex min-w-0 items-center gap-3 rounded-lg p-1 transition hover:bg-blue-50"
+              >
+                <UserAvatar userId={member.userId} avatarUrl={member.avatarUrl} name={member.name} size="md" />
+                <div className="min-w-0">
+                  <p className="truncate font-semibold text-gray-900">{member.name}</p>
+                  <p className="truncate text-sm text-gray-500">{member.email} • {member.role}</p>
+                </div>
+              </Link>
               {isLeader && (
                 <button type="button" onClick={() => removeMemberMutation.mutate({ eventId, departmentId, userId: member.userId })} disabled={removeMemberMutation.isPending} className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-60">
                   <UserMinus size={16} />

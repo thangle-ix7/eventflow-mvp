@@ -10,6 +10,15 @@ const eventMemberApi = {
     return response.data;
   },
 
+  getMember: async ({ eventId, userId }) => {
+    if (!eventId || !userId) {
+      throw new Error('eventId/userId không hợp lệ');
+    }
+
+    const response = await apiClient.get(`/events/${eventId}/members/${userId}`);
+    return response.data;
+  },
+
   addMember: async ({ eventId, payload }) => {
     if (!eventId) {
       throw new Error('eventId không hợp lệ');

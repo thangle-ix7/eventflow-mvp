@@ -34,6 +34,37 @@ const userApi = {
     const response = await apiClient.post(`/users/${userId}/telegram-link-token`);
     return response.data;
   },
+
+  uploadAvatar: async ({ userId, file }) => {
+    if (!userId) {
+      throw new Error('userId không hợp lệ');
+    }
+
+    if (!file) {
+      throw new Error('Vui lòng chọn ảnh đại diện');
+    }
+
+    const formData = new FormData();
+    formData.append('avatar', file);
+
+    const response = await apiClient.post(`/users/${userId}/avatar`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  getAvatarBlob: async (userId) => {
+    if (!userId) {
+      throw new Error('userId không hợp lệ');
+    }
+
+    const response = await apiClient.get(`/users/${userId}/avatar`, {
+      responseType: 'blob',
+    });
+    return response.data;
+  },
 };
 
 export default userApi;

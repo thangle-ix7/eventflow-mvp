@@ -1,55 +1,42 @@
 import TelegramOnboarding from './TelegramOnboarding';
+import { Link } from 'react-router-dom';
 
 const AppLayout = ({
   user,
-  events = [],
   selectedEvent,
-  onEventChange,
   onLogout,
   showTelegramOnboarding = true,
   children,
 }) => {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="flex min-h-screen flex-col bg-gray-50">
       {showTelegramOnboarding && <TelegramOnboarding userId={user.userId} />}
 
-      <main className="max-w-6xl mx-auto p-6 md:p-12">
-        <header className="mb-10 flex items-start justify-between">
+      <header className="border-b border-gray-200 bg-white">
+        <div className="mx-auto flex max-w-6xl flex-col gap-3 px-6 py-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">
+            <h1 className="text-3xl font-extrabold tracking-tight text-gray-900">
               EventFlow
             </h1>
-            <p className="text-gray-600 mt-2 text-lg">
-              Quản lý công việc và nhắc nhở tự động cho Ban Tổ Chức.
+            <p className="mt-1 text-sm text-gray-600">
+              Nhóm EXE • Dự án hỗ trợ sự kiện FPTU
             </p>
           </div>
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 mt-1">
-            {events.length > 0 && (
-              <>
-                <label className="flex items-center gap-2 text-sm text-gray-600">
-                  <span className="font-semibold">Sự kiện</span>
-                  <select
-                    value={String(selectedEvent?.id || '')}
-                    onChange={onEventChange}
-                    className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-semibold text-gray-800 outline-none transition-colors hover:bg-gray-50 focus:border-indigo-500"
-                  >
-                    {events.map((event) => (
-                      <option key={event.id} value={event.id}>
-                        {event.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                {selectedEvent?.role && (
-                  <span className="w-fit rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-700">
-                    Role: {selectedEvent.role}
-                  </span>
-                )}
-              </>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            {selectedEvent?.role && (
+              <span className="w-fit rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-700">
+                Role: {selectedEvent.role}
+              </span>
             )}
             <span className="text-sm text-gray-600">
               Xin chào, <span className="font-semibold">{user.name}</span>
             </span>
+            <Link
+              to="/profile"
+              className="px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              Profile
+            </Link>
             <button
               type="button"
               onClick={onLogout}
@@ -58,10 +45,30 @@ const AppLayout = ({
               Đăng xuất
             </button>
           </div>
-        </header>
+        </div>
+      </header>
 
+      <main className="mx-auto w-full max-w-6xl flex-1 p-6 md:p-12">
         {children}
       </main>
+
+      <footer className="border-t border-gray-200 bg-white">
+        <div className="mx-auto grid max-w-6xl gap-3 px-6 py-5 text-sm text-gray-500 md:grid-cols-[1fr_auto] md:items-center">
+          <div>
+            <p className="font-semibold text-gray-800">EventFlow - Nhóm EXE</p>
+            <p>Dự án hỗ trợ quản lý sự kiện FPTU.</p>
+          </div>
+          <div className="flex flex-col gap-1 md:text-right">
+            <span className="font-medium text-gray-700">Liên hệ</span>
+            <a
+              href="mailto:event.flow.corp.vn@gmail.com"
+              className="font-semibold text-indigo-600 hover:text-indigo-700"
+            >
+              event.flow.corp.vn@gmail.com
+            </a>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 };

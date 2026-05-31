@@ -29,6 +29,7 @@ public class DepartmentService {
     private final DepartmentRepository departmentRepository;
     private final EventRepository eventRepository;
     private final EventMemberRepository eventMemberRepository;
+    private final UserProfileService userProfileService;
 
     @Transactional(readOnly = true)
     public PageResponse<DepartmentResponseDTO> getDepartments(
@@ -184,8 +185,11 @@ public class DepartmentService {
                 .departmentName(department != null ? department.getName() : null)
                 .name(user.getName())
                 .email(user.getEmail())
+                .avatarUrl(userProfileService.avatarUrl(user.getId(), user.getAvatarStoragePath()))
+                .telegramLinked(user.getTelegramChatId() != null && !user.getTelegramChatId().isBlank())
                 .role(member.getRole().name())
                 .joinedAt(member.getJoinedAt())
+                .accountCreatedAt(user.getCreatedAt())
                 .build();
     }
 }
