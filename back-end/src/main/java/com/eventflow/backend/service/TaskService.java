@@ -106,16 +106,27 @@ public class TaskService {
                 Math.min(Math.max(size, 1), 100),
                 Sort.by(resolveDirection(direction), resolveSort(sort)));
 
-        return PageResponse.from(taskRepository.findPageByEventIdWithFilters(
+        TaskStatus parsedStatus = parseOptionalStatus(status);
+        String searchPattern = normalizeSearch(search);
+        var taskPage = fromDate != null && toDate != null
+                ? taskRepository.findPageByEventIdWithFiltersAndDeadlineRange(
                         eventId,
-                        parseOptionalStatus(status),
+                        parsedStatus,
                         departmentId,
                         assigneeId,
-                        normalizeSearch(search),
+                        searchPattern,
                         startOfDay(fromDate),
                         endExclusive(toDate),
                         pageable)
-                .map(this::mapToTaskResponse));
+                : taskRepository.findPageByEventIdWithFilters(
+                        eventId,
+                        parsedStatus,
+                        departmentId,
+                        assigneeId,
+                        searchPattern,
+                        pageable);
+
+        return PageResponse.from(taskPage.map(this::mapToTaskResponse));
     }
 
     @Transactional(readOnly = true)

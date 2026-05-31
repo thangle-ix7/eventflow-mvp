@@ -176,13 +176,13 @@ public class DashboardService {
 
     private List<ChartPointDTO> getTaskTrend(Long eventId, Long departmentId, LocalDate fromDate, LocalDate toDate) {
         String departmentClause = departmentId == null ? "" : " AND department_id = ? ";
-        String dateClause = fromDate == null || toDate == null ? "" : " AND deadline >= ? AND deadline < (?::date + INTERVAL '1 day') ";
+        String dateClause = fromDate == null || toDate == null ? "" : " AND deadline >= CAST(? AS date) AND deadline < (CAST(? AS date) + INTERVAL '1 day') ";
         Object[] params = buildTrendParams(eventId, departmentId, fromDate, toDate);
 
         return jdbcTemplate.query("""
                 WITH event_start AS (
-                    SELECT COALESCE(?::date, DATE_TRUNC('day', event_date)::date) AS start_day,
-                           COALESCE(?::date, DATE_TRUNC('day', event_date)::date) AS requested_end_day
+                    SELECT COALESCE(CAST(? AS date), DATE_TRUNC('day', event_date)::date) AS start_day,
+                           COALESCE(CAST(? AS date), DATE_TRUNC('day', event_date)::date) AS requested_end_day
                     FROM events
                     WHERE id = ?
                 ),
@@ -202,7 +202,7 @@ public class DashboardService {
                         ) AS end_day
                     FROM event_start es
                     LEFT JOIN filtered_tasks ft ON TRUE
-                    GROUP BY es.start_day
+                    GROUP BY es.start_day, es.requested_end_day
                 ),
                 days AS (
                     SELECT GENERATE_SERIES(start_day, end_day, INTERVAL '1 day')::date AS day
@@ -252,7 +252,7 @@ public class DashboardService {
 
     private List<CategoryMetricDTO> getTasksByStatus(Long eventId, Long departmentId, LocalDate fromDate, LocalDate toDate) {
         String departmentClause = departmentId == null ? "" : " AND department_id = ? ";
-        String dateClause = fromDate == null || toDate == null ? "" : " AND deadline >= ? AND deadline < (?::date + INTERVAL '1 day') ";
+        String dateClause = fromDate == null || toDate == null ? "" : " AND deadline >= CAST(? AS date) AND deadline < (CAST(? AS date) + INTERVAL '1 day') ";
         java.util.ArrayList<Object> params = new java.util.ArrayList<>();
         params.add(eventId);
         if (departmentId != null) {
