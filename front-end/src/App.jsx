@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Navigate, Route, Routes, useNavigate, useParams } from 'react-router-dom';
 import TelegramOnboarding from './components/TelegramOnboarding';
 import Dashboard from './components/Dashboard';
 import TaskBoard from './components/TaskBoard';
@@ -9,6 +10,7 @@ import eventApi from './api/eventApi';
 const EMPTY_EVENTS = [];
 
 function App() {
+  const navigate = useNavigate();
   const [user, setUser] = useState(() => {
     try {
       const saved = localStorage.getItem('user');
@@ -18,9 +20,41 @@ function App() {
     }
   });
 
-  const [selectedEventId, setSelectedEventId] = useState(() => {
-    return localStorage.getItem('selectedEventId') || '';
-  });
+  const handleLoginSuccess = (userData) => {
+    localStorage.setItem('token', userData.token);
+    localStorage.setItem('user', JSON.stringify(userData));
+    setUser(userData);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setUser(null);
+    navigate('/', { replace: true });
+  };
+
+  if (!user) {
+    return <LoginPage onLoginSuccess={handleLoginSuccess} />;
+  }
+
+  return (
+    <Routes>
+      <Route
+        path="/"
+        element={<EventWorkspace user={user} onLogout={handleLogout} />}
+      />
+      <Route
+        path="/events/:eventId"
+        element={<EventWorkspace user={user} onLogout={handleLogout} />}
+      />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}
+
+function EventWorkspace({ user, onLogout }) {
+  const navigate = useNavigate();
+  const { eventId } = useParams();
 
   const {
     data: events = EMPTY_EVENTS,
@@ -32,36 +66,18 @@ function App() {
     enabled: Boolean(user),
   });
 
-  const selectedEvent =
-    events.find((event) => String(event.id) === String(selectedEventId)) ||
-    events[0] ||
-    null;
+  const selectedEvent = eventId
+    ? events.find((event) => String(event.id) === String(eventId))
+    : null;
 
-  const currentEventId = selectedEvent?.id;
   const canViewDashboard = selectedEvent?.role === 'LEADER';
 
-  const handleLoginSuccess = (userData) => {
-    localStorage.setItem('token', userData.token);
-    localStorage.setItem('user', JSON.stringify(userData));
-    setUser(userData);
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    localStorage.removeItem('selectedEventId');
-    setSelectedEventId('');
-    setUser(null);
-  };
-
   const handleEventChange = (event) => {
-    const nextEventId = event.target.value;
-    setSelectedEventId(nextEventId);
-    localStorage.setItem('selectedEventId', nextEventId);
+    navigate(`/events/${event.target.value}`);
   };
 
-  if (!user) {
-    return <LoginPage onLoginSuccess={handleLoginSuccess} />;
+  if (!eventsLoading && !eventsError && events.length > 0 && !selectedEvent) {
+    return <Navigate to={`/events/${events[0].id}`} replace />;
   }
 
   return (
@@ -83,7 +99,7 @@ function App() {
               <label className="flex items-center gap-2 text-sm text-gray-600">
                 <span className="font-semibold">Sự kiện</span>
                 <select
-                  value={String(currentEventId || '')}
+                  value={String(selectedEvent?.id || '')}
                   onChange={handleEventChange}
                   className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-semibold text-gray-800 outline-none transition-colors hover:bg-gray-50 focus:border-indigo-500"
                 >
@@ -99,7 +115,7 @@ function App() {
               Xin chào, <span className="font-semibold">{user.name}</span>
             </span>
             <button
-              onClick={handleLogout}
+              onClick={onLogout}
               className="px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors"
             >
               Đăng xuất
@@ -138,7 +154,7 @@ function App() {
                 </span>
               </div>
               {canViewDashboard ? (
-                <Dashboard eventId={currentEventId} />
+                <Dashboard eventId={selectedEvent.id} />
               ) : (
                 <div className="p-6 bg-white rounded-xl border border-gray-200 text-gray-500">
                   Dashboard tổng quan chỉ dành cho LEADER của sự kiện.
@@ -151,7 +167,7 @@ function App() {
               <h2 className="text-2xl font-bold text-gray-800 mb-6">
                 Danh Sách Công Việc
               </h2>
-              <TaskBoard eventId={currentEventId} />
+              <TaskBoard eventId={selectedEvent.id} />
             </section>
           </>
         )}

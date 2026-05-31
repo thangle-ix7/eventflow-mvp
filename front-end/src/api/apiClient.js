@@ -30,7 +30,13 @@ apiClient.interceptors.response.use(
       window.location.reload();
     }
 
+    const fieldErrors = error.response?.data?.fieldErrors;
+    const validationMessage = fieldErrors
+      ? Object.values(fieldErrors).join('\n')
+      : null;
+
     const message =
+      validationMessage ||
       error.response?.data?.message ||
       error.response?.data?.error ||
       error.message ||
