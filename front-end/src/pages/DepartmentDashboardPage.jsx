@@ -161,10 +161,12 @@ const StatusColumnChart = ({ data }) => {
   const colorByStatus = { TODO: 'bg-blue-500', IN_PROGRESS: 'bg-amber-500', DONE: 'bg-emerald-500' };
 
   return (
-    <div className="flex h-72 items-end gap-4 border-b border-gray-200 pb-3">
+    <div className="grid h-72 grid-cols-3 items-end gap-4 border-b border-gray-200 pb-3">
       {data.map((item) => (
-        <div key={item.label} className="flex flex-1 flex-col items-center">
-          <div className={`w-12 rounded-t ${colorByStatus[item.label] || 'bg-gray-500'}`} style={{ height: `${Math.max(((item.totalTasks || 0) / maxValue) * 100, item.totalTasks ? 10 : 2)}%` }} />
+        <div key={item.label} className="flex h-full flex-col items-center justify-end">
+          <div className="flex h-52 w-full items-end justify-center">
+            <div className={`w-14 rounded-t ${colorByStatus[item.label] || 'bg-gray-500'}`} style={{ height: `${Math.max(((item.totalTasks || 0) / maxValue) * 100, item.totalTasks ? 10 : 2)}%` }} />
+          </div>
           <p className="mt-2 text-xs font-bold text-gray-700">{item.totalTasks || 0}</p>
           <p className="text-center text-xs font-semibold text-gray-500">{item.label}</p>
         </div>

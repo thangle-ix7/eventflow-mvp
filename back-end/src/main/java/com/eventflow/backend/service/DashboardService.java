@@ -160,20 +160,53 @@ public class DashboardService {
     private List<ChartPointDTO> getTaskTrend(Long eventId, Long departmentId) {
         String departmentClause = departmentId == null ? "" : " AND department_id = ? ";
         Object[] params = departmentId == null
-                ? new Object[]{eventId}
-                : new Object[]{eventId, departmentId};
+                ? new Object[]{eventId, eventId}
+                : new Object[]{eventId, eventId, departmentId};
 
         return jdbcTemplate.query("""
-                SELECT TO_CHAR(DATE_TRUNC('day', deadline), 'YYYY-MM-DD') AS label,
-                       COUNT(*) AS total_tasks,
-                       COALESCE(SUM(CASE WHEN status = 'TODO' THEN 1 ELSE 0 END), 0) AS todo_tasks,
-                       COALESCE(SUM(CASE WHEN status = 'IN_PROGRESS' THEN 1 ELSE 0 END), 0) AS in_progress_tasks,
-                       COALESCE(SUM(CASE WHEN status = 'DONE' THEN 1 ELSE 0 END), 0) AS completed_tasks
-                FROM tasks
-                WHERE event_id = ?
-                """ + departmentClause + """
-                GROUP BY DATE_TRUNC('day', deadline)
-                ORDER BY DATE_TRUNC('day', deadline)
+                WITH event_start AS (
+                    SELECT DATE_TRUNC('day', event_date) AS start_day
+                    FROM events
+                    WHERE id = ?
+                ),
+                filtered_tasks AS (
+                    SELECT deadline, status
+                    FROM tasks
+                    WHERE event_id = ?
+                    """ + departmentClause + """
+                ),
+                bounds AS (
+                    SELECT
+                        es.start_day,
+                        GREATEST(
+                            es.start_day,
+                            COALESCE(DATE_TRUNC('day', MAX(ft.deadline)), es.start_day)
+                        ) AS end_day
+                    FROM event_start es
+                    LEFT JOIN filtered_tasks ft ON TRUE
+                    GROUP BY es.start_day
+                ),
+                days AS (
+                    SELECT GENERATE_SERIES(start_day, end_day, INTERVAL '1 day')::date AS day
+                    FROM bounds
+                ),
+                daily_counts AS (
+                    SELECT DATE_TRUNC('day', deadline)::date AS day,
+                           COUNT(*) AS total_tasks,
+                           COALESCE(SUM(CASE WHEN status = 'TODO' THEN 1 ELSE 0 END), 0) AS todo_tasks,
+                           COALESCE(SUM(CASE WHEN status = 'IN_PROGRESS' THEN 1 ELSE 0 END), 0) AS in_progress_tasks,
+                           COALESCE(SUM(CASE WHEN status = 'DONE' THEN 1 ELSE 0 END), 0) AS completed_tasks
+                    FROM filtered_tasks
+                    GROUP BY DATE_TRUNC('day', deadline)::date
+                )
+                SELECT TO_CHAR(d.day, 'YYYY-MM-DD') AS label,
+                       COALESCE(dc.total_tasks, 0) AS total_tasks,
+                       COALESCE(dc.todo_tasks, 0) AS todo_tasks,
+                       COALESCE(dc.in_progress_tasks, 0) AS in_progress_tasks,
+                       COALESCE(dc.completed_tasks, 0) AS completed_tasks
+                FROM days d
+                LEFT JOIN daily_counts dc ON dc.day = d.day
+                ORDER BY d.day
                 """, (rs, rowNum) -> ChartPointDTO.builder()
                 .label(rs.getString("label"))
                 .totalTasks(rs.getLong("total_tasks"))
