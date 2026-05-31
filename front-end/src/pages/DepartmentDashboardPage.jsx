@@ -61,7 +61,7 @@ const DepartmentDashboardPage = ({ user, onLogout }) => {
             </section>
 
             <section className="grid gap-4 lg:grid-cols-[1.25fr_0.75fr]">
-              <ChartPanel icon={<TrendingUp size={18} />} title="Line chart cập nhật status theo ngày" description="Số lần task trong department được chuyển sang từng trạng thái theo ngày.">
+              <ChartPanel icon={<TrendingUp size={18} />} title="Line chart task theo ngày" description="Số lượng task theo deadline từng ngày trong department, tách theo trạng thái hiện tại.">
                 <StatusLineChart data={trendQuery.data || []} />
               </ChartPanel>
               <ChartPanel icon={<BarChart3 size={18} />} title="Column chart task theo status" description="Số lượng task hiện tại theo từng trạng thái trong department.">

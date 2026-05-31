@@ -164,16 +164,16 @@ public class DashboardService {
                 : new Object[]{eventId, departmentId};
 
         return jdbcTemplate.query("""
-                SELECT TO_CHAR(DATE_TRUNC('day', changed_at), 'YYYY-MM-DD') AS label,
+                SELECT TO_CHAR(DATE_TRUNC('day', deadline), 'YYYY-MM-DD') AS label,
                        COUNT(*) AS total_tasks,
                        COALESCE(SUM(CASE WHEN status = 'TODO' THEN 1 ELSE 0 END), 0) AS todo_tasks,
                        COALESCE(SUM(CASE WHEN status = 'IN_PROGRESS' THEN 1 ELSE 0 END), 0) AS in_progress_tasks,
                        COALESCE(SUM(CASE WHEN status = 'DONE' THEN 1 ELSE 0 END), 0) AS completed_tasks
-                FROM task_status_history
+                FROM tasks
                 WHERE event_id = ?
                 """ + departmentClause + """
-                GROUP BY DATE_TRUNC('day', changed_at)
-                ORDER BY DATE_TRUNC('day', changed_at)
+                GROUP BY DATE_TRUNC('day', deadline)
+                ORDER BY DATE_TRUNC('day', deadline)
                 """, (rs, rowNum) -> ChartPointDTO.builder()
                 .label(rs.getString("label"))
                 .totalTasks(rs.getLong("total_tasks"))
