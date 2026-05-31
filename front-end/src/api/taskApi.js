@@ -10,6 +10,36 @@ const taskApi = {
     return response.data;
   },
 
+  getEventTaskPage: async ({
+    eventId,
+    page = 0,
+    size = 10,
+    sort = 'deadline',
+    direction = 'asc',
+    status,
+    departmentId,
+    assigneeId,
+    search,
+  }) => {
+    if (!eventId) {
+      throw new Error('eventId không hợp lệ');
+    }
+
+    const response = await apiClient.get(`/events/${eventId}/tasks/page`, {
+      params: {
+        page,
+        size,
+        sort,
+        direction,
+        status: status || undefined,
+        departmentId: departmentId || undefined,
+        assigneeId: assigneeId || undefined,
+        search: search || undefined,
+      },
+    });
+    return response.data;
+  },
+
   getTask: async (taskId) => {
     if (!taskId) {
       throw new Error('taskId không hợp lệ');
@@ -56,6 +86,19 @@ const taskApi = {
 
     const response = await apiClient.patch(`/tasks/${taskId}/status`, {
       status,
+    });
+
+    return response.data;
+  },
+
+  updateTaskAssignment: async ({ taskId, departmentId, assigneeId }) => {
+    if (!taskId) {
+      throw new Error('taskId không hợp lệ');
+    }
+
+    const response = await apiClient.patch(`/tasks/${taskId}/assignment`, {
+      departmentId: departmentId || null,
+      assigneeId: assigneeId || null,
     });
 
     return response.data;

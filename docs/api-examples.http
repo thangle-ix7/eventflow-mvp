@@ -1,0 +1,127 @@
+@baseUrl = http://localhost:8080
+@email = leader@example.com
+@password = ChangeMe123!
+@token = paste_jwt_here
+@eventId = 1
+@departmentId = 1
+@taskId = 1
+
+### OpenAPI JSON
+GET {{baseUrl}}/api-docs
+
+### Swagger UI
+GET {{baseUrl}}/swagger-ui.html
+
+### Sign up
+POST {{baseUrl}}/api/v1/auth/signup
+Content-Type: application/json
+
+{
+  "name": "Event Leader",
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+### Verify email
+POST {{baseUrl}}/api/v1/auth/verify-email
+Content-Type: application/json
+
+{
+  "token": "paste_email_verification_token_here"
+}
+
+### Log in
+POST {{baseUrl}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+### Forgot password
+POST {{baseUrl}}/api/v1/auth/forgot-password
+Content-Type: application/json
+
+{
+  "email": "{{email}}"
+}
+
+### Reset password
+POST {{baseUrl}}/api/v1/auth/reset-password
+Content-Type: application/json
+
+{
+  "token": "paste_password_reset_token_here",
+  "newPassword": "NewChangeMe123!"
+}
+
+### List events with pagination, sorting, and filtering
+GET {{baseUrl}}/api/v1/events?page=0&size=20&sort=eventDate&direction=asc&status=ACTIVE&search=workshop
+Authorization: Bearer {{token}}
+
+### Create event
+POST {{baseUrl}}/api/v1/events
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Summer Workshop",
+  "eventDate": "2026-07-15T09:00:00",
+  "status": "ACTIVE"
+}
+
+### List departments
+GET {{baseUrl}}/api/v1/events/{{eventId}}/departments?page=0&size=50&sort=name&direction=asc&search=ops
+Authorization: Bearer {{token}}
+
+### Create department
+POST {{baseUrl}}/api/v1/events/{{eventId}}/departments
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Operations"
+}
+
+### List tasks grouped by department
+GET {{baseUrl}}/api/v1/events/{{eventId}}/tasks?status=TODO&departmentId={{departmentId}}&sort=deadline&direction=asc
+Authorization: Bearer {{token}}
+
+### List tasks as a page
+GET {{baseUrl}}/api/v1/events/{{eventId}}/tasks/page?page=0&size=20&sort=deadline&direction=asc&search=venue
+Authorization: Bearer {{token}}
+
+### Create task
+POST {{baseUrl}}/api/v1/events/{{eventId}}/tasks
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "title": "Book venue",
+  "departmentId": {{departmentId}},
+  "assigneeId": null,
+  "status": "TODO",
+  "deadline": "2026-07-01T17:00:00"
+}
+
+### Update task status
+PATCH {{baseUrl}}/api/v1/tasks/{{taskId}}/status
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "status": "IN_PROGRESS"
+}
+
+### Dashboard summary
+GET {{baseUrl}}/api/v1/events/{{eventId}}/dashboard-summary
+Authorization: Bearer {{token}}
+
+### Current user's profile
+GET {{baseUrl}}/api/v1/users/1
+Authorization: Bearer {{token}}
+
+### Create Telegram link token
+POST {{baseUrl}}/api/v1/users/1/telegram-link-token
+Authorization: Bearer {{token}}

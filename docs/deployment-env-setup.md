@@ -1,0 +1,89 @@
+# EventFlow Deployment and Environment Setup
+
+This guide covers the production checklist for deploying EventFlow with Docker Compose.
+
+## Required Runtime
+
+- Docker Engine with Docker Compose v2.
+- A DNS record pointing to the frontend host.
+- PostgreSQL data volume backups.
+- SMTP credentials for email verification and password reset.
+- A Telegram bot token if Telegram notifications are enabled.
+
+## Environment
+
+Copy `.env.example` to `.env` and replace every placeholder before deploying.
+
+Required production values:
+
+- `DB_PASSWORD`: strong database password.
+- `JWT_SECRET`: random 64+ character secret. Rotate by issuing a new value and forcing users to log in again.
+- `TELEGRAM_BOT_TOKEN`: token from BotFather. Rotate in BotFather first, then update `.env`.
+- `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM`: SMTP sender credentials. For Gmail, use an app password.
+- `APP_FRONTEND_URL`: public frontend origin, for example `https://eventflow.example.com`.
+- `OPENAPI_SERVER_URL`: public API origin, for example `https://eventflow.example.com`. For local Docker, use `http://localhost:8080`.
+- `AUTH_REQUIRE_EMAIL_DELIVERY=true`: recommended in production so signup/reset flows fail closed if email cannot be delivered.
+
+Recommended defaults to keep enabled:
+
+- `AUDIT_LOGGING_ENABLED=true`
+- `RATE_LIMIT_ENABLED=true`
+- `ABUSE_PROTECTION_ENABLED=true`
+
+## Local Validation
+
+Run these before deploying:
+
+```bash
+cd back-end
+mvn test
+mvn package
+
+cd ../front-end
+npm ci
+npm run lint
+npm run build
+
+cd ..
+docker compose config
+docker compose build
+```
+
+## Deploy With Docker Compose
+
+```bash
+cp .env.example .env
+# edit .env with production values
+docker compose up -d --build
+docker compose ps
+```
+
+Health checks:
+
+- Backend: `GET http://localhost:8080/actuator/health`
+- OpenAPI JSON: `GET http://localhost:8080/api-docs`
+- Swagger UI: `GET http://localhost:8080/swagger-ui.html`
+- Frontend: `GET http://localhost/`
+
+## API Documentation
+
+Swagger UI is available at `/swagger-ui.html`. The raw OpenAPI document is available at `/api-docs`.
+
+For manual API smoke tests, use `docs/api-examples.http` with the REST Client extension in VS Code or any compatible HTTP client. Set `@token` after logging in.
+
+## Security Operations
+
+- Rotate secrets outside the codebase: BotFather for Telegram, SMTP provider for app password, and a new random `JWT_SECRET`.
+- Never commit `.env`.
+- Keep `/api-docs` and `/swagger-ui.html` public only for internal/staging environments if API visibility is sensitive. For a private production API, restrict those paths at the reverse proxy.
+- Put TLS in front of the frontend host. The included Nginx config emits HSTS headers, which are only meaningful over HTTPS.
+- Back up the `postgres_data` volume or move PostgreSQL to a managed database with automated backups.
+
+## CI/CD
+
+The GitHub Actions workflow in `.github/workflows/ci.yml` validates:
+
+- Backend tests and package build.
+- Frontend lint and production build.
+- Docker Compose syntax.
+- Backend and frontend Docker image builds.

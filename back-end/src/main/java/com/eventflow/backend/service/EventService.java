@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -66,7 +67,9 @@ public class EventService {
 
         Event event = eventRepository.save(Event.builder()
                 .name(request.getName().trim())
-                .eventDate(request.getEventDate())
+                .description(normalizeOptionalText(request.getDescription()))
+                .location(normalizeOptionalText(request.getLocation()))
+                .eventDate(resolveStartTime(request))
                 .status(normalizeStatus(request.getStatus()))
                 .build());
 
@@ -85,7 +88,9 @@ public class EventService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy sự kiện"));
 
         event.setName(request.getName().trim());
-        event.setEventDate(request.getEventDate());
+        event.setDescription(normalizeOptionalText(request.getDescription()));
+        event.setLocation(normalizeOptionalText(request.getLocation()));
+        event.setEventDate(resolveStartTime(request));
         event.setStatus(normalizeStatus(request.getStatus()));
 
         return mapToResponse(eventRepository.save(event), UserRole.LEADER);
@@ -117,9 +122,24 @@ public class EventService {
 
     private String normalizeSearch(String search) {
         if (search == null || search.isBlank()) {
-            return null;
+            return "";
         }
         return search.trim();
+    }
+
+    private LocalDateTime resolveStartTime(EventRequestDTO request) {
+        LocalDateTime startTime = request.getStartTime() != null ? request.getStartTime() : request.getEventDate();
+        if (startTime == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Thời gian bắt đầu sự kiện không được để trống");
+        }
+        return startTime;
+    }
+
+    private String normalizeOptionalText(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 
     private int normalizePage(int page) {
@@ -156,6 +176,9 @@ public class EventService {
         return EventResponseDTO.builder()
                 .id(event.getId())
                 .name(event.getName())
+                .description(event.getDescription())
+                .location(event.getLocation())
+                .startTime(event.getEventDate())
                 .eventDate(event.getEventDate())
                 .status(event.getStatus())
                 .role(role.name())

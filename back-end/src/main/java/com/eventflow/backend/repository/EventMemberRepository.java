@@ -22,19 +22,22 @@ public interface EventMemberRepository extends JpaRepository<EventMember, Long> 
     @Query("SELECT em FROM EventMember em JOIN FETCH em.event WHERE em.user.id = :userId ORDER BY em.event.eventDate ASC")
     List<EventMember> findAllByUserIdWithEvent(@Param("userId") Long userId);
 
+    @Query("SELECT em FROM EventMember em JOIN FETCH em.user WHERE em.event.id = :eventId ORDER BY em.role ASC, em.user.name ASC")
+    List<EventMember> findAllByEventIdWithUser(@Param("eventId") Long eventId);
+
     @Query(value = """
             SELECT em FROM EventMember em
             JOIN FETCH em.event e
             WHERE em.user.id = :userId
             AND (:status IS NULL OR e.status = :status)
-            AND (:search IS NULL OR LOWER(e.name) LIKE LOWER(CONCAT('%', :search, '%')))
+            AND (:search = '' OR LOWER(e.name) LIKE LOWER(CONCAT('%', :search, '%')))
             """,
             countQuery = """
             SELECT COUNT(em) FROM EventMember em
             JOIN em.event e
             WHERE em.user.id = :userId
             AND (:status IS NULL OR e.status = :status)
-            AND (:search IS NULL OR LOWER(e.name) LIKE LOWER(CONCAT('%', :search, '%')))
+            AND (:search = '' OR LOWER(e.name) LIKE LOWER(CONCAT('%', :search, '%')))
             """)
     Page<EventMember> findAllByUserIdWithEvent(
             @Param("userId") Long userId,

@@ -14,6 +14,9 @@ import java.time.LocalDateTime;
 public class EventResponseDTO {
     private Long id;
     private String name;
+    private String description;
+    private String location;
+    private LocalDateTime startTime;
     private LocalDateTime eventDate;
     private String status;
     private String role;

@@ -3,6 +3,7 @@ package com.eventflow.backend.controller;
 import com.eventflow.backend.dto.DepartmentTasksDTO;
 import com.eventflow.backend.dto.PageResponse;
 import com.eventflow.backend.dto.StatusUpdateRequest;
+import com.eventflow.backend.dto.TaskAssignmentRequest;
 import com.eventflow.backend.dto.TaskRequestDTO;
 import com.eventflow.backend.dto.TaskResponseDTO;
 import com.eventflow.backend.security.EventSecurityService;
@@ -160,5 +161,20 @@ public class TaskController {
 
         taskService.updateStatus(taskId, taskService.parseStatus(request.getStatus()));
         return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/tasks/{taskId}/assignment")
+    public ResponseEntity<TaskResponseDTO> updateTaskAssignment(
+            @PathVariable Long taskId,
+            @Valid @RequestBody TaskAssignmentRequest request,
+            Authentication authentication) {
+
+        Long userId = (Long) authentication.getPrincipal();
+        Long eventId = taskService.getEventIdByTaskId(taskId);
+        if (!eventSecurityService.isLeaderOfEvent(eventId, userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        return ResponseEntity.ok(taskService.updateAssignment(taskId, request));
     }
 }

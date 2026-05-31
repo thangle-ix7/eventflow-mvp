@@ -18,6 +18,12 @@ public class Event {
     @Column(nullable = false)
     private String name;
 
+    @Column(columnDefinition = "TEXT")
+    private String description;
+
+    @Column(length = 255)
+    private String location;
+
     @Column(name = "event_date", nullable = false)
     private LocalDateTime eventDate;
 

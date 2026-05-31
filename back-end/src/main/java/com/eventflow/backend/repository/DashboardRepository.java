@@ -1,6 +1,5 @@
 package com.eventflow.backend.repository;
 
-import com.eventflow.backend.dto.DepartmentSummaryDTO;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -24,7 +23,7 @@ public interface DashboardRepository extends JpaRepository<com.eventflow.backend
     Long countOverdueTasks(@Param("eventId") Long eventId);
 
     // Get days until event (can be negative if event passed)
-    @Query(value = "SELECT EXTRACT(DAY FROM (event_date - NOW()))::INT FROM events WHERE id = :eventId", nativeQuery = true)
+    @Query(value = "SELECT CAST(EXTRACT(DAY FROM (event_date - NOW())) AS INTEGER) FROM events WHERE id = :eventId", nativeQuery = true)
     Integer getDaysUntilEvent(@Param("eventId") Long eventId);
 
     // Get department summaries: name, total tasks, overdue tasks

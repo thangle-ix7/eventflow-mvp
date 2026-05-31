@@ -18,38 +18,38 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
     @Query("SELECT t FROM Task t JOIN FETCH t.assignee JOIN FETCH t.event WHERE t.status != com.eventflow.backend.entity.TaskStatus.DONE AND t.assignee IS NOT NULL")
     List<Task> findAllPendingTasksWithAssignees();
 
-    @Query("SELECT t FROM Task t JOIN FETCH t.department LEFT JOIN FETCH t.assignee WHERE t.event.id = :eventId")
+    @Query("SELECT t FROM Task t LEFT JOIN FETCH t.department LEFT JOIN FETCH t.assignee WHERE t.event.id = :eventId")
     List<Task> findAllByEventIdWithDetails(Long eventId);
 
     @Query("""
             SELECT t FROM Task t
             JOIN FETCH t.event
-            JOIN FETCH t.department
+            LEFT JOIN FETCH t.department
             LEFT JOIN FETCH t.assignee
             WHERE t.event.id = :eventId
             AND (:status IS NULL OR t.status = :status)
             AND (:departmentId IS NULL OR t.department.id = :departmentId)
             AND (:assigneeId IS NULL OR t.assignee.id = :assigneeId)
-            AND (:search IS NULL OR LOWER(t.title) LIKE LOWER(CONCAT('%', :search, '%')))
+            AND (:searchPattern IS NULL OR LOWER(t.title) LIKE :searchPattern)
             """)
     List<Task> findAllByEventIdWithFilters(
             @Param("eventId") Long eventId,
             @Param("status") TaskStatus status,
             @Param("departmentId") Long departmentId,
             @Param("assigneeId") Long assigneeId,
-            @Param("search") String search,
+            @Param("searchPattern") String searchPattern,
             org.springframework.data.domain.Sort sort);
 
     @Query(value = """
             SELECT t FROM Task t
             JOIN FETCH t.event
-            JOIN FETCH t.department
+            LEFT JOIN FETCH t.department
             LEFT JOIN FETCH t.assignee
             WHERE t.event.id = :eventId
             AND (:status IS NULL OR t.status = :status)
             AND (:departmentId IS NULL OR t.department.id = :departmentId)
             AND (:assigneeId IS NULL OR t.assignee.id = :assigneeId)
-            AND (:search IS NULL OR LOWER(t.title) LIKE LOWER(CONCAT('%', :search, '%')))
+            AND (:searchPattern IS NULL OR LOWER(t.title) LIKE :searchPattern)
             """,
             countQuery = """
             SELECT COUNT(t) FROM Task t
@@ -57,17 +57,17 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             AND (:status IS NULL OR t.status = :status)
             AND (:departmentId IS NULL OR t.department.id = :departmentId)
             AND (:assigneeId IS NULL OR t.assignee.id = :assigneeId)
-            AND (:search IS NULL OR LOWER(t.title) LIKE LOWER(CONCAT('%', :search, '%')))
+            AND (:searchPattern IS NULL OR LOWER(t.title) LIKE :searchPattern)
             """)
     Page<Task> findPageByEventIdWithFilters(
             @Param("eventId") Long eventId,
             @Param("status") TaskStatus status,
             @Param("departmentId") Long departmentId,
             @Param("assigneeId") Long assigneeId,
-            @Param("search") String search,
+            @Param("searchPattern") String searchPattern,
             Pageable pageable);
 
-    @Query("SELECT t FROM Task t JOIN FETCH t.event JOIN FETCH t.department LEFT JOIN FETCH t.assignee WHERE t.id = :taskId")
+    @Query("SELECT t FROM Task t JOIN FETCH t.event LEFT JOIN FETCH t.department LEFT JOIN FETCH t.assignee WHERE t.id = :taskId")
     Optional<Task> findByIdWithDetails(@Param("taskId") Long taskId);
 
     @Query("SELECT t.event.id FROM Task t WHERE t.id = :taskId")

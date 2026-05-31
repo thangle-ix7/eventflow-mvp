@@ -2,6 +2,7 @@ package com.eventflow.backend.service;
 
 import com.eventflow.backend.dto.DepartmentTasksDTO;
 import com.eventflow.backend.dto.PageResponse;
+import com.eventflow.backend.dto.TaskAssignmentRequest;
 import com.eventflow.backend.dto.TaskRequestDTO;
 import com.eventflow.backend.dto.TaskResponseDTO;
 import com.eventflow.backend.entity.Department;
@@ -24,6 +25,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Map;
+import java.util.LinkedHashMap;
 import java.util.stream.Collectors;
 
 @Service
@@ -60,9 +62,10 @@ public class TaskService {
                 normalizeSearch(search),
                 Sort.by(resolveDirection(direction), resolveSort(sort)));
 
-        // Group tasks by department
-        Map<com.eventflow.backend.entity.Department, List<Task>> grouped = tasks.stream()
-                .collect(Collectors.groupingBy(Task::getDepartment));
+        Map<Department, List<Task>> grouped = new LinkedHashMap<>();
+        for (Task task : tasks) {
+            grouped.computeIfAbsent(task.getDepartment(), key -> new java.util.ArrayList<>()).add(task);
+        }
 
         return grouped.entrySet().stream()
                 .map(entry -> {
@@ -72,8 +75,8 @@ public class TaskService {
                             .collect(Collectors.toList());
 
                     return DepartmentTasksDTO.builder()
-                            .departmentId(dept.getId())
-                            .departmentName(dept.getName())
+                            .departmentId(dept != null ? dept.getId() : null)
+                            .departmentName(dept != null ? dept.getName() : "Chưa gán ban")
                             .tasks(deptTasks)
                             .build();
                 })
@@ -122,13 +125,16 @@ public class TaskService {
         Department department = resolveDepartment(eventId, request.getDepartmentId());
         User assignee = resolveAssignee(eventId, request.getAssigneeId());
 
+        TaskStatus status = parseStatusOrDefault(request.getStatus(), TaskStatus.TODO);
+
         Task task = Task.builder()
                 .event(event)
                 .department(department)
                 .assignee(assignee)
                 .title(request.getTitle().trim())
-                .status(parseStatusOrDefault(request.getStatus(), TaskStatus.TODO))
+                .status(status)
                 .deadline(request.getDeadline())
+                .progressPercentage(resolveProgress(request.getProgressPercentage(), status, 0))
                 .build();
 
         return mapToTaskResponse(taskRepository.save(task));
@@ -146,8 +152,13 @@ public class TaskService {
         task.setDepartment(department);
         task.setAssignee(assignee);
         task.setTitle(request.getTitle().trim());
-        task.setStatus(parseStatusOrDefault(request.getStatus(), task.getStatus()));
+        TaskStatus status = parseStatusOrDefault(request.getStatus(), task.getStatus());
+        task.setStatus(status);
         task.setDeadline(request.getDeadline());
+        task.setProgressPercentage(resolveProgress(
+                request.getProgressPercentage(),
+                status,
+                task.getProgressPercentage()));
 
         return mapToTaskResponse(taskRepository.save(task));
     }
@@ -166,7 +177,22 @@ public class TaskService {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy task"));
         task.setStatus(status);
+        if (status == TaskStatus.DONE) {
+            task.setProgressPercentage(100);
+        }
         return taskRepository.save(task);
+    }
+
+    @Transactional
+    public TaskResponseDTO updateAssignment(Long taskId, TaskAssignmentRequest request) {
+        Task task = taskRepository.findByIdWithDetails(taskId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy task"));
+
+        Long eventId = task.getEvent().getId();
+        task.setDepartment(resolveDepartment(eventId, request.getDepartmentId()));
+        task.setAssignee(resolveAssignee(eventId, request.getAssigneeId()));
+
+        return mapToTaskResponse(taskRepository.save(task));
     }
 
     public TaskStatus parseStatus(String status) {
@@ -178,6 +204,10 @@ public class TaskService {
     }
 
     private Department resolveDepartment(Long eventId, Long departmentId) {
+        if (departmentId == null) {
+            return null;
+        }
+
         return departmentRepository.findByIdAndEventId(departmentId, eventId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "departmentId không thuộc sự kiện"));
     }
@@ -220,7 +250,7 @@ public class TaskService {
         if (search == null || search.isBlank()) {
             return null;
         }
-        return search.trim();
+        return "%" + search.trim().toLowerCase() + "%";
     }
 
     private Sort.Direction resolveDirection(String direction) {
@@ -233,7 +263,7 @@ public class TaskService {
         }
 
         return switch (sort) {
-            case "title", "status", "deadline", "createdAt" -> sort;
+            case "title", "status", "deadline", "createdAt", "progressPercentage" -> sort;
             case "department" -> "department.name";
             case "assignee" -> "assignee.name";
             default -> "deadline";
@@ -244,13 +274,30 @@ public class TaskService {
         return TaskResponseDTO.builder()
                 .id(task.getId())
                 .eventId(task.getEvent().getId())
-                .departmentId(task.getDepartment().getId())
-                .departmentName(task.getDepartment().getName())
+                .departmentId(task.getDepartment() != null ? task.getDepartment().getId() : null)
+                .departmentName(task.getDepartment() != null ? task.getDepartment().getName() : "Chưa gán ban")
                 .title(task.getTitle())
                 .status(task.getStatus())
                 .deadline(task.getDeadline())
+                .progressPercentage(task.getProgressPercentage() != null ? task.getProgressPercentage() : 0)
                 .assigneeId(task.getAssignee() != null ? task.getAssignee().getId() : null)
                 .assigneeName(task.getAssignee() != null ? task.getAssignee().getName() : "Chưa phân công")
                 .build();
+    }
+
+    private Integer resolveProgress(Integer requestedProgress, TaskStatus status, Integer defaultProgress) {
+        if (status == TaskStatus.DONE) {
+            return 100;
+        }
+
+        if (requestedProgress == null) {
+            return defaultProgress != null ? defaultProgress : 0;
+        }
+
+        if (requestedProgress < 0 || requestedProgress > 100) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tiến độ phải nằm trong khoảng 0-100");
+        }
+
+        return requestedProgress;
     }
 }

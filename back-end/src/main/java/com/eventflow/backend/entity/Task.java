@@ -20,7 +20,7 @@ public class Task {
     private Event event;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "department_id", nullable = false)
+    @JoinColumn(name = "department_id")
     private Department department;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -37,6 +37,10 @@ public class Task {
 
     @Column(nullable = false)
     private LocalDateTime deadline;
+
+    @Column(name = "progress_percentage", nullable = false)
+    @Builder.Default
+    private Integer progressPercentage = 0;
 
     @Column(name = "created_at", updatable = false)
     @Builder.Default

@@ -1,9 +1,30 @@
 import apiClient from './apiClient';
 
 const eventApi = {
+  getMyEventsPage: async ({
+    page = 0,
+    size = 10,
+    sort = 'eventDate',
+    direction = 'asc',
+    status,
+    search,
+  } = {}) => {
+    const response = await apiClient.get('/events', {
+      params: {
+        page,
+        size,
+        sort,
+        direction,
+        status: status || undefined,
+        search: search || undefined,
+      },
+    });
+    return response.data;
+  },
+
   getMyEvents: async () => {
-    const response = await apiClient.get('/events');
-    return response.data?.content || response.data;
+    const pageResponse = await eventApi.getMyEventsPage({ size: 100 });
+    return pageResponse?.content || pageResponse;
   },
 
   getEvent: async (eventId) => {

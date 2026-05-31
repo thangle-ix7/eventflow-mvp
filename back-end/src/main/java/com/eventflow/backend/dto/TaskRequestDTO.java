@@ -1,6 +1,8 @@
 package com.eventflow.backend.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
@@ -18,7 +20,6 @@ public class TaskRequestDTO {
     @Size(max = 255, message = "Tiêu đề task không được vượt quá 255 ký tự")
     private String title;
 
-    @NotNull(message = "departmentId không được để trống")
     private Long departmentId;
 
     private Long assigneeId;
@@ -27,4 +28,8 @@ public class TaskRequestDTO {
 
     @NotNull(message = "Deadline không được để trống")
     private LocalDateTime deadline;
+
+    @Min(value = 0, message = "Tiến độ không được nhỏ hơn 0")
+    @Max(value = 100, message = "Tiến độ không được lớn hơn 100")
+    private Integer progressPercentage;
 }

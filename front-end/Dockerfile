@@ -3,10 +3,10 @@ FROM node:20-alpine AS builder
 
 WORKDIR /build
 
-# Install dependencies (cache layer — include devDeps because Vite/Tailwind
+# Install dependencies (cache layer - include devDeps because Vite/Tailwind
 # are needed for `npm run build`; devDeps are NOT copied into the runtime image)
-COPY package.json ./
-RUN npm install
+COPY package*.json ./
+RUN npm ci
 
 # Copy source and build
 COPY . .
