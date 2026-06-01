@@ -2,17 +2,26 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  AlertCircle,
   ArrowRight,
   CalendarDays,
   ChevronLeft,
   ChevronRight,
-  Loader2,
   Plus,
-  Search,
   Users,
 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
+import {
+  Button,
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  PageHeader,
+  Panel,
+  SelectControl,
+  StatusBadge,
+  TextInput,
+  Toolbar,
+} from '../components/ui';
 import eventApi from '../api/eventApi';
 import { formatDate } from '../utils/dateUtils';
 
@@ -94,94 +103,76 @@ const EventListPage = ({ user, onLogout }) => {
       showTelegramOnboarding={false}
     >
       <div className="space-y-6">
-        <div className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-sm font-medium text-blue-600">EventFlow</p>
-            <h2 className="mt-1 text-2xl font-bold text-gray-900">{pageTitle}</h2>
-            <p className="mt-1 text-sm text-gray-500">
-              Xem các sự kiện bạn tạo với role LEADER hoặc đang tham gia với role MEMBER.
-            </p>
-          </div>
-          <Link
-            to="/events/new"
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
-          >
-            <Plus size={18} />
-            Tạo sự kiện
-          </Link>
-        </div>
+        <PageHeader
+          eyebrow="EventFlow"
+          title={pageTitle}
+          description="Tập trung mọi sự kiện bạn đang dẫn dắt hoặc tham gia. Tìm nhanh, lọc trạng thái và mở đúng workspace chỉ trong một bước."
+          actions={
+            <Button as={Link} to="/events/new">
+              <Plus size={18} />
+              Tạo sự kiện
+            </Button>
+          }
+        />
 
-        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+        <Toolbar>
           <form
             onSubmit={handleSearchSubmit}
             className="grid gap-3 lg:grid-cols-[1fr_160px_160px_140px_auto]"
           >
-            <label className="relative block">
-              <span className="sr-only">Tìm kiếm sự kiện</span>
-              <Search
-                size={18}
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-              />
-              <input
-                value={searchInput}
-                onChange={(event) => setSearchInput(event.target.value)}
-                placeholder="Tìm theo tên sự kiện"
-                className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-3 text-sm outline-none focus:border-blue-500"
-              />
-            </label>
+            <TextInput
+              id="event-search"
+              name="search"
+              aria-label="Tìm kiếm sự kiện"
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
+              placeholder="Tìm theo tên sự kiện"
+            />
 
-            <select
+            <SelectControl
+              aria-label="Lọc trạng thái sự kiện"
+              name="status"
               value={status}
               onChange={handleStatusChange}
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
             >
               <option value="">Tất cả trạng thái</option>
-              <option value="ACTIVE">ACTIVE</option>
-              <option value="DONE">DONE</option>
-              <option value="CANCELLED">CANCELLED</option>
-            </select>
+              <option value="ACTIVE">Đang diễn ra</option>
+              <option value="DONE">Hoàn thành</option>
+              <option value="CANCELLED">Đã hủy</option>
+            </SelectControl>
 
-            <select
+            <SelectControl
+              aria-label="Sắp xếp sự kiện"
+              name="sort"
               value={sort}
               onChange={handleSortChange}
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
             >
               <option value="eventDate">Ngày diễn ra</option>
               <option value="name">Tên sự kiện</option>
               <option value="status">Trạng thái</option>
               <option value="createdAt">Ngày tạo</option>
-            </select>
+            </SelectControl>
 
-            <select
+            <SelectControl
+              aria-label="Thứ tự sắp xếp"
+              name="direction"
               value={direction}
               onChange={handleDirectionChange}
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
             >
               <option value="asc">Tăng dần</option>
               <option value="desc">Giảm dần</option>
-            </select>
+            </SelectControl>
 
-            <button
-              type="submit"
-              className="rounded-lg border border-blue-600 px-4 py-2 text-sm font-semibold text-blue-600 hover:bg-blue-50"
-            >
+            <Button type="submit" variant="secondary">
               Tìm kiếm
-            </button>
+            </Button>
           </form>
-        </div>
+        </Toolbar>
 
-        {query.isLoading && <EventListLoading />}
+        {query.isLoading && <LoadingState message="Đang tải danh sách sự kiện..." />}
 
         {query.error && (
-          <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
-            <AlertCircle size={20} className="mt-0.5 shrink-0" />
-            <div>
-              <p className="font-semibold">Không tải được danh sách sự kiện</p>
-              <p className="mt-1 text-sm">
-                {query.error.userMessage || query.error.message}
-              </p>
-            </div>
-          </div>
+          <ErrorState error={query.error} title="Không tải được danh sách sự kiện" />
         )}
 
         {!query.isLoading && !query.error && events.length === 0 && (
@@ -196,17 +187,17 @@ const EventListPage = ({ user, onLogout }) => {
                   key={event.id}
                   type="button"
                   onClick={() => handleOpenEvent(event.id)}
-                  className="rounded-xl border border-gray-200 bg-white p-4 text-left shadow-sm transition hover:border-blue-200 hover:bg-blue-50/40"
+                  className="rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-indigo-200 hover:bg-indigo-50/40"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="truncate text-base font-semibold text-gray-900">
+                        <h3 className="truncate text-base font-semibold text-slate-950">
                           {event.name}
                         </h3>
-                        <RoleBadge role={event.role} />
+                        <StatusBadge status={event.role} />
                       </div>
-                      <div className="mt-3 flex flex-wrap gap-3 text-sm text-gray-500">
+                      <div className="mt-3 flex flex-wrap gap-3 text-sm text-slate-500">
                         <span className="inline-flex items-center gap-1.5">
                           <CalendarDays size={16} />
                           {formatDate(event.eventDate)}
@@ -217,13 +208,11 @@ const EventListPage = ({ user, onLogout }) => {
                         </span>
                       </div>
                     </div>
-                    <ArrowRight size={18} className="mt-1 shrink-0 text-gray-400" />
+                    <ArrowRight size={18} className="mt-1 shrink-0 text-slate-400" />
                   </div>
-                  <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-3">
-                    <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-700">
-                      {event.status || 'ACTIVE'}
-                    </span>
-                    <span className="text-xs text-gray-500">
+                  <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
+                    <StatusBadge status={event.status || 'ACTIVE'} />
+                    <span className="text-xs text-slate-500">
                       Tạo lúc {formatDate(event.createdAt)}
                     </span>
                   </div>
@@ -231,37 +220,37 @@ const EventListPage = ({ user, onLogout }) => {
               ))}
             </div>
 
-            <div className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm text-gray-500">
-                Trang <span className="font-semibold text-gray-900">{page + 1}</span>
+            <Panel className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-slate-500">
+                Trang <span className="font-semibold text-slate-950">{page + 1}</span>
                 {totalPages > 0 && (
                   <>
                     {' '}trên{' '}
-                    <span className="font-semibold text-gray-900">{totalPages}</span>
+                    <span className="font-semibold text-slate-950">{totalPages}</span>
                   </>
                 )}
               </p>
               <div className="flex gap-2">
-                <button
+                <Button
                   type="button"
                   onClick={() => setPage((old) => Math.max(old - 1, 0))}
                   disabled={page === 0}
-                  className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  variant="secondary"
                 >
                   <ChevronLeft size={16} />
                   Trước
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
                   onClick={() => setPage((old) => old + 1)}
                   disabled={query.data?.last !== false}
-                  className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  variant="secondary"
                 >
                   Sau
                   <ChevronRight size={16} />
-                </button>
+                </Button>
               </div>
-            </div>
+            </Panel>
           </>
         )}
       </div>
@@ -269,61 +258,36 @@ const EventListPage = ({ user, onLogout }) => {
   );
 };
 
-const RoleBadge = ({ role }) => {
-  const isLeader = role === 'LEADER';
-
-  return (
-    <span
-      className={`rounded-full px-2.5 py-1 text-xs font-bold ${
-        isLeader
-          ? 'bg-blue-100 text-blue-700'
-          : 'bg-gray-100 text-gray-700'
-      }`}
-    >
-      {isLeader ? 'LEADER' : 'MEMBER'}
-    </span>
-  );
-};
-
-const EventListLoading = () => (
-  <div className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white p-8 text-gray-500">
-    <Loader2 size={20} className="animate-spin" />
-    Đang tải danh sách sự kiện...
-  </div>
-);
-
 const EventListEmpty = ({ hasFilters, onClearFilters }) => (
-  <div className="rounded-xl border border-gray-200 bg-white p-8 text-center shadow-sm">
-    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 text-blue-600">
-      <CalendarDays size={28} />
-    </div>
-    <h3 className="mt-4 text-lg font-semibold text-gray-900">
-      {hasFilters ? 'Không tìm thấy sự kiện phù hợp' : 'Bạn chưa có sự kiện nào'}
-    </h3>
-    <p className="mx-auto mt-2 max-w-md text-sm text-gray-500">
-      {hasFilters
+  <EmptyState
+    icon={CalendarDays}
+    title={hasFilters ? 'Không tìm thấy sự kiện phù hợp' : 'Bạn chưa có sự kiện nào'}
+    description={
+      hasFilters
         ? 'Thử đổi từ khóa, trạng thái hoặc thứ tự sắp xếp.'
-        : 'Tạo sự kiện đầu tiên để bắt đầu quản lý ban, task và dashboard.'}
-    </p>
-    <div className="mt-5 flex flex-col justify-center gap-2 sm:flex-row">
+        : 'Tạo sự kiện đầu tiên để bắt đầu quản lý ban, task và dashboard.'
+    }
+    actions={
+      <>
       {hasFilters && (
-        <button
+        <Button
           type="button"
           onClick={onClearFilters}
-          className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+          variant="secondary"
         >
           Xóa bộ lọc
-        </button>
+        </Button>
       )}
-      <Link
+      <Button
+        as={Link}
         to="/events/new"
-        className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
       >
         <Plus size={18} />
         Tạo sự kiện
-      </Link>
-    </div>
-  </div>
+      </Button>
+      </>
+    }
+  />
 );
 
 export default EventListPage;

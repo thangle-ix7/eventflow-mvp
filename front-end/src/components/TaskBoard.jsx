@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { CalendarDays, UserRound } from 'lucide-react';
 import departmentApi from '../api/departmentApi';
 import taskApi from '../api/taskApi';
 import { formatDate } from '../utils/dateUtils';
+import { Button, EmptyState, ErrorState, LoadingState, ProgressBar } from './ui';
 
 const TaskBoard = ({ eventId, canManage = false }) => {
   const queryClient = useQueryClient();
@@ -132,95 +134,76 @@ const TaskBoard = ({ eventId, canManage = false }) => {
   };
 
   if (isLoading) {
-    return (
-      <div className="p-8 text-center text-gray-500">
-        Đang tải danh sách công việc...
-      </div>
-    );
+    return <LoadingState message="Đang tải danh sách công việc..." />;
   }
 
   if (error) {
-    return (
-      <div className="p-8 text-center text-red-500">
-        Lỗi tải dữ liệu: {error.userMessage || error.message}
-      </div>
-    );
+    return <ErrorState error={error} title="Không tải được danh sách công việc" />;
   }
 
   return (
     <div className="space-y-8">
       {statusError && (
-        <div className="flex items-start justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          <span>{statusError}</span>
-          <button
-            type="button"
-            onClick={() => setStatusError('')}
-            className="font-semibold text-red-700 hover:text-red-800"
-          >
-            Đóng
-          </button>
-        </div>
+        <ErrorState error={statusError} title="Không cập nhật được trạng thái" onDismiss={() => setStatusError('')} />
       )}
       {canManage && (
         <div className="grid gap-4 lg:grid-cols-2">
           <form
             onSubmit={handleCreateDepartment}
-            className="rounded-xl border border-gray-200 bg-white p-5"
+            className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
           >
-            <h3 className="font-bold text-gray-900">Tạo ban</h3>
-            <p className="mt-1 text-sm text-gray-500">
+            <h3 className="font-bold text-slate-950">Tạo ban</h3>
+            <p className="mt-1 text-sm text-slate-500">
               Ban là nhóm phụ trách công việc trong sự kiện.
             </p>
             {createDepartmentMutation.error && (
-              <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
-                {createDepartmentMutation.error.userMessage || createDepartmentMutation.error.message}
-              </div>
+              <div className="mt-3"><ErrorState error={createDepartmentMutation.error} title="Không tạo được ban" /></div>
             )}
             <div className="mt-4 flex gap-2">
               <input
+                name="departmentName"
                 value={departmentName}
                 onChange={(event) => setDepartmentName(event.target.value)}
                 required
                 maxLength={100}
                 placeholder="Ví dụ: Ban Hậu cần"
-                className="min-w-0 flex-1 rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-indigo-500"
+                className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
               />
-              <button
+              <Button
                 type="submit"
                 disabled={createDepartmentMutation.isPending}
-                className="rounded-lg bg-indigo-600 px-4 py-2 font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
               >
                 Tạo
-              </button>
+              </Button>
             </div>
           </form>
 
           <form
             onSubmit={handleCreateTask}
-            className="rounded-xl border border-gray-200 bg-white p-5"
+            className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
           >
-            <h3 className="font-bold text-gray-900">Tạo task</h3>
-            <p className="mt-1 text-sm text-gray-500">
-              Task mới sẽ ở trạng thái TODO và có thể phân công sau.
+            <h3 className="font-bold text-slate-950">Tạo công việc</h3>
+            <p className="mt-1 text-sm text-slate-500">
+              Công việc mới sẽ ở trạng thái cần làm và có thể phân công sau.
             </p>
             {createTaskMutation.error && (
-              <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
-                {createTaskMutation.error.userMessage || createTaskMutation.error.message}
-              </div>
+              <div className="mt-3"><ErrorState error={createTaskMutation.error} title="Không tạo được công việc" /></div>
             )}
             <div className="mt-4 grid gap-2 sm:grid-cols-4">
               <input
+                name="taskTitle"
                 value={taskForm.title}
                 onChange={(event) => setTaskForm((old) => ({ ...old, title: event.target.value }))}
                 required
                 maxLength={255}
-                placeholder="Tên task"
-                className="rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-indigo-500"
+                placeholder="Tên công việc"
+                className="rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
               />
               <select
+                name="departmentId"
                 value={taskForm.departmentId}
                 onChange={(event) => setTaskForm((old) => ({ ...old, departmentId: event.target.value }))}
-                className="rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-indigo-500"
+                className="rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
               >
                 <option value="">Chưa gán ban</option>
                 {departmentOptions.map((department) => (
@@ -230,13 +213,15 @@ const TaskBoard = ({ eventId, canManage = false }) => {
                 ))}
               </select>
               <input
+                name="deadline"
                 type="datetime-local"
                 value={taskForm.deadline}
                 onChange={(event) => setTaskForm((old) => ({ ...old, deadline: event.target.value }))}
                 required
-                className="rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-indigo-500"
+                className="rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
               />
               <input
+                name="progressPercentage"
                 type="number"
                 min="0"
                 max="100"
@@ -244,26 +229,27 @@ const TaskBoard = ({ eventId, canManage = false }) => {
                 onChange={(event) => setTaskForm((old) => ({ ...old, progressPercentage: event.target.value }))}
                 required
                 placeholder="Tiến độ %"
-                className="rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-indigo-500"
+                className="rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
               />
             </div>
-            <button
+            <Button
               type="submit"
               disabled={createTaskMutation.isPending}
-              className="mt-3 w-full rounded-lg bg-gray-900 px-4 py-2 font-semibold text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
+              className="mt-3 w-full"
             >
-              Tạo task
-            </button>
+              Tạo công việc
+            </Button>
           </form>
         </div>
       )}
 
       {(!departments || departments.length === 0) && (
-        <div className="p-8 text-center text-gray-500 bg-white rounded-xl border border-gray-200">
-          {canManage
-            ? 'Chưa có task nào. Bạn có thể tạo task trước rồi gán ban/người phụ trách sau.'
-            : 'Chưa có dữ liệu công việc cho sự kiện này.'}
-        </div>
+        <EmptyState
+          title={canManage ? 'Chưa có công việc nào' : 'Chưa có dữ liệu công việc'}
+          description={canManage
+            ? 'Bạn có thể tạo công việc trước rồi gán ban hoặc người phụ trách sau.'
+            : 'Sự kiện này chưa có dữ liệu công việc để hiển thị.'}
+        />
       )}
 
       {departments.map((dept) => {
@@ -272,75 +258,46 @@ const TaskBoard = ({ eventId, canManage = false }) => {
         return (
           <div
             key={dept.departmentId || 'unassigned'}
-            className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden"
+            className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
           >
-            <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-bold text-gray-800">
+            <div className="border-b border-slate-200 bg-slate-50 px-6 py-4">
+              <h3 className="text-lg font-bold text-slate-900">
                 {dept.departmentName || 'Chưa có tên ban'}
               </h3>
             </div>
 
-            <div className="divide-y divide-gray-100">
+            <div className="divide-y divide-slate-100">
               {tasks.length === 0 ? (
-                <div className="p-6 text-center text-gray-400 italic">
+                <div className="p-6 text-center text-sm text-slate-500">
                   Không có task nào trong ban này
                 </div>
               ) : (
                 tasks.map((task) => (
                   <div
                     key={task.id}
-                    className="p-4 hover:bg-gray-50 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                    className="flex flex-col justify-between gap-4 p-4 transition-colors hover:bg-indigo-50/40 sm:flex-row sm:items-center"
                   >
                     <div className="flex-1">
-                      <div className="font-medium text-gray-900">
+                      <div className="font-semibold text-slate-950">
                         {task.title || 'Không có tiêu đề'}
                       </div>
 
-                      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-sm text-gray-500">
+                      <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-500">
                         <span className="flex items-center gap-1">
-                          <svg
-                            className="w-3.5 h-3.5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="2"
-                              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                            />
-                          </svg>
+                          <UserRound className="h-3.5 w-3.5" strokeWidth={1.8} />
                           {task.assigneeName || 'Chưa phân công'}
                         </span>
 
                         <span className="flex items-center gap-1">
-                          <svg
-                            className="w-3.5 h-3.5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="2"
-                              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                            />
-                          </svg>
+                          <CalendarDays className="h-3.5 w-3.5" strokeWidth={1.8} />
                           {task.deadline
                             ? formatDate(task.deadline)
                             : 'Chưa có deadline'}
                         </span>
                       </div>
                       <div className="mt-3 max-w-xs">
-                        <div className="h-2 rounded-full bg-gray-100">
-                          <div
-                            className="h-2 rounded-full bg-blue-600"
-                            style={{ width: `${task.progressPercentage ?? 0}%` }}
-                          />
-                        </div>
-                        <p className="mt-1 text-xs font-semibold text-gray-500">
+                        <ProgressBar value={task.progressPercentage ?? 0} />
+                        <p className="mt-1 text-xs font-semibold text-slate-500">
                           Tiến độ {task.progressPercentage ?? 0}%
                         </p>
                       </div>
@@ -356,21 +313,21 @@ const TaskBoard = ({ eventId, canManage = false }) => {
                             status: e.target.value,
                           })
                         }
-                        className={`text-sm font-semibold rounded-lg px-3 py-1.5 border transition-all outline-none cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed
+                        className={`cursor-pointer rounded-lg border px-3 py-1.5 text-sm font-semibold outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60
                           ${task.status === 'DONE'
-                            ? 'bg-green-50 text-green-700 border-green-200'
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                             : task.status === 'IN_REVIEW'
                               ? 'bg-violet-50 text-violet-700 border-violet-200'
                             : task.status === 'IN_PROGRESS'
-                              ? 'bg-blue-50 text-blue-700 border-blue-200'
-                              : 'bg-gray-50 text-gray-700 border-gray-200'
+                              ? 'bg-amber-50 text-amber-700 border-amber-200'
+                              : 'bg-slate-50 text-slate-700 border-slate-200'
                           }
                         `}
                       >
-                        <option value="TODO">TODO</option>
-                        <option value="IN_PROGRESS">IN_PROGRESS</option>
-                        <option value="IN_REVIEW">IN_REVIEW</option>
-                        <option value="DONE">DONE</option>
+                        <option value="TODO">Cần làm</option>
+                        <option value="IN_PROGRESS">Đang làm</option>
+                        <option value="IN_REVIEW">Chờ duyệt</option>
+                        <option value="DONE">Hoàn thành</option>
                       </select>
                     </div>
                   </div>

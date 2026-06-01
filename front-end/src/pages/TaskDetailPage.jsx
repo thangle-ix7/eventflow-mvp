@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, ClipboardCheck, Edit, FileText, Loader2, Paperclip, RefreshCw } from 'lucide-react';
+import { ArrowLeft, CalendarDays, ClipboardCheck, Edit, FileText, Paperclip, RefreshCw, UserRound } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
+import { Button, ErrorState, LoadingState, PageHeader, Panel, ProgressBar, StatusBadge } from '../components/ui';
 import eventApi from '../api/eventApi';
 import taskApi from '../api/taskApi';
 import { formatDate } from '../utils/dateUtils';
@@ -25,48 +26,50 @@ const TaskDetailPage = ({ user, onLogout }) => {
           Quay lại task
         </Link>
 
-        {taskQuery.isLoading && <div className="flex items-center gap-2 rounded-xl bg-white p-8 text-gray-500"><Loader2 className="animate-spin" size={20} />Đang tải task...</div>}
-        {taskQuery.error && <div className="rounded-xl bg-red-50 p-4 text-red-700">{taskQuery.error.userMessage || taskQuery.error.message}</div>}
+        {taskQuery.isLoading && <LoadingState message="Đang tải công việc..." />}
+        {taskQuery.error && <ErrorState error={taskQuery.error} title="Không tải được công việc" />}
 
         {task && (
           <>
-            <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">{task.title}</h2>
-                  <p className="mt-2 text-sm text-gray-500">Department: {task.departmentName || 'Chưa gán ban'}</p>
-                  <p className="mt-1 text-sm text-gray-500">Assignee: {task.assigneeName || 'Chưa phân công'}</p>
-                  <p className="mt-1 text-sm text-gray-500">Deadline: {formatDate(task.deadline)}</p>
-                  <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-gray-700">
-                    {task.description || 'Chưa có mô tả task.'}
-                  </p>
-                  <div className="mt-4 max-w-sm">
-                    <div className="mb-1 flex items-center justify-between text-sm">
-                      <span className="font-medium text-gray-700">Tiến độ</span>
-                      <span className="font-bold text-blue-600">{task.progressPercentage ?? 0}%</span>
-                    </div>
-                    <div className="h-2 rounded-full bg-gray-100">
-                      <div className="h-2 rounded-full bg-blue-600" style={{ width: `${task.progressPercentage ?? 0}%` }} />
-                    </div>
-                  </div>
-                </div>
+            <Panel className="p-5">
+              <div className="mb-4 flex flex-wrap gap-2">
+                <StatusBadge status={task.status} />
+                {task.departmentName && <StatusBadge>{task.departmentName}</StatusBadge>}
+              </div>
+              <PageHeader
+                title={task.title}
+                description={task.description || 'Chưa có mô tả công việc.'}
+                meta={
+                  <>
+                    <span className="inline-flex items-center gap-2"><UserRound size={16} />{task.assigneeName || 'Chưa phân công'}</span>
+                    <span className="inline-flex items-center gap-2"><CalendarDays size={16} />Deadline {formatDate(task.deadline)}</span>
+                  </>
+                }
+                actions={
                 <div className="flex flex-wrap gap-2">
-                  <span className="h-fit rounded-full bg-gray-100 px-3 py-1 text-xs font-bold text-gray-700">{task.status}</span>
                   {isAssignee && (
-                    <Link to={`/events/${eventId}/tasks/${taskId}/update`} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+                    <Button as={Link} to={`/events/${eventId}/tasks/${taskId}/update`}>
                       <RefreshCw size={16} />
-                      Update
-                    </Link>
+                      Cập nhật
+                    </Button>
                   )}
                   {isLeader && (
-                    <Link to={`/events/${eventId}/tasks/${taskId}/edit`} className="inline-flex items-center gap-2 rounded-lg border border-blue-600 px-3 py-2 text-sm font-semibold text-blue-600 hover:bg-blue-50">
+                    <Button as={Link} to={`/events/${eventId}/tasks/${taskId}/edit`} variant="secondary">
                       <Edit size={16} />
-                      Edit
-                    </Link>
+                      Chỉnh sửa
+                    </Button>
                   )}
                 </div>
+                }
+              />
+              <div className="mt-5 max-w-md">
+                <div className="mb-1 flex items-center justify-between text-sm">
+                  <span className="font-medium text-slate-700">Tiến độ</span>
+                  <span className="font-bold text-indigo-600">{task.progressPercentage ?? 0}%</span>
+                </div>
+                <ProgressBar value={task.progressPercentage ?? 0} />
               </div>
-            </section>
+            </Panel>
 
             <section className="grid gap-4 md:grid-cols-3">
               <TaskActionLink
@@ -96,10 +99,10 @@ const TaskDetailPage = ({ user, onLogout }) => {
 };
 
 const TaskActionLink = ({ to, icon, title, description }) => (
-  <Link to={to} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition hover:border-blue-200 hover:bg-blue-50">
-    <div className="text-blue-600">{icon}</div>
-    <h3 className="mt-3 font-semibold text-gray-900">{title}</h3>
-    <p className="mt-1 text-sm text-gray-500">{description}</p>
+  <Link to={to} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-indigo-200 hover:bg-indigo-50/60">
+    <div className="text-indigo-600">{icon}</div>
+    <h3 className="mt-3 font-semibold text-slate-950">{title}</h3>
+    <p className="mt-1 text-sm text-slate-500">{description}</p>
   </Link>
 );
 
