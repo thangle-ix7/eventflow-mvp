@@ -17,8 +17,13 @@ import java.time.LocalDateTime;
 @Repository
 public interface TaskRepository extends JpaRepository<Task, Long> {
 
-    @Query("SELECT t FROM Task t JOIN FETCH t.assignee JOIN FETCH t.event WHERE t.status != com.eventflow.backend.entity.TaskStatus.DONE AND t.assignee IS NOT NULL")
-    List<Task> findAllPendingTasksWithAssignees();
+    @Query("""
+            SELECT t FROM Task t
+            JOIN FETCH t.event
+            LEFT JOIN FETCH t.assignee
+            WHERE t.status != com.eventflow.backend.entity.TaskStatus.DONE
+            """)
+    List<Task> findAllPendingTasksForReminders();
 
     @Query("SELECT t FROM Task t LEFT JOIN FETCH t.department LEFT JOIN FETCH t.assignee WHERE t.event.id = :eventId")
     List<Task> findAllByEventIdWithDetails(Long eventId);

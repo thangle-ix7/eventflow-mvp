@@ -30,43 +30,39 @@ public class TaskReminderScheduler {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime twentyFourHoursLater = now.plusHours(24);
 
-        // 1. Get all tasks with assignees that are not DONE
-        // We use a custom query in TaskRepository to avoid N+1 and filter assignee IS NOT NULL
-        List<Task> tasks = taskRepository.findAllPendingTasksWithAssignees();
+        List<Task> tasks = taskRepository.findAllPendingTasksForReminders();
 
         for (Task task : tasks) {
             User assignee = task.getAssignee();
-            Long userId = assignee.getId();
             Long taskId = task.getId();
             Long eventId = task.getEvent().getId();
 
-            // Logic for UPCOMING: status != DONE and deadline within 24h
-            if (task.getDeadline().isAfter(now) && task.getDeadline().isBefore(twentyFourHoursLater)) {
-                String channel = (assignee.getTelegramChatId() != null) ? "TELEGRAM" : "EMAIL";
+            if (assignee != null && task.getDeadline().isAfter(now) && task.getDeadline().isBefore(twentyFourHoursLater)) {
                 notificationRepository.insertIdempotentNotification(
-                        userId, taskId, channel, "UPCOMING", "PENDING"
+                        assignee.getId(), taskId, resolveChannel(assignee), "UPCOMING", "PENDING"
                 );
             }
 
-            // Logic for OVERDUE: status != DONE and deadline < now
             if (task.getDeadline().isBefore(now)) {
-                // Notify Assignee
-                String channel = (assignee.getTelegramChatId() != null) ? "TELEGRAM" : "EMAIL";
-                notificationRepository.insertIdempotentNotification(
-                        userId, taskId, channel, "OVERDUE", "PENDING"
-                );
+                if (assignee != null) {
+                    notificationRepository.insertIdempotentNotification(
+                            assignee.getId(), taskId, resolveChannel(assignee), "OVERDUE", "PENDING"
+                    );
+                }
 
-                // Notify all LEADERs of the event
-                List<EventMember> leaders = eventMemberRepository.findByEventIdAndRole(eventId, UserRole.LEADER);
+                List<EventMember> leaders = eventMemberRepository.findByEventIdAndRoleWithUser(eventId, UserRole.LEADER);
                 for (EventMember leaderMember : leaders) {
                     User leader = leaderMember.getUser();
-                    String leaderChannel = (leader.getTelegramChatId() != null) ? "TELEGRAM" : "EMAIL";
                     notificationRepository.insertIdempotentNotification(
-                            leader.getId(), taskId, leaderChannel, "OVERDUE", "PENDING"
+                            leader.getId(), taskId, resolveChannel(leader), "OVERDUE", "PENDING"
                     );
                 }
             }
         }
         log.info("Task reminder scan completed.");
+    }
+
+    private String resolveChannel(User user) {
+        return user.getTelegramChatId() != null && !user.getTelegramChatId().isBlank() ? "TELEGRAM" : "EMAIL";
     }
 }
