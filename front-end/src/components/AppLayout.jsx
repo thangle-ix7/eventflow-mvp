@@ -1,7 +1,9 @@
 import TelegramOnboarding from './TelegramOnboarding';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import AiChatBox from './AiChatBox';
+import userApi from '../api/userApi';
 import {
   BarChart3,
   Bell,
@@ -30,6 +32,14 @@ const AppLayout = ({
   const location = useLocation();
   const navigate = useNavigate();
   const [globalSearch, setGlobalSearch] = useState('');
+  const notificationCountQuery = useQuery({
+    queryKey: ['pendingNotificationCount', user.userId],
+    queryFn: () => userApi.getPendingNotificationCount(user.userId),
+    enabled: Boolean(user?.userId),
+    refetchInterval: 30000,
+    retry: false,
+  });
+  const pendingNotificationCount = notificationCountQuery.data?.pendingCount || 0;
   const eventNav = selectedEvent?.id
     ? [
       { to: `/events/${selectedEvent.id}/dashboard`, label: 'Dashboard', icon: BarChart3 },
@@ -155,7 +165,11 @@ const AppLayout = ({
               </button>
               <button type="button" className="relative rounded-lg p-2 hover:bg-white/10 hover:text-white" aria-label="Thông báo">
                 <Bell className="h-5 w-5" strokeWidth={1.8} />
-                <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500" />
+                {pendingNotificationCount > 0 && (
+                  <span className="absolute -right-1 -top-1 min-w-5 rounded-full bg-red-500 px-1.5 py-0.5 text-center text-[10px] font-bold leading-none text-white">
+                    {pendingNotificationCount > 99 ? '99+' : pendingNotificationCount}
+                  </span>
+                )}
               </button>
               <button type="button" className="rounded-lg p-2 hover:bg-white/10 hover:text-white" aria-label="Trợ giúp">
                 <HelpCircle className="h-5 w-5" strokeWidth={1.8} />

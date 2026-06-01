@@ -1,7 +1,10 @@
 package com.eventflow.backend.controller;
 
+import com.eventflow.backend.dto.NotificationCountResponse;
 import com.eventflow.backend.dto.TelegramLinkTokenResponse;
 import com.eventflow.backend.dto.UserProfileDTO;
+import com.eventflow.backend.entity.NotiStatus;
+import com.eventflow.backend.repository.NotificationRepository;
 import com.eventflow.backend.service.TelegramBotService;
 import com.eventflow.backend.service.UserProfileService;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +31,7 @@ public class UserController {
 
     private final TelegramBotService telegramBotService;
     private final UserProfileService userProfileService;
+    private final NotificationRepository notificationRepository;
 
     @GetMapping("/{userId}")
     public ResponseEntity<UserProfileDTO> getProfile(
@@ -73,6 +77,20 @@ public class UserController {
                 .contentType(MediaType.parseMediaType(avatar.contentType()))
                 .contentLength(avatar.sizeBytes())
                 .body(avatar.resource());
+    }
+
+    @GetMapping("/{userId}/notifications/pending-count")
+    public ResponseEntity<NotificationCountResponse> getPendingNotificationCount(
+            @PathVariable Long userId,
+            Authentication authentication) {
+
+        Long authenticatedUserId = (Long) authentication.getPrincipal();
+        if (!authenticatedUserId.equals(userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        long pendingCount = notificationRepository.countByUserIdAndStatus(userId, NotiStatus.PENDING);
+        return ResponseEntity.ok(new NotificationCountResponse(pendingCount));
     }
 
     @PostMapping("/{userId}/telegram-link-token")

@@ -35,6 +35,15 @@ const userApi = {
     return response.data;
   },
 
+  getPendingNotificationCount: async (userId) => {
+    if (!userId) {
+      throw new Error('userId không hợp lệ');
+    }
+
+    const response = await apiClient.get(`/users/${userId}/notifications/pending-count`);
+    return response.data;
+  },
+
   uploadAvatar: async ({ userId, file }) => {
     if (!userId) {
       throw new Error('userId không hợp lệ');

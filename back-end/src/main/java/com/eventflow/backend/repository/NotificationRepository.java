@@ -39,6 +39,8 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
            "WHERE n.status = :status AND n.retryCount < 3")
     List<Notification> findPendingWithDetails(@Param("status") NotiStatus status);
 
+    long countByUserIdAndStatus(Long userId, NotiStatus status);
+
     // Mark notification as SENT
     @Modifying
     @Transactional
