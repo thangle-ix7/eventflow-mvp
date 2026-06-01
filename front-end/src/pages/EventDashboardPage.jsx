@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, BarChart3, CheckCircle2, ClipboardList, Clock3, ListTodo, Plus, TrendingUp } from 'lucide-react';
+import { ArrowLeft, BarChart3, CheckCircle2, ClipboardList, Clock3, FileJson, FileSpreadsheet, ListTodo, Plus, Printer, TrendingUp } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import {
   Button,
@@ -19,6 +19,12 @@ import departmentApi from '../api/departmentApi';
 import eventApi from '../api/eventApi';
 import taskApi from '../api/taskApi';
 import { formatDate } from '../utils/dateUtils';
+import {
+  buildDashboardReport,
+  exportDashboardCsv,
+  exportDashboardJson,
+  openPrintableDashboardReport,
+} from '../utils/reportExport';
 
 const PAGE_SIZE = 8;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -41,7 +47,10 @@ const EventDashboardPage = ({ user, onLogout }) => {
 
   const eventQuery = useQuery({ queryKey: ['event', eventId], queryFn: () => eventApi.getEvent(eventId), enabled: Boolean(eventId) });
   const event = eventQuery.data;
-  const weekRange = getWeekRange(event?.startTime || event?.eventDate, weekIndex);
+  const weekRange = useMemo(
+    () => getWeekRange(event?.startTime || event?.eventDate, weekIndex),
+    [event?.eventDate, event?.startTime, weekIndex]
+  );
   const selectedDepartmentId = departmentId || null;
 
   const departmentsQuery = useQuery({
@@ -86,10 +95,10 @@ const EventDashboardPage = ({ user, onLogout }) => {
   });
 
   const summary = summaryQuery.data;
-  const departments = departmentsQuery.data || [];
+  const departments = useMemo(() => departmentsQuery.data || [], [departmentsQuery.data]);
   const selectedDepartment = departments.find((department) => String(department.id) === String(selectedDepartmentId));
-  const statusData = normalizeStatusData(statusQuery.data);
-  const tasks = tasksQuery.data?.content || [];
+  const statusData = useMemo(() => normalizeStatusData(statusQuery.data), [statusQuery.data]);
+  const tasks = useMemo(() => tasksQuery.data?.content || [], [tasksQuery.data]);
   const isLoading = eventQuery.isLoading || departmentsQuery.isLoading || summaryQuery.isLoading || trendQuery.isLoading || statusQuery.isLoading || tasksQuery.isLoading;
   const error = departmentsQuery.error || summaryQuery.error || trendQuery.error || statusQuery.error || tasksQuery.error;
 
@@ -97,6 +106,22 @@ const EventDashboardPage = ({ user, onLogout }) => {
     setPage(0);
     setDepartmentId(event.target.value);
   };
+
+  const reportData = useMemo(() => {
+    if (!summary) return null;
+
+    return buildDashboardReport({
+      event,
+      department: selectedDepartment,
+      summary,
+      trendData: trendQuery.data || [],
+      statusData,
+      tasks,
+      departments,
+      range: weekRange,
+      note: 'Dữ liệu xuất từ dashboard frontend hiện tại. So sánh với tháng trước đang ẩn vì API summary chưa hỗ trợ kỳ trước.',
+    });
+  }, [departments, event, selectedDepartment, statusData, summary, tasks, trendQuery.data, weekRange]);
 
   return (
     <AppLayout user={user} events={event ? [event] : []} selectedEvent={event} onEventChange={() => {}} onLogout={onLogout}>
@@ -111,6 +136,7 @@ const EventDashboardPage = ({ user, onLogout }) => {
             eyebrow={`${event?.name || 'Sự kiện'} / ${selectedDepartment?.name || 'Toàn bộ ban'}`}
             title="Dashboard sự kiện"
             description="Theo dõi tiến độ, trạng thái và công việc sắp tới theo tuần để biết ngay khu vực cần xử lý."
+            actions={<ReportExportActions report={reportData} />}
           />
           <Panel className="p-4">
             <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-end">
@@ -151,6 +177,8 @@ const EventDashboardPage = ({ user, onLogout }) => {
               <MetricCard icon={Clock3} label="Quá hạn" value={summary.overdueTasksCount} tone={summary.overdueTasksCount > 0 ? 'red' : 'slate'} />
             </section>
 
+            <MonthComparisonNotice />
+
             <section className="grid gap-4">
               <ChartPanel icon={<TrendingUp size={18} />} title="Xu hướng công việc theo ngày" description="Số lượng công việc theo deadline từng ngày, tách theo trạng thái hiện tại.">
                 <StatusLineChart data={trendQuery.data || []} />
@@ -180,6 +208,45 @@ const normalizeStatusData = (data = []) => STATUS_ORDER.map((status) => ({
   label: status,
   totalTasks: statusValue(data, status),
 }));
+
+const ReportExportActions = ({ report }) => (
+  <div className="flex flex-wrap gap-2">
+    <Button
+      type="button"
+      onClick={() => report && exportDashboardCsv(report)}
+      disabled={!report}
+      variant="secondary"
+    >
+      <FileSpreadsheet size={16} />
+      CSV
+    </Button>
+    <Button
+      type="button"
+      onClick={() => report && exportDashboardJson(report)}
+      disabled={!report}
+      variant="secondary"
+    >
+      <FileJson size={16} />
+      JSON
+    </Button>
+    <Button
+      type="button"
+      onClick={() => report && openPrintableDashboardReport(report)}
+      disabled={!report}
+    >
+      <Printer size={16} />
+      In / lưu PDF
+    </Button>
+  </div>
+);
+
+const MonthComparisonNotice = () => (
+  <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+    <span className="font-semibold text-slate-800">So với tháng trước:</span>{' '}
+    đang ẩn để tránh hiển thị số giả. API hiện có hỗ trợ trend/status theo khoảng ngày,
+    nhưng chưa có summary kỳ trước đủ chuẩn để tính phần trăm so sánh cho các metric tổng quan.
+  </div>
+);
 
 const WeekControl = ({ weekIndex, setWeekIndex }) => (
   <div className="flex flex-col gap-1">

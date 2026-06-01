@@ -5,7 +5,10 @@ import {
   ArrowLeft,
   CalendarDays,
   ClipboardList,
+  FileJson,
+  FileSpreadsheet,
   FileText,
+  Printer,
   Settings,
   TrendingUp,
   Users,
@@ -26,6 +29,12 @@ import eventApi from '../api/eventApi';
 import eventMemberApi from '../api/eventMemberApi';
 import taskApi from '../api/taskApi';
 import { formatDate } from '../utils/dateUtils';
+import {
+  buildDashboardReport,
+  exportDashboardCsv,
+  exportDashboardJson,
+  openPrintableDashboardReport,
+} from '../utils/reportExport';
 
 const PAGE_CONFIG = {
   calendar: {
@@ -125,7 +134,7 @@ const EventUtilityPage = ({ user, onLogout, type }) => {
           <>
             {type === 'calendar' && <CalendarContent event={event} tasks={tasks} />}
             {type === 'documents' && <DocumentsContent eventId={eventId} tasks={tasks} />}
-            {type === 'reports' && <ReportsContent stats={stats} departments={departments} members={members} tasks={tasks} />}
+            {type === 'reports' && <ReportsContent event={event} stats={stats} departments={departments} members={members} tasks={tasks} />}
             {type === 'settings' && <SettingsContent event={event} departments={departments} members={members} />}
           </>
         )}
@@ -206,25 +215,71 @@ const DocumentsContent = ({ eventId, tasks }) => (
   </Panel>
 );
 
-const ReportsContent = ({ stats, departments, members, tasks }) => (
-  <div className="space-y-4">
-    <section className="grid gap-4 md:grid-cols-4">
-      <MetricCard icon={ClipboardList} label="Tổng công việc" value={stats.totalTasks} />
-      <MetricCard icon={TrendingUp} label="Tiến độ" value={`${stats.progress}%`} tone="violet" />
-      <MetricCard icon={CalendarDays} label="Quá hạn" value={stats.overdueTasks} tone={stats.overdueTasks > 0 ? 'red' : 'slate'} />
-      <MetricCard icon={Users} label="Thành viên" value={members.length} tone="emerald" />
-    </section>
-    <Panel className="p-5">
-      <h3 className="font-bold text-slate-950">Giới hạn hiện tại</h3>
-      <p className="mt-2 text-sm leading-6 text-slate-600">
-        Báo cáo này tổng hợp từ dữ liệu task, ban và thành viên hiện có trên frontend. Chưa có API so sánh kỳ trước, export PDF server-side hoặc analytics lịch sử.
-      </p>
-      <div className="mt-4 grid gap-3 sm:grid-cols-3">
-        <SummaryPill label="Ban tổ chức" value={departments.length} />
-        <SummaryPill label="Task hoàn thành" value={stats.completedTasks} />
-        <SummaryPill label="Task đang mở" value={tasks.length - stats.completedTasks} />
-      </div>
-    </Panel>
+const ReportsContent = ({ event, stats, departments, members, tasks }) => {
+  const statusData = useMemo(() => {
+    const statuses = ['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE'];
+    return statuses.map((status) => ({
+      label: status,
+      totalTasks: tasks.filter((task) => task.status === status).length,
+    }));
+  }, [tasks]);
+  const report = useMemo(() => buildDashboardReport({
+    event,
+    summary: {
+      totalTasks: stats.totalTasks,
+      completedTasks: stats.completedTasks,
+      progressPercentage: stats.progress,
+      overdueTasksCount: stats.overdueTasks,
+    },
+    statusData,
+    tasks,
+    departments,
+    members,
+    note: 'Dữ liệu xuất từ trang Báo cáo frontend. So sánh tháng trước đang ẩn vì API hiện chưa có summary kỳ trước.',
+  }), [departments, event, members, stats, statusData, tasks]);
+
+  return (
+    <div className="space-y-4">
+      <section className="grid gap-4 md:grid-cols-4">
+        <MetricCard icon={ClipboardList} label="Tổng công việc" value={stats.totalTasks} />
+        <MetricCard icon={TrendingUp} label="Tiến độ" value={`${stats.progress}%`} tone="violet" />
+        <MetricCard icon={CalendarDays} label="Quá hạn" value={stats.overdueTasks} tone={stats.overdueTasks > 0 ? 'red' : 'slate'} />
+        <MetricCard icon={Users} label="Thành viên" value={members.length} tone="emerald" />
+      </section>
+      <Panel className="p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h3 className="font-bold text-slate-950">Báo cáo nhanh</h3>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              Tổng hợp từ dữ liệu task, ban và thành viên hiện có trên frontend. So sánh tháng trước đang ẩn để tránh hiển thị số giả khi backend chưa có summary kỳ trước.
+            </p>
+          </div>
+          <ReportDownloadButtons report={report} />
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <SummaryPill label="Ban tổ chức" value={departments.length} />
+          <SummaryPill label="Task hoàn thành" value={stats.completedTasks} />
+          <SummaryPill label="Task đang mở" value={tasks.length - stats.completedTasks} />
+        </div>
+      </Panel>
+    </div>
+  );
+};
+
+const ReportDownloadButtons = ({ report }) => (
+  <div className="flex flex-wrap gap-2">
+    <Button type="button" variant="secondary" onClick={() => exportDashboardCsv(report)}>
+      <FileSpreadsheet size={16} />
+      CSV
+    </Button>
+    <Button type="button" variant="secondary" onClick={() => exportDashboardJson(report)}>
+      <FileJson size={16} />
+      JSON
+    </Button>
+    <Button type="button" onClick={() => openPrintableDashboardReport(report)}>
+      <Printer size={16} />
+      In / lưu PDF
+    </Button>
   </div>
 );
 
