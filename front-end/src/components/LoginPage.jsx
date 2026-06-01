@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { CalendarDays, LockKeyhole, Mail, UserRound } from 'lucide-react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import authApi from '../api/authApi';
 
@@ -155,8 +156,8 @@ const LoginPage = ({ onLoginSuccess }) => {
 
   if (location.pathname === '/verify-email' && token && loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-md text-center text-gray-600">
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
+        <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-600 shadow-sm">
           Đang xác thực email...
         </div>
       </div>
@@ -164,12 +165,12 @@ const LoginPage = ({ onLoginSuccess }) => {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-gray-50">
-      <header className="border-b border-gray-200 bg-white">
-        <div className="mx-auto flex max-w-6xl flex-col gap-2 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex min-h-screen flex-col bg-slate-50 text-slate-950">
+      <header className="border-b border-slate-200 bg-white">
+        <div className="mx-auto flex max-w-7xl flex-col gap-2 px-5 py-4 sm:flex-row sm:items-center sm:justify-between lg:px-8">
           <div>
-            <p className="text-xl font-extrabold text-gray-900">EventFlow</p>
-            <p className="text-sm text-gray-500">
+            <p className="text-xl font-extrabold text-slate-950">EventFlow</p>
+            <p className="text-sm text-slate-500">
               Nhóm EXE • Dự án hỗ trợ sự kiện FPTU
             </p>
           </div>
@@ -182,24 +183,52 @@ const LoginPage = ({ onLoginSuccess }) => {
         </div>
       </header>
 
-      <main className="flex flex-1 items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-extrabold text-gray-900">{title}</h1>
-          <p className="text-gray-500 mt-1 text-sm">
-            Quản lý công việc Ban Tổ Chức
-          </p>
-        </div>
+      <main className="mx-auto grid w-full max-w-7xl flex-1 items-center gap-8 px-5 py-8 lg:grid-cols-[1.1fr_0.9fr] lg:px-8">
+        <section className="hidden lg:block">
+          <div className="max-w-xl">
+            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-sm font-semibold text-indigo-700">
+              <CalendarDays className="h-4 w-4" strokeWidth={1.8} />
+              Event operations workspace
+            </div>
+            <h1 className="text-5xl font-extrabold leading-tight tracking-tight text-slate-950">
+              Điều phối sự kiện rõ việc, rõ người, rõ tiến độ.
+            </h1>
+            <p className="mt-5 max-w-lg text-base leading-7 text-slate-600">
+              Theo dõi ban tổ chức, deadline và báo cáo công việc trong một giao diện tập trung cho đội FPTU.
+            </p>
+            <div className="mt-8 grid max-w-lg grid-cols-3 gap-3">
+              {['Sự kiện', 'Ban tổ chức', 'Công việc'].map((item) => (
+                <div key={item} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <p className="text-sm font-semibold text-slate-900">{item}</p>
+                  <p className="mt-1 text-xs text-slate-500">Quản lý tập trung</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
 
-        {mode !== 'reset' && (
-          <div className="flex rounded-xl bg-gray-100 p-1 mb-6">
+        <div className="mx-auto w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+          <div className="mb-8">
+            <p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">
+              EventFlow
+            </p>
+            <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-950">
+              {title}
+            </h1>
+            <p className="mt-2 text-sm text-slate-500">
+              Quản lý công việc Ban Tổ Chức
+            </p>
+          </div>
+
+          {mode !== 'reset' && (
+            <div className="mb-6 flex rounded-xl bg-slate-100 p-1">
             <button
               type="button"
               onClick={() => switchMode('login')}
-              className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${
+              className={`flex-1 rounded-lg py-2 text-sm font-semibold transition-all active:translate-y-px ${
                 mode === 'login'
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
+                  ? 'bg-white text-slate-950 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-700'
               }`}
             >
               Đăng nhập
@@ -207,10 +236,10 @@ const LoginPage = ({ onLoginSuccess }) => {
             <button
               type="button"
               onClick={() => switchMode('signup')}
-              className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${
+              className={`flex-1 rounded-lg py-2 text-sm font-semibold transition-all active:translate-y-px ${
                 mode === 'signup'
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
+                  ? 'bg-white text-slate-950 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-700'
               }`}
             >
               Đăng ký
@@ -221,64 +250,79 @@ const LoginPage = ({ onLoginSuccess }) => {
         <form onSubmit={handleSubmit} className="space-y-4">
           {mode === 'signup' && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="name" className="mb-1 block text-sm font-medium text-slate-700">
                 Họ tên
               </label>
-              <input
-                type="text"
-                name="name"
-                value={form.name}
-                onChange={handleChange}
-                placeholder="Nguyễn Văn A"
-                required
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              />
+              <div className="relative">
+                <UserRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" strokeWidth={1.8} />
+                <input
+                  id="name"
+                  type="text"
+                  name="name"
+                  value={form.name}
+                  onChange={handleChange}
+                  placeholder="Nguyễn Văn A"
+                  autoComplete="name"
+                  required
+                  className="w-full rounded-xl border border-slate-300 px-10 py-2.5 text-sm transition-colors focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                />
+              </div>
             </div>
           )}
 
           {mode !== 'reset' && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="email" className="mb-1 block text-sm font-medium text-slate-700">
                 Email
               </label>
-              <input
-                type="email"
-                name="email"
-                value={form.email}
-                onChange={handleChange}
-                placeholder="email@example.com"
-                required
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              />
+              <div className="relative">
+                <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" strokeWidth={1.8} />
+                <input
+                  id="email"
+                  type="email"
+                  name="email"
+                  value={form.email}
+                  onChange={handleChange}
+                  placeholder="email@example.com"
+                  autoComplete="email"
+                  required
+                  className="w-full rounded-xl border border-slate-300 px-10 py-2.5 text-sm transition-colors focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                />
+              </div>
             </div>
           )}
 
           {mode !== 'forgot' && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="password" className="mb-1 block text-sm font-medium text-slate-700">
                 {mode === 'reset' ? 'Mật khẩu mới' : 'Mật khẩu'}
               </label>
-              <input
-                type="password"
-                name="password"
-                value={form.password}
-                onChange={handleChange}
-                placeholder="••••••••"
-                required
-                minLength={6}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              />
+              <div className="relative">
+                <LockKeyhole className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" strokeWidth={1.8} />
+                <input
+                  id="password"
+                  type="password"
+                  name="password"
+                  value={form.password}
+                  onChange={handleChange}
+                  placeholder="••••••••"
+                  autoComplete={mode === 'reset' || mode === 'signup' ? 'new-password' : 'current-password'}
+                  required
+                  minLength={6}
+                  className="w-full rounded-xl border border-slate-300 px-10 py-2.5 text-sm transition-colors focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                />
+              </div>
             </div>
           )}
 
           {error && (
-            <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600 whitespace-pre-line">
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 whitespace-pre-line">
               {error}
             </div>
           )}
 
           {message && (
-            <div className="px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-xl text-sm text-emerald-700">
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
               {message}
             </div>
           )}
@@ -286,7 +330,7 @@ const LoginPage = ({ onLoginSuccess }) => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-colors shadow-sm"
+            className="w-full rounded-xl bg-indigo-600 py-3 font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loading ? 'Đang xử lý...' : submitLabel}
           </button>
@@ -297,7 +341,7 @@ const LoginPage = ({ onLoginSuccess }) => {
             <button
               type="button"
               onClick={() => switchMode('forgot')}
-              className="text-indigo-600 hover:text-indigo-700 font-medium"
+              className="font-medium text-indigo-600 hover:text-indigo-700"
             >
               Quên mật khẩu?
             </button>
@@ -305,7 +349,7 @@ const LoginPage = ({ onLoginSuccess }) => {
               type="button"
               onClick={handleResendVerification}
               disabled={loading}
-              className="text-gray-500 hover:text-gray-700 disabled:opacity-60"
+              className="text-slate-500 hover:text-slate-700 disabled:opacity-60"
             >
               Gửi lại email xác thực
             </button>
@@ -316,7 +360,7 @@ const LoginPage = ({ onLoginSuccess }) => {
           <button
             type="button"
             onClick={() => switchMode('login')}
-            className="mt-4 w-full text-sm text-gray-500 hover:text-gray-700"
+            className="mt-4 w-full text-sm text-slate-500 hover:text-slate-700"
           >
             Quay lại đăng nhập
           </button>
@@ -324,12 +368,12 @@ const LoginPage = ({ onLoginSuccess }) => {
       </div>
       </main>
 
-      <footer className="border-t border-gray-200 bg-white">
-        <div className="mx-auto flex max-w-6xl flex-col gap-1 px-6 py-4 text-sm text-gray-500 sm:flex-row sm:items-center sm:justify-between">
+      <footer className="border-t border-slate-200 bg-white">
+        <div className="mx-auto flex max-w-7xl flex-col gap-1 px-5 py-4 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between lg:px-8">
           <span>© EventFlow - Nhóm EXE, dự án hỗ trợ sự kiện FPTU.</span>
           <a
             href="mailto:event.flow.corp.vn@gmail.com"
-            className="font-semibold text-gray-700 hover:text-indigo-600"
+            className="font-semibold text-slate-700 hover:text-indigo-600"
           >
             event.flow.corp.vn@gmail.com
           </a>
