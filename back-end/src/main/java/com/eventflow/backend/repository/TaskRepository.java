@@ -1,6 +1,7 @@
 package com.eventflow.backend.repository;
 
 import com.eventflow.backend.entity.Task;
+import com.eventflow.backend.entity.TaskPriority;
 import com.eventflow.backend.entity.TaskStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -29,6 +30,7 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             LEFT JOIN FETCH t.assignee
             WHERE t.event.id = :eventId
             AND (:status IS NULL OR t.status = :status)
+            AND (:priority IS NULL OR t.priority = :priority)
             AND (:departmentId IS NULL OR t.department.id = :departmentId)
             AND (:assigneeId IS NULL OR t.assignee.id = :assigneeId)
             AND (:searchPattern IS NULL OR LOWER(t.title) LIKE :searchPattern OR LOWER(COALESCE(t.description, '')) LIKE :searchPattern)
@@ -36,6 +38,7 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
     List<Task> findAllByEventIdWithFilters(
             @Param("eventId") Long eventId,
             @Param("status") TaskStatus status,
+            @Param("priority") TaskPriority priority,
             @Param("departmentId") Long departmentId,
             @Param("assigneeId") Long assigneeId,
             @Param("searchPattern") String searchPattern,
@@ -48,6 +51,7 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             LEFT JOIN FETCH t.assignee
             WHERE t.event.id = :eventId
             AND (:status IS NULL OR t.status = :status)
+            AND (:priority IS NULL OR t.priority = :priority)
             AND (:departmentId IS NULL OR t.department.id = :departmentId)
             AND (:assigneeId IS NULL OR t.assignee.id = :assigneeId)
             AND (:searchPattern IS NULL OR LOWER(t.title) LIKE :searchPattern OR LOWER(COALESCE(t.description, '')) LIKE :searchPattern)
@@ -56,6 +60,7 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             SELECT COUNT(t) FROM Task t
             WHERE t.event.id = :eventId
             AND (:status IS NULL OR t.status = :status)
+            AND (:priority IS NULL OR t.priority = :priority)
             AND (:departmentId IS NULL OR t.department.id = :departmentId)
             AND (:assigneeId IS NULL OR t.assignee.id = :assigneeId)
             AND (:searchPattern IS NULL OR LOWER(t.title) LIKE :searchPattern OR LOWER(COALESCE(t.description, '')) LIKE :searchPattern)
@@ -63,6 +68,7 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
     Page<Task> findPageByEventIdWithFilters(
             @Param("eventId") Long eventId,
             @Param("status") TaskStatus status,
+            @Param("priority") TaskPriority priority,
             @Param("departmentId") Long departmentId,
             @Param("assigneeId") Long assigneeId,
             @Param("searchPattern") String searchPattern,
@@ -75,6 +81,7 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             LEFT JOIN FETCH t.assignee
             WHERE t.event.id = :eventId
             AND (:status IS NULL OR t.status = :status)
+            AND (:priority IS NULL OR t.priority = :priority)
             AND (:departmentId IS NULL OR t.department.id = :departmentId)
             AND (:assigneeId IS NULL OR t.assignee.id = :assigneeId)
             AND (:searchPattern IS NULL OR LOWER(t.title) LIKE :searchPattern OR LOWER(COALESCE(t.description, '')) LIKE :searchPattern)
@@ -85,6 +92,7 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             SELECT COUNT(t) FROM Task t
             WHERE t.event.id = :eventId
             AND (:status IS NULL OR t.status = :status)
+            AND (:priority IS NULL OR t.priority = :priority)
             AND (:departmentId IS NULL OR t.department.id = :departmentId)
             AND (:assigneeId IS NULL OR t.assignee.id = :assigneeId)
             AND (:searchPattern IS NULL OR LOWER(t.title) LIKE :searchPattern OR LOWER(COALESCE(t.description, '')) LIKE :searchPattern)
@@ -94,6 +102,7 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
     Page<Task> findPageByEventIdWithFiltersAndDeadlineRange(
             @Param("eventId") Long eventId,
             @Param("status") TaskStatus status,
+            @Param("priority") TaskPriority priority,
             @Param("departmentId") Long departmentId,
             @Param("assigneeId") Long assigneeId,
             @Param("searchPattern") String searchPattern,

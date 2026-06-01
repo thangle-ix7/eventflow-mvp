@@ -29,6 +29,8 @@ public class TaskRequestDTO {
 
     private String status;
 
+    private String priority;
+
     @NotNull(message = "Deadline không được để trống")
     private LocalDateTime deadline;
 

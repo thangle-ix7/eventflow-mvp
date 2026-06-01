@@ -11,6 +11,7 @@ import {
   MetricCard,
   PageHeader,
   Panel,
+  PriorityBadge,
   SelectControl,
   StatusBadge,
 } from '../components/ui';
@@ -371,6 +372,7 @@ const TaskListSection = ({ tasks, page, setPage, pageData, eventId }) => (
               <th className="px-4 py-3">Công việc</th>
               <th className="px-4 py-3">Ban / phụ trách</th>
               <th className="px-4 py-3">Hạn hoàn thành</th>
+              <th className="px-4 py-3">Ưu tiên</th>
               <th className="px-4 py-3">Trạng thái</th>
             </tr>
           </thead>
@@ -387,6 +389,7 @@ const TaskListSection = ({ tasks, page, setPage, pageData, eventId }) => (
                   <p className="text-xs text-slate-500">{task.assigneeName || 'Chưa phân công'}</p>
                 </td>
                 <td className="px-4 py-3 text-slate-600">{formatDate(task.deadline)}</td>
+                <td className="px-4 py-3"><PriorityBadge priority={task.priority} /></td>
                 <td className="px-4 py-3"><StatusBadge status={task.status} /></td>
               </tr>
             ))}

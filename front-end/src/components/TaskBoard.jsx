@@ -4,7 +4,7 @@ import { CalendarDays, UserRound } from 'lucide-react';
 import departmentApi from '../api/departmentApi';
 import taskApi from '../api/taskApi';
 import { formatDate } from '../utils/dateUtils';
-import { Button, EmptyState, ErrorState, LoadingState, ProgressBar } from './ui';
+import { Button, EmptyState, ErrorState, LoadingState, PriorityBadge, ProgressBar } from './ui';
 
 const TaskBoard = ({ eventId, canManage = false }) => {
   const queryClient = useQueryClient();
@@ -14,6 +14,7 @@ const TaskBoard = ({ eventId, canManage = false }) => {
     title: '',
     departmentId: '',
     deadline: '',
+    priority: 'MEDIUM',
     progressPercentage: 0,
   });
 
@@ -104,7 +105,7 @@ const TaskBoard = ({ eventId, canManage = false }) => {
   const createTaskMutation = useMutation({
     mutationFn: taskApi.createTask,
     onSuccess: () => {
-      setTaskForm({ title: '', departmentId: '', deadline: '', progressPercentage: 0 });
+      setTaskForm({ title: '', departmentId: '', deadline: '', priority: 'MEDIUM', progressPercentage: 0 });
       queryClient.invalidateQueries({ queryKey: ['eventTasks', eventId] });
       queryClient.invalidateQueries({ queryKey: ['dashboardSummary', eventId] });
     },
@@ -127,6 +128,7 @@ const TaskBoard = ({ eventId, canManage = false }) => {
         departmentId: taskForm.departmentId ? Number(taskForm.departmentId) : null,
         assigneeId: null,
         status: 'TODO',
+        priority: taskForm.priority,
         deadline: taskForm.deadline,
         progressPercentage: Number(taskForm.progressPercentage),
       },
@@ -189,7 +191,7 @@ const TaskBoard = ({ eventId, canManage = false }) => {
             {createTaskMutation.error && (
               <div className="mt-3"><ErrorState error={createTaskMutation.error} title="Không tạo được công việc" /></div>
             )}
-            <div className="mt-4 grid gap-2 sm:grid-cols-4">
+            <div className="mt-4 grid gap-2 sm:grid-cols-5">
               <input
                 name="taskTitle"
                 value={taskForm.title}
@@ -220,6 +222,17 @@ const TaskBoard = ({ eventId, canManage = false }) => {
                 required
                 className="rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
               />
+              <select
+                name="priority"
+                value={taskForm.priority}
+                onChange={(event) => setTaskForm((old) => ({ ...old, priority: event.target.value }))}
+                className="rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+              >
+                <option value="LOW">Thấp</option>
+                <option value="MEDIUM">Trung bình</option>
+                <option value="HIGH">Cao</option>
+                <option value="URGENT">Khẩn cấp</option>
+              </select>
               <input
                 name="progressPercentage"
                 type="number"
@@ -304,6 +317,7 @@ const TaskBoard = ({ eventId, canManage = false }) => {
                     </div>
 
                     <div className="flex items-center gap-3">
+                      <PriorityBadge priority={task.priority} />
                       <select
                         value={task.status || 'TODO'}
                         disabled={mutation.isPending}

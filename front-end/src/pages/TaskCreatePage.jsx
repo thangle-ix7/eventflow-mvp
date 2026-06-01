@@ -22,6 +22,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
     assigneeId: '',
     deadline: '',
     status: 'TODO',
+    priority: 'MEDIUM',
     progressPercentage: 0,
   });
 
@@ -66,6 +67,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
         assigneeId: form.assigneeId ? Number(form.assigneeId) : null,
         deadline: form.deadline,
         status: form.status,
+        priority: form.priority,
         progressPercentage: Number(form.progressPercentage),
       },
     });
@@ -119,6 +121,14 @@ const TaskCreatePage = ({ user, onLogout }) => {
               <option value="IN_PROGRESS">IN_PROGRESS</option>
               <option value="IN_REVIEW">IN_REVIEW</option>
               <option value="DONE">DONE</option>
+            </select>
+          </Field>
+          <Field label="Ưu tiên">
+            <select name="priority" value={form.priority} onChange={handleChange} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500">
+              <option value="LOW">Thấp</option>
+              <option value="MEDIUM">Trung bình</option>
+              <option value="HIGH">Cao</option>
+              <option value="URGENT">Khẩn cấp</option>
             </select>
           </Field>
           <Field label="Tiến độ (%)">

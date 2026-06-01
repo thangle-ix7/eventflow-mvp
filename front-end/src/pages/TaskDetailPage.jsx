@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, CalendarDays, ClipboardCheck, Edit, FileText, Paperclip, RefreshCw, UserRound } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
-import { Button, ErrorState, LoadingState, PageHeader, Panel, ProgressBar, StatusBadge } from '../components/ui';
+import { Button, ErrorState, LoadingState, PageHeader, Panel, PriorityBadge, ProgressBar, StatusBadge } from '../components/ui';
 import eventApi from '../api/eventApi';
 import taskApi from '../api/taskApi';
 import { formatDate } from '../utils/dateUtils';
@@ -34,6 +34,7 @@ const TaskDetailPage = ({ user, onLogout }) => {
             <Panel className="p-5">
               <div className="mb-4 flex flex-wrap gap-2">
                 <StatusBadge status={task.status} />
+                <PriorityBadge priority={task.priority} />
                 {task.departmentName && <StatusBadge>{task.departmentName}</StatusBadge>}
               </div>
               <PageHeader

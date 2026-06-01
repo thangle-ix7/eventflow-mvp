@@ -6,6 +6,7 @@ import AppLayout from '../components/AppLayout';
 import dashboardApi from '../api/dashboardApi';
 import eventApi from '../api/eventApi';
 import taskApi from '../api/taskApi';
+import { PriorityBadge, StatusBadge } from '../components/ui';
 import { formatDate } from '../utils/dateUtils';
 
 const PAGE_SIZE = 8;
@@ -205,7 +206,10 @@ const TaskListSection = ({ tasks, page, setPage, pageData, eventId }) => (
             <p className="font-semibold text-gray-900">{task.title}</p>
             <p className="text-sm text-gray-500">{task.assigneeName || 'Chưa phân công'} • {formatDate(task.deadline)}</p>
           </div>
-          <span className="w-fit rounded-full bg-gray-100 px-3 py-1 text-xs font-bold text-gray-700">{task.status}</span>
+          <div className="flex flex-wrap gap-2">
+            <PriorityBadge priority={task.priority} />
+            <StatusBadge status={task.status} />
+          </div>
         </div>
       </Link>
     ))}

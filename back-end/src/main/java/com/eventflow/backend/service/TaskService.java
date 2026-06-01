@@ -11,6 +11,7 @@ import com.eventflow.backend.dto.TaskWorkUpdateRequest;
 import com.eventflow.backend.entity.Department;
 import com.eventflow.backend.entity.Event;
 import com.eventflow.backend.entity.Task;
+import com.eventflow.backend.entity.TaskPriority;
 import com.eventflow.backend.entity.TaskReview;
 import com.eventflow.backend.entity.TaskStatus;
 import com.eventflow.backend.entity.User;
@@ -58,6 +59,7 @@ public class TaskService {
     public List<DepartmentTasksDTO> getTasksByEvent(
             Long eventId,
             String status,
+            String priority,
             Long departmentId,
             Long assigneeId,
             String search,
@@ -67,6 +69,7 @@ public class TaskService {
         List<Task> tasks = taskRepository.findAllByEventIdWithFilters(
                 eventId,
                 parseOptionalStatus(status),
+                parseOptionalPriority(priority),
                 departmentId,
                 assigneeId,
                 normalizeSearch(search),
@@ -101,6 +104,7 @@ public class TaskService {
             String sort,
             String direction,
             String status,
+            String priority,
             Long departmentId,
             Long assigneeId,
             String search,
@@ -113,11 +117,13 @@ public class TaskService {
                 Sort.by(resolveDirection(direction), resolveSort(sort)));
 
         TaskStatus parsedStatus = parseOptionalStatus(status);
+        TaskPriority parsedPriority = parseOptionalPriority(priority);
         String searchPattern = normalizeSearch(search);
         var taskPage = fromDate != null && toDate != null
                 ? taskRepository.findPageByEventIdWithFiltersAndDeadlineRange(
                         eventId,
                         parsedStatus,
+                        parsedPriority,
                         departmentId,
                         assigneeId,
                         searchPattern,
@@ -127,6 +133,7 @@ public class TaskService {
                 : taskRepository.findPageByEventIdWithFilters(
                         eventId,
                         parsedStatus,
+                        parsedPriority,
                         departmentId,
                         assigneeId,
                         searchPattern,
@@ -151,6 +158,7 @@ public class TaskService {
         User assignee = resolveAssignee(eventId, request.getAssigneeId(), department);
 
         TaskStatus status = parseStatusOrDefault(request.getStatus(), TaskStatus.TODO);
+        TaskPriority priority = parsePriorityOrDefault(request.getPriority(), TaskPriority.MEDIUM);
 
         Task task = Task.builder()
                 .event(event)
@@ -159,6 +167,7 @@ public class TaskService {
                 .title(request.getTitle().trim())
                 .description(normalizeOptionalText(request.getDescription()))
                 .status(status)
+                .priority(priority)
                 .deadline(request.getDeadline())
                 .progressPercentage(resolveProgress(request.getProgressPercentage(), status, 0))
                 .build();
@@ -184,6 +193,7 @@ public class TaskService {
         task.setDescription(normalizeOptionalText(request.getDescription()));
         TaskStatus status = parseStatusOrDefault(request.getStatus(), task.getStatus());
         task.setStatus(status);
+        task.setPriority(parsePriorityOrDefault(request.getPriority(), task.getPriority()));
         task.setDeadline(request.getDeadline());
         task.setProgressPercentage(resolveProgress(
                 request.getProgressPercentage(),
@@ -394,6 +404,7 @@ public class TaskService {
 
         return switch (sort) {
             case "title", "status", "deadline", "createdAt", "progressPercentage" -> sort;
+            case "priority" -> "priority";
             case "department" -> "department.name";
             case "assignee" -> "assignee.name";
             default -> "deadline";
@@ -409,6 +420,7 @@ public class TaskService {
                 .title(task.getTitle())
                 .description(task.getDescription())
                 .status(task.getStatus())
+                .priority(task.getPriority())
                 .deadline(task.getDeadline())
                 .progressPercentage(task.getProgressPercentage() != null ? task.getProgressPercentage() : 0)
                 .assigneeId(task.getAssignee() != null ? task.getAssignee().getId() : null)
@@ -430,6 +442,25 @@ public class TaskService {
         }
 
         return requestedProgress;
+    }
+
+    private TaskPriority parseOptionalPriority(String priority) {
+        if (priority == null || priority.isBlank()) {
+            return null;
+        }
+        return parsePriorityOrDefault(priority, null);
+    }
+
+    private TaskPriority parsePriorityOrDefault(String priority, TaskPriority defaultPriority) {
+        if (priority == null || priority.isBlank()) {
+            return defaultPriority != null ? defaultPriority : TaskPriority.MEDIUM;
+        }
+
+        try {
+            return TaskPriority.valueOf(priority.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Độ ưu tiên task không hợp lệ", e);
+        }
     }
 
     private String validateFeedback(String feedback) {

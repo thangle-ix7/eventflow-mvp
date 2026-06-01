@@ -22,6 +22,7 @@ import {
   MetricCard,
   PageHeader,
   Panel,
+  PriorityBadge,
   StatusBadge,
 } from '../components/ui';
 import departmentApi from '../api/departmentApi';
@@ -175,6 +176,7 @@ const CalendarContent = ({ event, tasks }) => (
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-sm font-semibold text-slate-700">{formatDate(task.deadline)}</span>
+                <PriorityBadge priority={task.priority} />
                 <StatusBadge status={task.status} />
               </div>
             </Link>

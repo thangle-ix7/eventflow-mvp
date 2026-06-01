@@ -10,6 +10,7 @@ import {
   LoadingState,
   PageHeader,
   Panel,
+  PriorityBadge,
   ProgressBar,
   SelectControl,
   StatusBadge,
@@ -29,6 +30,7 @@ const TaskListPage = ({ user, onLogout }) => {
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
+  const [priority, setPriority] = useState('');
   const [departmentId, setDepartmentId] = useState(
     () => searchParams.get('departmentId') || ''
   );
@@ -46,7 +48,7 @@ const TaskListPage = ({ user, onLogout }) => {
   });
 
   const tasksQuery = useQuery({
-    queryKey: ['eventTaskPage', eventId, page, search, status, departmentId],
+    queryKey: ['eventTaskPage', eventId, page, search, status, priority, departmentId],
     queryFn: () =>
       taskApi.getEventTaskPage({
         eventId,
@@ -54,6 +56,7 @@ const TaskListPage = ({ user, onLogout }) => {
         size: PAGE_SIZE,
         search,
         status,
+        priority,
         departmentId,
       }),
     enabled: Boolean(eventId),
@@ -90,7 +93,7 @@ const TaskListPage = ({ user, onLogout }) => {
             )}
           />
 
-          <form onSubmit={handleSearchSubmit} className="mt-4 grid gap-3 md:grid-cols-[1fr_160px_200px_auto]">
+          <form onSubmit={handleSearchSubmit} className="mt-4 grid gap-3 md:grid-cols-[1fr_150px_150px_190px_auto]">
             <TextInput
               id="task-search"
               name="search"
@@ -105,6 +108,13 @@ const TaskListPage = ({ user, onLogout }) => {
               <option value="IN_PROGRESS">Đang làm</option>
               <option value="IN_REVIEW">Chờ duyệt</option>
               <option value="DONE">Hoàn thành</option>
+            </SelectControl>
+            <SelectControl aria-label="Lọc ưu tiên công việc" name="priority" value={priority} onChange={(event) => { setPage(0); setPriority(event.target.value); }}>
+              <option value="">Tất cả ưu tiên</option>
+              <option value="LOW">Thấp</option>
+              <option value="MEDIUM">Trung bình</option>
+              <option value="HIGH">Cao</option>
+              <option value="URGENT">Khẩn cấp</option>
             </SelectControl>
             <SelectControl aria-label="Lọc theo ban" name="departmentId" value={departmentId} onChange={(event) => { setPage(0); setDepartmentId(event.target.value); }}>
               <option value="">Tất cả ban</option>
@@ -135,6 +145,7 @@ const TaskListPage = ({ user, onLogout }) => {
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="font-semibold text-slate-950">{task.title}</p>
                     <StatusBadge status={task.status} />
+                    <PriorityBadge priority={task.priority} />
                   </div>
                   {task.description && <p className="mt-1 line-clamp-2 text-sm text-slate-600">{task.description}</p>}
                   <div className="mt-2 flex flex-wrap gap-3 text-sm text-slate-500">

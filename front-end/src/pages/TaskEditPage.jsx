@@ -65,6 +65,7 @@ const TaskEditForm = ({ task, departments, members, mutation, taskId }) => {
     assigneeId: task.assigneeId ? String(task.assigneeId) : '',
     deadline: toDatetimeLocal(task.deadline),
     status: task.status || 'TODO',
+    priority: task.priority || 'MEDIUM',
     progressPercentage: task.progressPercentage ?? 0,
   });
 
@@ -97,6 +98,7 @@ const TaskEditForm = ({ task, departments, members, mutation, taskId }) => {
         assigneeId: form.assigneeId ? Number(form.assigneeId) : null,
         deadline: form.deadline,
         status: form.status,
+        priority: form.priority,
         progressPercentage: Number(form.progressPercentage),
       },
     });
@@ -122,6 +124,7 @@ const TaskEditForm = ({ task, departments, members, mutation, taskId }) => {
       <Field label="Assignee"><select name="assigneeId" value={form.assigneeId} onChange={handleChange} disabled={!form.departmentId} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 disabled:bg-gray-50"><option value="">Chưa phân công</option>{assignableMembers.map((member) => <option key={member.userId} value={member.userId}>{member.name}</option>)}</select></Field>
       <Field label="Deadline"><input name="deadline" type="datetime-local" value={form.deadline} onChange={handleChange} required className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500" /></Field>
       <Field label="Status"><select name="status" value={form.status} onChange={handleChange} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500"><option value="TODO">TODO</option><option value="IN_PROGRESS">IN_PROGRESS</option><option value="IN_REVIEW">IN_REVIEW</option><option value="DONE">DONE</option></select></Field>
+      <Field label="Ưu tiên"><select name="priority" value={form.priority} onChange={handleChange} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500"><option value="LOW">Thấp</option><option value="MEDIUM">Trung bình</option><option value="HIGH">Cao</option><option value="URGENT">Khẩn cấp</option></select></Field>
       <Field label="Tiến độ (%)"><input name="progressPercentage" type="number" min="0" max="100" value={form.progressPercentage} onChange={handleChange} required className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500" /></Field>
       <button type="submit" disabled={mutation.isPending} className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60">
         {mutation.isPending && <Loader2 size={16} className="animate-spin" />}

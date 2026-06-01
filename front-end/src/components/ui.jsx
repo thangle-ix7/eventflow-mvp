@@ -12,6 +12,13 @@ const STATUS_META = {
   OVERDUE: { label: 'Quá hạn', className: 'border-red-200 bg-red-50 text-red-700' },
 };
 
+const PRIORITY_META = {
+  LOW: { label: 'Thấp', className: 'border-slate-200 bg-slate-100 text-slate-700' },
+  MEDIUM: { label: 'Trung bình', className: 'border-amber-200 bg-amber-50 text-amber-700' },
+  HIGH: { label: 'Cao', className: 'border-red-200 bg-red-50 text-red-700' },
+  URGENT: { label: 'Khẩn cấp', className: 'border-rose-300 bg-rose-50 text-rose-700' },
+};
+
 const baseControl =
   'rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400';
 
@@ -89,6 +96,16 @@ export const StatusBadge = ({ status, children, className = '' }) => {
   return (
     <span className={`inline-flex w-fit items-center rounded-full border px-2.5 py-1 text-xs font-bold ${meta.className} ${className}`}>
       {children || meta.label}
+    </span>
+  );
+};
+
+export const PriorityBadge = ({ priority = 'MEDIUM', className = '' }) => {
+  const meta = PRIORITY_META[priority] || PRIORITY_META.MEDIUM;
+
+  return (
+    <span className={`inline-flex w-fit items-center rounded-full border px-2.5 py-1 text-xs font-bold ${meta.className} ${className}`}>
+      {meta.label}
     </span>
   );
 };

@@ -33,6 +33,7 @@ public class TaskController {
     public ResponseEntity<List<DepartmentTasksDTO>> getEventTasks(
             @PathVariable Long eventId,
             @RequestParam(required = false) String status,
+            @RequestParam(required = false) String priority,
             @RequestParam(required = false) Long departmentId,
             @RequestParam(required = false) Long assigneeId,
             @RequestParam(required = false) String search,
@@ -48,6 +49,7 @@ public class TaskController {
         return ResponseEntity.ok(taskService.getTasksByEvent(
                 eventId,
                 status,
+                priority,
                 departmentId,
                 assigneeId,
                 search,
@@ -63,6 +65,7 @@ public class TaskController {
             @RequestParam(defaultValue = "deadline") String sort,
             @RequestParam(defaultValue = "asc") String direction,
             @RequestParam(required = false) String status,
+            @RequestParam(required = false) String priority,
             @RequestParam(required = false) Long departmentId,
             @RequestParam(required = false) Long assigneeId,
             @RequestParam(required = false) String search,
@@ -82,6 +85,7 @@ public class TaskController {
                 sort,
                 direction,
                 status,
+                priority,
                 departmentId,
                 assigneeId,
                 search,

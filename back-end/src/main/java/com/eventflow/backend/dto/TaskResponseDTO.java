@@ -1,6 +1,7 @@
 package com.eventflow.backend.dto;
 
 import com.eventflow.backend.entity.TaskStatus;
+import com.eventflow.backend.entity.TaskPriority;
 import lombok.*;
 import java.time.LocalDateTime;
 
@@ -16,6 +17,7 @@ public class TaskResponseDTO {
     private String title;
     private String description;
     private TaskStatus status;
+    private TaskPriority priority;
     private LocalDateTime deadline;
     private Integer progressPercentage;
     private Long assigneeId;

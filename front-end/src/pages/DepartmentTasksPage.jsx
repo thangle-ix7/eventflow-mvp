@@ -6,6 +6,7 @@ import AppLayout from '../components/AppLayout';
 import departmentApi from '../api/departmentApi';
 import eventApi from '../api/eventApi';
 import taskApi from '../api/taskApi';
+import { PriorityBadge, StatusBadge } from '../components/ui';
 import { formatDate } from '../utils/dateUtils';
 
 const PAGE_SIZE = 10;
@@ -16,12 +17,13 @@ const DepartmentTasksPage = ({ user, onLogout }) => {
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
+  const [priority, setPriority] = useState('');
 
   const eventQuery = useQuery({ queryKey: ['event', eventId], queryFn: () => eventApi.getEvent(eventId), enabled: Boolean(eventId) });
   const departmentQuery = useQuery({ queryKey: ['department', eventId, departmentId], queryFn: () => departmentApi.getDepartment({ eventId, departmentId }), enabled: Boolean(eventId && departmentId) });
   const tasksQuery = useQuery({
-    queryKey: ['departmentTaskPage', eventId, departmentId, page, search, status],
-    queryFn: () => taskApi.getEventTaskPage({ eventId, departmentId, page, size: PAGE_SIZE, search, status }),
+    queryKey: ['departmentTaskPage', eventId, departmentId, page, search, status, priority],
+    queryFn: () => taskApi.getEventTaskPage({ eventId, departmentId, page, size: PAGE_SIZE, search, status, priority }),
     enabled: Boolean(eventId && departmentId),
   });
 
@@ -61,7 +63,7 @@ const DepartmentTasksPage = ({ user, onLogout }) => {
             )}
           </div>
 
-          <form onSubmit={handleSearchSubmit} className="mt-4 grid gap-3 md:grid-cols-[1fr_180px_auto]">
+          <form onSubmit={handleSearchSubmit} className="mt-4 grid gap-3 md:grid-cols-[1fr_160px_160px_auto]">
             <label className="relative">
               <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Tìm task trong department" className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-3 text-sm outline-none focus:border-blue-500" />
@@ -72,6 +74,13 @@ const DepartmentTasksPage = ({ user, onLogout }) => {
               <option value="IN_PROGRESS">IN_PROGRESS</option>
               <option value="IN_REVIEW">IN_REVIEW</option>
               <option value="DONE">DONE</option>
+            </select>
+            <select value={priority} onChange={(event) => { setPage(0); setPriority(event.target.value); }} className="rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500">
+              <option value="">Tất cả ưu tiên</option>
+              <option value="LOW">Thấp</option>
+              <option value="MEDIUM">Trung bình</option>
+              <option value="HIGH">Cao</option>
+              <option value="URGENT">Khẩn cấp</option>
             </select>
             <button type="submit" className="rounded-lg border border-blue-600 px-4 py-2 text-sm font-semibold text-blue-600 hover:bg-blue-50">Tìm</button>
           </form>
@@ -93,7 +102,10 @@ const DepartmentTasksPage = ({ user, onLogout }) => {
                   <p className="font-semibold text-gray-900">{task.title}</p>
                   <p className="mt-1 text-sm text-gray-500">{task.assigneeName || 'Chưa phân công'} • Deadline {formatDate(task.deadline)}</p>
                 </div>
-                <span className="w-fit rounded-full bg-gray-100 px-3 py-1 text-xs font-bold text-gray-700">{task.status}</span>
+                <div className="flex flex-wrap gap-2">
+                  <PriorityBadge priority={task.priority} />
+                  <StatusBadge status={task.status} />
+                </div>
               </div>
             </Link>
           ))}
