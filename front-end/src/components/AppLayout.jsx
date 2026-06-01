@@ -31,7 +31,7 @@ const AppLayout = ({
   const location = useLocation();
   const navigate = useNavigate();
   const [globalSearch, setGlobalSearch] = useState('');
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarState, setSidebarState] = useState({ eventId: null, open: true });
   const notificationCountQuery = useQuery({
     queryKey: ['pendingNotificationCount', user.userId],
     queryFn: () => userApi.getPendingNotificationCount(user.userId),
@@ -40,6 +40,11 @@ const AppLayout = ({
     retry: false,
   });
   const pendingNotificationCount = notificationCountQuery.data?.pendingCount || 0;
+  const selectedEventId = selectedEvent?.id ? String(selectedEvent.id) : null;
+  const sidebarOpen = Boolean(selectedEventId) && (
+    sidebarState.eventId === selectedEventId ? sidebarState.open : true
+  );
+
   const eventNav = selectedEvent?.id
     ? [
       { to: `/events/${selectedEvent.id}`, label: 'Tổng quan', icon: Workflow },
@@ -110,7 +115,7 @@ const AppLayout = ({
 
   const closeSidebarOnMobile = () => {
     if (window.matchMedia('(max-width: 1023px)').matches) {
-      setSidebarOpen(false);
+      setSidebarState({ eventId: selectedEventId, open: false });
     }
   };
 
@@ -186,7 +191,7 @@ const AppLayout = ({
                 className="rounded-lg p-2 text-slate-300 hover:bg-white/10 hover:text-white"
                 aria-label={sidebarOpen ? 'Ẩn thanh điều hướng' : 'Mở thanh điều hướng'}
                 aria-expanded={sidebarOpen}
-                onClick={() => setSidebarOpen((open) => !open)}
+                onClick={() => setSidebarState({ eventId: selectedEventId, open: !sidebarOpen })}
               >
                 <Menu className="h-5 w-5" strokeWidth={1.8} />
               </button>
