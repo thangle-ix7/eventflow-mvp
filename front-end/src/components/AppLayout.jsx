@@ -1,7 +1,7 @@
 import TelegramOnboarding from './TelegramOnboarding';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import AiChatBox from './AiChatBox';
 import userApi from '../api/userApi';
 import {
@@ -30,14 +30,38 @@ const AppLayout = ({
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [globalSearch, setGlobalSearch] = useState('');
+  const [notificationOpen, setNotificationOpen] = useState(false);
   const [sidebarState, setSidebarState] = useState({ eventId: null, open: true });
+  const notificationCountKey = ['pendingNotificationCount', user.userId];
+  const notificationListKey = ['notifications', user.userId];
   const notificationCountQuery = useQuery({
-    queryKey: ['pendingNotificationCount', user.userId],
+    queryKey: notificationCountKey,
     queryFn: () => userApi.getPendingNotificationCount(user.userId),
     enabled: Boolean(user?.userId),
     refetchInterval: 30000,
     retry: false,
+  });
+  const notificationListQuery = useQuery({
+    queryKey: notificationListKey,
+    queryFn: () => userApi.getNotifications(user.userId),
+    enabled: Boolean(user?.userId && notificationOpen),
+    retry: false,
+  });
+  const markNotificationReadMutation = useMutation({
+    mutationFn: userApi.markNotificationAsRead,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: notificationCountKey });
+      queryClient.invalidateQueries({ queryKey: notificationListKey });
+    },
+  });
+  const markAllNotificationsReadMutation = useMutation({
+    mutationFn: userApi.markAllNotificationsAsRead,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: notificationCountKey });
+      queryClient.invalidateQueries({ queryKey: notificationListKey });
+    },
   });
   const pendingNotificationCount = notificationCountQuery.data?.pendingCount || 0;
   const selectedEventId = selectedEvent?.id ? String(selectedEvent.id) : null;
@@ -254,14 +278,81 @@ const AppLayout = ({
                 <CalendarDays className="h-5 w-5" strokeWidth={1.8} />
               </Link>
               )}
-              <span className="relative rounded-lg p-2" aria-label="Thông báo đang chờ">
-                <Bell className="h-5 w-5" strokeWidth={1.8} />
-                {pendingNotificationCount > 0 && (
-                  <span className="absolute -right-1 -top-1 min-w-5 rounded-full bg-red-500 px-1.5 py-0.5 text-center text-[10px] font-bold leading-none text-white">
-                    {pendingNotificationCount > 99 ? '99+' : pendingNotificationCount}
-                  </span>
+              <div className="relative">
+                <button
+                  type="button"
+                  className="relative rounded-lg p-2 hover:bg-white/10 hover:text-white"
+                  aria-label="Mở thông báo"
+                  aria-expanded={notificationOpen}
+                  onClick={() => setNotificationOpen((open) => !open)}
+                >
+                  <Bell className="h-5 w-5" strokeWidth={1.8} />
+                  {pendingNotificationCount > 0 && (
+                    <span className="absolute -right-1 -top-1 min-w-5 rounded-full bg-red-500 px-1.5 py-0.5 text-center text-[10px] font-bold leading-none text-white">
+                      {pendingNotificationCount > 99 ? '99+' : pendingNotificationCount}
+                    </span>
+                  )}
+                </button>
+                {notificationOpen && (
+                  <div className="absolute right-0 top-12 z-50 w-[min(360px,calc(100vw-2rem))] overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-900 shadow-xl">
+                    <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3">
+                      <div>
+                        <p className="text-sm font-extrabold text-slate-950">Thông báo</p>
+                        <p className="text-xs text-slate-500">{pendingNotificationCount} thông báo chưa đọc</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => markAllNotificationsReadMutation.mutate(user.userId)}
+                        disabled={pendingNotificationCount === 0 || markAllNotificationsReadMutation.isPending}
+                        className="text-xs font-bold text-indigo-600 hover:text-indigo-700 disabled:text-slate-300"
+                      >
+                        Đọc hết
+                      </button>
+                    </div>
+                    <div className="max-h-96 overflow-y-auto">
+                      {notificationListQuery.isLoading && (
+                        <div className="px-4 py-5 text-sm text-slate-500">Đang tải thông báo...</div>
+                      )}
+                      {notificationListQuery.error && (
+                        <div className="px-4 py-5 text-sm text-red-600">Không tải được thông báo.</div>
+                      )}
+                      {!notificationListQuery.isLoading && !notificationListQuery.error && (notificationListQuery.data || []).length === 0 && (
+                        <div className="px-4 py-5 text-sm text-slate-500">Chưa có thông báo nào.</div>
+                      )}
+                      {(notificationListQuery.data || []).map((notification) => {
+                        const unread = !notification.readAt;
+                        return (
+                          <button
+                            key={notification.id}
+                            type="button"
+                            onClick={() => {
+                              if (unread) {
+                                markNotificationReadMutation.mutate({ userId: user.userId, notificationId: notification.id });
+                              }
+                              if (notification.eventId && notification.taskId) {
+                                setNotificationOpen(false);
+                                navigate(`/events/${notification.eventId}/tasks/${notification.taskId}`);
+                              }
+                            }}
+                            className="block w-full border-b border-slate-100 px-4 py-3 text-left last:border-b-0 hover:bg-indigo-50"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <span className="min-w-0">
+                                <span className="block text-sm font-bold text-slate-950">{notification.title}</span>
+                                <span className="mt-1 block text-xs leading-5 text-slate-600">{notification.message}</span>
+                                <span className="mt-2 block text-[11px] font-semibold text-slate-400">
+                                  {notification.eventName || 'Sự kiện'} • {formatNotificationTime(notification.createdAt)}
+                                </span>
+                              </span>
+                              {unread && <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-indigo-600" aria-label="Chưa đọc" />}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 )}
-              </span>
+              </div>
             </div>
             <div className="text-sm text-slate-300 lg:text-right">
               <span className="block font-semibold text-white">{user.name}</span>
@@ -323,6 +414,24 @@ const AppLayout = ({
       <AiChatBox />
     </div>
   );
+};
+
+const formatNotificationTime = (value) => {
+  if (!value) {
+    return 'Vừa tạo';
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return 'Vừa tạo';
+  }
+
+  return date.toLocaleString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 };
 
 export default AppLayout;

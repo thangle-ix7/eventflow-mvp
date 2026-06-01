@@ -44,6 +44,31 @@ const userApi = {
     return response.data;
   },
 
+  getNotifications: async (userId) => {
+    if (!userId) {
+      throw new Error('userId không hợp lệ');
+    }
+
+    const response = await apiClient.get(`/users/${userId}/notifications`);
+    return response.data;
+  },
+
+  markNotificationAsRead: async ({ userId, notificationId }) => {
+    if (!userId || !notificationId) {
+      throw new Error('userId/notificationId không hợp lệ');
+    }
+
+    await apiClient.patch(`/users/${userId}/notifications/${notificationId}/read`);
+  },
+
+  markAllNotificationsAsRead: async (userId) => {
+    if (!userId) {
+      throw new Error('userId không hợp lệ');
+    }
+
+    await apiClient.patch(`/users/${userId}/notifications/read-all`);
+  },
+
   updatePreferences: async ({ userId, taskPageSize }) => {
     if (!userId) {
       throw new Error('userId không hợp lệ');
