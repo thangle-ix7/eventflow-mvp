@@ -48,6 +48,9 @@ public class Notification {
     @Column(name = "sent_at")
     private LocalDateTime sentAt;
 
+    @Column(name = "read_at")
+    private LocalDateTime readAt;
+
     @Column(name = "created_at", updatable = false)
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();

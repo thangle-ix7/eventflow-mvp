@@ -2,6 +2,7 @@ package com.eventflow.backend.repository;
 
 import com.eventflow.backend.entity.Notification;
 import com.eventflow.backend.entity.NotiStatus;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -39,13 +40,32 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
            "WHERE n.status = :status AND n.retryCount < 3")
     List<Notification> findPendingWithDetails(@Param("status") NotiStatus status);
 
-    long countByUserIdAndStatus(Long userId, NotiStatus status);
+    @Query("""
+            SELECT n FROM Notification n
+            JOIN FETCH n.task t
+            JOIN FETCH t.event
+            WHERE n.user.id = :userId
+            ORDER BY n.createdAt DESC, n.id DESC
+            """)
+    List<Notification> findRecentByUserIdWithDetails(@Param("userId") Long userId, Pageable pageable);
+
+    long countByUserIdAndReadAtIsNull(Long userId);
 
     // Mark notification as SENT
     @Modifying
     @Transactional
     @Query("UPDATE Notification n SET n.status = com.eventflow.backend.entity.NotiStatus.SENT, n.sentAt = CURRENT_TIMESTAMP WHERE n.id = :id")
     int markAsSent(@Param("id") Long id);
+
+    @Modifying
+    @Transactional
+    @Query("UPDATE Notification n SET n.readAt = CURRENT_TIMESTAMP WHERE n.id = :id AND n.user.id = :userId AND n.readAt IS NULL")
+    int markAsRead(@Param("userId") Long userId, @Param("id") Long id);
+
+    @Modifying
+    @Transactional
+    @Query("UPDATE Notification n SET n.readAt = CURRENT_TIMESTAMP WHERE n.user.id = :userId AND n.readAt IS NULL")
+    int markAllAsRead(@Param("userId") Long userId);
 
     // Increment retry count and optionally switch channel to EMAIL
     @Modifying
