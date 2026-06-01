@@ -10,7 +10,6 @@ import {
   CalendarDays,
   ClipboardList,
   FileText,
-  HelpCircle,
   LogOut,
   Menu,
   Search,
@@ -32,6 +31,7 @@ const AppLayout = ({
   const location = useLocation();
   const navigate = useNavigate();
   const [globalSearch, setGlobalSearch] = useState('');
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const notificationCountQuery = useQuery({
     queryKey: ['pendingNotificationCount', user.userId],
     queryFn: () => userApi.getPendingNotificationCount(user.userId),
@@ -42,8 +42,8 @@ const AppLayout = ({
   const pendingNotificationCount = notificationCountQuery.data?.pendingCount || 0;
   const eventNav = selectedEvent?.id
     ? [
-      { to: `/events/${selectedEvent.id}/dashboard`, label: 'Dashboard', icon: BarChart3 },
       { to: `/events/${selectedEvent.id}`, label: 'Tổng quan', icon: Workflow },
+      { to: `/events/${selectedEvent.id}/dashboard`, label: 'Dashboard', icon: BarChart3 },
       { to: `/events/${selectedEvent.id}/tasks`, label: 'Công việc', icon: ClipboardList },
       { to: `/events/${selectedEvent.id}/departments`, label: 'Ban tổ chức', icon: Users },
       { to: `/events/${selectedEvent.id}/members`, label: 'Thành viên', icon: UserRound },
@@ -99,6 +99,74 @@ const AppLayout = ({
     }
   };
 
+  const isEventNavActive = (item) => {
+    if (!selectedEvent?.id) return false;
+    const eventRoot = `/events/${selectedEvent.id}`;
+    if (item.to === eventRoot) {
+      return location.pathname === eventRoot;
+    }
+    return location.pathname === item.to || location.pathname.startsWith(`${item.to}/`);
+  };
+
+  const renderEventNavigation = () => (
+    <div className="space-y-5 p-4">
+      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+        <p className="text-sm font-bold text-slate-950">{selectedEvent?.name || 'Sự kiện'}</p>
+        <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">
+          {selectedEvent?.description || 'Workspace điều phối sự kiện'}
+        </p>
+        {selectedEvent?.role && (
+          <span className="mt-3 inline-flex rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-700">
+            {selectedEvent.role === 'LEADER' ? 'Trưởng nhóm' : 'Thành viên'}
+          </span>
+        )}
+      </div>
+
+      <nav className="space-y-1" aria-label="Điều hướng sự kiện">
+        {eventNav.map((item) => {
+          const Icon = item.icon;
+          const active = isEventNavActive(item);
+
+          return (
+            <Link
+              key={item.to}
+              to={item.to}
+              onClick={() => setMobileNavOpen(false)}
+              className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${
+                active
+                  ? 'bg-indigo-50 text-indigo-700'
+                  : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950'
+              }`}
+            >
+              <Icon className="h-4 w-4" strokeWidth={1.8} />
+              {item.label}
+            </Link>
+          );
+        })}
+      </nav>
+
+      <nav className="space-y-1 border-t border-slate-100 pt-4" aria-label="Tiện ích sự kiện">
+        {secondaryNav.map((item) => {
+          const Icon = item.icon;
+          const active = location.pathname === item.to;
+          return (
+            <Link
+              key={item.label}
+              to={item.to}
+              onClick={() => setMobileNavOpen(false)}
+              className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${
+                active ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950'
+              }`}
+            >
+              <Icon className="h-4 w-4" strokeWidth={1.8} />
+              {item.label}
+            </Link>
+          );
+        })}
+      </nav>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-950">
       {showTelegramOnboarding && <TelegramOnboarding userId={user.userId} />}
@@ -106,9 +174,17 @@ const AppLayout = ({
       <header className="sticky top-0 z-40 bg-slate-950 text-white shadow-sm">
         <div className="flex h-auto min-h-16 flex-col gap-3 px-5 py-3 lg:h-16 lg:flex-row lg:items-center lg:gap-6 lg:px-6 lg:py-0">
           <div className="flex items-center gap-3">
-            <button type="button" className="rounded-lg p-2 text-slate-300 hover:bg-white/10 hover:text-white" aria-label="Mở menu">
-              <Menu className="h-5 w-5" strokeWidth={1.8} />
-            </button>
+            {eventNav.length > 0 && (
+              <button
+                type="button"
+                className="rounded-lg p-2 text-slate-300 hover:bg-white/10 hover:text-white lg:hidden"
+                aria-label={mobileNavOpen ? 'Đóng menu' : 'Mở menu'}
+                aria-expanded={mobileNavOpen}
+                onClick={() => setMobileNavOpen((open) => !open)}
+              >
+                <Menu className="h-5 w-5" strokeWidth={1.8} />
+              </button>
+            )}
             <Link to="/" className="flex items-center gap-3">
               <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 font-black text-white">
                 E
@@ -120,6 +196,7 @@ const AppLayout = ({
             </Link>
           </div>
 
+          {selectedEvent?.id && (
           <form onSubmit={handleGlobalSearchSubmit} className="hidden min-w-0 flex-1 items-center lg:flex">
             <div className="relative w-full max-w-xl">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" strokeWidth={1.8} />
@@ -157,27 +234,29 @@ const AppLayout = ({
               )}
             </div>
           </form>
+          )}
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
             <div className="hidden items-center gap-1 text-slate-300 lg:flex">
-              <button type="button" className="rounded-lg p-2 hover:bg-white/10 hover:text-white" aria-label="Lịch">
+              {selectedEvent?.id && (
+              <Link to={`/events/${selectedEvent.id}/calendar`} className="rounded-lg p-2 hover:bg-white/10 hover:text-white" aria-label="Lịch sự kiện">
                 <CalendarDays className="h-5 w-5" strokeWidth={1.8} />
-              </button>
-              <button type="button" className="relative rounded-lg p-2 hover:bg-white/10 hover:text-white" aria-label="Thông báo">
+              </Link>
+              )}
+              <span className="relative rounded-lg p-2" aria-label="Thông báo đang chờ">
                 <Bell className="h-5 w-5" strokeWidth={1.8} />
                 {pendingNotificationCount > 0 && (
                   <span className="absolute -right-1 -top-1 min-w-5 rounded-full bg-red-500 px-1.5 py-0.5 text-center text-[10px] font-bold leading-none text-white">
                     {pendingNotificationCount > 99 ? '99+' : pendingNotificationCount}
                   </span>
                 )}
-              </button>
-              <button type="button" className="rounded-lg p-2 hover:bg-white/10 hover:text-white" aria-label="Trợ giúp">
-                <HelpCircle className="h-5 w-5" strokeWidth={1.8} />
-              </button>
+              </span>
             </div>
             <div className="text-sm text-slate-300 lg:text-right">
               <span className="block font-semibold text-white">{user.name}</span>
-              <span className="block text-xs">{selectedEvent?.role === 'LEADER' ? 'Trưởng nhóm' : 'Thành viên'}</span>
+              <span className="block text-xs">
+                {selectedEvent?.role ? (selectedEvent.role === 'LEADER' ? 'Trưởng nhóm' : 'Thành viên') : 'Tài khoản'}
+              </span>
             </div>
             <Link
               to="/profile"
@@ -200,61 +279,8 @@ const AppLayout = ({
 
       <div className={eventNav.length > 0 ? 'lg:grid lg:grid-cols-[264px_1fr]' : ''}>
         {eventNav.length > 0 && (
-          <aside className="border-b border-slate-200 bg-white lg:sticky lg:top-16 lg:h-[calc(100vh-4rem)] lg:border-b-0 lg:border-r">
-            <div className="space-y-5 p-4">
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-sm font-bold text-slate-950">{selectedEvent?.name || 'Sự kiện'}</p>
-                <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">
-                  {selectedEvent?.description || 'Workspace điều phối sự kiện'}
-                </p>
-                {selectedEvent?.role && (
-                  <span className="mt-3 inline-flex rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-700">
-                    {selectedEvent.role === 'LEADER' ? 'Trưởng nhóm' : 'Thành viên'}
-                  </span>
-                )}
-              </div>
-
-              <nav className="space-y-1" aria-label="Điều hướng sự kiện">
-                {eventNav.map((item) => {
-                  const Icon = item.icon;
-                  const active = location.pathname === item.to || location.pathname.startsWith(`${item.to}/`);
-
-                  return (
-                    <Link
-                      key={item.to}
-                      to={item.to}
-                      className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${
-                        active
-                          ? 'bg-indigo-50 text-indigo-700'
-                          : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950'
-                      }`}
-                    >
-                      <Icon className="h-4 w-4" strokeWidth={1.8} />
-                      {item.label}
-                    </Link>
-                  );
-                })}
-              </nav>
-
-              <nav className="space-y-1 border-t border-slate-100 pt-4" aria-label="Tiện ích sự kiện">
-                {secondaryNav.map((item) => {
-                  const Icon = item.icon;
-                  const active = location.pathname === item.to;
-                  return (
-                    <Link
-                      key={item.label}
-                      to={item.to}
-                      className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${
-                        active ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950'
-                      }`}
-                    >
-                      <Icon className="h-4 w-4" strokeWidth={1.8} />
-                      {item.label}
-                    </Link>
-                  );
-                })}
-              </nav>
-            </div>
+          <aside className={`${mobileNavOpen ? 'block' : 'hidden'} border-b border-slate-200 bg-white lg:sticky lg:top-16 lg:block lg:h-[calc(100vh-4rem)] lg:border-b-0 lg:border-r`}>
+            {renderEventNavigation()}
           </aside>
         )}
 

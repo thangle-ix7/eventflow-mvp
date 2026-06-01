@@ -135,7 +135,7 @@ const EventDashboardPage = ({ user, onLogout }) => {
       tasks,
       departments,
       range: weekRange,
-      note: 'Dữ liệu xuất từ dashboard frontend hiện tại. So sánh với tháng trước đang ẩn vì API summary chưa hỗ trợ kỳ trước.',
+      note: 'Dữ liệu xuất từ dashboard hiện tại. Phần so sánh dùng API kỳ hiện tại và kỳ liền trước theo khoảng ngày đang chọn.',
     });
   }, [departments, event, selectedDepartment, statusData, summary, tasks, trendQuery.data, weekRange]);
 
