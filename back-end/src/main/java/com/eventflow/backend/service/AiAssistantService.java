@@ -1,6 +1,7 @@
 package com.eventflow.backend.service;
 
 import com.eventflow.backend.dto.AiActionDraft;
+import com.eventflow.backend.dto.AiChatMessage;
 import com.eventflow.backend.dto.AiChatRequest;
 import com.eventflow.backend.dto.AiChatResponse;
 import com.eventflow.backend.dto.AiPageContext;
@@ -48,6 +49,15 @@ public class AiAssistantService {
         String normalizedMessage = normalize(message);
         AiActionDraft draft = request.getDraft() != null ? request.getDraft() : newDraft();
         applyContextToDraft(draft, request.getContext());
+        normalizeDraft(draft);
+        if (!hasActiveAction(draft)) {
+            AiActionDraft resumedDraft = resumeDraftFromHistory(request);
+            if (resumedDraft != null) {
+                draft = resumedDraft;
+                applyContextToDraft(draft, request.getContext());
+                normalizeDraft(draft);
+            }
+        }
 
         if (isCancel(normalizedMessage)) {
             return AiChatResponse.builder()
@@ -56,16 +66,121 @@ public class AiAssistantService {
                     .build();
         }
 
+        if (hasActiveAction(draft) && isCreateNow(normalizedMessage)) {
+            if (isReady(draft)) {
+                return executeDraft(draft, userId);
+            }
+            if ("CREATE_EVENT_WITH_TASKS".equals(draft.getIntent()) && isEventCoreReady(draft)) {
+                draft.setTasksSkipped(true);
+            }
+            if (isReady(draft)) {
+                return executeDraft(draft, userId);
+            }
+        }
+
+        if (hasActiveAction(draft) && asksForGuidance(normalizedMessage)) {
+            AiChatResponse suggestedTasksResponse = suggestTasksIfReady(draft);
+            if (suggestedTasksResponse != null) {
+                return suggestedTasksResponse;
+            }
+            return AiChatResponse.builder()
+                    .reply(buildGuidanceForDraft(draft))
+                    .draft(draft)
+                    .readyToConfirm(false)
+                    .targetEventId(draft.getTargetEventId())
+                    .build();
+        }
+
+        if (hasActiveAction(draft) && isAffirmative(normalizedMessage)) {
+            if (isReady(draft)) {
+                return executeDraft(draft, userId);
+            }
+            String nextQuestion = nextQuestion(draft);
+            return AiChatResponse.builder()
+                    .reply(buildActionFollowUp(draft, nextQuestion))
+                    .draft(draft)
+                    .readyToConfirm(false)
+                    .targetEventId(draft.getTargetEventId())
+                    .build();
+        }
+
+        if (hasActiveAction(draft) && shouldApplyToActiveDraft(normalizedMessage, draft)) {
+            applyMessageToDraft(message, normalizedMessage, draft);
+            String nextQuestion = nextQuestion(draft);
+            if (nextQuestion != null) {
+                return AiChatResponse.builder()
+                        .reply(nextQuestion)
+                        .draft(draft)
+                        .readyToConfirm(false)
+                        .targetEventId(draft.getTargetEventId())
+                        .build();
+            }
+            return AiChatResponse.builder()
+                    .reply(buildConfirmationMessage(draft))
+                    .draft(draft)
+                    .readyToConfirm(true)
+                    .targetEventId(draft.getTargetEventId())
+                    .build();
+        }
+
         var aiResponse = openAiAssistantClient.plan(request);
         if (aiResponse.isPresent()) {
             AiChatResponse response = aiResponse.get();
             AiActionDraft aiDraft = response.getDraft() != null ? response.getDraft() : draft;
             applyContextToDraft(aiDraft, request.getContext());
+            normalizeDraft(aiDraft);
+
+            if (!isActionIntent(aiDraft.getIntent())) {
+                if (looksLikeActionRequest(normalizedMessage)) {
+                    AiActionDraft actionDraft = hasActiveAction(draft) ? draft : newDraft();
+                    applyMessageToDraft(message, normalizedMessage, actionDraft);
+                    String nextQuestion = nextQuestion(actionDraft);
+                    return AiChatResponse.builder()
+                            .reply(buildActionFollowUp(actionDraft, nextQuestion))
+                            .draft(actionDraft)
+                            .readyToConfirm(false)
+                            .targetEventId(actionDraft.getTargetEventId())
+                            .build();
+                }
+                if (hasActiveAction(draft) && asksForGuidance(normalizedMessage)) {
+                    AiChatResponse suggestedTasksResponse = suggestTasksIfReady(draft);
+                    if (suggestedTasksResponse != null) {
+                        return suggestedTasksResponse;
+                    }
+                    return AiChatResponse.builder()
+                            .reply(buildGuidanceForDraft(draft))
+                            .draft(draft)
+                            .readyToConfirm(false)
+                            .targetEventId(draft.getTargetEventId())
+                            .build();
+                }
+                response.setDraft(hasActiveAction(draft) ? draft : newDraft());
+                response.setReadyToConfirm(false);
+                response.setTargetEventId(null);
+                if (isBlank(response.getReply())) {
+                    response.setReply("Mình có thể tư vấn, gợi ý kế hoạch, hoặc khi bạn muốn thì mình sẽ chuyển thành sự kiện/task để tạo trong hệ thống.");
+                }
+                return response;
+            }
+
             response.setDraft(aiDraft);
             response.setTargetEventId(aiDraft.getTargetEventId());
 
             if (isConfirm(normalizedMessage) && isReady(aiDraft)) {
                 return executeDraft(aiDraft, userId);
+            }
+            if (isBlank(response.getReply())) {
+                String nextQuestion = nextQuestion(aiDraft);
+                response.setReply(nextQuestion != null ? nextQuestion : buildConfirmationMessage(aiDraft));
+            }
+            if (isReady(aiDraft)) {
+                if (isCreateNow(normalizedMessage)) {
+                    return executeDraft(aiDraft, userId);
+                }
+                response.setReadyToConfirm(true);
+                if (!response.getReply().contains("xác nhận")) {
+                    response.setReply(response.getReply() + "\n\nNhắn \"xác nhận\" để tạo thật, hoặc \"hủy\" để bỏ.");
+                }
             }
             return response;
         }
@@ -74,8 +189,19 @@ public class AiAssistantService {
             return executeDraft(draft, userId);
         }
 
+        if (!hasActiveAction(draft) && !looksLikeActionRequest(normalizedMessage)) {
+            return AiChatResponse.builder()
+                    .reply(buildLocalChatReply(message, normalizedMessage))
+                    .draft(newDraft())
+                    .readyToConfirm(false)
+                    .build();
+        }
+
         applyMessageToDraft(message, normalizedMessage, draft);
         String nextQuestion = nextQuestion(draft);
+        if (isCreateNow(normalizedMessage) && isReady(draft)) {
+            return executeDraft(draft, userId);
+        }
         if (nextQuestion != null) {
             return AiChatResponse.builder()
                     .reply(nextQuestion)
@@ -94,6 +220,9 @@ public class AiAssistantService {
     private AiChatResponse executeDraft(AiActionDraft draft, Long userId) {
         if ("CREATE_TASKS_FOR_EVENT".equals(draft.getIntent())) {
             return executeTaskDraft(draft, userId);
+        }
+        if (!"CREATE_EVENT_WITH_TASKS".equals(draft.getIntent())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Yêu cầu AI chưa phải thao tác có thể thực thi");
         }
 
         EventResponseDTO event = eventService.createEvent(new EventRequestDTO(
@@ -189,6 +318,8 @@ public class AiAssistantService {
             case "tasks" -> {
                 if (isSkip(normalizedMessage)) {
                     draft.setTasksSkipped(true);
+                } else if (asksForGuidance(normalizedMessage)) {
+                    addSuggestedTasksIfUseful(draft);
                 } else {
                     draft.setTasks(parseTasks(message, draft.getStartTime()));
                 }
@@ -265,7 +396,7 @@ public class AiAssistantService {
 
         if ((draft.getTasks() == null || draft.getTasks().isEmpty()) && !Boolean.TRUE.equals(draft.getTasksSkipped())) {
             draft.setStep("tasks");
-            return "Cần tạo những task nào cho sự kiện? Hãy nhập cách nhau bằng dấu phẩy, hoặc nhắn \"bỏ qua\".";
+            return "Bạn muốn tự nhập task, để mình gợi ý checklist task phù hợp, hay bỏ qua task? Bạn có thể nhắn \"gợi ý giúp tôi\", nhập task cách nhau bằng dấu phẩy, hoặc nhắn \"bỏ qua\".";
         }
 
         draft.setStep("confirm");
@@ -314,6 +445,230 @@ public class AiAssistantService {
         return tasks;
     }
 
+    private void addSuggestedTasksIfUseful(AiActionDraft draft) {
+        if (draft == null || !"CREATE_EVENT_WITH_TASKS".equals(draft.getIntent())) {
+            return;
+        }
+        if (draft.getTasks() != null && !draft.getTasks().isEmpty()) {
+            return;
+        }
+        draft.setTasks(suggestTasksForEvent(draft));
+    }
+
+    private List<AiTaskDraft> suggestTasksForEvent(AiActionDraft draft) {
+        String eventName = normalize(draft.getEventName());
+        LocalDateTime startTime = draft.getStartTime() != null ? draft.getStartTime() : LocalDateTime.now().plusDays(7);
+
+        if (eventName.contains("giải chạy") || eventName.contains("giai chay")
+                || eventName.contains("run") || eventName.contains("marathon")) {
+            return List.of(
+                    task("Xin phép tổ chức và chốt cung đường chạy", "Làm việc với nhà trường/bảo vệ để duyệt thời gian, phạm vi đường chạy và phương án phân luồng.", startTime.minusDays(14)),
+                    task("Thiết kế route, sơ đồ check-in và khu vực gửi đồ", "Xác định cự ly, điểm xuất phát/kết thúc, vị trí booth check-in, nước uống và gửi đồ.", startTime.minusDays(10)),
+                    task("Tuyển và phân công volunteer", "Phân vai check-in, dẫn đường, tiếp nước, y tế, media, hậu cần và điều phối khu vực.", startTime.minusDays(7)),
+                    task("Chuẩn bị bib, vòng tay và bộ race-kit", "Thiết kế/in số bib, chuẩn bị kim băng, nước, quà tặng hoặc vật phẩm cho người tham gia.", startTime.minusDays(5)),
+                    task("Truyền thông và mở form đăng ký", "Đăng bài truyền thông, cập nhật thông tin cự ly, thời gian, địa điểm và deadline đăng ký.", startTime.minusDays(5)),
+                    task("Chuẩn bị y tế, nước uống và an toàn đường chạy", "Bố trí điểm nước, túi y tế, người trực hỗ trợ và phương án xử lý sự cố.", startTime.minusDays(3)),
+                    task("Setup khu vực sự kiện trước giờ chạy", "Dựng backdrop, bàn check-in, biển chỉ dẫn, âm thanh và khu vực tập trung.", startTime.minusDays(1)),
+                    task("Tổng duyệt vận hành giải chạy", "Chạy thử quy trình check-in, xuất phát, điều phối route, trao giải và dọn dẹp sau sự kiện.", startTime.minusHours(12)));
+        }
+
+        return List.of(
+                task("Chốt concept và phạm vi sự kiện", "Xác định mục tiêu, đối tượng tham gia, quy mô, timeline và tiêu chí thành công.", startTime.minusDays(10)),
+                task("Lập timeline vận hành", "Chia các mốc chuẩn bị, setup, chạy chương trình và nghiệm thu sau sự kiện.", startTime.minusDays(7)),
+                task("Phân công nhân sự phụ trách", "Phân vai điều phối, hậu cần, truyền thông, check-in, media và xử lý sự cố.", startTime.minusDays(5)),
+                task("Chuẩn bị truyền thông và form đăng ký", "Soạn nội dung truyền thông, thiết kế poster và mở form thu thập người tham gia.", startTime.minusDays(4)),
+                task("Setup địa điểm và checklist vật dụng", "Chuẩn bị bàn ghế, âm thanh, backdrop, bảng chỉ dẫn, nước uống và vật dụng cần thiết.", startTime.minusDays(1)));
+    }
+
+    private AiTaskDraft task(String title, String description, LocalDateTime deadline) {
+        return AiTaskDraft.builder()
+                .title(title)
+                .description(description)
+                .deadline(deadline)
+                .build();
+    }
+
+    private AiChatResponse suggestTasksIfReady(AiActionDraft draft) {
+        if (!"CREATE_EVENT_WITH_TASKS".equals(draft.getIntent()) || !isEventCoreReady(draft)) {
+            return null;
+        }
+        addSuggestedTasksIfUseful(draft);
+        return AiChatResponse.builder()
+                .reply("Mình đã gợi ý checklist task phù hợp cho sự kiện này:\n\n" + buildConfirmationMessage(draft))
+                .draft(draft)
+                .readyToConfirm(true)
+                .targetEventId(draft.getTargetEventId())
+                .build();
+    }
+
+    private boolean isEventCoreReady(AiActionDraft draft) {
+        return draft != null
+                && !isBlank(draft.getEventName())
+                && draft.getStartTime() != null
+                && (!isBlank(draft.getLocation()) || Boolean.TRUE.equals(draft.getLocationSkipped()));
+    }
+
+    private AiActionDraft resumeDraftFromHistory(AiChatRequest request) {
+        if (request == null || request.getMessages() == null || request.getMessages().isEmpty()) {
+            return null;
+        }
+
+        String lastAssistantText = lastAssistantText(request.getMessages());
+        if (isBlank(lastAssistantText) || !asksForEventDetails(normalize(lastAssistantText))) {
+            return null;
+        }
+
+        String eventName = inferEventNameFromHistory(request.getMessages(), lastAssistantText);
+        if (isBlank(eventName)) {
+            return null;
+        }
+
+        String normalizedAssistant = normalize(lastAssistantText);
+        String step = normalizedAssistant.contains("thời gian")
+                || normalizedAssistant.contains("thoi gian")
+                || normalizedAssistant.contains("diễn ra")
+                || normalizedAssistant.contains("dien ra")
+                ? "startTime"
+                : "location";
+
+        return AiActionDraft.builder()
+                .intent("CREATE_EVENT_WITH_TASKS")
+                .step(step)
+                .eventName(cleanAnswer(eventName))
+                .eventDescription(firstSentence(lastAssistantText))
+                .tasks(new ArrayList<>())
+                .locationSkipped(false)
+                .tasksSkipped(false)
+                .build();
+    }
+
+    private String lastAssistantText(List<AiChatMessage> messages) {
+        for (int i = messages.size() - 1; i >= 0; i--) {
+            AiChatMessage item = messages.get(i);
+            if (item != null && "assistant".equalsIgnoreCase(item.getRole()) && !isBlank(item.getText())) {
+                return item.getText();
+            }
+        }
+        return null;
+    }
+
+    private boolean asksForEventDetails(String normalizedText) {
+        boolean asksRequiredDetails = normalizedText.contains("thời gian")
+                || normalizedText.contains("thoi gian")
+                || normalizedText.contains("diễn ra")
+                || normalizedText.contains("dien ra")
+                || normalizedText.contains("ở đâu")
+                || normalizedText.contains("o dau")
+                || normalizedText.contains("địa điểm")
+                || normalizedText.contains("dia diem");
+        boolean mentionsEvent = normalizedText.contains("sự kiện")
+                || normalizedText.contains("su kien")
+                || normalizedText.contains("workshop")
+                || normalizedText.contains("seminar")
+                || normalizedText.contains("giải chạy")
+                || normalizedText.contains("giai chay")
+                || normalizedText.contains("hội chợ")
+                || normalizedText.contains("hoi cho")
+                || normalizedText.contains("chương trình")
+                || normalizedText.contains("chuong trinh");
+        return asksRequiredDetails && mentionsEvent;
+    }
+
+    private String inferEventNameFromHistory(List<AiChatMessage> messages, String lastAssistantText) {
+        String fromAssistant = inferEventNameFromText(firstSentence(lastAssistantText));
+        if (!isBlank(fromAssistant)) {
+            return fromAssistant;
+        }
+
+        for (int i = messages.size() - 1; i >= 0; i--) {
+            AiChatMessage item = messages.get(i);
+            if (item == null || !"user".equalsIgnoreCase(item.getRole()) || isBlank(item.getText())) {
+                continue;
+            }
+            String fromUser = inferEventNameFromText(item.getText());
+            if (!isBlank(fromUser)) {
+                return fromUser;
+            }
+        }
+        return null;
+    }
+
+    private String inferEventNameFromText(String text) {
+        String[] eventPatterns = {
+                "(?i)(workshop\\s+[^.!?\\n,]+)",
+                "(?i)(seminar\\s+[^.!?\\n,]+)",
+                "(?i)(giải chạy\\s+[^.!?\\n,]+)",
+                "(?i)(giai chay\\s+[^.!?\\n,]+)",
+                "(?i)(hội chợ\\s+[^.!?\\n,]+)",
+                "(?i)(hoi cho\\s+[^.!?\\n,]+)"
+        };
+
+        for (String pattern : eventPatterns) {
+            Matcher matcher = Pattern.compile(pattern).matcher(text);
+            if (matcher.find()) {
+                return trimBeforeKeywords(matcher.group(1), List.of(
+                        " là ", " la ", " sẽ ", " se ", " vào ", " vao ", " tại ", " ở ", " o ",
+                        " có ", " co ", " với ", " voi ", " để ", " de "));
+            }
+        }
+
+        String normalizedText = normalize(text);
+        String eventName = extractAfterAny(text, normalizedText, List.of("sự kiện", "su kien"));
+        if (eventName != null) {
+            eventName = trimBeforeKeywords(eventName, List.of(
+                    " ngày ", " ngay ", " vào ", " vao ", " lúc ", " luc ", " tại ", " ở ", " o ",
+                    " gồm ", " gom ", " task ", " công việc ", " cong viec "));
+            return eventName;
+        }
+        return null;
+    }
+
+    private String firstSentence(String text) {
+        if (text == null) {
+            return null;
+        }
+        String[] parts = text.split("[.!?\\n]", 2);
+        return parts.length == 0 ? text.trim() : parts[0].trim();
+    }
+
+    private boolean shouldApplyToActiveDraft(String normalizedMessage, AiActionDraft draft) {
+        if (draft == null || isBlank(normalizedMessage) || isConversationalQuestion(normalizedMessage)) {
+            return false;
+        }
+
+        String step = draft.getStep();
+        if ("eventName".equals(step) || "location".equals(step) || "tasks".equals(step) || "targetEvent".equals(step)) {
+            return true;
+        }
+        if ("startTime".equals(step)) {
+            return parseStartTime(normalizedMessage) != null
+                    || mentionsTimeOfDay(normalizedMessage)
+                    || normalizedMessage.matches(".*\\d{1,2}\\s*/\\s*\\d{1,2}.*")
+                    || normalizedMessage.matches(".*\\d{4}-\\d{2}-\\d{2}.*")
+                    || wordCount(normalizedMessage) <= 5;
+        }
+        return draft.getStartTime() == null && parseStartTime(normalizedMessage) != null;
+    }
+
+    private boolean isConversationalQuestion(String normalizedMessage) {
+        return normalizedMessage.contains("?")
+                || normalizedMessage.contains("tại sao")
+                || normalizedMessage.contains("tai sao")
+                || normalizedMessage.contains("vì sao")
+                || normalizedMessage.contains("vi sao")
+                || normalizedMessage.contains("là sao")
+                || normalizedMessage.contains("la sao")
+                || normalizedMessage.contains("giải thích")
+                || normalizedMessage.contains("giai thich");
+    }
+
+    private int wordCount(String value) {
+        if (value == null || value.isBlank()) {
+            return 0;
+        }
+        return value.trim().split("\\s+").length;
+    }
+
     private void applyStartTimeMessage(AiActionDraft draft, String message) {
         LocalDateTime parsedTime = parseStartTime(message);
         if (parsedTime != null) {
@@ -335,6 +690,14 @@ public class AiAssistantService {
     private LocalDateTime parseStartTime(String message) {
         LocalTime time = parseHour(message);
         String normalizedMessage = normalize(message);
+        if (normalizedMessage.contains("ngay bây giờ")
+                || normalizedMessage.contains("ngay bay gio")
+                || normalizedMessage.equals("bây giờ")
+                || normalizedMessage.equals("bay gio")
+                || normalizedMessage.contains("hiện tại")
+                || normalizedMessage.contains("hien tai")) {
+            return LocalDateTime.now().withSecond(0).withNano(0);
+        }
         if (normalizedMessage.contains("ngày mai")) {
             return LocalDate.now().plusDays(1).atTime(time != null ? time : LocalTime.of(8, 0));
         }
@@ -542,6 +905,106 @@ public class AiAssistantService {
                 && ((draft.getTasks() != null && !draft.getTasks().isEmpty()) || Boolean.TRUE.equals(draft.getTasksSkipped()));
     }
 
+    private boolean isActionIntent(String intent) {
+        return "CREATE_EVENT_WITH_TASKS".equals(intent) || "CREATE_TASKS_FOR_EVENT".equals(intent);
+    }
+
+    private boolean hasActiveAction(AiActionDraft draft) {
+        return draft != null && isActionIntent(draft.getIntent());
+    }
+
+    private boolean looksLikeActionRequest(String normalizedMessage) {
+        return normalizedMessage.contains("tạo")
+                && (normalizedMessage.contains("sự kiện")
+                || normalizedMessage.contains("su kien")
+                || normalizedMessage.contains("task")
+                || normalizedMessage.contains("công việc")
+                || normalizedMessage.contains("cong viec"));
+    }
+
+    private String buildLocalChatReply(String message, String normalizedMessage) {
+        if (normalizedMessage.contains("hello") || normalizedMessage.contains("hi") || normalizedMessage.contains("xin chào") || normalizedMessage.contains("xin chao")) {
+            return "Chào bạn. Mình có thể gợi ý ý tưởng sự kiện, lập kế hoạch, chia task, hoặc khi bạn muốn thì tạo sự kiện/task trực tiếp trong EventFlow.";
+        }
+
+        if (normalizedMessage.contains("gợi ý") || normalizedMessage.contains("goi y") || normalizedMessage.contains("không biết") || normalizedMessage.contains("khong biet")) {
+            if (normalizedMessage.contains("giải chạy") || normalizedMessage.contains("giai chay") || normalizedMessage.contains("running")) {
+                return """
+                        Gợi ý cho một giải chạy:
+                        - Chủ đề: Run For Green, FPTU Night Run, hoặc Charity Run.
+                        - Cự ly: 3km cho người mới, 5km phổ thông, 10km thử thách.
+                        - Khu vực cần chuẩn bị: đăng ký, check-in, gửi đồ, nước uống, y tế, media, an ninh đường chạy.
+                        - Task mẫu: xin phép địa điểm, thiết kế route, tuyển volunteer, chuẩn bị bib, truyền thông, setup booth, phân công chốt đường chạy.
+
+                        Nếu bạn muốn, hãy nhắn: "Tạo sự kiện giải chạy ..." hoặc "Tạo các task này" để mình chuyển thành draft tạo thật.
+                        """;
+            }
+            return "Mình có thể gợi ý ý tưởng, timeline, danh sách task, nhân sự và checklist vận hành. Bạn muốn gợi ý cho loại sự kiện nào?";
+        }
+
+        return "Mình hiểu. Bạn có thể hỏi mình để brainstorm kế hoạch, gợi ý task, viết mô tả sự kiện, hoặc nhắn rõ \"tạo sự kiện\" / \"tạo task\" khi muốn lưu vào hệ thống.";
+    }
+
+    private boolean asksForGuidance(String normalizedMessage) {
+        return normalizedMessage.contains("chưa biết")
+                || normalizedMessage.contains("chua biet")
+                || normalizedMessage.contains("không biết")
+                || normalizedMessage.contains("khong biet")
+                || normalizedMessage.contains("hướng dẫn")
+                || normalizedMessage.contains("huong dan")
+                || normalizedMessage.contains("mới bắt đầu")
+                || normalizedMessage.contains("moi bat dau")
+                || normalizedMessage.contains("gợi ý")
+                || normalizedMessage.contains("goi y");
+    }
+
+    private String buildActionFollowUp(AiActionDraft draft, String nextQuestion) {
+        String eventName = isBlank(draft.getEventName()) ? "sự kiện này" : draft.getEventName();
+        if ("CREATE_EVENT_WITH_TASKS".equals(draft.getIntent())) {
+            return "Được, mình sẽ giúp bạn tạo draft cho " + eventName + ". "
+                    + "Trước khi tạo thật, mình cần đủ thông tin cơ bản.\n\n"
+                    + (nextQuestion != null ? nextQuestion : buildConfirmationMessage(draft));
+        }
+        return nextQuestion != null ? nextQuestion : buildConfirmationMessage(draft);
+    }
+
+    private String buildGuidanceForDraft(AiActionDraft draft) {
+        if ("CREATE_EVENT_WITH_TASKS".equals(draft.getIntent())) {
+            String eventName = isBlank(draft.getEventName()) ? "sự kiện" : draft.getEventName();
+            return """
+                    Không sao, mình sẽ dẫn bạn từng bước. Với %s, bạn có thể bắt đầu bằng khung đơn giản:
+                    - Mục tiêu: chạy phong trào, gây quỹ, quảng bá CLB/khoa, hoặc tăng gắn kết sinh viên.
+                    - Quy mô: nội bộ FPTU, toàn trường, hoặc mở rộng cho khách mời.
+                    - Cự ly: 3km dễ tham gia, 5km phổ thông, 10km thử thách.
+                    - Khu vực cần chuẩn bị: đăng ký, check-in, gửi đồ, nước uống, y tế, media, an ninh đường chạy.
+                    - Task mẫu: xin phép địa điểm, thiết kế route, tuyển volunteer, chuẩn bị bib, truyền thông, setup booth.
+
+                    Để tạo draft trong hệ thống, trước hết bạn chọn giúp mình thời gian tổ chức dự kiến. Ví dụ: "ngày mai 8h", "15/7 buổi sáng", hoặc "cuối tuần này 7h".
+                    """.formatted(eventName);
+        }
+
+        return "Không sao, bạn mô tả mục tiêu hoặc bối cảnh hiện tại, mình sẽ giúp chia thành danh sách task rõ ràng trước rồi mới hỏi xác nhận để tạo thật.";
+    }
+
+    private void normalizeDraft(AiActionDraft draft) {
+        if (draft == null) {
+            return;
+        }
+        if (draft.getTasks() == null) {
+            draft.setTasks(new ArrayList<>());
+        }
+        if (draft.getLocationSkipped() == null) {
+            draft.setLocationSkipped(false);
+        }
+        if (draft.getTasksSkipped() == null) {
+            draft.setTasksSkipped(false);
+        }
+        if ("NONE".equals(draft.getIntent()) || "CHAT".equals(draft.getIntent())) {
+            draft.setIntent(null);
+            draft.setStep(null);
+        }
+    }
+
     private String normalize(String value) {
         return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
     }
@@ -555,6 +1018,38 @@ public class AiAssistantService {
 
     private boolean isConfirm(String message) {
         return message.equals("xác nhận") || message.equals("xac nhan") || message.equals("ok") || message.equals("đồng ý") || message.equals("tao that") || message.equals("tạo thật");
+    }
+
+    private boolean isAffirmative(String message) {
+        return message.equals("có")
+                || message.equals("co")
+                || message.equals("được")
+                || message.equals("duoc")
+                || message.equals("đúng")
+                || message.equals("dung")
+                || message.equals("ok")
+                || message.equals("yes")
+                || message.equals("ừ")
+                || message.equals("uh")
+                || message.equals("ừm")
+                || message.equals("um");
+    }
+
+    private boolean isCreateNow(String message) {
+        return message.equals("tạo luôn")
+                || message.equals("tao luon")
+                || message.equals("tạo đi")
+                || message.equals("tao di")
+                || message.equals("cứ tạo")
+                || message.equals("cu tao")
+                || message.equals("cứ tạo đi")
+                || message.equals("cu tao di")
+                || message.equals("tạo các task này")
+                || message.equals("tao cac task nay")
+                || message.equals("tạo hết")
+                || message.equals("tao het")
+                || message.equals("lưu lại")
+                || message.equals("luu lai");
     }
 
     private boolean isCancel(String message) {

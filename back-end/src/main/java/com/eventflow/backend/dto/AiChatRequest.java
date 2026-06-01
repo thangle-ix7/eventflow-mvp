@@ -6,6 +6,9 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -18,4 +21,13 @@ public class AiChatRequest {
 
     @Valid
     private AiPageContext context;
+
+    @Valid
+    private List<AiChatMessage> messages = new ArrayList<>();
+
+    public AiChatRequest(String message, AiActionDraft draft, AiPageContext context) {
+        this.message = message;
+        this.draft = draft;
+        this.context = context;
+    }
 }

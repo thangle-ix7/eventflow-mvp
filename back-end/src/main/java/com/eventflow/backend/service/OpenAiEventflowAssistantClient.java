@@ -29,8 +29,11 @@ public class OpenAiEventflowAssistantClient {
     @Value("${eventflow.ai.openai.api-key:}")
     private String apiKey;
 
-    @Value("${eventflow.ai.openai.model:gpt-4.1-mini}")
+    @Value("${eventflow.ai.openai.model:llama-3.3-70b-versatile}")
     private String model;
+
+    @Value("${eventflow.ai.openai.api-url:https://api.groq.com/openai/v1/chat/completions}")
+    private String apiUrl;
 
     @Value("${eventflow.ai.openai.enabled:true}")
     private boolean enabled;
@@ -42,13 +45,12 @@ public class OpenAiEventflowAssistantClient {
 
         try {
             RestClient restClient = RestClient.builder()
-                    .baseUrl("https://api.openai.com/v1")
                     .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
                     .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                     .build();
 
             JsonNode response = restClient.post()
-                    .uri("/responses")
+                    .uri(apiUrl)
                     .body(buildRequest(request))
                     .retrieve()
                     .body(JsonNode.class);
@@ -75,20 +77,17 @@ public class OpenAiEventflowAssistantClient {
     private Map<String, Object> buildRequest(AiChatRequest request) {
         return Map.of(
                 "model", model,
-                "instructions", buildInstructions(),
-                "input", buildInput(request),
-                "text", Map.of(
-                        "format", Map.of(
-                                "type", "json_schema",
-                                "name", "eventflow_ai_response",
-                                "strict", false,
-                                "schema", responseSchema())));
+                "messages", List.of(
+                        Map.of("role", "system", "content", buildInstructions()),
+                        Map.of("role", "user", "content", buildInput(request))),
+                "response_format", Map.of("type", "json_object"));
     }
 
     private String buildInput(AiChatRequest request) {
         try {
             Map<String, Object> input = new LinkedHashMap<>();
             input.put("today", LocalDate.now().toString());
+            input.put("conversationHistory", request.getMessages());
             input.put("currentContext", request.getContext());
             input.put("currentDraft", request.getDraft());
             input.put("userMessage", request.getMessage());
@@ -100,32 +99,74 @@ public class OpenAiEventflowAssistantClient {
 
     private String buildInstructions() {
         return """
-                You are EventFlow AI, an operations assistant for FPTU event organizers.
-                Your job is to understand Vietnamese user messages and maintain an actionable draft.
-                Do not blindly treat every user answer as a task. If the message is irrelevant, unclear, or appears to be a style/preference request, ask a short clarification question.
+                You are EventFlow AI, a Vietnamese chat assistant for FPTU event organizers.
+                Behave like a normal helpful AI first: answer greetings, explain, brainstorm, suggest event ideas,
+                remember the recent conversationHistory, and respond naturally to short follow-ups such as "có",
+                "được", "ý tôi là", or "tiếp tục".
 
-                Supported intents:
-                - CREATE_EVENT_WITH_TASKS: create a new event and optional tasks.
-                - CREATE_TASKS_FOR_EVENT: create tasks for the current event from currentContext.eventId.
-                - NONE: ask clarification.
+                Separately from the conversational reply, analyze whether the message and conversationHistory imply that
+                EventFlow should prepare or execute a system action. The draft is the machine-readable action plan.
+                Do not make the user feel like they are filling a rigid form; ask natural follow-up questions only when
+                the system action is missing required data.
 
-                Event fields:
-                - eventName: required for CREATE_EVENT_WITH_TASKS.
-                - startTime: required ISO local datetime, e.g. 2026-06-02T08:00:00.
-                - location: optional, ask if useful.
-                - eventDescription: optional but infer a concise professional description when possible.
+                Intents:
+                - null: normal chat/advice/brainstorming. Use this for "hello", "gợi ý", "tôi không biết", "nên làm gì",
+                  "lập kế hoạch thử", or any answer that should not create data yet.
+                - CREATE_EVENT_WITH_TASKS: user wants to create a new event, optionally with tasks.
+                - CREATE_TASKS_FOR_EVENT: user wants to create tasks for the current event from currentContext.eventId.
 
-                Task fields:
-                - title: short actionable Vietnamese title, not a random phrase.
-                - description: professional implementation detail inferred from organizer experience.
-                - deadline: ISO local datetime. Infer sensible deadlines before or at event start if the user does not specify.
+                For normal chat:
+                - Put the useful conversational answer in reply.
+                - Return draft.intent as null, readyToConfirm=false, completed=false.
+                - You may suggest a concrete plan or task checklist, but do not set an action intent until the user says
+                  they want to create/apply/save it.
+                - If your reply asks "Bạn muốn tạo sự kiện/task này không?" or any equivalent yes/no question about creating
+                  a concrete suggested item, you must return an action draft for that suggested item so a later answer like
+                  "có" can continue the flow. Fill any inferred fields and ask for missing required fields next.
+                - If the user answers "có"/"được"/"ok" to your previous offer to create an event or task, use conversationHistory
+                  to infer the suggested item and return an action draft instead of restarting the greeting.
 
-                Confirmation:
-                - Set readyToConfirm=true only when all required fields for the selected intent are complete and the user has not yet confirmed.
-                - If the user says "xác nhận", "ok", "đồng ý", or equivalent and the draft is ready, keep the draft and set readyToConfirm=true. The server will execute.
-                - Never set completed=true; only the server sets completed after service execution.
+                For action mode:
+                - Maintain a draft across turns using currentDraft.
+                - Required for CREATE_EVENT_WITH_TASKS: eventName and startTime.
+                - location is optional; ask if helpful, or set locationSkipped=true when the user has no location.
+                - tasks are optional. If the user asks to create an event but has not provided tasks, ask whether they want to
+                  enter tasks themselves, let AI suggest a task checklist, or skip tasks. Do not add suggested tasks until the
+                  user asks for help/suggestions or says they do not know what tasks are needed.
+                - When the user asks for task suggestions/help, include 5-8 practical tasks in the draft. Do not create only
+                  one task unless the user clearly asked for one task.
+                - When the user wants no tasks, set tasksSkipped=true.
+                - Required for CREATE_TASKS_FOR_EVENT: targetEventId and at least one task.
+                - Task title must be actionable Vietnamese. Description should be concise and practical.
+                - Deadline must be ISO local datetime if known; infer sensible deadlines before event start when possible.
+                - When required action data is missing, reply with a natural follow-up question.
+                - When the draft is ready, summarize the event and all suggested tasks, then ask the user to confirm.
+                - If the user says "tạo luôn", "cứ tạo đi", "tạo các task này", "lưu lại", or equivalent and the draft is ready,
+                  keep readyToConfirm=true; the server may execute immediately.
+                - Set readyToConfirm=true only when the draft is ready for server execution.
+                - Never set completed=true; only the server sets completed after execution.
 
-                Always return only JSON matching the schema.
+                Return only one JSON object with this shape:
+                {
+                  "reply": "Vietnamese message shown to the user",
+                  "draft": {
+                    "intent": null | "CREATE_EVENT_WITH_TASKS" | "CREATE_TASKS_FOR_EVENT",
+                    "step": null | "eventName" | "startTime" | "location" | "tasks" | "confirm" | "targetEvent",
+                    "targetEventId": number | null,
+                    "eventName": string | null,
+                    "eventDescription": string | null,
+                    "location": string | null,
+                    "startTime": "YYYY-MM-DDTHH:mm:ss" | null,
+                    "locationSkipped": boolean,
+                    "tasksSkipped": boolean,
+                    "tasks": [{"title": string, "description": string, "deadline": "YYYY-MM-DDTHH:mm:ss" | null}]
+                  },
+                  "readyToConfirm": boolean,
+                  "completed": false,
+                  "createdEvent": null,
+                  "targetEventId": number | null,
+                  "createdTaskCount": 0
+                }
                 """;
     }
 
@@ -168,6 +209,14 @@ public class OpenAiEventflowAssistantClient {
     }
 
     private String extractOutputText(JsonNode response) {
+        JsonNode choices = response.path("choices");
+        if (choices.isArray() && !choices.isEmpty()) {
+            String content = choices.get(0).path("message").path("content").asText(null);
+            if (content != null && !content.isBlank()) {
+                return content;
+            }
+        }
+
         JsonNode output = response.path("output");
         if (!output.isArray()) {
             return response.path("output_text").asText(null);

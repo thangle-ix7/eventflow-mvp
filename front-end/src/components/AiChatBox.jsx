@@ -22,10 +22,14 @@ const AiChatBox = () => {
   const mutation = useMutation({
     mutationFn: aiApi.chat,
     onSuccess: (response) => {
+      const assistantReply =
+        response.reply?.trim() ||
+        'Mình chưa nhận được phản hồi hợp lệ từ AI. Bạn thử diễn đạt lại yêu cầu rõ hơn nhé.';
+
       setDraft(response.draft || null);
       setCreatedEvent(response.createdEvent || null);
       setTargetEventId(response.targetEventId || response.draft?.targetEventId || null);
-      setMessages((old) => [...old, { role: 'assistant', text: response.reply }]);
+      setMessages((old) => [...old, { role: 'assistant', text: assistantReply }]);
       if (response.completed) {
         queryClient.invalidateQueries({ queryKey: ['eventsPage'] });
         if (response.targetEventId) {
@@ -51,7 +55,10 @@ const AiChatBox = () => {
 
     setMessages((old) => [...old, { role: 'user', text: message }]);
     setInput('');
-    mutation.mutate({ message, draft, context: getPageContext(location.pathname) });
+    const history = [...messages, { role: 'user', text: message }]
+      .slice(-12)
+      .map(({ role, text }) => ({ role, text }));
+    mutation.mutate({ message, draft, context: getPageContext(location.pathname), messages: history });
   };
 
   const resetChat = () => {
@@ -96,7 +103,7 @@ const AiChatBox = () => {
                       : 'border border-gray-200 bg-white text-gray-700',
                   ].join(' ')}
                 >
-                  {message.text}
+                  {message.text || 'Không có nội dung phản hồi.'}
                 </div>
               </div>
             ))}
