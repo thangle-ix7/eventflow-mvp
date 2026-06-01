@@ -31,7 +31,7 @@ const AppLayout = ({
   const location = useLocation();
   const navigate = useNavigate();
   const [globalSearch, setGlobalSearch] = useState('');
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const notificationCountQuery = useQuery({
     queryKey: ['pendingNotificationCount', user.userId],
     queryFn: () => userApi.getPendingNotificationCount(user.userId),
@@ -108,6 +108,12 @@ const AppLayout = ({
     return location.pathname === item.to || location.pathname.startsWith(`${item.to}/`);
   };
 
+  const closeSidebarOnMobile = () => {
+    if (window.matchMedia('(max-width: 1023px)').matches) {
+      setSidebarOpen(false);
+    }
+  };
+
   const renderEventNavigation = () => (
     <div className="space-y-5 p-4">
       <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
@@ -131,7 +137,7 @@ const AppLayout = ({
             <Link
               key={item.to}
               to={item.to}
-              onClick={() => setMobileNavOpen(false)}
+              onClick={closeSidebarOnMobile}
               className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${
                 active
                   ? 'bg-indigo-50 text-indigo-700'
@@ -153,7 +159,7 @@ const AppLayout = ({
             <Link
               key={item.label}
               to={item.to}
-              onClick={() => setMobileNavOpen(false)}
+              onClick={closeSidebarOnMobile}
               className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${
                 active ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950'
               }`}
@@ -172,15 +178,15 @@ const AppLayout = ({
       {showTelegramOnboarding && <TelegramOnboarding userId={user.userId} />}
 
       <header className="sticky top-0 z-40 bg-slate-950 text-white shadow-sm">
-        <div className="flex h-auto min-h-16 flex-col gap-3 px-5 py-3 lg:h-16 lg:flex-row lg:items-center lg:gap-6 lg:px-6 lg:py-0">
+        <div className="flex h-auto min-h-16 flex-col gap-3 px-5 py-3 lg:h-16 lg:flex-row lg:items-center lg:justify-between lg:gap-6 lg:px-6 lg:py-0">
           <div className="flex items-center gap-3">
             {eventNav.length > 0 && (
               <button
                 type="button"
-                className="rounded-lg p-2 text-slate-300 hover:bg-white/10 hover:text-white lg:hidden"
-                aria-label={mobileNavOpen ? 'Đóng menu' : 'Mở menu'}
-                aria-expanded={mobileNavOpen}
-                onClick={() => setMobileNavOpen((open) => !open)}
+                className="rounded-lg p-2 text-slate-300 hover:bg-white/10 hover:text-white"
+                aria-label={sidebarOpen ? 'Ẩn thanh điều hướng' : 'Mở thanh điều hướng'}
+                aria-expanded={sidebarOpen}
+                onClick={() => setSidebarOpen((open) => !open)}
               >
                 <Menu className="h-5 w-5" strokeWidth={1.8} />
               </button>
@@ -236,7 +242,7 @@ const AppLayout = ({
           </form>
           )}
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end lg:ml-auto">
             <div className="hidden items-center gap-1 text-slate-300 lg:flex">
               {selectedEvent?.id && (
               <Link to={`/events/${selectedEvent.id}/calendar`} className="rounded-lg p-2 hover:bg-white/10 hover:text-white" aria-label="Lịch sự kiện">
@@ -277,9 +283,9 @@ const AppLayout = ({
         </div>
       </header>
 
-      <div className={eventNav.length > 0 ? 'lg:grid lg:grid-cols-[264px_1fr]' : ''}>
-        {eventNav.length > 0 && (
-          <aside className={`${mobileNavOpen ? 'block' : 'hidden'} border-b border-slate-200 bg-white lg:sticky lg:top-16 lg:block lg:h-[calc(100vh-4rem)] lg:border-b-0 lg:border-r`}>
+      <div className={eventNav.length > 0 && sidebarOpen ? 'lg:grid lg:grid-cols-[264px_1fr]' : ''}>
+        {eventNav.length > 0 && sidebarOpen && (
+          <aside className="border-b border-slate-200 bg-white lg:sticky lg:top-16 lg:h-[calc(100vh-4rem)] lg:border-b-0 lg:border-r">
             {renderEventNavigation()}
           </aside>
         )}
