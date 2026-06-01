@@ -5,11 +5,11 @@ import {
   BarChart3,
   CalendarDays,
   ClipboardList,
-  Loader2,
   MapPin,
   Users,
 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
+import { ErrorState, LoadingState, PageHeader, Panel, StatusBadge } from '../components/ui';
 import eventApi from '../api/eventApi';
 import { formatDate } from '../utils/dateUtils';
 
@@ -42,37 +42,24 @@ const EventDetailPage = ({ user, onLogout }) => {
           Quay lại danh sách sự kiện
         </Link>
 
-        {eventQuery.isLoading && (
-          <div className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white p-8 text-gray-500">
-            <Loader2 size={20} className="animate-spin" />
-            Đang tải thông tin sự kiện...
-          </div>
-        )}
+        {eventQuery.isLoading && <LoadingState message="Đang tải thông tin sự kiện..." />}
 
         {eventQuery.error && (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
-            {eventQuery.error.userMessage || eventQuery.error.message}
-          </div>
+          <ErrorState error={eventQuery.error} title="Không tải được thông tin sự kiện" />
         )}
 
         {event && (
           <>
-            <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="text-2xl font-bold text-gray-900">{event.name}</h2>
-                    <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700">
-                      {event.role}
-                    </span>
-                    <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-700">
-                      {event.status}
-                    </span>
-                  </div>
-                  <p className="mt-3 max-w-3xl text-sm leading-6 text-gray-600">
-                    {event.description || 'Chưa có mô tả cho sự kiện này.'}
-                  </p>
-                  <div className="mt-4 flex flex-wrap gap-4 text-sm text-gray-500">
+            <Panel className="p-5">
+              <div className="mb-4 flex flex-wrap gap-2">
+                <StatusBadge status={event.role} />
+                <StatusBadge status={event.status || 'ACTIVE'} />
+              </div>
+              <PageHeader
+                title={event.name}
+                description={event.description || 'Chưa có mô tả cho sự kiện này.'}
+                meta={
+                  <>
                     <span className="inline-flex items-center gap-2">
                       <CalendarDays size={16} />
                       Bắt đầu: {formatDate(event.startTime || event.eventDate)}
@@ -81,35 +68,35 @@ const EventDetailPage = ({ user, onLogout }) => {
                       <MapPin size={16} />
                       {event.location || 'Chưa có địa điểm'}
                     </span>
-                  </div>
-                </div>
-              </div>
-            </section>
+                  </>
+                }
+              />
+            </Panel>
 
             <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               <QuickLink
                 to={`/events/${eventId}/tasks`}
                 icon={<ClipboardList size={22} />}
-                title="Tasks"
-                description="Xem danh sách task, tạo, cập nhật, assign."
+                title="Công việc"
+                description="Xem danh sách, tạo mới, cập nhật tiến độ và phân công."
               />
               <QuickLink
                 to={`/events/${eventId}/departments`}
                 icon={<Users size={22} />}
-                title="Departments"
-                description="Quản lý ban và task theo từng ban."
+                title="Ban tổ chức"
+                description="Quản lý ban phụ trách và công việc theo từng nhóm."
               />
               <QuickLink
                 to={`/events/${eventId}/members`}
                 icon={<Users size={22} />}
-                title="Members"
+                title="Thành viên"
                 description="Quản lý thành viên sự kiện."
               />
               <QuickLink
                 to={`/events/${eventId}/dashboard`}
                 icon={<BarChart3 size={22} />}
                 title="Dashboard"
-                description="Tổng quan, line chart và column chart."
+                description="Tổng quan tiến độ, trạng thái và công việc sắp tới."
                 disabled={!isLeader}
               />
             </section>
@@ -123,10 +110,10 @@ const EventDetailPage = ({ user, onLogout }) => {
 const QuickLink = ({ to, icon, title, description, disabled = false }) => {
   if (disabled) {
     return (
-      <div className="rounded-xl border border-gray-200 bg-white p-4 opacity-60 shadow-sm">
-        <div className="text-gray-400">{icon}</div>
-        <h3 className="mt-3 font-semibold text-gray-900">{title}</h3>
-        <p className="mt-1 text-sm text-gray-500">{description}</p>
+      <div className="rounded-xl border border-slate-200 bg-white p-4 opacity-60 shadow-sm">
+        <div className="text-slate-400">{icon}</div>
+        <h3 className="mt-3 font-semibold text-slate-950">{title}</h3>
+        <p className="mt-1 text-sm text-slate-500">{description}</p>
       </div>
     );
   }
@@ -134,11 +121,11 @@ const QuickLink = ({ to, icon, title, description, disabled = false }) => {
   return (
     <Link
       to={to}
-      className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition hover:border-blue-200 hover:bg-blue-50"
+      className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-indigo-200 hover:bg-indigo-50/60"
     >
-      <div className="text-blue-600">{icon}</div>
-      <h3 className="mt-3 font-semibold text-gray-900">{title}</h3>
-      <p className="mt-1 text-sm text-gray-500">{description}</p>
+      <div className="text-indigo-600">{icon}</div>
+      <h3 className="mt-3 font-semibold text-slate-950">{title}</h3>
+      <p className="mt-1 text-sm text-slate-500">{description}</p>
     </Link>
   );
 };

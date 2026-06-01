@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { AlertTriangle, CheckCircle2, Clock3, Layers3 } from 'lucide-react';
 import dashboardApi from '../api/dashboardApi';
 import DonutChart from './DonutChart';
 
@@ -7,15 +8,15 @@ const Dashboard = ({ eventId }) => {
     queryKey: ['dashboardSummary', eventId],
     queryFn: () => dashboardApi.getSummary(eventId),
     enabled: Boolean(eventId),
-    refetchInterval: 30000,        // Smart polling: refetch every 30s
+    refetchInterval: 30000, // Smart polling: refetch every 30s
     refetchIntervalInBackground: false, // Stop when tab is hidden
   });
 
-  const getDaysColor = (days) => {
-    if (days < 0) return 'text-gray-500';   // Event passed
-    if (days < 3) return 'text-red-600 animate-pulse'; // Critical
-    if (days < 7) return 'text-amber-500';  // Warning
-    return 'text-emerald-600';              // Safe
+  const getCountdownTone = (days) => {
+    if (days < 0) return 'border-slate-200 bg-white text-slate-700';
+    if (days < 3) return 'border-red-200 bg-red-50 text-red-700';
+    if (days < 7) return 'border-amber-200 bg-amber-50 text-amber-700';
+    return 'border-emerald-200 bg-emerald-50 text-emerald-700';
   };
 
   const getDaysLabel = (days) => {
@@ -27,62 +28,90 @@ const Dashboard = ({ eventId }) => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="text-gray-500 text-lg">Đang tải dữ liệu dashboard...</div>
+      <div className="space-y-6" aria-live="polite" aria-busy="true">
+        <div className="h-32 animate-pulse rounded-2xl border border-slate-200 bg-white" />
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+          <div className="h-56 animate-pulse rounded-2xl border border-slate-200 bg-white" />
+          <div className="h-56 animate-pulse rounded-2xl border border-slate-200 bg-white" />
+          <div className="h-56 animate-pulse rounded-2xl border border-slate-200 bg-white" />
+        </div>
+        <div className="h-72 animate-pulse rounded-2xl border border-slate-200 bg-white" />
+        <span className="sr-only">Đang tải dữ liệu dashboard...</span>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="p-6 bg-red-50 border border-red-200 rounded-xl text-red-600">
-        Lỗi tải dữ liệu: {error.userMessage || error.message}
+      <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-5 text-red-700">
+        <AlertTriangle className="mt-0.5 h-5 w-5 flex-none" strokeWidth={1.8} />
+        <div>
+          <p className="font-semibold">Không tải được dashboard</p>
+          <p className="mt-1 text-sm">{error.userMessage || error.message}</p>
+        </div>
       </div>
     );
   }
 
   if (!summary) return null;
 
-  const daysColor = getDaysColor(summary.daysUntilEvent);
+  const countdownTone = getCountdownTone(summary.daysUntilEvent);
   const daysLabel = getDaysLabel(summary.daysUntilEvent);
+  const remainingTasks = (summary.totalTasks || 0) - (summary.completedTasks || 0);
 
   return (
-    <div className="space-y-8">
-      {/* ── Event Countdown Banner ── */}
-      <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl p-6 text-white shadow-lg">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+    <div className="space-y-6">
+      <div className={`rounded-2xl border p-5 shadow-sm ${countdownTone}`}>
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-indigo-100 text-sm font-medium uppercase tracking-wider">Sự kiện</p>
-            <p className={`text-4xl font-extrabold mt-1 ${daysColor}`}>
+            <p className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide">
+              <Clock3 className="h-4 w-4" strokeWidth={1.8} />
+              Sự kiện
+            </p>
+            <p className="mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl">
               {daysLabel}
             </p>
           </div>
-          <div className="text-right">
-            <p className="text-indigo-100 text-sm">Tổng công việc</p>
-            <p className="text-3xl font-bold">{summary.totalTasks}</p>
+          <div className="grid grid-cols-2 gap-3 sm:min-w-72">
+            <div className="rounded-xl border border-current/15 bg-white/70 p-4">
+              <p className="text-sm opacity-80">Tổng công việc</p>
+              <p className="mt-1 text-3xl font-bold">{summary.totalTasks}</p>
+            </div>
+            <div className="rounded-xl border border-current/15 bg-white/70 p-4">
+              <p className="text-sm opacity-80">Còn lại</p>
+              <p className="mt-1 text-3xl font-bold">{remainingTasks}</p>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* ── Stats Grid ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Donut Chart Card */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 flex flex-col items-center">
-          <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Tiến độ chung</h3>
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+        <div className="flex flex-col items-center rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">
+            Tiến độ chung
+          </h3>
           <DonutChart percentage={summary.progressPercentage} />
-          <p className="mt-4 text-sm text-gray-600">
-            <span className="font-bold text-gray-900">{summary.completedTasks}</span> / {summary.totalTasks} công việc hoàn thành
+          <p className="mt-4 text-sm text-slate-600">
+            <span className="font-bold text-slate-950">{summary.completedTasks}</span> / {summary.totalTasks} công việc hoàn thành
           </p>
         </div>
 
-        {/* Overdue Alert Card */}
         <div className={`rounded-2xl shadow-sm border p-6 flex flex-col items-center justify-center ${
           summary.overdueTasksCount > 0
             ? 'bg-red-50 border-red-200'
             : 'bg-emerald-50 border-emerald-200'
         }`}>
-          <div className={`text-5xl font-extrabold ${
+          <div className={`mb-3 rounded-full p-3 ${
             summary.overdueTasksCount > 0 ? 'text-red-600' : 'text-emerald-600'
+          }`}>
+            {summary.overdueTasksCount > 0 ? (
+              <AlertTriangle className="h-8 w-8" strokeWidth={1.8} />
+            ) : (
+              <CheckCircle2 className="h-8 w-8" strokeWidth={1.8} />
+            )}
+          </div>
+          <div className={`text-5xl font-extrabold ${
+            summary.overdueTasksCount > 0 ? 'text-red-700' : 'text-emerald-700'
           }`}>
             {summary.overdueTasksCount}
           </div>
@@ -91,48 +120,51 @@ const Dashboard = ({ eventId }) => {
           }`}>
             {summary.overdueTasksCount > 0 ? 'Công việc bị trễ hạn' : 'Không có công việc trễ hạn'}
           </p>
-          {summary.overdueTasksCount > 0 && (
-            <p className="mt-1 text-xs text-red-500">Cần xử lý ngay!</p>
-          )}
+          {summary.overdueTasksCount > 0 && <p className="mt-1 text-xs text-red-600">Cần xử lý ngay</p>}
         </div>
 
-        {/* Quick Stats Card */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-          <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Thống kê nhanh</h3>
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">
+            Thống kê nhanh
+          </h3>
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-gray-600 text-sm">Tổng số ban</span>
-              <span className="font-bold text-gray-900">{summary.departmentSummaries?.length || 0}</span>
+              <span className="text-sm text-slate-600">Tổng số ban</span>
+              <span className="font-bold text-slate-950">{summary.departmentSummaries?.length || 0}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-gray-600 text-sm">Hoàn thành</span>
+              <span className="text-sm text-slate-600">Hoàn thành</span>
               <span className="font-bold text-emerald-600">{summary.completedTasks}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-gray-600 text-sm">Chưa hoàn thành</span>
+              <span className="text-sm text-slate-600">Chưa hoàn thành</span>
               <span className="font-bold text-amber-600">
-                {(summary.totalTasks || 0) - (summary.completedTasks || 0)}
+                {remainingTasks}
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-gray-600 text-sm">Trễ hạn</span>
+              <span className="text-sm text-slate-600">Trễ hạn</span>
               <span className="font-bold text-red-600">{summary.overdueTasksCount}</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* ── Department Summaries ── */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-          <h3 className="text-lg font-bold text-gray-800">Thống kê theo Ban Tổ Chức</h3>
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-200 bg-slate-50 px-6 py-4">
+          <h3 className="flex items-center gap-2 text-lg font-bold text-slate-900">
+            <Layers3 className="h-5 w-5 text-indigo-600" strokeWidth={1.8} />
+            Thống kê theo Ban Tổ Chức
+          </h3>
         </div>
-        <div className="divide-y divide-gray-100">
+        <div className="divide-y divide-slate-100">
           {summary.departmentSummaries?.length === 0 ? (
-            <div className="p-8 text-center text-gray-400 italic">Chưa có dữ liệu ban nào</div>
+            <div className="p-8 text-center text-sm text-slate-500">
+              Chưa có dữ liệu ban nào
+            </div>
           ) : (
             summary.departmentSummaries.map((dept, idx) => (
-              <div key={idx} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
+              <div key={idx} className="flex items-center justify-between gap-4 px-6 py-4 transition-colors hover:bg-slate-50">
                 <div className="flex items-center gap-4">
                   <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold ${
                     dept.overdueTasksCount > 0
@@ -142,8 +174,8 @@ const Dashboard = ({ eventId }) => {
                     {dept.departmentName.charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <p className="font-semibold text-gray-900">{dept.departmentName}</p>
-                    <p className="text-sm text-gray-500">
+                    <p className="font-semibold text-slate-950">{dept.departmentName}</p>
+                    <p className="text-sm text-slate-500">
                       Tổng {dept.totalTasks} công việc
                     </p>
                   </div>
@@ -152,9 +184,7 @@ const Dashboard = ({ eventId }) => {
                 <div className="flex items-center gap-3">
                   {dept.overdueTasksCount > 0 && (
                     <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700 border border-red-200">
-                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                      </svg>
+                      <AlertTriangle className="h-3 w-3" strokeWidth={2} />
                       {dept.overdueTasksCount} trễ hạn
                     </span>
                   )}
