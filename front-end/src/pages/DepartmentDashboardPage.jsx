@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, BarChart3, ClipboardList, Loader2, TrendingUp } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import dashboardApi from '../api/dashboardApi';
@@ -24,6 +24,7 @@ const getWeekRange = (eventDate, weekIndex) => {
 
 const DepartmentDashboardPage = ({ user, onLogout }) => {
   const { eventId, departmentId } = useParams();
+  const navigate = useNavigate();
   const [page, setPage] = useState(0);
   const [weekIndex, setWeekIndex] = useState(0);
 
@@ -44,6 +45,14 @@ const DepartmentDashboardPage = ({ user, onLogout }) => {
   const tasks = tasksQuery.data?.content || [];
   const isLoading = eventQuery.isLoading || summaryQuery.isLoading || trendQuery.isLoading || statusQuery.isLoading || tasksQuery.isLoading;
   const error = summaryQuery.error || trendQuery.error || statusQuery.error || tasksQuery.error;
+
+  const openFilteredTasks = ({ status, fromDate, toDate }) => {
+    const params = new URLSearchParams();
+    if (status) params.set('status', status);
+    if (fromDate) params.set('fromDate', fromDate);
+    if (toDate) params.set('toDate', toDate);
+    navigate(`/events/${eventId}/departments/${departmentId}/tasks?${params.toString()}`);
+  };
 
   return (
     <AppLayout user={user} events={event ? [event] : []} selectedEvent={event} onEventChange={() => {}} onLogout={onLogout}>
@@ -72,10 +81,16 @@ const DepartmentDashboardPage = ({ user, onLogout }) => {
           <>
             <section className="grid gap-4">
               <ChartPanel icon={<TrendingUp size={18} />} title="Line chart task theo ngày" description="Số lượng task theo deadline từng ngày trong department, tách theo trạng thái hiện tại.">
-                <StatusLineChart data={trendQuery.data || []} />
+                <StatusLineChart
+                  data={trendQuery.data || []}
+                  onPointClick={({ status, date }) => openFilteredTasks({ status, fromDate: date, toDate: date })}
+                />
               </ChartPanel>
               <ChartPanel icon={<BarChart3 size={18} />} title="Column chart task theo status" description="Số lượng task hiện tại theo từng trạng thái trong department.">
-                <StatusColumnChart data={statusData} />
+                <StatusColumnChart
+                  data={statusData}
+                  onColumnClick={(status) => openFilteredTasks({ status, fromDate: weekRange.fromDate, toDate: weekRange.toDate })}
+                />
               </ChartPanel>
             </section>
 
@@ -89,6 +104,12 @@ const DepartmentDashboardPage = ({ user, onLogout }) => {
 
 const statusValue = (data = [], status) => data.find((item) => item.label === status)?.totalTasks || 0;
 const STATUS_ORDER = ['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE'];
+const STATUS_LABELS = {
+  TODO: 'Cần làm',
+  IN_PROGRESS: 'Đang làm',
+  IN_REVIEW: 'Chờ duyệt',
+  DONE: 'Hoàn thành',
+};
 const normalizeStatusData = (data = []) => STATUS_ORDER.map((status) => ({
   label: status,
   totalTasks: statusValue(data, status),
@@ -119,26 +140,43 @@ const ChartPanel = ({ icon, title, description, children }) => (
   </section>
 );
 
-const StatusLineChart = ({ data }) => {
+const StatusLineChart = ({ data, onPointClick }) => {
+  const [hoveredPoint, setHoveredPoint] = useState(null);
   if (!data.length) return <EmptyChart message="Chưa có dữ liệu cập nhật status." />;
 
   const width = 680;
   const height = 280;
   const padding = 36;
   const series = [
-    { key: 'todoTasks', label: 'TODO', color: '#2563eb' },
-    { key: 'inProgressTasks', label: 'IN_PROGRESS', color: '#f59e0b' },
-    { key: 'inReviewTasks', label: 'IN_REVIEW', color: '#8b5cf6' },
-    { key: 'completedTasks', label: 'DONE', color: '#10b981' },
+    { key: 'todoTasks', status: 'TODO', label: 'TODO', color: '#2563eb', pointOffset: -9 },
+    { key: 'inProgressTasks', status: 'IN_PROGRESS', label: 'IN_PROGRESS', color: '#f59e0b', pointOffset: -3 },
+    { key: 'inReviewTasks', status: 'IN_REVIEW', label: 'IN_REVIEW', color: '#8b5cf6', pointOffset: 3 },
+    { key: 'completedTasks', status: 'DONE', label: 'DONE', color: '#10b981', pointOffset: 9 },
   ];
   const maxValue = Math.max(...data.flatMap((item) => series.map((line) => item[line.key] || 0)), 1);
   const labelStep = Math.max(Math.ceil(data.length / 8), 1);
   const shouldShowXAxisLabel = (index) => index === 0 || index === data.length - 1 || index % labelStep === 0;
   const formatAxisLabel = (label) => label?.slice(5) || label;
-  const pointsFor = (key) => data.map((item, index) => {
-    const x = padding + (index * (width - padding * 2)) / Math.max(data.length - 1, 1);
-    const y = height - padding - ((item[key] || 0) / maxValue) * (height - padding * 2);
-    return { x, y, label: item.label, value: item[key] || 0, index };
+  const smoothPath = (points) => {
+    if (points.length < 2) {
+      return points[0] ? `M ${points[0].x} ${points[0].y}` : '';
+    }
+
+    return points.reduce((path, point, index) => {
+      if (index === 0) {
+        return `M ${point.x} ${point.y}`;
+      }
+
+      const previous = points[index - 1];
+      const controlDistance = (point.x - previous.x) * 0.45;
+      return `${path} C ${previous.x + controlDistance} ${previous.y}, ${point.x - controlDistance} ${point.y}, ${point.x} ${point.y}`;
+    }, '');
+  };
+  const pointsFor = (line) => data.map((item, index) => {
+    const baseX = padding + (index * (width - padding * 2)) / Math.max(data.length - 1, 1);
+    const x = Math.min(Math.max(baseX + line.pointOffset, padding), width - padding);
+    const y = height - padding - ((item[line.key] || 0) / maxValue) * (height - padding * 2);
+    return { x, y, label: item.label, value: item[line.key] || 0, index };
   });
 
   return (
@@ -150,14 +188,35 @@ const StatusLineChart = ({ data }) => {
         <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} className="stroke-gray-200" />
         <line x1={padding} y1={padding} x2={padding} y2={height - padding} className="stroke-gray-200" />
         {series.map((line) => {
-          const points = pointsFor(line.key);
-          const path = points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ');
+          const points = pointsFor(line);
+          const path = smoothPath(points);
           return (
             <g key={line.key}>
-              <path d={path} fill="none" stroke={line.color} strokeWidth="3" />
+              <path d={path} fill="none" stroke={line.color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
               {points.filter((point) => point.value > 0).map((point) => (
                 <g key={`${line.key}-${point.label}`}>
-                  <circle cx={point.x} cy={point.y} r="4" fill={line.color} />
+                  <circle
+                    cx={point.x}
+                    cy={point.y}
+                    r="5"
+                    fill={line.color}
+                    className="cursor-pointer"
+                    onMouseEnter={() => setHoveredPoint({ ...point, statusLabel: line.label })}
+                    onMouseLeave={() => setHoveredPoint(null)}
+                    onFocus={() => setHoveredPoint({ ...point, statusLabel: line.label })}
+                    onBlur={() => setHoveredPoint(null)}
+                    onClick={() => onPointClick?.({ status: line.status, date: point.label })}
+                  />
+                  <circle
+                    cx={point.x}
+                    cy={point.y}
+                    r="14"
+                    fill="transparent"
+                    className="cursor-pointer"
+                    onMouseEnter={() => setHoveredPoint({ ...point, statusLabel: line.label })}
+                    onMouseLeave={() => setHoveredPoint(null)}
+                    onClick={() => onPointClick?.({ status: line.status, date: point.label })}
+                  />
                   <text x={point.x} y={point.y - 10} textAnchor="middle" className="fill-gray-700 text-[11px] font-semibold">
                     {point.value}
                   </text>
@@ -166,27 +225,63 @@ const StatusLineChart = ({ data }) => {
             </g>
           );
         })}
-        {pointsFor('todoTasks').filter((point) => shouldShowXAxisLabel(point.index)).map((point) => <text key={point.label} x={point.x} y={height - 10} textAnchor="middle" className="fill-gray-500 text-[10px]">{formatAxisLabel(point.label)}</text>)}
+        {hoveredPoint && (
+          <g className="pointer-events-none">
+            <rect
+              x={Math.min(Math.max(hoveredPoint.x - 78, 8), width - 166)}
+              y={Math.max(hoveredPoint.y - 72, 8)}
+              width="158"
+              height="52"
+              rx="8"
+              className="fill-white/95 stroke-gray-200"
+            />
+            <text x={Math.min(Math.max(hoveredPoint.x, 86), width - 86)} y={Math.max(hoveredPoint.y - 50, 30)} textAnchor="middle" className="fill-gray-900 text-[11px] font-bold">
+              {hoveredPoint.label}
+            </text>
+            <text x={Math.min(Math.max(hoveredPoint.x, 86), width - 86)} y={Math.max(hoveredPoint.y - 32, 48)} textAnchor="middle" className="fill-gray-600 text-[11px]">
+              {hoveredPoint.statusLabel}: {hoveredPoint.value} task
+            </text>
+          </g>
+        )}
+        {pointsFor(series[0]).filter((point) => shouldShowXAxisLabel(point.index)).map((point) => <text key={point.label} x={point.x} y={height - 10} textAnchor="middle" className="fill-gray-500 text-[10px]">{formatAxisLabel(point.label)}</text>)}
       </svg>
     </div>
   );
 };
 
-const StatusColumnChart = ({ data }) => {
+const StatusColumnChart = ({ data, onColumnClick }) => {
+  const [hoveredColumn, setHoveredColumn] = useState(null);
   if (!data.length) return <EmptyChart message="Chưa có dữ liệu status." />;
+
   const maxValue = Math.max(...data.map((item) => item.totalTasks || 0), 1);
   const colorByStatus = { TODO: 'bg-blue-500', IN_PROGRESS: 'bg-amber-500', IN_REVIEW: 'bg-violet-500', DONE: 'bg-emerald-500' };
 
   return (
     <div className="grid h-72 grid-cols-4 items-end gap-4 border-b border-gray-200 pb-3">
       {data.map((item) => (
-        <div key={item.label} className="flex h-full flex-col items-center justify-end">
+        <button
+          key={item.label}
+          type="button"
+          onMouseEnter={() => setHoveredColumn(item.label)}
+          onMouseLeave={() => setHoveredColumn(null)}
+          onFocus={() => setHoveredColumn(item.label)}
+          onBlur={() => setHoveredColumn(null)}
+          onClick={() => onColumnClick?.(item.label)}
+          className="relative flex h-full flex-col items-center justify-end rounded-lg px-2 transition hover:bg-blue-50"
+          title={`Xem task ${STATUS_LABELS[item.label] || item.label}`}
+        >
+          {hoveredColumn === item.label && (
+            <div className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 w-40 -translate-x-1/2 rounded-lg border border-gray-200 bg-white/90 px-3 py-2 text-center text-xs text-gray-900 shadow-lg backdrop-blur">
+              <p className="font-bold">{STATUS_LABELS[item.label] || item.label}</p>
+              <p className="mt-1 text-gray-600">{item.totalTasks || 0} task</p>
+            </div>
+          )}
           <div className="flex h-52 w-full items-end justify-center">
             <div className={`w-14 rounded-t ${colorByStatus[item.label] || 'bg-gray-500'}`} style={{ height: `${Math.max(((item.totalTasks || 0) / maxValue) * 100, item.totalTasks ? 10 : 2)}%` }} />
           </div>
           <p className="mt-2 text-xs font-bold text-gray-700">{item.totalTasks || 0}</p>
           <p className="text-center text-xs font-semibold text-gray-500">{item.label}</p>
-        </div>
+        </button>
       ))}
     </div>
   );

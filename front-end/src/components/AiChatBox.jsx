@@ -1,13 +1,62 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useLocation } from 'react-router-dom';
 import { Bot, Loader2, Send, X } from 'lucide-react';
 import aiApi from '../api/aiApi';
 
+const POSITION_KEY = 'eventflow.aiChatPosition';
+const EDGE_GAP = 20;
+const PANEL_SIZE = { width: 360, height: 520 };
+const BUTTON_SIZE = { width: 132, height: 48 };
+
+const getViewportSize = () => ({
+  width: typeof window === 'undefined' ? 1280 : window.innerWidth,
+  height: typeof window === 'undefined' ? 720 : window.innerHeight,
+});
+
+const clampPosition = (position, size) => {
+  const viewport = getViewportSize();
+  const maxX = Math.max(EDGE_GAP, viewport.width - size.width - EDGE_GAP);
+  const maxY = Math.max(EDGE_GAP, viewport.height - size.height - EDGE_GAP);
+
+  return {
+    x: Math.min(Math.max(EDGE_GAP, position.x), maxX),
+    y: Math.min(Math.max(EDGE_GAP, position.y), maxY),
+  };
+};
+
+const getDefaultPosition = () => {
+  const viewport = getViewportSize();
+  return {
+    x: Math.max(EDGE_GAP, viewport.width - BUTTON_SIZE.width - EDGE_GAP),
+    y: Math.max(EDGE_GAP, viewport.height - BUTTON_SIZE.height - EDGE_GAP),
+  };
+};
+
+const getSavedPosition = () => {
+  if (typeof window === 'undefined') {
+    return getDefaultPosition();
+  }
+
+  try {
+    const saved = JSON.parse(window.localStorage.getItem(POSITION_KEY) || 'null');
+    if (Number.isFinite(saved?.x) && Number.isFinite(saved?.y)) {
+      return clampPosition(saved, BUTTON_SIZE);
+    }
+  } catch {
+    return getDefaultPosition();
+  }
+
+  return getDefaultPosition();
+};
+
 const AiChatBox = () => {
   const queryClient = useQueryClient();
   const location = useLocation();
   const [open, setOpen] = useState(false);
+  const [position, setPosition] = useState(getSavedPosition);
+  const dragRef = useRef(null);
+  const didDragRef = useRef(false);
   const [input, setInput] = useState('');
   const [draft, setDraft] = useState(null);
   const [messages, setMessages] = useState([
@@ -73,11 +122,85 @@ const AiChatBox = () => {
     ]);
   };
 
+  const persistPosition = (nextPosition) => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(POSITION_KEY, JSON.stringify(nextPosition));
+    }
+  };
+
+  const moveToPosition = (nextPosition, size) => {
+    const clamped = clampPosition(nextPosition, size);
+    setPosition(clamped);
+    persistPosition(clamped);
+  };
+
+  const startDrag = (event, size) => {
+    if (event.button !== 0) {
+      return;
+    }
+
+    didDragRef.current = false;
+    dragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      origin: position,
+      size,
+    };
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  };
+
+  const handleDragMove = (event) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) {
+      return;
+    }
+
+    const deltaX = event.clientX - drag.startX;
+    const deltaY = event.clientY - drag.startY;
+    if (Math.abs(deltaX) + Math.abs(deltaY) > 4) {
+      didDragRef.current = true;
+    }
+
+    moveToPosition(
+      {
+        x: drag.origin.x + deltaX,
+        y: drag.origin.y + deltaY,
+      },
+      drag.size
+    );
+  };
+
+  const stopDrag = (event) => {
+    if (dragRef.current?.pointerId === event.pointerId) {
+      dragRef.current = null;
+    }
+  };
+
+  const openChat = () => {
+    if (didDragRef.current) {
+      didDragRef.current = false;
+      return;
+    }
+
+    setOpen(true);
+    moveToPosition(position, PANEL_SIZE);
+  };
+
   return (
-    <div className="fixed bottom-5 right-5 z-50">
+    <div
+      className="fixed z-50"
+      style={{ left: position.x, top: position.y }}
+    >
       {open ? (
         <section className="flex h-[520px] w-[360px] max-w-[calc(100vw-2.5rem)] flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl">
-          <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
+          <div
+            onPointerDown={(event) => startDrag(event, PANEL_SIZE)}
+            onPointerMove={handleDragMove}
+            onPointerUp={stopDrag}
+            onPointerCancel={stopDrag}
+            className="flex cursor-move touch-none select-none items-center justify-between border-b border-gray-200 px-4 py-3"
+          >
             <div className="flex items-center gap-2">
               <span className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-white">
                 <Bot size={18} />
@@ -87,7 +210,15 @@ const AiChatBox = () => {
                 <p className="text-xs text-gray-500">Tạo sự kiện và task bằng chat</p>
               </div>
             </div>
-            <button type="button" onClick={() => setOpen(false)} className="rounded-lg p-2 text-gray-500 hover:bg-gray-100">
+            <button
+              type="button"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={() => {
+                setOpen(false);
+                moveToPosition(position, BUTTON_SIZE);
+              }}
+              className="rounded-lg p-2 text-gray-500 hover:bg-gray-100"
+            >
               <X size={18} />
             </button>
           </div>
@@ -159,8 +290,12 @@ const AiChatBox = () => {
       ) : (
         <button
           type="button"
-          onClick={() => setOpen(true)}
-          className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-4 py-3 text-sm font-bold text-white shadow-xl hover:bg-blue-700"
+          onPointerDown={(event) => startDrag(event, BUTTON_SIZE)}
+          onPointerMove={handleDragMove}
+          onPointerUp={stopDrag}
+          onPointerCancel={stopDrag}
+          onClick={openChat}
+          className="inline-flex touch-none select-none items-center gap-2 rounded-full bg-blue-600 px-4 py-3 text-sm font-bold text-white shadow-xl hover:bg-blue-700"
         >
           <Bot size={18} />
           AI Chat

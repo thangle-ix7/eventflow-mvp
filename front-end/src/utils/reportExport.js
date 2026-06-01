@@ -49,7 +49,7 @@ const metricRows = (report) => [
   { label: 'Tổng công việc', value: report.summary?.totalTasks ?? 0 },
   { label: 'Đã hoàn thành', value: report.summary?.completedTasks ?? 0 },
   { label: 'Tiến độ', value: `${report.summary?.progressPercentage ?? 0}%` },
-  { label: 'Quá hạn', value: report.summary?.overdueTasksCount ?? 0 },
+  { label: 'Quá hạn chưa xong', value: report.summary?.overdueTasksCount ?? 0 },
   { label: 'Ban tổ chức', value: report.departments?.length ?? 0 },
   { label: 'Task đang hiển thị', value: report.tasks?.length ?? 0 },
 ];

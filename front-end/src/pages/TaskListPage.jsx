@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, CalendarDays, ChevronLeft, ChevronRight, Plus, UserRound } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
+import InlineTaskCreator from '../components/InlineTaskCreator';
 import {
   Button,
   EmptyState,
@@ -19,18 +20,23 @@ import {
 import eventApi from '../api/eventApi';
 import taskApi from '../api/taskApi';
 import departmentApi from '../api/departmentApi';
+import userApi from '../api/userApi';
 import { formatDate } from '../utils/dateUtils';
+import { normalizeTaskPageSize } from '../utils/paginationUtils';
 
-const PAGE_SIZE = 10;
-
-const TaskListPage = ({ user, onLogout }) => {
+const TaskListPage = ({ user, onLogout, onUserUpdate }) => {
   const { eventId } = useParams();
   const [searchParams] = useSearchParams();
   const [page, setPage] = useState(0);
-  const [searchInput, setSearchInput] = useState('');
-  const [search, setSearch] = useState('');
-  const [status, setStatus] = useState('');
-  const [priority, setPriority] = useState('');
+  const initialPageSize = normalizeTaskPageSize(user?.taskPageSize);
+  const [pageSize, setPageSize] = useState(initialPageSize);
+  const [pageSizeInput, setPageSizeInput] = useState(() => String(initialPageSize));
+  const [searchInput, setSearchInput] = useState(() => searchParams.get('search') || '');
+  const [search, setSearch] = useState(() => searchParams.get('search') || '');
+  const [status, setStatus] = useState(() => searchParams.get('status') || '');
+  const [priority, setPriority] = useState(() => searchParams.get('priority') || '');
+  const [fromDate, setFromDate] = useState(() => searchParams.get('fromDate') || '');
+  const [toDate, setToDate] = useState(() => searchParams.get('toDate') || '');
   const [departmentId, setDepartmentId] = useState(
     () => searchParams.get('departmentId') || ''
   );
@@ -48,16 +54,18 @@ const TaskListPage = ({ user, onLogout }) => {
   });
 
   const tasksQuery = useQuery({
-    queryKey: ['eventTaskPage', eventId, page, search, status, priority, departmentId],
+    queryKey: ['eventTaskPage', eventId, page, pageSize, search, status, priority, departmentId, fromDate, toDate],
     queryFn: () =>
       taskApi.getEventTaskPage({
         eventId,
         page,
-        size: PAGE_SIZE,
+        size: pageSize,
         search,
         status,
         priority,
         departmentId,
+        fromDate,
+        toDate,
       }),
     enabled: Boolean(eventId),
   });
@@ -65,11 +73,32 @@ const TaskListPage = ({ user, onLogout }) => {
   const event = eventQuery.data;
   const tasks = tasksQuery.data?.content || [];
   const isLeader = event?.role === 'LEADER';
+  const updatePreferencesMutation = useMutation({
+    mutationFn: userApi.updatePreferences,
+    onSuccess: (profile) => {
+      onUserUpdate?.({ ...user, taskPageSize: profile.taskPageSize });
+    },
+  });
 
   const handleSearchSubmit = (event) => {
     event.preventDefault();
     setPage(0);
     setSearch(searchInput.trim());
+  };
+
+  const applyPageSize = () => {
+    const nextPageSize = normalizeTaskPageSize(pageSizeInput);
+    setPage(0);
+    setPageSize(nextPageSize);
+    setPageSizeInput(String(nextPageSize));
+    if (nextPageSize !== normalizeTaskPageSize(user?.taskPageSize) && !updatePreferencesMutation.isPending) {
+      updatePreferencesMutation.mutate({ userId: user.userId, taskPageSize: nextPageSize });
+    }
+  };
+
+  const handlePageSizeSubmit = (event) => {
+    event.preventDefault();
+    applyPageSize();
   };
 
   return (
@@ -84,16 +113,10 @@ const TaskListPage = ({ user, onLogout }) => {
           <PageHeader
             eyebrow={event?.name || 'Sự kiện'}
             title="Danh sách công việc"
-            description="Theo dõi deadline, người phụ trách, tiến độ và trạng thái của mọi task trong sự kiện."
-            actions={isLeader && (
-              <Button as={Link} to={`/events/${eventId}/tasks/new${departmentId ? `?departmentId=${departmentId}` : ''}`}>
-                <Plus size={18} />
-                Tạo công việc
-              </Button>
-            )}
+            description="Theo dõi deadline, người phụ trách, tiến độ và trạng thái của mọi task trong sự kiện. Leader có thể nhập task mới ngay trong dòng đầu danh sách."
           />
 
-          <form onSubmit={handleSearchSubmit} className="mt-4 grid gap-3 md:grid-cols-[1fr_150px_150px_190px_auto]">
+          <form onSubmit={handleSearchSubmit} className="mt-4 grid gap-3 md:grid-cols-[1fr_150px_150px_190px_150px_150px_auto]">
             <TextInput
               id="task-search"
               name="search"
@@ -122,6 +145,20 @@ const TaskListPage = ({ user, onLogout }) => {
                 <option key={department.id} value={department.id}>{department.name}</option>
               ))}
             </SelectControl>
+            <TextInput
+              icon={null}
+              type="date"
+              aria-label="Từ ngày"
+              value={fromDate}
+              onChange={(event) => { setPage(0); setFromDate(event.target.value); }}
+            />
+            <TextInput
+              icon={null}
+              type="date"
+              aria-label="Đến ngày"
+              value={toDate}
+              onChange={(event) => { setPage(0); setToDate(event.target.value); }}
+            />
             <Button type="submit" variant="secondary">Tìm kiếm</Button>
           </form>
         </Panel>
@@ -133,39 +170,77 @@ const TaskListPage = ({ user, onLogout }) => {
               <ErrorState error={tasksQuery.error} title="Không tải được danh sách công việc" />
             </div>
           )}
+          {isLeader && !tasksQuery.isLoading && !tasksQuery.error && (
+            <InlineTaskCreator
+              eventId={eventId}
+              event={event}
+              departments={departmentsQuery.data || []}
+              departmentId={departmentId}
+              lockedDepartment={Boolean(departmentId)}
+              invalidateKeys={[
+                ['eventTaskPage', eventId],
+                ['departmentTaskPage', eventId, departmentId],
+              ]}
+            />
+          )}
           {!tasksQuery.isLoading && !tasksQuery.error && tasks.length === 0 && (
             <div className="p-4">
               <EmptyState title="Chưa có công việc phù hợp" description="Thử đổi bộ lọc hoặc tạo công việc mới nếu bạn là leader." />
             </div>
           )}
-          {tasks.map((task) => (
-            <Link key={task.id} to={`/events/${eventId}/tasks/${task.id}`} className="block border-b border-slate-100 p-4 transition last:border-b-0 hover:bg-indigo-50/50">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-semibold text-slate-950">{task.title}</p>
-                    <StatusBadge status={task.status} />
-                    <PriorityBadge priority={task.priority} />
-                  </div>
-                  {task.description && <p className="mt-1 line-clamp-2 text-sm text-slate-600">{task.description}</p>}
-                  <div className="mt-2 flex flex-wrap gap-3 text-sm text-slate-500">
-                    <span>{task.departmentName || 'Chưa gán ban'}</span>
-                    <span className="inline-flex items-center gap-1.5"><UserRound size={15} />{task.assigneeName || 'Chưa phân công'}</span>
-                    <span className="inline-flex items-center gap-1.5"><CalendarDays size={15} />{formatDate(task.deadline)}</span>
-                  </div>
-                  <div className="mt-3 max-w-xs">
-                    <ProgressBar value={task.progressPercentage ?? 0} />
-                    <p className="mt-1 text-xs font-semibold text-slate-500">
-                      Tiến độ {task.progressPercentage ?? 0}%
-                    </p>
-                  </div>
+          {tasks.length > 0 && (
+            <div className="overflow-x-auto">
+              <div className="min-w-[980px]">
+                <div className="grid grid-cols-[minmax(220px,1.5fr)_160px_160px_180px_130px_120px_100px] items-center gap-2 border-b border-slate-100 bg-slate-50 px-4 py-2 text-xs font-bold uppercase tracking-wide text-slate-500">
+                  <span>Công việc</span>
+                  <span>Ban</span>
+                  <span>Phụ trách</span>
+                  <span>Deadline</span>
+                  <span>Ưu tiên</span>
+                  <span>Trạng thái</span>
+                  <span>Tiến độ</span>
                 </div>
+                {tasks.map((task) => (
+                  <Link
+                    key={task.id}
+                    to={`/events/${eventId}/tasks/${task.id}`}
+                    className="grid grid-cols-[minmax(220px,1.5fr)_160px_160px_180px_130px_120px_100px] items-center gap-2 border-b border-slate-100 px-4 py-3 text-sm transition last:border-b-0 hover:bg-indigo-50/50"
+                  >
+                    <span className="truncate font-semibold text-slate-950">{task.title}</span>
+                    <span className="truncate text-slate-600">{task.departmentName || 'Chưa gán ban'}</span>
+                    <span className="truncate text-slate-600">{task.assigneeName || 'Chưa phân công'}</span>
+                    <span className="whitespace-nowrap text-slate-600">{formatDate(task.deadline)}</span>
+                    <PriorityBadge priority={task.priority} />
+                    <StatusBadge status={task.status} />
+                    <span className="min-w-0">
+                      <ProgressBar value={task.progressPercentage ?? 0} />
+                      <span className="mt-1 block text-xs font-semibold text-slate-500">{task.progressPercentage ?? 0}%</span>
+                    </span>
+                  </Link>
+                ))}
               </div>
-            </Link>
-          ))}
+            </div>
+          )}
         </Panel>
 
-        <div className="flex justify-end gap-2">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <form onSubmit={handlePageSizeSubmit} className="flex items-center gap-2 text-sm text-slate-600">
+            <label htmlFor="task-page-size" className="font-semibold">Số dòng/trang</label>
+            <input
+              id="task-page-size"
+              type="number"
+              min="1"
+              max="100"
+              value={pageSizeInput}
+              onChange={(event) => setPageSizeInput(event.target.value)}
+              onBlur={applyPageSize}
+              className="w-20 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+            />
+            <span className="text-xs text-slate-500">
+              {updatePreferencesMutation.isPending ? 'Đang lưu...' : 'Lưu theo tài khoản'}
+            </span>
+          </form>
+          <div className="flex justify-end gap-2">
           <Button type="button" onClick={() => setPage((old) => Math.max(old - 1, 0))} disabled={page === 0} variant="secondary">
             <ChevronLeft size={16} />
             Trước
@@ -174,6 +249,7 @@ const TaskListPage = ({ user, onLogout }) => {
             Sau
             <ChevronRight size={16} />
           </Button>
+          </div>
         </div>
       </div>
     </AppLayout>

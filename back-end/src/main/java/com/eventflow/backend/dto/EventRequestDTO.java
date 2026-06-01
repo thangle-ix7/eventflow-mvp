@@ -25,6 +25,8 @@ public class EventRequestDTO {
 
     private LocalDateTime startTime;
 
+    private LocalDateTime endTime;
+
     private LocalDateTime eventDate;
 
     @Size(max = 50, message = "Trạng thái không được vượt quá 50 ký tự")

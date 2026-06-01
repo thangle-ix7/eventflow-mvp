@@ -118,7 +118,7 @@ const Dashboard = ({ eventId }) => {
           <p className={`mt-2 text-sm font-semibold ${
             summary.overdueTasksCount > 0 ? 'text-red-700' : 'text-emerald-700'
           }`}>
-            {summary.overdueTasksCount > 0 ? 'Công việc bị trễ hạn' : 'Không có công việc trễ hạn'}
+            {summary.overdueTasksCount > 0 ? 'Công việc trễ hạn chưa xong' : 'Không có công việc trễ hạn chưa xong'}
           </p>
           {summary.overdueTasksCount > 0 && <p className="mt-1 text-xs text-red-600">Cần xử lý ngay</p>}
         </div>
@@ -143,7 +143,7 @@ const Dashboard = ({ eventId }) => {
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-slate-600">Trễ hạn</span>
+              <span className="text-sm text-slate-600">Trễ hạn chưa xong</span>
               <span className="font-bold text-red-600">{summary.overdueTasksCount}</span>
             </div>
           </div>
@@ -185,7 +185,7 @@ const Dashboard = ({ eventId }) => {
                   {dept.overdueTasksCount > 0 && (
                     <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700 border border-red-200">
                       <AlertTriangle className="h-3 w-3" strokeWidth={2} />
-                      {dept.overdueTasksCount} trễ hạn
+                      {dept.overdueTasksCount} trễ hạn chưa xong
                     </span>
                   )}
                   {dept.overdueTasksCount === 0 && (

@@ -1,6 +1,7 @@
 package com.eventflow.backend.service;
 
 import com.eventflow.backend.dto.UserProfileDTO;
+import com.eventflow.backend.dto.UserPreferencesRequest;
 import com.eventflow.backend.entity.User;
 import com.eventflow.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +29,16 @@ public class UserProfileService {
     @Transactional(readOnly = true)
     public UserProfileDTO getProfile(Long userId) {
         return mapToProfile(findUser(userId));
+    }
+
+    @Transactional
+    public UserProfileDTO updatePreferences(Long userId, UserPreferencesRequest request) {
+        User user = findUser(userId);
+        if (request.getTaskPageSize() != null) {
+            user.setTaskPageSize(request.getTaskPageSize());
+        }
+
+        return mapToProfile(userRepository.save(user));
     }
 
     @Transactional
@@ -105,7 +116,8 @@ public class UserProfileService {
                 user.getName(),
                 user.getEmail(),
                 user.getTelegramChatId(),
-                avatarUrl(user.getId(), user.getAvatarStoragePath()));
+                avatarUrl(user.getId(), user.getAvatarStoragePath()),
+                user.getTaskPageSize() != null ? user.getTaskPageSize() : 10);
     }
 
     public record AvatarDownload(

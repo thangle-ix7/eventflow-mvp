@@ -5,11 +5,12 @@ import {
   BarChart3,
   CalendarDays,
   ClipboardList,
+  Edit,
   MapPin,
   Users,
 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
-import { ErrorState, LoadingState, PageHeader, Panel, StatusBadge } from '../components/ui';
+import { Button, ErrorState, LoadingState, PageHeader, Panel, StatusBadge } from '../components/ui';
 import eventApi from '../api/eventApi';
 import { formatDate } from '../utils/dateUtils';
 
@@ -58,11 +59,17 @@ const EventDetailPage = ({ user, onLogout }) => {
               <PageHeader
                 title={event.name}
                 description={event.description || 'Chưa có mô tả cho sự kiện này.'}
+                actions={isLeader && (
+                  <Button as={Link} to={`/events/${eventId}/edit`} variant="secondary">
+                    <Edit size={16} />
+                    Sửa thông tin
+                  </Button>
+                )}
                 meta={
                   <>
                     <span className="inline-flex items-center gap-2">
                       <CalendarDays size={16} />
-                      Bắt đầu: {formatDate(event.startTime || event.eventDate)}
+                      {formatEventRange(event)}
                     </span>
                     <span className="inline-flex items-center gap-2">
                       <MapPin size={16} />
@@ -105,6 +112,15 @@ const EventDetailPage = ({ user, onLogout }) => {
       </div>
     </AppLayout>
   );
+};
+
+const formatEventRange = (event) => {
+  const start = event?.startTime || event?.eventDate;
+  const end = event?.endTime;
+  if (!end || end === start) {
+    return `Bắt đầu: ${formatDate(start)}`;
+  }
+  return `${formatDate(start)} - ${formatDate(end)}`;
 };
 
 const QuickLink = ({ to, icon, title, description, disabled = false }) => {

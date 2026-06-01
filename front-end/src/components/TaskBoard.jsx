@@ -5,6 +5,7 @@ import departmentApi from '../api/departmentApi';
 import taskApi from '../api/taskApi';
 import { formatDate } from '../utils/dateUtils';
 import { Button, EmptyState, ErrorState, LoadingState, PriorityBadge, ProgressBar } from './ui';
+import { invalidateDashboardQueries } from '../utils/dashboardQueryUtils';
 
 const TaskBoard = ({ eventId, canManage = false }) => {
   const queryClient = useQueryClient();
@@ -86,9 +87,7 @@ const TaskBoard = ({ eventId, canManage = false }) => {
       queryClient.invalidateQueries({
         queryKey: ['eventTasks', eventId],
       });
-      queryClient.invalidateQueries({
-        queryKey: ['dashboardSummary', eventId],
-      });
+      invalidateDashboardQueries(queryClient, eventId);
     },
   });
 
@@ -98,7 +97,7 @@ const TaskBoard = ({ eventId, canManage = false }) => {
       setDepartmentName('');
       queryClient.invalidateQueries({ queryKey: ['eventDepartments', eventId] });
       queryClient.invalidateQueries({ queryKey: ['eventTasks', eventId] });
-      queryClient.invalidateQueries({ queryKey: ['dashboardSummary', eventId] });
+      invalidateDashboardQueries(queryClient, eventId);
     },
   });
 
@@ -107,7 +106,7 @@ const TaskBoard = ({ eventId, canManage = false }) => {
     onSuccess: () => {
       setTaskForm({ title: '', departmentId: '', deadline: '', priority: 'MEDIUM', progressPercentage: 0 });
       queryClient.invalidateQueries({ queryKey: ['eventTasks', eventId] });
-      queryClient.invalidateQueries({ queryKey: ['dashboardSummary', eventId] });
+      invalidateDashboardQueries(queryClient, eventId);
     },
   });
 

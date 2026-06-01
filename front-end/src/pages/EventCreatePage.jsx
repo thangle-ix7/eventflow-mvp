@@ -13,6 +13,7 @@ const EventCreatePage = ({ user, onLogout }) => {
     description: '',
     location: '',
     startTime: '',
+    endTime: '',
     status: 'ACTIVE',
   });
 
@@ -37,6 +38,7 @@ const EventCreatePage = ({ user, onLogout }) => {
       description: form.description,
       location: form.location,
       startTime: form.startTime,
+      endTime: form.endTime,
       status: form.status,
     });
   };
@@ -132,6 +134,18 @@ const EventCreatePage = ({ user, onLogout }) => {
               value={form.startTime}
               onChange={handleChange}
               required
+              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
+            />
+          </label>
+
+          <label className="block">
+            <span className="text-sm font-medium text-gray-700">Thời gian kết thúc</span>
+            <input
+              name="endTime"
+              type="datetime-local"
+              value={form.endTime}
+              onChange={handleChange}
+              min={form.startTime || undefined}
               className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
             />
           </label>

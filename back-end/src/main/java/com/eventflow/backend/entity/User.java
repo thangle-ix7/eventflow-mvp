@@ -74,6 +74,10 @@ public class User {
     @Column(name = "avatar_storage_path", length = 500)
     private String avatarStoragePath;
 
+    @Column(name = "task_page_size", nullable = false)
+    @Builder.Default
+    private Integer taskPageSize = 10;
+
     @Column(name = "created_at", updatable = false)
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();

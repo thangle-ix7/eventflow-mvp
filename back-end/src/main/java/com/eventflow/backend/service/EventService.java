@@ -70,6 +70,7 @@ public class EventService {
                 .description(normalizeOptionalText(request.getDescription()))
                 .location(normalizeOptionalText(request.getLocation()))
                 .eventDate(resolveStartTime(request))
+                .endTime(resolveEndTime(request))
                 .status(normalizeStatus(request.getStatus()))
                 .build());
 
@@ -91,6 +92,7 @@ public class EventService {
         event.setDescription(normalizeOptionalText(request.getDescription()));
         event.setLocation(normalizeOptionalText(request.getLocation()));
         event.setEventDate(resolveStartTime(request));
+        event.setEndTime(resolveEndTime(request));
         event.setStatus(normalizeStatus(request.getStatus()));
 
         return mapToResponse(eventRepository.save(event), UserRole.LEADER);
@@ -133,6 +135,18 @@ public class EventService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Thời gian bắt đầu sự kiện không được để trống");
         }
         return startTime;
+    }
+
+    private LocalDateTime resolveEndTime(EventRequestDTO request) {
+        LocalDateTime startTime = resolveStartTime(request);
+        LocalDateTime endTime = request.getEndTime();
+        if (endTime == null) {
+            return startTime;
+        }
+        if (endTime.isBefore(startTime)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Thời gian kết thúc sự kiện phải sau thời gian bắt đầu");
+        }
+        return endTime;
     }
 
     private String normalizeOptionalText(String value) {
@@ -179,6 +193,7 @@ public class EventService {
                 .description(event.getDescription())
                 .location(event.getLocation())
                 .startTime(event.getEventDate())
+                .endTime(event.getEndTime())
                 .eventDate(event.getEventDate())
                 .status(event.getStatus())
                 .role(role.name())

@@ -1,0 +1,310 @@
+import { useMemo, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Loader2, Plus, Save, X } from 'lucide-react';
+import eventMemberApi from '../api/eventMemberApi';
+import taskApi from '../api/taskApi';
+import { ErrorState } from './ui';
+import { invalidateDashboardQueries } from '../utils/dashboardQueryUtils';
+
+const pad = (value) => String(value).padStart(2, '0');
+
+const toDateTimeLocalValue = (value) => {
+  if (!value) {
+    return '';
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
+
+const createEmptyRow = (departmentId = '') => ({
+  id: crypto.randomUUID(),
+  title: '',
+  description: '',
+  departmentId: departmentId ? String(departmentId) : '',
+  assigneeId: '',
+  deadline: '',
+  status: 'TODO',
+  priority: 'MEDIUM',
+  progressPercentage: 0,
+});
+
+const InlineTaskCreator = ({
+  eventId,
+  event,
+  departments = [],
+  departmentId = '',
+  lockedDepartment = false,
+  invalidateKeys = [],
+}) => {
+  const queryClient = useQueryClient();
+  const defaultDeadline = useMemo(
+    () => toDateTimeLocalValue(event?.startTime || event?.eventDate),
+    [event?.eventDate, event?.startTime]
+  );
+  const maxDeadline = useMemo(
+    () => toDateTimeLocalValue(event?.endTime || event?.startTime || event?.eventDate),
+    [event?.endTime, event?.eventDate, event?.startTime]
+  );
+  const [rows, setRows] = useState([createEmptyRow(departmentId)]);
+  const [localError, setLocalError] = useState('');
+  const membersQuery = useQuery({
+    queryKey: ['eventMembers', eventId],
+    queryFn: () => eventMemberApi.getMembers(eventId),
+    enabled: Boolean(eventId),
+  });
+
+  const mutation = useMutation({
+    mutationFn: async (payloads) => Promise.all(payloads.map((payload) => taskApi.createTask({ eventId, payload }))),
+    onSuccess: () => {
+      setRows([createEmptyRow(departmentId)]);
+      setLocalError('');
+      invalidateKeys.forEach((queryKey) => {
+        queryClient.invalidateQueries({ queryKey });
+      });
+      queryClient.invalidateQueries({ queryKey: ['eventTaskPage', eventId] });
+      queryClient.invalidateQueries({ queryKey: ['eventTasks', eventId] });
+      invalidateDashboardQueries(queryClient, eventId);
+    },
+  });
+
+  const getEffectiveDepartmentId = (row) => (
+    lockedDepartment ? String(departmentId || '') : row.departmentId
+  );
+
+  const getAssignableMembers = (row) => {
+    const effectiveDepartmentId = getEffectiveDepartmentId(row);
+    if (!effectiveDepartmentId) {
+      return [];
+    }
+
+    return (membersQuery.data || []).filter((member) => String(member.departmentId || '') === effectiveDepartmentId);
+  };
+
+  const updateRow = (rowId, name, value) => {
+    setLocalError('');
+    setRows((old) => old.map((row) => {
+      if (row.id !== rowId) {
+        return row;
+      }
+
+      return {
+        ...row,
+        [name]: value,
+        ...(name === 'departmentId' ? { assigneeId: '' } : {}),
+        ...(name === 'status' && value === 'DONE' ? { progressPercentage: 100 } : {}),
+      };
+    }));
+  };
+
+  const addRow = () => {
+    setRows((old) => [...old, createEmptyRow(departmentId)]);
+  };
+
+  const removeRow = (rowId) => {
+    setRows((old) => (
+      old.length === 1
+        ? [createEmptyRow(departmentId)]
+        : old.filter((row) => row.id !== rowId)
+    ));
+  };
+
+  const handleSave = () => {
+    const filledRows = rows.filter((row) => row.title.trim());
+    if (filledRows.length === 0) {
+      setLocalError('Cần nhập ít nhất một tên task trước khi lưu.');
+      return;
+    }
+
+    const invalidProgressRow = filledRows.find((row) => Number(row.progressPercentage) < 0 || Number(row.progressPercentage) > 100);
+    if (invalidProgressRow) {
+      setLocalError('Tiến độ phải nằm trong khoảng 0 đến 100.');
+      return;
+    }
+
+    const invalidDeadlineRow = filledRows.find((row) => {
+      const deadline = row.deadline || defaultDeadline;
+      return maxDeadline && deadline && deadline > maxDeadline;
+    });
+    if (invalidDeadlineRow) {
+      setLocalError('Deadline task chỉ được nằm trước hoặc trong thời gian sự kiện.');
+      return;
+    }
+
+    mutation.mutate(filledRows.map((row) => {
+      const effectiveDepartmentId = getEffectiveDepartmentId(row);
+
+      return {
+        title: row.title.trim(),
+        description: row.description,
+        departmentId: effectiveDepartmentId ? Number(effectiveDepartmentId) : null,
+        assigneeId: row.assigneeId ? Number(row.assigneeId) : null,
+        status: row.status,
+        priority: row.priority,
+        deadline: row.deadline || defaultDeadline,
+        progressPercentage: Number(row.progressPercentage),
+      };
+    }));
+  };
+
+  return (
+    <div className="border-b border-slate-100 bg-indigo-50/30">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-indigo-100 px-4 py-3">
+        <p className="text-sm font-bold text-slate-900">Thêm task theo danh sách</p>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={addRow}
+            disabled={mutation.isPending}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-50 disabled:opacity-60"
+          >
+            <Plus size={16} />
+            Thêm dòng
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={mutation.isPending}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+          >
+            {mutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+            Save
+          </button>
+        </div>
+      </div>
+      <div className="overflow-x-auto">
+        <div className="min-w-[1380px]">
+          <div className="grid grid-cols-[44px_minmax(190px,1.4fr)_minmax(180px,1fr)_150px_160px_180px_130px_130px_90px_44px] items-center gap-2 border-b border-indigo-100 px-4 py-2 text-xs font-bold uppercase tracking-wide text-slate-500">
+            <span>#</span>
+            <span>Tên task</span>
+            <span>Mô tả</span>
+            <span>Ban</span>
+            <span>Phụ trách</span>
+            <span>Deadline</span>
+            <span>Ưu tiên</span>
+            <span>Trạng thái</span>
+            <span>Tiến độ</span>
+            <span></span>
+          </div>
+          {rows.map((row, index) => {
+            const effectiveDepartmentId = getEffectiveDepartmentId(row);
+            const assignableMembers = getAssignableMembers(row);
+
+            return (
+              <div
+                key={row.id}
+                className="grid grid-cols-[44px_minmax(190px,1.4fr)_minmax(180px,1fr)_150px_160px_180px_130px_130px_90px_44px] items-center gap-2 border-b border-indigo-100/70 px-4 py-2 last:border-b-0"
+              >
+                <span className="text-sm font-semibold text-slate-500">{index + 1}</span>
+                <input
+                  value={row.title}
+                  onChange={(event) => updateRow(row.id, 'title', event.target.value)}
+                  disabled={mutation.isPending}
+                  maxLength={255}
+                  placeholder="Tên task"
+                  className="w-full rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm font-medium text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50"
+                />
+                <input
+                  value={row.description}
+                  onChange={(event) => updateRow(row.id, 'description', event.target.value)}
+                  disabled={mutation.isPending}
+                  maxLength={2000}
+                  placeholder="Mô tả"
+                  className="w-full rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50"
+                />
+                <select
+                  value={effectiveDepartmentId}
+                  onChange={(event) => updateRow(row.id, 'departmentId', event.target.value)}
+                  disabled={lockedDepartment || mutation.isPending}
+                  className="rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50 disabled:text-slate-500"
+                >
+                  <option value="">Chưa gán ban</option>
+                  {departments.map((department) => (
+                    <option key={department.id} value={department.id}>
+                      {department.name}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={row.assigneeId}
+                  onChange={(event) => updateRow(row.id, 'assigneeId', event.target.value)}
+                  disabled={!effectiveDepartmentId || mutation.isPending}
+                  className="rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50 disabled:text-slate-500"
+                >
+                  <option value="">Chưa phân công</option>
+                  {assignableMembers.map((member) => (
+                    <option key={member.userId} value={member.userId}>
+                      {member.name}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="datetime-local"
+                  value={row.deadline || defaultDeadline}
+                  onChange={(event) => updateRow(row.id, 'deadline', event.target.value)}
+                  max={maxDeadline || undefined}
+                  disabled={mutation.isPending}
+                  className="rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50"
+                />
+                <select
+                  value={row.priority}
+                  onChange={(event) => updateRow(row.id, 'priority', event.target.value)}
+                  disabled={mutation.isPending}
+                  className="rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50"
+                >
+                  <option value="LOW">Thấp</option>
+                  <option value="MEDIUM">Trung bình</option>
+                  <option value="HIGH">Cao</option>
+                  <option value="URGENT">Khẩn cấp</option>
+                </select>
+                <select
+                  value={row.status}
+                  onChange={(event) => updateRow(row.id, 'status', event.target.value)}
+                  disabled={mutation.isPending}
+                  className="rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50"
+                >
+                  <option value="TODO">Cần làm</option>
+                  <option value="IN_PROGRESS">Đang làm</option>
+                  <option value="IN_REVIEW">Chờ duyệt</option>
+                  <option value="DONE">Hoàn thành</option>
+                </select>
+                <div className="relative">
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={row.progressPercentage}
+                    onChange={(event) => updateRow(row.id, 'progressPercentage', event.target.value)}
+                    disabled={mutation.isPending}
+                    className="w-full rounded-lg border border-indigo-200 bg-white px-3 py-2 pr-7 text-sm text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50"
+                  />
+                  <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400">%</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeRow(row.id)}
+                  disabled={mutation.isPending}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-white hover:text-red-600 disabled:opacity-60"
+                  aria-label="Xóa dòng task"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      {(localError || mutation.error) && (
+        <div className="mt-3">
+          <ErrorState error={localError || mutation.error} title="Không tạo được công việc" />
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default InlineTaskCreator;

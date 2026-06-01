@@ -1,17 +1,19 @@
 package com.eventflow.backend.dto;
 
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class UserProfileDTO {
+@Builder
+public class CalendarAttendeeDTO {
     private Long userId;
     private String name;
     private String email;
-    private String telegramChatId;
-    private String avatarUrl;
-    private Integer taskPageSize;
+    private String role;
+    private Long departmentId;
+    private String departmentName;
 }

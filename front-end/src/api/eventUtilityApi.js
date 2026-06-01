@@ -12,6 +12,15 @@ const eventUtilityApi = {
     return response.data;
   },
 
+  createCalendarItem: async ({ eventId, payload }) => {
+    if (!eventId) {
+      throw new Error('eventId không hợp lệ');
+    }
+
+    const response = await apiClient.post(`/events/${eventId}/calendar`, payload);
+    return response.data;
+  },
+
   getDocuments: async (eventId) => {
     if (!eventId) {
       throw new Error('eventId không hợp lệ');

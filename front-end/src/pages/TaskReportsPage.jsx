@@ -6,6 +6,7 @@ import AppLayout from '../components/AppLayout';
 import eventApi from '../api/eventApi';
 import taskApi from '../api/taskApi';
 import { formatDate } from '../utils/dateUtils';
+import { invalidateDashboardQueries } from '../utils/dashboardQueryUtils';
 
 const emptyReportForm = {
   progressPercentage: '',
@@ -34,8 +35,7 @@ const TaskReportsPage = ({ user, onLogout }) => {
     queryClient.invalidateQueries({ queryKey: ['task', taskId] });
     queryClient.invalidateQueries({ queryKey: ['taskReports', taskId] });
     queryClient.invalidateQueries({ queryKey: ['eventTaskPage', eventId] });
-    queryClient.invalidateQueries({ queryKey: ['eventTaskStatusTrend', eventId] });
-    queryClient.invalidateQueries({ queryKey: ['eventTasksByStatus', eventId] });
+    invalidateDashboardQueries(queryClient, eventId);
   };
 
   const createReportMutation = useMutation({

@@ -5,6 +5,7 @@ import { ArrowLeft, FileText, Loader2, Paperclip, Save } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import eventApi from '../api/eventApi';
 import taskApi from '../api/taskApi';
+import { invalidateDashboardQueries } from '../utils/dashboardQueryUtils';
 
 const TaskUpdatePage = ({ user, onLogout }) => {
   const { eventId, taskId } = useParams();
@@ -20,8 +21,7 @@ const TaskUpdatePage = ({ user, onLogout }) => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['task', taskId] });
       queryClient.invalidateQueries({ queryKey: ['eventTaskPage', eventId] });
-      queryClient.invalidateQueries({ queryKey: ['eventTaskStatusTrend', eventId] });
-      queryClient.invalidateQueries({ queryKey: ['eventTasksByStatus', eventId] });
+      invalidateDashboardQueries(queryClient, eventId);
     },
   });
 

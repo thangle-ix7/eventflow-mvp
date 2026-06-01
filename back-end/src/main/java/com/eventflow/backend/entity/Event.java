@@ -27,6 +27,9 @@ public class Event {
     @Column(name = "event_date", nullable = false)
     private LocalDateTime eventDate;
 
+    @Column(name = "end_time")
+    private LocalDateTime endTime;
+
     @Column(length = 50)
     @Builder.Default
     private String status = "ACTIVE";

@@ -159,6 +159,7 @@ public class TaskService {
 
         TaskStatus status = parseStatusOrDefault(request.getStatus(), TaskStatus.TODO);
         TaskPriority priority = parsePriorityOrDefault(request.getPriority(), TaskPriority.MEDIUM);
+        validateTaskDeadlineWithinEvent(request.getDeadline(), event);
 
         Task task = Task.builder()
                 .event(event)
@@ -186,6 +187,7 @@ public class TaskService {
         TaskStatus previousStatus = task.getStatus();
         Department department = resolveDepartment(eventId, request.getDepartmentId());
         User assignee = resolveAssignee(eventId, request.getAssigneeId(), department);
+        validateTaskDeadlineWithinEvent(request.getDeadline(), task.getEvent());
 
         task.setDepartment(department);
         task.setAssignee(assignee);
@@ -357,6 +359,17 @@ public class TaskService {
         }
 
         return user;
+    }
+
+    private void validateTaskDeadlineWithinEvent(LocalDateTime deadline, Event event) {
+        if (deadline == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Deadline không được để trống");
+        }
+
+        LocalDateTime eventEndTime = event.getEndTime() != null ? event.getEndTime() : event.getEventDate();
+        if (eventEndTime != null && deadline.isAfter(eventEndTime)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Deadline task chỉ được nằm trước hoặc trong thời gian diễn ra sự kiện");
+        }
     }
 
     private TaskStatus parseStatusOrDefault(String status, TaskStatus defaultStatus) {

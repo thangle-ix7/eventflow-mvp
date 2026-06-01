@@ -3,7 +3,9 @@ package com.eventflow.backend.controller;
 import com.eventflow.backend.dto.NotificationCountResponse;
 import com.eventflow.backend.dto.TelegramLinkTokenResponse;
 import com.eventflow.backend.dto.UserProfileDTO;
+import com.eventflow.backend.dto.UserPreferencesRequest;
 import com.eventflow.backend.entity.NotiStatus;
+import jakarta.validation.Valid;
 import com.eventflow.backend.repository.NotificationRepository;
 import com.eventflow.backend.service.TelegramBotService;
 import com.eventflow.backend.service.UserProfileService;
@@ -15,8 +17,10 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -44,6 +48,20 @@ public class UserController {
         }
 
         return ResponseEntity.ok(userProfileService.getProfile(userId));
+    }
+
+    @PatchMapping("/{userId}/preferences")
+    public ResponseEntity<UserProfileDTO> updatePreferences(
+            @PathVariable Long userId,
+            @Valid @RequestBody UserPreferencesRequest request,
+            Authentication authentication) {
+
+        Long authenticatedUserId = (Long) authentication.getPrincipal();
+        if (!authenticatedUserId.equals(userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        return ResponseEntity.ok(userProfileService.updatePreferences(userId, request));
     }
 
     @PostMapping(value = "/{userId}/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

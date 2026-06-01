@@ -7,6 +7,15 @@ import departmentApi from '../api/departmentApi';
 import eventApi from '../api/eventApi';
 import eventMemberApi from '../api/eventMemberApi';
 import taskApi from '../api/taskApi';
+import { invalidateDashboardQueries } from '../utils/dashboardQueryUtils';
+
+const pad = (value) => String(value).padStart(2, '0');
+const toDateTimeLocalValue = (value) => {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
 
 const TaskCreatePage = ({ user, onLogout }) => {
   const { eventId } = useParams();
@@ -29,6 +38,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
   const eventQuery = useQuery({ queryKey: ['event', eventId], queryFn: () => eventApi.getEvent(eventId), enabled: Boolean(eventId) });
   const departmentsQuery = useQuery({ queryKey: ['eventDepartments', eventId], queryFn: () => departmentApi.getEventDepartments(eventId), enabled: Boolean(eventId) });
   const membersQuery = useQuery({ queryKey: ['eventMembers', eventId], queryFn: () => eventMemberApi.getMembers(eventId), enabled: Boolean(eventId) });
+  const maxDeadline = toDateTimeLocalValue(eventQuery.data?.endTime || eventQuery.data?.startTime || eventQuery.data?.eventDate);
 
   const assignableMembers = useMemo(() => {
     if (!form.departmentId) {
@@ -42,6 +52,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
     mutationFn: taskApi.createTask,
     onSuccess: (task) => {
       queryClient.invalidateQueries({ queryKey: ['eventTaskPage', eventId] });
+      invalidateDashboardQueries(queryClient, eventId);
       navigate(`/events/${eventId}/tasks/${task.id}`, { replace: true });
     },
   });
@@ -113,7 +124,8 @@ const TaskCreatePage = ({ user, onLogout }) => {
             </select>
           </Field>
           <Field label="Deadline">
-            <input name="deadline" type="datetime-local" value={form.deadline} onChange={handleChange} required className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500" />
+            <input name="deadline" type="datetime-local" value={form.deadline} onChange={handleChange} max={maxDeadline || undefined} required className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500" />
+            {maxDeadline && <p className="mt-1 text-xs text-gray-500">Task chỉ được đặt trước hoặc trong thời gian sự kiện.</p>}
           </Field>
           <Field label="Status">
             <select name="status" value={form.status} onChange={handleChange} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500">

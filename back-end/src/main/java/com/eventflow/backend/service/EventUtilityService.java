@@ -1,9 +1,14 @@
 package com.eventflow.backend.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.eventflow.backend.dto.CalendarAttendeeDTO;
 import com.eventflow.backend.dto.CalendarDayDTO;
 import com.eventflow.backend.dto.CalendarEventDTO;
 import com.eventflow.backend.dto.CalendarMonthResponse;
 import com.eventflow.backend.dto.DashboardPeriodComparisonDTO;
+import com.eventflow.backend.dto.EventCalendarItemRequest;
 import com.eventflow.backend.dto.EventDocumentDTO;
 import com.eventflow.backend.dto.EventReportItemDTO;
 import com.eventflow.backend.dto.EventReportSummaryDTO;
@@ -11,7 +16,9 @@ import com.eventflow.backend.dto.EventReportsResponse;
 import com.eventflow.backend.dto.MetricComparisonDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.sql.Timestamp;
 import java.time.LocalDate;
@@ -19,15 +26,20 @@ import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 public class EventUtilityService {
 
     private final JdbcTemplate jdbcTemplate;
+    private final ObjectMapper objectMapper;
 
     public CalendarMonthResponse getCalendarMonth(Long eventId, Integer year, Integer month) {
         YearMonth targetMonth = resolveMonth(year, month);
@@ -41,48 +53,52 @@ public class EventUtilityService {
             itemsByDay.put(day, new ArrayList<>());
         }
 
+        List<CalendarEventDTO> monthItems = new ArrayList<>();
         jdbcTemplate.query("""
-                SELECT id, name, description, location, event_date
-                FROM events
-                WHERE id = ? AND event_date >= ? AND event_date < ?
+                SELECT ce.id, ce.title, ce.description, ce.location, ce.type, ce.start_time, ce.end_time,
+                       ce.all_day, ce.status, ce.meeting_url, ce.meeting_options, ce.recurrence_rule,
+                       ce.department_id, d.name AS department_name,
+                       ce.created_by, u.name AS creator_name
+                FROM calendar_event ce
+                LEFT JOIN departments d ON d.id = ce.department_id
+                LEFT JOIN users u ON u.id = ce.created_by
+                WHERE ce.event_id = ? AND ce.deleted_at IS NULL AND ce.start_time >= ? AND ce.start_time < ?
+                ORDER BY ce.start_time ASC, ce.id ASC
                 """, rs -> {
-            LocalDate date = rs.getTimestamp("event_date").toLocalDateTime().toLocalDate();
-            itemsByDay.computeIfAbsent(date, ignored -> new ArrayList<>()).add(CalendarEventDTO.builder()
-                    .id(rs.getLong("id"))
-                    .title(rs.getString("name"))
-                    .type("EVENT")
-                    .date(date)
-                    .description(rs.getString("description"))
-                    .eventId(eventId)
-                    .departmentName(rs.getString("location"))
-                    .build());
-        }, eventId, Timestamp.valueOf(from), Timestamp.valueOf(toExclusive));
-
-        jdbcTemplate.query("""
-                SELECT t.id, t.title, t.description, t.deadline, t.status, t.priority,
-                       COALESCE(d.name, 'Chưa gán ban') AS department_name,
-                       COALESCE(u.name, 'Chưa phân công') AS assignee_name
-                FROM tasks t
-                LEFT JOIN departments d ON d.id = t.department_id
-                LEFT JOIN users u ON u.id = t.assignee_id
-                WHERE t.event_id = ? AND t.deadline >= ? AND t.deadline < ?
-                ORDER BY t.deadline ASC, t.id ASC
-                """, rs -> {
-            LocalDate date = rs.getTimestamp("deadline").toLocalDateTime().toLocalDate();
-            itemsByDay.computeIfAbsent(date, ignored -> new ArrayList<>()).add(CalendarEventDTO.builder()
+            LocalDateTime startTime = rs.getTimestamp("start_time").toLocalDateTime();
+            Timestamp endTimestamp = rs.getTimestamp("end_time");
+            LocalDate date = startTime.toLocalDate();
+            Long departmentId = rs.getObject("department_id") != null ? rs.getLong("department_id") : null;
+            Long createdBy = rs.getObject("created_by") != null ? rs.getLong("created_by") : null;
+            CalendarEventDTO item = CalendarEventDTO.builder()
                     .id(rs.getLong("id"))
                     .title(rs.getString("title"))
-                    .type("TASK_DEADLINE")
+                    .type(rs.getString("type"))
                     .date(date)
                     .description(rs.getString("description"))
+                    .location(rs.getString("location"))
                     .eventId(eventId)
-                    .taskId(rs.getLong("id"))
-                    .taskStatus(rs.getString("status"))
-                    .taskPriority(rs.getString("priority"))
-                    .assigneeName(rs.getString("assignee_name"))
+                    .departmentId(departmentId)
                     .departmentName(rs.getString("department_name"))
-                    .build());
+                    .createdBy(createdBy)
+                    .creatorName(rs.getString("creator_name"))
+                    .startTime(startTime)
+                    .endTime(endTimestamp != null ? endTimestamp.toLocalDateTime() : null)
+                    .allDay(rs.getBoolean("all_day"))
+                    .status(rs.getString("status"))
+                    .meetingUrl(rs.getString("meeting_url"))
+                    .meetingOptions(parseMeetingOptions(rs.getString("meeting_options")))
+                    .recurrenceRule(rs.getString("recurrence_rule"))
+                    .attendees(new ArrayList<>())
+                    .build();
+            monthItems.add(item);
+            itemsByDay.computeIfAbsent(date, ignored -> new ArrayList<>()).add(item);
         }, eventId, Timestamp.valueOf(from), Timestamp.valueOf(toExclusive));
+
+        Map<Long, List<CalendarAttendeeDTO>> attendeesByCalendarId = loadAttendees(eventId, monthItems.stream()
+                .map(CalendarEventDTO::getId)
+                .toList());
+        monthItems.forEach(item -> item.setAttendees(attendeesByCalendarId.getOrDefault(item.getId(), List.of())));
 
         LocalDate today = LocalDate.now();
         List<CalendarDayDTO> days = itemsByDay.entrySet().stream()
@@ -100,6 +116,63 @@ public class EventUtilityService {
                 .year(targetMonth.getYear())
                 .month(targetMonth.getMonthValue())
                 .days(days)
+                .build();
+    }
+
+    public CalendarEventDTO createCalendarItem(Long eventId, Long creatorId, EventCalendarItemRequest request) {
+        if (request.getEndTime().isBefore(request.getStartTime())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Thời gian kết thúc phải sau thời gian bắt đầu");
+        }
+        if (request.getDepartmentId() != null && !departmentBelongsToEvent(eventId, request.getDepartmentId())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ban không thuộc sự kiện này");
+        }
+        List<Long> attendeeIds = normalizeAttendeeIds(request.getAttendeeIds());
+        assertAttendeesBelongToEvent(eventId, attendeeIds);
+
+        Long id = jdbcTemplate.queryForObject("""
+                INSERT INTO calendar_event (
+                    event_id, department_id, created_by, title, description, location, type,
+                    start_time, end_time, all_day, status, meeting_url, meeting_options, recurrence_rule
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS jsonb), ?)
+                RETURNING id
+                """, Long.class,
+                eventId,
+                request.getDepartmentId(),
+                creatorId,
+                request.getTitle().trim(),
+                normalizeOptionalText(request.getDescription()),
+                normalizeOptionalText(request.getLocation()),
+                normalizeCalendarType(request.getType()),
+                Timestamp.valueOf(request.getStartTime()),
+                Timestamp.valueOf(request.getEndTime()),
+                request.getAllDay() != null ? request.getAllDay() : false,
+                normalizeCalendarStatus(request.getStatus()),
+                normalizeOptionalText(request.getMeetingUrl()),
+                serializeMeetingOptions(request.getMeetingOptions()),
+                normalizeOptionalText(request.getRecurrenceRule()));
+
+        saveAttendees(id, attendeeIds);
+        List<CalendarAttendeeDTO> attendees = loadAttendees(eventId, List.of(id)).getOrDefault(id, List.of());
+
+        return CalendarEventDTO.builder()
+                .id(id)
+                .title(request.getTitle().trim())
+                .type(normalizeCalendarType(request.getType()))
+                .date(request.getStartTime().toLocalDate())
+                .description(normalizeOptionalText(request.getDescription()))
+                .location(normalizeOptionalText(request.getLocation()))
+                .eventId(eventId)
+                .departmentId(request.getDepartmentId())
+                .createdBy(creatorId)
+                .startTime(request.getStartTime())
+                .endTime(request.getEndTime())
+                .allDay(request.getAllDay() != null ? request.getAllDay() : false)
+                .status(normalizeCalendarStatus(request.getStatus()))
+                .meetingUrl(normalizeOptionalText(request.getMeetingUrl()))
+                .meetingOptions(request.getMeetingOptions())
+                .recurrenceRule(normalizeOptionalText(request.getRecurrenceRule()))
+                .attendees(attendees)
                 .build();
     }
 
@@ -248,6 +321,149 @@ public class EventUtilityService {
             return YearMonth.of(year, month);
         }
         return YearMonth.now();
+    }
+
+    private String normalizeOptionalText(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
+    }
+
+    private String normalizeCalendarType(String type) {
+        if (type == null || type.isBlank()) {
+            return "OTHER";
+        }
+        return type.trim().toUpperCase();
+    }
+
+    private String normalizeCalendarStatus(String status) {
+        if (status == null || status.isBlank()) {
+            return "SCHEDULED";
+        }
+        return status.trim().toUpperCase();
+    }
+
+    private boolean departmentBelongsToEvent(Long eventId, Long departmentId) {
+        Integer count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM departments WHERE id = ? AND event_id = ?",
+                Integer.class,
+                departmentId,
+                eventId);
+        return count != null && count > 0;
+    }
+
+    private List<Long> normalizeAttendeeIds(List<Long> attendeeIds) {
+        if (attendeeIds == null || attendeeIds.isEmpty()) {
+            return List.of();
+        }
+        Set<Long> uniqueIds = new LinkedHashSet<>();
+        for (Long attendeeId : attendeeIds) {
+            if (attendeeId != null) {
+                uniqueIds.add(attendeeId);
+            }
+        }
+        return new ArrayList<>(uniqueIds);
+    }
+
+    private void assertAttendeesBelongToEvent(Long eventId, List<Long> attendeeIds) {
+        if (attendeeIds.isEmpty()) {
+            return;
+        }
+
+        String placeholders = String.join(",", Collections.nCopies(attendeeIds.size(), "?"));
+        List<Object> params = new ArrayList<>();
+        params.add(eventId);
+        params.addAll(attendeeIds);
+
+        Integer count = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM event_members
+                WHERE event_id = ? AND user_id IN (%s)
+                """.formatted(placeholders), Integer.class, params.toArray());
+
+        if (count == null || count != attendeeIds.size()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Người tham gia phải là thành viên của sự kiện");
+        }
+    }
+
+    private void saveAttendees(Long calendarEventId, List<Long> attendeeIds) {
+        if (attendeeIds.isEmpty()) {
+            return;
+        }
+
+        jdbcTemplate.batchUpdate("""
+                INSERT INTO calendar_event_attendees (calendar_event_id, user_id)
+                VALUES (?, ?)
+                ON CONFLICT (calendar_event_id, user_id) DO NOTHING
+                """, attendeeIds, attendeeIds.size(), (ps, attendeeId) -> {
+            ps.setLong(1, calendarEventId);
+            ps.setLong(2, attendeeId);
+        });
+    }
+
+    private Map<Long, List<CalendarAttendeeDTO>> loadAttendees(Long eventId, List<Long> calendarEventIds) {
+        if (calendarEventIds == null || calendarEventIds.isEmpty()) {
+            return Map.of();
+        }
+
+        String placeholders = String.join(",", Collections.nCopies(calendarEventIds.size(), "?"));
+        List<Object> params = new ArrayList<>();
+        params.add(eventId);
+        params.addAll(calendarEventIds);
+
+        Map<Long, List<CalendarAttendeeDTO>> attendeesByCalendarId = new HashMap<>();
+        jdbcTemplate.query("""
+                SELECT cea.calendar_event_id,
+                       u.id AS user_id,
+                       u.name,
+                       u.email,
+                       CAST(em.role AS text) AS role,
+                       em.department_id,
+                       d.name AS department_name
+                FROM calendar_event_attendees cea
+                JOIN calendar_event ce ON ce.id = cea.calendar_event_id
+                JOIN users u ON u.id = cea.user_id
+                JOIN event_members em ON em.event_id = ce.event_id AND em.user_id = u.id
+                LEFT JOIN departments d ON d.id = em.department_id
+                WHERE ce.event_id = ? AND cea.calendar_event_id IN (%s)
+                ORDER BY cea.calendar_event_id ASC, u.name ASC, u.id ASC
+                """.formatted(placeholders), rs -> {
+            Long calendarEventId = rs.getLong("calendar_event_id");
+            Long departmentId = rs.getObject("department_id") != null ? rs.getLong("department_id") : null;
+            attendeesByCalendarId.computeIfAbsent(calendarEventId, ignored -> new ArrayList<>()).add(CalendarAttendeeDTO.builder()
+                    .userId(rs.getLong("user_id"))
+                    .name(rs.getString("name"))
+                    .email(rs.getString("email"))
+                    .role(rs.getString("role"))
+                    .departmentId(departmentId)
+                    .departmentName(rs.getString("department_name"))
+                    .build());
+        }, params.toArray());
+        return attendeesByCalendarId;
+    }
+
+    private String serializeMeetingOptions(Map<String, Object> meetingOptions) {
+        if (meetingOptions == null || meetingOptions.isEmpty()) {
+            return null;
+        }
+        try {
+            return objectMapper.writeValueAsString(meetingOptions);
+        } catch (JsonProcessingException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "meetingOptions không hợp lệ");
+        }
+    }
+
+    private Map<String, Object> parseMeetingOptions(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return objectMapper.readValue(value, new TypeReference<>() {
+            });
+        } catch (JsonProcessingException e) {
+            return null;
+        }
     }
 
     private LocalDate[] resolveRange(LocalDate fromDate, LocalDate toDate) {

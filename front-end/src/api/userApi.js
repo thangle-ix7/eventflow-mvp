@@ -44,6 +44,17 @@ const userApi = {
     return response.data;
   },
 
+  updatePreferences: async ({ userId, taskPageSize }) => {
+    if (!userId) {
+      throw new Error('userId không hợp lệ');
+    }
+
+    const response = await apiClient.patch(`/users/${userId}/preferences`, {
+      taskPageSize,
+    });
+    return response.data;
+  },
+
   uploadAvatar: async ({ userId, file }) => {
     if (!userId) {
       throw new Error('userId không hợp lệ');

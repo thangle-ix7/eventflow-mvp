@@ -231,6 +231,7 @@ public class AiAssistantService {
                 draft.getLocation(),
                 draft.getStartTime(),
                 draft.getStartTime(),
+                draft.getStartTime(),
                 "ACTIVE"), userId);
 
         for (AiTaskDraft taskDraft : draft.getTasks()) {

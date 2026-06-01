@@ -199,7 +199,7 @@ const EventListPage = ({ user, onLogout }) => {
                       <div className="mt-3 flex flex-wrap gap-3 text-sm text-slate-500">
                         <span className="inline-flex items-center gap-1.5">
                           <CalendarDays size={16} />
-                          {formatDate(event.eventDate)}
+                          {formatEventRange(event)}
                         </span>
                         <span className="inline-flex items-center gap-1.5">
                           <Users size={16} />
@@ -255,6 +255,15 @@ const EventListPage = ({ user, onLogout }) => {
       </div>
     </AppLayout>
   );
+};
+
+const formatEventRange = (event) => {
+  const start = event?.startTime || event?.eventDate;
+  const end = event?.endTime;
+  if (!end || end === start) {
+    return formatDate(start);
+  }
+  return `${formatDate(start)} - ${formatDate(end)}`;
 };
 
 const EventListEmpty = ({ hasFilters, onClearFilters }) => (

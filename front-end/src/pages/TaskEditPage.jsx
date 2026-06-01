@@ -7,6 +7,7 @@ import departmentApi from '../api/departmentApi';
 import eventApi from '../api/eventApi';
 import eventMemberApi from '../api/eventMemberApi';
 import taskApi from '../api/taskApi';
+import { invalidateDashboardQueries } from '../utils/dashboardQueryUtils';
 
 const toDatetimeLocal = (value) => (value ? value.slice(0, 16) : '');
 
@@ -25,6 +26,7 @@ const TaskEditPage = ({ user, onLogout }) => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['task', taskId] });
       queryClient.invalidateQueries({ queryKey: ['eventTaskPage', eventId] });
+      invalidateDashboardQueries(queryClient, eventId);
       navigate(`/events/${eventId}/tasks/${taskId}`, { replace: true });
     },
   });
@@ -46,6 +48,7 @@ const TaskEditPage = ({ user, onLogout }) => {
           <TaskEditForm
             key={taskQuery.data.id}
             task={taskQuery.data}
+            event={eventQuery.data}
             departments={departmentsQuery.data || []}
             members={membersQuery.data || []}
             mutation={mutation}
@@ -57,7 +60,8 @@ const TaskEditPage = ({ user, onLogout }) => {
   );
 };
 
-const TaskEditForm = ({ task, departments, members, mutation, taskId }) => {
+const TaskEditForm = ({ task, event, departments, members, mutation, taskId }) => {
+  const maxDeadline = toDatetimeLocal(event?.endTime || event?.startTime || event?.eventDate);
   const [form, setForm] = useState({
     title: task.title || '',
     description: task.description || '',
@@ -122,7 +126,10 @@ const TaskEditForm = ({ task, departments, members, mutation, taskId }) => {
       </Field>
       <Field label="Department"><select name="departmentId" value={form.departmentId} onChange={handleChange} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500"><option value="">Chưa gán ban</option>{departments.map((department) => <option key={department.id} value={department.id}>{department.name}</option>)}</select></Field>
       <Field label="Assignee"><select name="assigneeId" value={form.assigneeId} onChange={handleChange} disabled={!form.departmentId} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 disabled:bg-gray-50"><option value="">Chưa phân công</option>{assignableMembers.map((member) => <option key={member.userId} value={member.userId}>{member.name}</option>)}</select></Field>
-      <Field label="Deadline"><input name="deadline" type="datetime-local" value={form.deadline} onChange={handleChange} required className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500" /></Field>
+      <Field label="Deadline">
+        <input name="deadline" type="datetime-local" value={form.deadline} onChange={handleChange} max={maxDeadline || undefined} required className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500" />
+        {maxDeadline && <p className="mt-1 text-xs text-gray-500">Task chỉ được đặt trước hoặc trong thời gian sự kiện.</p>}
+      </Field>
       <Field label="Status"><select name="status" value={form.status} onChange={handleChange} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500"><option value="TODO">TODO</option><option value="IN_PROGRESS">IN_PROGRESS</option><option value="IN_REVIEW">IN_REVIEW</option><option value="DONE">DONE</option></select></Field>
       <Field label="Ưu tiên"><select name="priority" value={form.priority} onChange={handleChange} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500"><option value="LOW">Thấp</option><option value="MEDIUM">Trung bình</option><option value="HIGH">Cao</option><option value="URGENT">Khẩn cấp</option></select></Field>
       <Field label="Tiến độ (%)"><input name="progressPercentage" type="number" min="0" max="100" value={form.progressPercentage} onChange={handleChange} required className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500" /></Field>

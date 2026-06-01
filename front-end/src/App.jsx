@@ -1,4 +1,4 @@
-import { Suspense, lazy, useState } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import LoginPage from './components/LoginPage';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -9,6 +9,7 @@ import DepartmentMembersPage from './pages/DepartmentMembersPage';
 import DepartmentTasksPage from './pages/DepartmentTasksPage';
 import EventCreatePage from './pages/EventCreatePage';
 import EventDetailPage from './pages/EventDetailPage';
+import EventEditPage from './pages/EventEditPage';
 import EventListPage from './pages/EventListPage';
 import EventMembersPage from './pages/EventMembersPage';
 import EventUtilityPage from './pages/EventUtilityPage';
@@ -22,6 +23,7 @@ import TaskListPage from './pages/TaskListPage';
 import TaskReportsPage from './pages/TaskReportsPage';
 import TaskReviewsPage from './pages/TaskReviewsPage';
 import TaskUpdatePage from './pages/TaskUpdatePage';
+import userApi from './api/userApi';
 
 const EventDashboardPage = lazy(() => import('./pages/EventDashboardPage'));
 const DepartmentDashboardPage = lazy(() => import('./pages/DepartmentDashboardPage'));
@@ -56,6 +58,35 @@ function App() {
     setUser(nextUser);
   };
 
+  useEffect(() => {
+    if (!user?.userId) {
+      return;
+    }
+
+    let cancelled = false;
+    userApi.getProfile(user.userId, { preferCache: false })
+      .then((profile) => {
+        if (!cancelled) {
+          setUser((oldUser) => {
+            if (!oldUser || oldUser.userId !== profile.userId) {
+              return oldUser;
+            }
+
+            const nextUser = { ...oldUser, ...profile };
+            localStorage.setItem('user', JSON.stringify(nextUser));
+            return nextUser;
+          });
+        }
+      })
+      .catch(() => {
+        // Token expiry is handled globally by apiClient; keep cached user for transient failures.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.userId]);
+
   const protectedProps = {
     user,
     onLogout: handleLogout,
@@ -87,6 +118,7 @@ function App() {
         <Route path="/profile" element={<ProfilePage {...protectedProps} />} />
         <Route path="/events/new" element={<EventCreatePage {...protectedProps} />} />
         <Route path="/events/:eventId" element={<EventDetailPage {...protectedProps} />} />
+        <Route path="/events/:eventId/edit" element={<EventEditPage {...protectedProps} />} />
         <Route
           path="/events/:eventId/dashboard"
           element={
