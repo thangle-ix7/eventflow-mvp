@@ -11,6 +11,7 @@ import EventCreatePage from './pages/EventCreatePage';
 import EventDetailPage from './pages/EventDetailPage';
 import EventListPage from './pages/EventListPage';
 import EventMembersPage from './pages/EventMembersPage';
+import EventUtilityPage from './pages/EventUtilityPage';
 import MemberDetailPage from './pages/MemberDetailPage';
 import ProfilePage from './pages/ProfilePage';
 import TaskCreatePage from './pages/TaskCreatePage';
@@ -93,6 +94,22 @@ function App() {
               <EventDashboardPage {...protectedProps} />
             </LazyPageFallback>
           }
+        />
+        <Route
+          path="/events/:eventId/calendar"
+          element={<EventUtilityPage {...protectedProps} type="calendar" />}
+        />
+        <Route
+          path="/events/:eventId/documents"
+          element={<EventUtilityPage {...protectedProps} type="documents" />}
+        />
+        <Route
+          path="/events/:eventId/reports"
+          element={<EventUtilityPage {...protectedProps} type="reports" />}
+        />
+        <Route
+          path="/events/:eventId/settings"
+          element={<EventUtilityPage {...protectedProps} type="settings" />}
         />
         <Route
           path="/events/:eventId/members"

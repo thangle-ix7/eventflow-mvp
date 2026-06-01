@@ -1,16 +1,19 @@
 import TelegramOnboarding from './TelegramOnboarding';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useMemo, useState } from 'react';
 import AiChatBox from './AiChatBox';
 import {
   BarChart3,
   Bell,
   CalendarDays,
   ClipboardList,
+  FileText,
   HelpCircle,
   LogOut,
   Menu,
   Search,
   Settings,
+  TrendingUp,
   Users,
   UserRound,
   Workflow,
@@ -19,11 +22,14 @@ import {
 const AppLayout = ({
   user,
   selectedEvent,
+  events = [],
   onLogout,
   showTelegramOnboarding = true,
   children,
 }) => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const [globalSearch, setGlobalSearch] = useState('');
   const eventNav = selectedEvent?.id
     ? [
       { to: `/events/${selectedEvent.id}/dashboard`, label: 'Dashboard', icon: BarChart3 },
@@ -33,11 +39,55 @@ const AppLayout = ({
       { to: `/events/${selectedEvent.id}/members`, label: 'Thành viên', icon: UserRound },
     ]
     : [];
-  const secondaryNav = [
-    { label: 'Lịch', icon: CalendarDays },
-    { label: 'Thông báo', icon: Bell },
-    { label: 'Cài đặt', icon: Settings },
+  const secondaryNav = selectedEvent?.id ? [
+    { to: `/events/${selectedEvent.id}/calendar`, label: 'Lịch', icon: CalendarDays },
+    { to: `/events/${selectedEvent.id}/documents`, label: 'Tài liệu', icon: FileText },
+    { to: `/events/${selectedEvent.id}/reports`, label: 'Báo cáo', icon: TrendingUp },
+    { to: `/events/${selectedEvent.id}/settings`, label: 'Cài đặt', icon: Settings },
+  ] : [
+    { to: '/', label: 'Sự kiện của bạn', icon: CalendarDays },
   ];
+  const searchSuggestions = useMemo(() => {
+    const base = [
+      { label: 'Sự kiện của bạn', description: 'Danh sách sự kiện', to: '/' },
+      { label: 'Tạo sự kiện', description: 'Bắt đầu workspace mới', to: '/events/new' },
+      { label: 'Hồ sơ cá nhân', description: 'Thông tin tài khoản', to: '/profile' },
+      ...events.map((event) => ({
+        label: event.name,
+        description: event.role === 'LEADER' ? 'Sự kiện bạn quản lý' : 'Sự kiện bạn tham gia',
+        to: `/events/${event.id}`,
+      })),
+    ];
+
+    if (selectedEvent?.id) {
+      base.push(
+        { label: 'Dashboard sự kiện', description: selectedEvent.name, to: `/events/${selectedEvent.id}/dashboard` },
+        { label: 'Công việc', description: 'Danh sách task và tiến độ', to: `/events/${selectedEvent.id}/tasks` },
+        { label: 'Ban tổ chức', description: 'Các nhóm phụ trách', to: `/events/${selectedEvent.id}/departments` },
+        { label: 'Thành viên', description: 'Danh sách thành viên', to: `/events/${selectedEvent.id}/members` },
+        { label: 'Lịch', description: 'Mốc sự kiện và deadline', to: `/events/${selectedEvent.id}/calendar` },
+        { label: 'Tài liệu', description: 'Lối vào attachment theo task', to: `/events/${selectedEvent.id}/documents` },
+        { label: 'Báo cáo', description: 'Tổng hợp tiến độ từ dữ liệu hiện có', to: `/events/${selectedEvent.id}/reports` },
+        { label: 'Cài đặt', description: 'Thông tin và giới hạn cấu hình sự kiện', to: `/events/${selectedEvent.id}/settings` },
+      );
+    }
+
+    const needle = globalSearch.trim().toLowerCase();
+    if (!needle) return base.slice(0, 6);
+
+    return base
+      .filter((item) => `${item.label} ${item.description}`.toLowerCase().includes(needle))
+      .slice(0, 8);
+  }, [events, globalSearch, selectedEvent]);
+
+  const handleGlobalSearchSubmit = (event) => {
+    event.preventDefault();
+    const first = searchSuggestions[0];
+    if (first) {
+      setGlobalSearch('');
+      navigate(first.to);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-950">
@@ -60,7 +110,7 @@ const AppLayout = ({
             </Link>
           </div>
 
-          <div className="hidden min-w-0 flex-1 items-center lg:flex">
+          <form onSubmit={handleGlobalSearchSubmit} className="hidden min-w-0 flex-1 items-center lg:flex">
             <div className="relative w-full max-w-xl">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" strokeWidth={1.8} />
               <input
@@ -69,10 +119,34 @@ const AppLayout = ({
                 name="globalSearch"
                 aria-label="Tìm kiếm trong EventFlow"
                 placeholder="Tìm kiếm sự kiện, công việc, ban..."
+                value={globalSearch}
+                onChange={(event) => setGlobalSearch(event.target.value)}
                 className="h-10 w-full rounded-lg border border-white/10 bg-white/10 px-10 text-sm text-white outline-none placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/20"
               />
+              {globalSearch.trim() && (
+                <div className="absolute left-0 right-0 top-12 z-50 overflow-hidden rounded-xl border border-slate-200 bg-white py-2 text-slate-900 shadow-xl">
+                  {searchSuggestions.length === 0 ? (
+                    <div className="px-4 py-3 text-sm text-slate-500">Không tìm thấy kết quả phù hợp</div>
+                  ) : (
+                    searchSuggestions.map((item) => (
+                      <button
+                        key={`${item.to}-${item.label}`}
+                        type="button"
+                        onClick={() => {
+                          setGlobalSearch('');
+                          navigate(item.to);
+                        }}
+                        className="block w-full px-4 py-3 text-left hover:bg-indigo-50"
+                      >
+                        <span className="block text-sm font-semibold text-slate-950">{item.label}</span>
+                        <span className="block text-xs text-slate-500">{item.description}</span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
-          </div>
+          </form>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
             <div className="hidden items-center gap-1 text-slate-300 lg:flex">
@@ -148,17 +222,24 @@ const AppLayout = ({
                 })}
               </nav>
 
-              <div className="space-y-1 border-t border-slate-100 pt-4">
+              <nav className="space-y-1 border-t border-slate-100 pt-4" aria-label="Tiện ích sự kiện">
                 {secondaryNav.map((item) => {
                   const Icon = item.icon;
+                  const active = location.pathname === item.to;
                   return (
-                    <div key={item.label} className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold text-slate-500">
+                    <Link
+                      key={item.label}
+                      to={item.to}
+                      className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${
+                        active ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950'
+                      }`}
+                    >
                       <Icon className="h-4 w-4" strokeWidth={1.8} />
                       {item.label}
-                    </div>
+                    </Link>
                   );
                 })}
-              </div>
+              </nav>
             </div>
           </aside>
         )}
