@@ -30,7 +30,6 @@ const createEmptyRow = (departmentId = '') => ({
   deadline: '',
   status: 'TODO',
   priority: 'MEDIUM',
-  progressPercentage: 0,
 });
 
 const InlineTaskCreator = ({
@@ -96,7 +95,6 @@ const InlineTaskCreator = ({
         ...row,
         [name]: value,
         ...(name === 'departmentId' ? { assigneeId: '' } : {}),
-        ...(name === 'status' && value === 'DONE' ? { progressPercentage: 100 } : {}),
       };
     }));
   };
@@ -120,12 +118,6 @@ const InlineTaskCreator = ({
       return;
     }
 
-    const invalidProgressRow = filledRows.find((row) => Number(row.progressPercentage) < 0 || Number(row.progressPercentage) > 100);
-    if (invalidProgressRow) {
-      setLocalError('Tiến độ phải nằm trong khoảng 0 đến 100.');
-      return;
-    }
-
     const invalidDeadlineRow = filledRows.find((row) => {
       const deadline = row.deadline || defaultDeadline;
       return maxDeadline && deadline && deadline > maxDeadline;
@@ -146,7 +138,7 @@ const InlineTaskCreator = ({
         status: row.status,
         priority: row.priority,
         deadline: row.deadline || defaultDeadline,
-        progressPercentage: Number(row.progressPercentage),
+        progressPercentage: 0,
       };
     }));
   };
@@ -177,8 +169,8 @@ const InlineTaskCreator = ({
         </div>
       </div>
       <div className="overflow-x-auto">
-        <div className="min-w-[1380px]">
-          <div className="grid grid-cols-[44px_minmax(190px,1.4fr)_minmax(180px,1fr)_150px_160px_180px_130px_130px_90px_44px] items-center gap-2 border-b border-indigo-100 px-4 py-2 text-xs font-bold uppercase tracking-wide text-slate-500">
+        <div className="min-w-[980px]">
+          <div className={taskCreatorGridHeaderClassName}>
             <span>#</span>
             <span>Tên task</span>
             <span>Mô tả</span>
@@ -187,7 +179,6 @@ const InlineTaskCreator = ({
             <span>Deadline</span>
             <span>Ưu tiên</span>
             <span>Trạng thái</span>
-            <span>Tiến độ</span>
             <span></span>
           </div>
           {rows.map((row, index) => {
@@ -197,30 +188,35 @@ const InlineTaskCreator = ({
             return (
               <div
                 key={row.id}
-                className="grid grid-cols-[44px_minmax(190px,1.4fr)_minmax(180px,1fr)_150px_160px_180px_130px_130px_90px_44px] items-center gap-2 border-b border-indigo-100/70 px-4 py-2 last:border-b-0"
+                className={taskCreatorGridRowClassName}
               >
-                <span className="text-sm font-semibold text-slate-500">{index + 1}</span>
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-indigo-50 text-xs font-extrabold text-indigo-700">
+                  {index + 1}
+                </span>
                 <input
                   value={row.title}
                   onChange={(event) => updateRow(row.id, 'title', event.target.value)}
                   disabled={mutation.isPending}
                   maxLength={255}
                   placeholder="Tên task"
-                  className="w-full rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm font-medium text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50"
+                  aria-label="Tên task"
+                  className={taskInputClassName}
                 />
                 <input
                   value={row.description}
                   onChange={(event) => updateRow(row.id, 'description', event.target.value)}
                   disabled={mutation.isPending}
                   maxLength={2000}
-                  placeholder="Mô tả"
-                  className="w-full rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50"
+                  placeholder="Ghi chú"
+                  aria-label="Mô tả"
+                  className={taskInputClassName}
                 />
                 <select
                   value={effectiveDepartmentId}
                   onChange={(event) => updateRow(row.id, 'departmentId', event.target.value)}
                   disabled={lockedDepartment || mutation.isPending}
-                  className="rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50 disabled:text-slate-500"
+                  aria-label="Ban"
+                  className={taskInputClassName}
                 >
                   <option value="">Chưa gán ban</option>
                   {departments.map((department) => (
@@ -233,7 +229,8 @@ const InlineTaskCreator = ({
                   value={row.assigneeId}
                   onChange={(event) => updateRow(row.id, 'assigneeId', event.target.value)}
                   disabled={!effectiveDepartmentId || mutation.isPending}
-                  className="rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50 disabled:text-slate-500"
+                  aria-label="Phụ trách"
+                  className={taskInputClassName}
                 >
                   <option value="">Chưa phân công</option>
                   {assignableMembers.map((member) => (
@@ -248,13 +245,15 @@ const InlineTaskCreator = ({
                   onChange={(event) => updateRow(row.id, 'deadline', event.target.value)}
                   max={maxDeadline || undefined}
                   disabled={mutation.isPending}
-                  className="rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50"
+                  aria-label="Deadline"
+                  className={taskInputClassName}
                 />
                 <select
                   value={row.priority}
                   onChange={(event) => updateRow(row.id, 'priority', event.target.value)}
                   disabled={mutation.isPending}
-                  className="rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50"
+                  aria-label="Ưu tiên"
+                  className={taskInputClassName}
                 >
                   <option value="LOW">Thấp</option>
                   <option value="MEDIUM">Trung bình</option>
@@ -265,30 +264,19 @@ const InlineTaskCreator = ({
                   value={row.status}
                   onChange={(event) => updateRow(row.id, 'status', event.target.value)}
                   disabled={mutation.isPending}
-                  className="rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50"
+                  aria-label="Trạng thái"
+                  className={taskInputClassName}
                 >
                   <option value="TODO">Cần làm</option>
                   <option value="IN_PROGRESS">Đang làm</option>
                   <option value="IN_REVIEW">Chờ duyệt</option>
                   <option value="DONE">Hoàn thành</option>
                 </select>
-                <div className="relative">
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={row.progressPercentage}
-                    onChange={(event) => updateRow(row.id, 'progressPercentage', event.target.value)}
-                    disabled={mutation.isPending}
-                    className="w-full rounded-lg border border-indigo-200 bg-white px-3 py-2 pr-7 text-sm text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50"
-                  />
-                  <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400">%</span>
-                </div>
                 <button
                   type="button"
                   onClick={() => removeRow(row.id)}
                   disabled={mutation.isPending}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-white hover:text-red-600 disabled:opacity-60"
+                  className="inline-flex h-10 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-60"
                   aria-label="Xóa dòng task"
                 >
                   <X size={16} />
@@ -306,5 +294,10 @@ const InlineTaskCreator = ({
     </div>
   );
 };
+
+const taskCreatorGridColumns = 'grid-cols-[28px_minmax(150px,1.35fr)_minmax(100px,0.8fr)_110px_120px_180px_112px_104px_28px]';
+const taskCreatorGridHeaderClassName = `grid min-w-[980px] ${taskCreatorGridColumns} items-center gap-1 border-b border-indigo-100 px-2 py-2 text-[10px] font-bold uppercase tracking-wide text-slate-500`;
+const taskCreatorGridRowClassName = `grid min-w-[980px] ${taskCreatorGridColumns} items-center gap-1 border-b border-indigo-100/70 px-2 py-3 last:border-b-0`;
+const taskInputClassName = 'h-10 w-full min-w-0 rounded-lg border border-indigo-200 bg-white px-2 text-xs text-slate-800 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50 disabled:text-slate-500';
 
 export default InlineTaskCreator;
