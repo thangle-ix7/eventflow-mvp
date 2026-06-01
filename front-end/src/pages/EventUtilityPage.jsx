@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   CalendarDays,
   ClipboardList,
+  Download,
   FileJson,
   FileSpreadsheet,
   FileText,
@@ -28,6 +29,7 @@ import {
 import departmentApi from '../api/departmentApi';
 import eventApi from '../api/eventApi';
 import eventMemberApi from '../api/eventMemberApi';
+import eventUtilityApi from '../api/eventUtilityApi';
 import taskApi from '../api/taskApi';
 import { formatDate } from '../utils/dateUtils';
 import {
@@ -40,17 +42,17 @@ import {
 const PAGE_CONFIG = {
   calendar: {
     title: 'Lịch',
-    description: 'Xem mốc sự kiện và deadline công việc từ dữ liệu hiện có.',
+    description: 'Xem mốc sự kiện và deadline công việc từ API calendar tổng hợp.',
     icon: CalendarDays,
   },
   documents: {
     title: 'Tài liệu',
-    description: 'Truy cập tài liệu theo từng công việc. Chưa có API tổng hợp file toàn sự kiện.',
+    description: 'Tổng hợp attachment của mọi công việc trong sự kiện.',
     icon: FileText,
   },
   reports: {
     title: 'Báo cáo',
-    description: 'Tổng hợp nhanh tiến độ từ task hiện tại, chưa thay thế report analytics backend.',
+    description: 'Tổng hợp report tiến độ thật từ các công việc.',
     icon: TrendingUp,
   },
   settings: {
@@ -70,6 +72,18 @@ const EventUtilityPage = ({ user, onLogout, type }) => {
   const config = PAGE_CONFIG[type] || PAGE_CONFIG.calendar;
   const Icon = config.icon;
   const [now] = useState(() => Date.now());
+  const [calendarDate, setCalendarDate] = useState(() => {
+    const today = new Date();
+    return { year: today.getFullYear(), month: today.getMonth() + 1 };
+  });
+  const reportRange = useMemo(() => {
+    const to = new Date();
+    const from = new Date(to.getTime() - 30 * 24 * 60 * 60 * 1000);
+    return {
+      fromDate: from.toISOString().slice(0, 10),
+      toDate: to.toISOString().slice(0, 10),
+    };
+  }, []);
 
   const eventQuery = useQuery({
     queryKey: ['event', eventId],
@@ -91,13 +105,30 @@ const EventUtilityPage = ({ user, onLogout, type }) => {
     queryFn: () => eventMemberApi.getMembers(eventId),
     enabled: Boolean(eventId),
   });
+  const calendarQuery = useQuery({
+    queryKey: ['eventCalendar', eventId, calendarDate.year, calendarDate.month],
+    queryFn: () => eventUtilityApi.getCalendarMonth({ eventId, ...calendarDate }),
+    enabled: Boolean(eventId && type === 'calendar'),
+  });
+  const documentsQuery = useQuery({
+    queryKey: ['eventDocuments', eventId],
+    queryFn: () => eventUtilityApi.getDocuments(eventId),
+    enabled: Boolean(eventId && type === 'documents'),
+  });
+  const reportsQuery = useQuery({
+    queryKey: ['eventReports', eventId, reportRange.fromDate, reportRange.toDate],
+    queryFn: () => eventUtilityApi.getReports({ eventId, ...reportRange }),
+    enabled: Boolean(eventId && type === 'reports'),
+  });
 
   const event = eventQuery.data;
   const tasks = useMemo(() => tasksQuery.data?.content || [], [tasksQuery.data]);
   const departments = useMemo(() => departmentsQuery.data || [], [departmentsQuery.data]);
   const members = useMemo(() => membersQuery.data || [], [membersQuery.data]);
-  const error = eventQuery.error || tasksQuery.error || departmentsQuery.error || membersQuery.error;
-  const isLoading = eventQuery.isLoading || tasksQuery.isLoading || departmentsQuery.isLoading || membersQuery.isLoading;
+  const utilityError = calendarQuery.error || documentsQuery.error || reportsQuery.error;
+  const utilityLoading = calendarQuery.isLoading || documentsQuery.isLoading || reportsQuery.isLoading;
+  const error = eventQuery.error || tasksQuery.error || departmentsQuery.error || membersQuery.error || utilityError;
+  const isLoading = eventQuery.isLoading || tasksQuery.isLoading || departmentsQuery.isLoading || membersQuery.isLoading || utilityLoading;
 
   const stats = useMemo(() => {
     const totalTasks = tasks.length;
@@ -123,7 +154,7 @@ const EventUtilityPage = ({ user, onLogout, type }) => {
           meta={
             <span className="inline-flex items-center gap-2">
               <Icon size={16} />
-              Dữ liệu lấy từ event, task, ban và thành viên hiện có
+              Dữ liệu đọc từ API tổng hợp của sự kiện
             </span>
           }
         />
@@ -133,9 +164,9 @@ const EventUtilityPage = ({ user, onLogout, type }) => {
 
         {!isLoading && !error && (
           <>
-            {type === 'calendar' && <CalendarContent event={event} tasks={tasks} />}
-            {type === 'documents' && <DocumentsContent eventId={eventId} tasks={tasks} />}
-            {type === 'reports' && <ReportsContent event={event} stats={stats} departments={departments} members={members} tasks={tasks} />}
+            {type === 'calendar' && <CalendarContent event={event} calendar={calendarQuery.data} calendarDate={calendarDate} setCalendarDate={setCalendarDate} />}
+            {type === 'documents' && <DocumentsContent eventId={eventId} documents={documentsQuery.data || []} />}
+            {type === 'reports' && <ReportsContent event={event} stats={stats} departments={departments} members={members} tasks={tasks} reportsData={reportsQuery.data} reportRange={reportRange} />}
             {type === 'settings' && <SettingsContent event={event} departments={departments} members={members} />}
           </>
         )}
@@ -144,7 +175,15 @@ const EventUtilityPage = ({ user, onLogout, type }) => {
   );
 };
 
-const CalendarContent = ({ event, tasks }) => (
+const CalendarContent = ({ event, calendar, calendarDate, setCalendarDate }) => {
+  const days = calendar?.days || [];
+  const items = days.flatMap((day) => day.items || []);
+  const changeMonth = (offset) => {
+    const next = new Date(calendarDate.year, calendarDate.month - 1 + offset, 1);
+    setCalendarDate({ year: next.getFullYear(), month: next.getMonth() + 1 });
+  };
+
+  return (
   <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
     <Panel className="p-5">
       <p className="text-sm font-semibold text-slate-500">Mốc sự kiện</p>
@@ -158,26 +197,32 @@ const CalendarContent = ({ event, tasks }) => (
     </Panel>
 
     <Panel>
-      <div className="border-b border-slate-100 p-4">
-        <h3 className="font-bold text-slate-950">Deadline công việc</h3>
-        <p className="mt-1 text-sm text-slate-500">Sắp xếp theo deadline từ API task hiện có.</p>
+      <div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h3 className="font-bold text-slate-950">Lịch tháng {calendar?.month || calendarDate.month}/{calendar?.year || calendarDate.year}</h3>
+          <p className="mt-1 text-sm text-slate-500">Gồm mốc sự kiện và deadline công việc trong tháng.</p>
+        </div>
+        <div className="flex gap-2">
+          <Button type="button" variant="secondary" onClick={() => changeMonth(-1)}>Tháng trước</Button>
+          <Button type="button" variant="secondary" onClick={() => changeMonth(1)}>Tháng sau</Button>
+        </div>
       </div>
-      {tasks.length === 0 ? (
+      {items.length === 0 ? (
         <div className="p-4">
-          <EmptyState icon={CalendarDays} title="Chưa có deadline công việc" description="Khi có task, deadline sẽ xuất hiện ở đây." />
+          <EmptyState icon={CalendarDays} title="Chưa có lịch trong tháng này" description="Mốc sự kiện hoặc deadline task sẽ xuất hiện khi có dữ liệu." />
         </div>
       ) : (
         <div className="divide-y divide-slate-100">
-          {tasks.map((task) => (
-            <Link key={task.id} to={`/events/${event?.id}/tasks/${task.id}`} className="flex flex-col gap-2 p-4 transition hover:bg-indigo-50/50 sm:flex-row sm:items-center sm:justify-between">
+          {items.map((item) => (
+            <Link key={`${item.type}-${item.id}`} to={item.taskId ? `/events/${event?.id}/tasks/${item.taskId}` : `/events/${event?.id}`} className="flex flex-col gap-2 p-4 transition hover:bg-indigo-50/50 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="font-semibold text-slate-950">{task.title}</p>
-                <p className="text-sm text-slate-500">{task.departmentName || 'Chưa gán ban'} • {task.assigneeName || 'Chưa phân công'}</p>
+                <p className="font-semibold text-slate-950">{item.title}</p>
+                <p className="text-sm text-slate-500">{item.departmentName || 'Mốc sự kiện'} • {item.assigneeName || item.type}</p>
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-sm font-semibold text-slate-700">{formatDate(task.deadline)}</span>
-                <PriorityBadge priority={task.priority} />
-                <StatusBadge status={task.status} />
+                <span className="text-sm font-semibold text-slate-700">{formatDate(item.date)}</span>
+                {item.taskPriority && <PriorityBadge priority={item.taskPriority} />}
+                {item.taskStatus ? <StatusBadge status={item.taskStatus} /> : <StatusBadge status={item.type} />}
               </div>
             </Link>
           ))}
@@ -185,39 +230,68 @@ const CalendarContent = ({ event, tasks }) => (
       )}
     </Panel>
   </div>
-);
+  );
+};
 
-const DocumentsContent = ({ eventId, tasks }) => (
+const DocumentsContent = ({ eventId, documents }) => {
+  const handleDownload = async (document) => {
+    const blob = await taskApi.downloadTaskAttachment(document.id);
+    const url = URL.createObjectURL(blob);
+    const link = window.document.createElement('a');
+    link.href = url;
+    link.download = document.originalName || 'eventflow-document';
+    window.document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
   <Panel>
     <div className="border-b border-slate-100 p-4">
-      <h3 className="font-bold text-slate-950">Tài liệu theo công việc</h3>
-      <p className="mt-1 text-sm text-slate-500">
-        Backend hiện hỗ trợ attachment ở cấp task; chưa có endpoint tổng hợp tài liệu toàn sự kiện.
-      </p>
+      <h3 className="font-bold text-slate-950">Tài liệu toàn sự kiện</h3>
+      <p className="mt-1 text-sm text-slate-500">Danh sách attachment được tổng hợp từ mọi task trong sự kiện.</p>
     </div>
-    {tasks.length === 0 ? (
+    {documents.length === 0 ? (
       <div className="p-4">
-        <EmptyState icon={FileText} title="Chưa có công việc để xem tài liệu" description="Tạo task trước, sau đó upload attachment ở chi tiết task." />
+        <EmptyState icon={FileText} title="Chưa có tài liệu" description="Attachment upload ở task sẽ xuất hiện tại đây." />
       </div>
     ) : (
       <div className="divide-y divide-slate-100">
-        {tasks.map((task) => (
-          <div key={task.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+        {documents.map((document) => (
+          <div key={document.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="font-semibold text-slate-950">{task.title}</p>
-              <p className="text-sm text-slate-500">{task.departmentName || 'Chưa gán ban'} • {task.assigneeName || 'Chưa phân công'}</p>
+              <p className="font-semibold text-slate-950">{document.originalName}</p>
+              <p className="text-sm text-slate-500">{document.taskTitle} • {document.departmentName} • {document.uploaderName}</p>
+              <p className="mt-1 text-xs text-slate-400">{formatFileSize(document.sizeBytes)} • {formatDate(document.createdAt)}</p>
             </div>
-            <Button as={Link} to={`/events/${eventId}/tasks/${task.id}/attachments`} variant="secondary">
-              Mở tài liệu
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button as={Link} to={`/events/${eventId}/tasks/${document.taskId}/attachments`} variant="secondary">
+                Mở task
+              </Button>
+              <Button type="button" onClick={() => handleDownload(document)}>
+                <Download size={16} />
+                Tải xuống
+              </Button>
+            </div>
           </div>
         ))}
       </div>
     )}
   </Panel>
-);
+  );
+};
 
-const ReportsContent = ({ event, stats, departments, members, tasks }) => {
+const formatFileSize = (sizeBytes) => {
+  const size = Number(sizeBytes || 0);
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${Math.round(size / 102.4) / 10} KB`;
+  return `${Math.round(size / 1024 / 102.4) / 10} MB`;
+};
+
+const ReportsContent = ({ event, stats, departments, members, tasks, reportsData, reportRange }) => {
+  const reports = useMemo(() => reportsData?.reports || [], [reportsData]);
+  const reportSummary = reportsData?.summary || {};
   const statusData = useMemo(() => {
     const statuses = ['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE'];
     return statuses.map((status) => ({
@@ -237,32 +311,52 @@ const ReportsContent = ({ event, stats, departments, members, tasks }) => {
     tasks,
     departments,
     members,
-    note: 'Dữ liệu xuất từ trang Báo cáo frontend. So sánh tháng trước đang ẩn vì API hiện chưa có summary kỳ trước.',
-  }), [departments, event, members, stats, statusData, tasks]);
+    range: reportRange,
+    reportItems: reports,
+    note: 'Dữ liệu xuất từ trang Báo cáo: task hiện tại và task reports thật trong khoảng ngày đã chọn.',
+  }), [departments, event, members, reportRange, reports, stats, statusData, tasks]);
 
   return (
     <div className="space-y-4">
       <section className="grid gap-4 md:grid-cols-4">
         <MetricCard icon={ClipboardList} label="Tổng công việc" value={stats.totalTasks} />
-        <MetricCard icon={TrendingUp} label="Tiến độ" value={`${stats.progress}%`} tone="violet" />
-        <MetricCard icon={CalendarDays} label="Quá hạn" value={stats.overdueTasks} tone={stats.overdueTasks > 0 ? 'red' : 'slate'} />
+        <MetricCard icon={TrendingUp} label="Report tiến độ" value={reportSummary.totalReports || 0} tone="violet" />
+        <MetricCard icon={CalendarDays} label="Task đã report" value={reportSummary.reportedTasks || 0} tone="emerald" />
         <MetricCard icon={Users} label="Thành viên" value={members.length} tone="emerald" />
       </section>
-      <Panel className="p-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <Panel>
+        <div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h3 className="font-bold text-slate-950">Báo cáo nhanh</h3>
-            <p className="mt-2 text-sm leading-6 text-slate-600">
-              Tổng hợp từ dữ liệu task, ban và thành viên hiện có trên frontend. So sánh tháng trước đang ẩn để tránh hiển thị số giả khi backend chưa có summary kỳ trước.
+            <h3 className="font-bold text-slate-950">Report tiến độ thật</h3>
+            <p className="mt-1 text-sm text-slate-500">
+              {reportsData?.fromDate || reportRange.fromDate} - {reportsData?.toDate || reportRange.toDate} • trung bình {Math.round(reportSummary.averageReportedProgress || 0)}%
             </p>
           </div>
           <ReportDownloadButtons report={report} />
         </div>
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <SummaryPill label="Ban tổ chức" value={departments.length} />
-          <SummaryPill label="Task hoàn thành" value={stats.completedTasks} />
-          <SummaryPill label="Task đang mở" value={tasks.length - stats.completedTasks} />
-        </div>
+        {reports.length === 0 ? (
+          <div className="p-4">
+            <EmptyState icon={TrendingUp} title="Chưa có report trong kỳ" description="Khi thành viên cập nhật tiến độ task, report sẽ xuất hiện tại đây." />
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-100">
+            {reports.map((item) => (
+              <Link key={item.id} to={`/events/${event?.id}/tasks/${item.taskId}/reports`} className="block p-4 transition hover:bg-indigo-50/50">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="font-semibold text-slate-950">{item.taskTitle}</p>
+                    <p className="text-sm text-slate-500">{item.departmentName} • {item.reporterName} • {formatDate(item.createdAt)}</p>
+                    <p className="mt-2 line-clamp-2 text-sm text-slate-600">{item.description}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <SummaryPill label="Tiến độ" value={`${item.progressPercentage}%`} />
+                    <StatusBadge status={item.taskStatus} />
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
       </Panel>
     </div>
   );

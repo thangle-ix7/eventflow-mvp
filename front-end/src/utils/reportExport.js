@@ -63,6 +63,7 @@ export const buildDashboardReport = ({
   tasks = [],
   departments = [],
   members = [],
+  reportItems = [],
   range,
   note,
 }) => ({
@@ -87,6 +88,17 @@ export const buildDashboardReport = ({
     status: task.status,
     priority: task.priority || 'MEDIUM',
     progressPercentage: task.progressPercentage,
+  })),
+  reportItems: reportItems.map((report) => ({
+    id: report.id,
+    taskId: report.taskId,
+    taskTitle: report.taskTitle,
+    departmentName: report.departmentName || 'Chưa gán ban',
+    reporterName: report.reporterName || 'Không rõ',
+    progressPercentage: report.progressPercentage,
+    description: report.description,
+    hasImage: Boolean(report.hasImage),
+    createdAt: report.createdAt,
   })),
   departments,
   membersCount: members.length,
@@ -134,6 +146,16 @@ export const exportDashboardCsv = (report) => {
       assignee: task.assigneeName,
       deadline: formatDateTime(task.deadline),
     })),
+    ...(report.reportItems || []).map((item) => ({
+      section: 'Report tiến độ',
+      name: item.taskTitle,
+      value: item.progressPercentage ?? '',
+      status: item.hasImage ? 'Có hình ảnh' : '',
+      priority: '',
+      department: item.departmentName,
+      assignee: item.reporterName,
+      deadline: formatDateTime(item.createdAt),
+    })),
   ];
 
   const csv = toCsv(rows, [
@@ -173,6 +195,17 @@ export const openPrintableDashboardReport = (report) => {
   const statusRows = (report.statusData || [])
     .map((item) => `<tr><td>${escapeHtml(item.label)}</td><td>${escapeHtml(item.totalTasks ?? 0)}</td></tr>`)
     .join('');
+  const reportRows = (report.reportItems || [])
+    .map((item) => `
+      <tr>
+        <td>${escapeHtml(item.taskTitle)}</td>
+        <td>${escapeHtml(item.departmentName)}</td>
+        <td>${escapeHtml(item.reporterName)}</td>
+        <td>${escapeHtml(item.progressPercentage)}%</td>
+        <td>${escapeHtml(formatDateTime(item.createdAt))}</td>
+      </tr>
+    `)
+    .join('');
 
   const html = `<!doctype html>
     <html lang="vi">
@@ -204,6 +237,8 @@ export const openPrintableDashboardReport = (report) => {
         <table><thead><tr><th>Trạng thái</th><th>Số lượng</th></tr></thead><tbody>${statusRows || '<tr><td colspan="2">Không có dữ liệu</td></tr>'}</tbody></table>
         <h2>Công việc đang hiển thị</h2>
         <table><thead><tr><th>Công việc</th><th>Ban</th><th>Phụ trách</th><th>Deadline</th><th>Ưu tiên</th><th>Trạng thái</th></tr></thead><tbody>${taskRows || '<tr><td colspan="6">Không có dữ liệu</td></tr>'}</tbody></table>
+        <h2>Report tiến độ</h2>
+        <table><thead><tr><th>Công việc</th><th>Ban</th><th>Người report</th><th>Tiến độ</th><th>Thời gian</th></tr></thead><tbody>${reportRows || '<tr><td colspan="5">Không có dữ liệu</td></tr>'}</tbody></table>
       </body>
     </html>`;
 

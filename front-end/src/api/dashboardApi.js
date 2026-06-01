@@ -49,6 +49,15 @@ const dashboardApi = {
     return response.data;
   },
 
+  getComparison: async (eventId, params = {}) => {
+    if (!eventId) {
+      throw new Error('eventId không hợp lệ');
+    }
+
+    const response = await apiClient.get(`/events/${eventId}/dashboard/comparison`, { params });
+    return response.data;
+  },
+
   getDepartmentSummary: async ({ eventId, departmentId }) => {
     if (!eventId || !departmentId) {
       throw new Error('eventId/departmentId không hợp lệ');

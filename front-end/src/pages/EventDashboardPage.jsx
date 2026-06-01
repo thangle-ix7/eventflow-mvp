@@ -81,6 +81,11 @@ const EventDashboardPage = ({ user, onLogout }) => {
       : dashboardApi.getTasksByStatus(eventId, weekRange),
     enabled: Boolean(eventId && event),
   });
+  const comparisonQuery = useQuery({
+    queryKey: ['eventDashboardComparison', eventId, weekRange.fromDate, weekRange.toDate],
+    queryFn: () => dashboardApi.getComparison(eventId, weekRange),
+    enabled: Boolean(eventId && event && !selectedDepartmentId),
+  });
   const tasksQuery = useQuery({
     queryKey: ['eventDashboardTasks', eventId, selectedDepartmentId, page, weekRange.fromDate, weekRange.toDate],
     queryFn: () => taskApi.getEventTaskPage({
@@ -100,8 +105,8 @@ const EventDashboardPage = ({ user, onLogout }) => {
   const selectedDepartment = departments.find((department) => String(department.id) === String(selectedDepartmentId));
   const statusData = useMemo(() => normalizeStatusData(statusQuery.data), [statusQuery.data]);
   const tasks = useMemo(() => tasksQuery.data?.content || [], [tasksQuery.data]);
-  const isLoading = eventQuery.isLoading || departmentsQuery.isLoading || summaryQuery.isLoading || trendQuery.isLoading || statusQuery.isLoading || tasksQuery.isLoading;
-  const error = departmentsQuery.error || summaryQuery.error || trendQuery.error || statusQuery.error || tasksQuery.error;
+  const isLoading = eventQuery.isLoading || departmentsQuery.isLoading || summaryQuery.isLoading || trendQuery.isLoading || statusQuery.isLoading || comparisonQuery.isLoading || tasksQuery.isLoading;
+  const error = departmentsQuery.error || summaryQuery.error || trendQuery.error || statusQuery.error || comparisonQuery.error || tasksQuery.error;
 
   const handleDepartmentChange = (event) => {
     setPage(0);
@@ -178,7 +183,7 @@ const EventDashboardPage = ({ user, onLogout }) => {
               <MetricCard icon={Clock3} label="Quá hạn" value={summary.overdueTasksCount} tone={summary.overdueTasksCount > 0 ? 'red' : 'slate'} />
             </section>
 
-            <MonthComparisonNotice />
+            <MonthComparisonNotice comparison={comparisonQuery.data} selectedDepartmentId={selectedDepartmentId} />
 
             <section className="grid gap-4">
               <ChartPanel icon={<TrendingUp size={18} />} title="Xu hướng công việc theo ngày" description="Số lượng công việc theo deadline từng ngày, tách theo trạng thái hiện tại.">
@@ -241,13 +246,64 @@ const ReportExportActions = ({ report }) => (
   </div>
 );
 
-const MonthComparisonNotice = () => (
-  <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
-    <span className="font-semibold text-slate-800">So với tháng trước:</span>{' '}
-    đang ẩn để tránh hiển thị số giả. API hiện có hỗ trợ trend/status theo khoảng ngày,
-    nhưng chưa có summary kỳ trước đủ chuẩn để tính phần trăm so sánh cho các metric tổng quan.
-  </div>
-);
+const MonthComparisonNotice = ({ comparison, selectedDepartmentId }) => {
+  if (selectedDepartmentId) {
+    return (
+      <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+        <span className="font-semibold text-slate-800">So với kỳ trước:</span>{' '}
+        đang hiển thị cho toàn sự kiện. Bộ lọc theo từng ban cần endpoint comparison riêng theo department.
+      </div>
+    );
+  }
+
+  if (!comparison) return null;
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-4">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-sm font-bold text-slate-950">So với kỳ trước</p>
+          <p className="text-xs text-slate-500">
+            {comparison.fromDate} - {comparison.toDate} so với {comparison.previousFromDate} - {comparison.previousToDate}
+          </p>
+        </div>
+        <p className="text-sm font-semibold text-slate-700">
+          Tiến độ {formatSignedNumber(comparison.progressDeltaPoints, ' điểm')}
+        </p>
+      </div>
+      <div className="mt-3 grid gap-3 sm:grid-cols-3">
+        <ComparisonPill label="Tổng công việc" metric={comparison.totalTasks} />
+        <ComparisonPill label="Hoàn thành" metric={comparison.completedTasks} />
+        <ComparisonPill label="Quá hạn" metric={comparison.overdueTasks} inverse />
+      </div>
+    </div>
+  );
+};
+
+const ComparisonPill = ({ label, metric, inverse = false }) => {
+  const delta = metric?.delta || 0;
+  const isPositive = delta > 0;
+  const isNegative = delta < 0;
+  const tone = inverse
+    ? (isPositive ? 'text-red-600' : isNegative ? 'text-emerald-600' : 'text-slate-500')
+    : (isPositive ? 'text-emerald-600' : isNegative ? 'text-red-600' : 'text-slate-500');
+
+  return (
+    <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
+      <p className="mt-1 text-lg font-extrabold text-slate-950">{metric?.currentValue ?? 0}</p>
+      <p className={`text-xs font-bold ${tone}`}>
+        {formatSignedNumber(delta)} ({formatSignedNumber(metric?.deltaPercent || 0, '%')})
+      </p>
+    </div>
+  );
+};
+
+const formatSignedNumber = (value, suffix = '') => {
+  const number = Number(value || 0);
+  const rounded = Math.round(number * 10) / 10;
+  return `${number > 0 ? '+' : ''}${rounded}${suffix}`;
+};
 
 const WeekControl = ({ weekIndex, setWeekIndex }) => (
   <div className="flex flex-col gap-1">
