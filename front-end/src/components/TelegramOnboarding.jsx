@@ -6,7 +6,7 @@ import { appConfig } from '../config/appConfig';
 
 const TelegramOnboarding = ({ userId }) => {
   const [dismissed, setDismissed] = useState(() => {
-    return localStorage.getItem('telegram_dismissed') === 'true';
+    return sessionStorage.getItem('telegram_dismissed_session') === 'true';
   });
   const [linkToken, setLinkToken] = useState(null);
 
@@ -50,7 +50,7 @@ const TelegramOnboarding = ({ userId }) => {
   }, [refetch, isTelegramConnected, dismissed]);
 
   const handleDismiss = () => {
-    localStorage.setItem('telegram_dismissed', 'true');
+    sessionStorage.setItem('telegram_dismissed_session', 'true');
     setDismissed(true);
   };
 

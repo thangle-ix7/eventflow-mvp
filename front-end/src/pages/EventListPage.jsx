@@ -100,7 +100,6 @@ const EventListPage = ({ user, onLogout }) => {
       selectedEvent={null}
       onEventChange={(event) => handleOpenEvent(event.target.value)}
       onLogout={onLogout}
-      showTelegramOnboarding={false}
     >
       <div className="space-y-6">
         <PageHeader
