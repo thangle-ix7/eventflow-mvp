@@ -15,6 +15,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -56,6 +57,20 @@ public class EventUtilityController {
         }
 
         return ResponseEntity.ok(eventUtilityService.createCalendarItem(eventId, currentUserId(authentication), request));
+    }
+
+    @PutMapping("/events/{eventId}/calendar/{calendarItemId}")
+    public ResponseEntity<?> updateCalendarItem(
+            @PathVariable Long eventId,
+            @PathVariable Long calendarItemId,
+            @Valid @RequestBody EventCalendarItemRequest request,
+            Authentication authentication) {
+
+        if (!eventSecurityService.isLeaderOfEvent(eventId, currentUserId(authentication))) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        return ResponseEntity.ok(eventUtilityService.updateCalendarItem(eventId, calendarItemId, request));
     }
 
     @GetMapping("/events/{eventId}/documents")

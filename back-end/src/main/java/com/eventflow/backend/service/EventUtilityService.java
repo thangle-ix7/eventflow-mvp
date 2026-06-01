@@ -20,6 +20,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -47,6 +49,9 @@ public class EventUtilityService {
         LocalDate lastDay = targetMonth.atEndOfMonth();
         LocalDateTime from = firstDay.atStartOfDay();
         LocalDateTime toExclusive = lastDay.plusDays(1).atStartOfDay();
+        EventBounds eventBounds = getEventBounds(eventId);
+        LocalDateTime eventFrom = eventBounds.startDate().atStartOfDay();
+        LocalDateTime eventToExclusive = eventBounds.endDate().plusDays(1).atStartOfDay();
 
         Map<LocalDate, List<CalendarEventDTO>> itemsByDay = new LinkedHashMap<>();
         for (LocalDate day = firstDay; !day.isAfter(lastDay); day = day.plusDays(1)) {
@@ -62,38 +67,20 @@ public class EventUtilityService {
                 FROM calendar_event ce
                 LEFT JOIN departments d ON d.id = ce.department_id
                 LEFT JOIN users u ON u.id = ce.created_by
-                WHERE ce.event_id = ? AND ce.deleted_at IS NULL AND ce.start_time >= ? AND ce.start_time < ?
+                WHERE ce.event_id = ?
+                  AND ce.deleted_at IS NULL
+                  AND ce.start_time >= ?
+                  AND ce.start_time < ?
+                  AND ce.start_time >= ?
+                  AND ce.start_time < ?
+                  AND ce.end_time < ?
                 ORDER BY ce.start_time ASC, ce.id ASC
                 """, rs -> {
-            LocalDateTime startTime = rs.getTimestamp("start_time").toLocalDateTime();
-            Timestamp endTimestamp = rs.getTimestamp("end_time");
-            LocalDate date = startTime.toLocalDate();
-            Long departmentId = rs.getObject("department_id") != null ? rs.getLong("department_id") : null;
-            Long createdBy = rs.getObject("created_by") != null ? rs.getLong("created_by") : null;
-            CalendarEventDTO item = CalendarEventDTO.builder()
-                    .id(rs.getLong("id"))
-                    .title(rs.getString("title"))
-                    .type(rs.getString("type"))
-                    .date(date)
-                    .description(rs.getString("description"))
-                    .location(rs.getString("location"))
-                    .eventId(eventId)
-                    .departmentId(departmentId)
-                    .departmentName(rs.getString("department_name"))
-                    .createdBy(createdBy)
-                    .creatorName(rs.getString("creator_name"))
-                    .startTime(startTime)
-                    .endTime(endTimestamp != null ? endTimestamp.toLocalDateTime() : null)
-                    .allDay(rs.getBoolean("all_day"))
-                    .status(rs.getString("status"))
-                    .meetingUrl(rs.getString("meeting_url"))
-                    .meetingOptions(parseMeetingOptions(rs.getString("meeting_options")))
-                    .recurrenceRule(rs.getString("recurrence_rule"))
-                    .attendees(new ArrayList<>())
-                    .build();
+            CalendarEventDTO item = mapCalendarEvent(rs, eventId);
+            LocalDate date = item.getStartTime().toLocalDate();
             monthItems.add(item);
             itemsByDay.computeIfAbsent(date, ignored -> new ArrayList<>()).add(item);
-        }, eventId, Timestamp.valueOf(from), Timestamp.valueOf(toExclusive));
+        }, eventId, Timestamp.valueOf(from), Timestamp.valueOf(toExclusive), Timestamp.valueOf(eventFrom), Timestamp.valueOf(eventToExclusive), Timestamp.valueOf(eventToExclusive));
 
         Map<Long, List<CalendarAttendeeDTO>> attendeesByCalendarId = loadAttendees(eventId, monthItems.stream()
                 .map(CalendarEventDTO::getId)
@@ -120,12 +107,7 @@ public class EventUtilityService {
     }
 
     public CalendarEventDTO createCalendarItem(Long eventId, Long creatorId, EventCalendarItemRequest request) {
-        if (request.getEndTime().isBefore(request.getStartTime())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Thời gian kết thúc phải sau thời gian bắt đầu");
-        }
-        if (request.getDepartmentId() != null && !departmentBelongsToEvent(eventId, request.getDepartmentId())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ban không thuộc sự kiện này");
-        }
+        validateCalendarRequest(eventId, request);
         List<Long> attendeeIds = normalizeAttendeeIds(request.getAttendeeIds());
         assertAttendeesBelongToEvent(eventId, attendeeIds);
 
@@ -174,6 +156,50 @@ public class EventUtilityService {
                 .recurrenceRule(normalizeOptionalText(request.getRecurrenceRule()))
                 .attendees(attendees)
                 .build();
+    }
+
+    public CalendarEventDTO updateCalendarItem(Long eventId, Long calendarItemId, EventCalendarItemRequest request) {
+        validateCalendarRequest(eventId, request);
+        List<Long> attendeeIds = normalizeAttendeeIds(request.getAttendeeIds());
+        assertAttendeesBelongToEvent(eventId, attendeeIds);
+
+        int updated = jdbcTemplate.update("""
+                UPDATE calendar_event
+                SET department_id = ?,
+                    title = ?,
+                    description = ?,
+                    location = ?,
+                    type = ?,
+                    start_time = ?,
+                    end_time = ?,
+                    all_day = ?,
+                    status = ?,
+                    meeting_url = ?,
+                    meeting_options = CAST(? AS jsonb),
+                    recurrence_rule = ?
+                WHERE id = ? AND event_id = ? AND deleted_at IS NULL
+                """,
+                request.getDepartmentId(),
+                request.getTitle().trim(),
+                normalizeOptionalText(request.getDescription()),
+                normalizeOptionalText(request.getLocation()),
+                normalizeCalendarType(request.getType()),
+                Timestamp.valueOf(request.getStartTime()),
+                Timestamp.valueOf(request.getEndTime()),
+                request.getAllDay() != null ? request.getAllDay() : false,
+                normalizeCalendarStatus(request.getStatus()),
+                normalizeOptionalText(request.getMeetingUrl()),
+                serializeMeetingOptions(request.getMeetingOptions()),
+                normalizeOptionalText(request.getRecurrenceRule()),
+                calendarItemId,
+                eventId);
+
+        if (updated == 0) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy lịch trong sự kiện này");
+        }
+
+        replaceAttendees(calendarItemId, attendeeIds);
+        return getCalendarItem(eventId, calendarItemId);
     }
 
     public List<EventDocumentDTO> getEventDocuments(Long eventId) {
@@ -344,6 +370,40 @@ public class EventUtilityService {
         return status.trim().toUpperCase();
     }
 
+    private void validateCalendarRequest(Long eventId, EventCalendarItemRequest request) {
+        if (request.getEndTime().isBefore(request.getStartTime())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Thời gian kết thúc phải sau thời gian bắt đầu");
+        }
+        if (request.getDepartmentId() != null && !departmentBelongsToEvent(eventId, request.getDepartmentId())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ban không thuộc sự kiện này");
+        }
+        assertCalendarWithinEventDateRange(eventId, request.getStartTime(), request.getEndTime());
+    }
+
+    private void assertCalendarWithinEventDateRange(Long eventId, LocalDateTime startTime, LocalDateTime endTime) {
+        EventBounds bounds = getEventBounds(eventId);
+        LocalDate startDate = startTime.toLocalDate();
+        LocalDate endDate = endTime.toLocalDate();
+        if (startDate.isBefore(bounds.startDate()) || endDate.isAfter(bounds.endDate())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Lịch phải nằm trong ngày bắt đầu và ngày kết thúc sự kiện");
+        }
+    }
+
+    private EventBounds getEventBounds(Long eventId) {
+        return jdbcTemplate.queryForObject("""
+                SELECT event_date, COALESCE(end_time, event_date) AS end_time
+                FROM events
+                WHERE id = ?
+                """, (rs, rowNum) -> {
+            LocalDate startDate = rs.getTimestamp("event_date").toLocalDateTime().toLocalDate();
+            LocalDate endDate = rs.getTimestamp("end_time").toLocalDateTime().toLocalDate();
+            if (endDate.isBefore(startDate)) {
+                endDate = startDate;
+            }
+            return new EventBounds(startDate, endDate);
+        }, eventId);
+    }
+
     private boolean departmentBelongsToEvent(Long eventId, Long departmentId) {
         Integer count = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM departments WHERE id = ? AND event_id = ?",
@@ -400,6 +460,56 @@ public class EventUtilityService {
             ps.setLong(1, calendarEventId);
             ps.setLong(2, attendeeId);
         });
+    }
+
+    private void replaceAttendees(Long calendarEventId, List<Long> attendeeIds) {
+        jdbcTemplate.update("DELETE FROM calendar_event_attendees WHERE calendar_event_id = ?", calendarEventId);
+        saveAttendees(calendarEventId, attendeeIds);
+    }
+
+    private CalendarEventDTO getCalendarItem(Long eventId, Long calendarItemId) {
+        CalendarEventDTO item = jdbcTemplate.queryForObject("""
+                SELECT ce.id, ce.title, ce.description, ce.location, ce.type, ce.start_time, ce.end_time,
+                       ce.all_day, ce.status, ce.meeting_url, ce.meeting_options, ce.recurrence_rule,
+                       ce.department_id, d.name AS department_name,
+                       ce.created_by, u.name AS creator_name
+                FROM calendar_event ce
+                LEFT JOIN departments d ON d.id = ce.department_id
+                LEFT JOIN users u ON u.id = ce.created_by
+                WHERE ce.id = ? AND ce.event_id = ? AND ce.deleted_at IS NULL
+                """, (rs, rowNum) -> mapCalendarEvent(rs, eventId), calendarItemId, eventId);
+
+        item.setAttendees(loadAttendees(eventId, List.of(calendarItemId)).getOrDefault(calendarItemId, List.of()));
+        return item;
+    }
+
+    private CalendarEventDTO mapCalendarEvent(ResultSet rs, Long eventId) throws SQLException {
+        LocalDateTime startTime = rs.getTimestamp("start_time").toLocalDateTime();
+        Timestamp endTimestamp = rs.getTimestamp("end_time");
+        Long departmentId = rs.getObject("department_id") != null ? rs.getLong("department_id") : null;
+        Long createdBy = rs.getObject("created_by") != null ? rs.getLong("created_by") : null;
+
+        return CalendarEventDTO.builder()
+                .id(rs.getLong("id"))
+                .title(rs.getString("title"))
+                .type(rs.getString("type"))
+                .date(startTime.toLocalDate())
+                .description(rs.getString("description"))
+                .location(rs.getString("location"))
+                .eventId(eventId)
+                .departmentId(departmentId)
+                .departmentName(rs.getString("department_name"))
+                .createdBy(createdBy)
+                .creatorName(rs.getString("creator_name"))
+                .startTime(startTime)
+                .endTime(endTimestamp != null ? endTimestamp.toLocalDateTime() : null)
+                .allDay(rs.getBoolean("all_day"))
+                .status(rs.getString("status"))
+                .meetingUrl(rs.getString("meeting_url"))
+                .meetingOptions(parseMeetingOptions(rs.getString("meeting_options")))
+                .recurrenceRule(rs.getString("recurrence_rule"))
+                .attendees(new ArrayList<>())
+                .build();
     }
 
     private Map<Long, List<CalendarAttendeeDTO>> loadAttendees(Long eventId, List<Long> calendarEventIds) {
@@ -476,5 +586,8 @@ public class EventUtilityService {
     }
 
     private record PeriodStats(long totalTasks, long completedTasks, long overdueTasks, int progressPercentage) {
+    }
+
+    private record EventBounds(LocalDate startDate, LocalDate endDate) {
     }
 }

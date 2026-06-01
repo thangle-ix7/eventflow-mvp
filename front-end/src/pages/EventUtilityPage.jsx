@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
 import {
@@ -10,6 +10,7 @@ import {
   FileJson,
   FileSpreadsheet,
   FileText,
+  Pencil,
   Printer,
   Settings,
   TrendingUp,
@@ -165,7 +166,7 @@ const EventUtilityPage = ({ user, onLogout, type }) => {
 
         {!isLoading && !error && (
           <>
-            {type === 'calendar' && <CalendarContent eventId={eventId} event={event} departments={departments} members={members} calendar={calendarQuery.data} calendarDate={calendarDate} setCalendarDate={setCalendarDate} />}
+            {type === 'calendar' && <CalendarContent eventId={eventId} event={event} members={members} calendar={calendarQuery.data} calendarDate={calendarDate} setCalendarDate={setCalendarDate} />}
             {type === 'documents' && <DocumentsContent eventId={eventId} documents={documentsQuery.data || []} />}
             {type === 'reports' && <ReportsContent event={event} stats={stats} departments={departments} members={members} tasks={tasks} reportsData={reportsQuery.data} reportRange={reportRange} />}
             {type === 'settings' && <SettingsContent event={event} departments={departments} members={members} />}
@@ -176,67 +177,73 @@ const EventUtilityPage = ({ user, onLogout, type }) => {
   );
 };
 
-const CalendarContent = ({ eventId, event, departments, members, calendar, calendarDate, setCalendarDate }) => {
+const CalendarContent = ({ eventId, event, members, calendar, calendarDate, setCalendarDate }) => {
   const queryClient = useQueryClient();
   const titleInputRef = useRef(null);
   const days = calendar?.days || [];
   const daysByDate = new Map(days.map((day) => [day.date, day]));
   const month = calendar?.month || calendarDate.month;
   const year = calendar?.year || calendarDate.year;
-  const calendarCells = buildCalendarCells(year, month, daysByDate);
+  const eventRange = getEventDateRange(event);
+  const eventRangeStart = eventRange.start;
+  const eventRangeEnd = eventRange.end;
+  const calendarCells = buildCalendarCells(year, month, daysByDate, eventRange);
   const monthItemsCount = days.reduce((total, day) => total + (day.items?.length || 0), 0);
   const monthLabel = new Date(year, month - 1, 1).toLocaleDateString('vi-VN', {
     month: 'long',
     year: 'numeric',
   });
+  const canGoPrevious = monthIntersectsEventRange(year, month - 1, eventRange);
+  const canGoNext = monthIntersectsEventRange(year, month + 1, eventRange);
+  const todayKey = toDateKey(new Date());
+  const canGoToday = isDateKeyInEventRange(todayKey, eventRange);
+  const eventStartInput = eventRange.start ? `${eventRange.start}T00:00` : undefined;
+  const eventEndInput = eventRange.end ? `${eventRange.end}T23:59` : undefined;
+  useEffect(() => {
+    const range = { start: eventRangeStart, end: eventRangeEnd };
+    if (!eventRangeStart || monthIntersectsEventRange(calendarDate.year, calendarDate.month, range)) {
+      return;
+    }
+    const start = new Date(`${eventRangeStart}T00:00:00`);
+    if (!Number.isNaN(start.getTime())) {
+      setCalendarDate({ year: start.getFullYear(), month: start.getMonth() + 1 });
+    }
+  }, [calendarDate.month, calendarDate.year, eventRangeEnd, eventRangeStart, setCalendarDate]);
   const changeMonth = (offset) => {
     const next = new Date(calendarDate.year, calendarDate.month - 1 + offset, 1);
+    if (!monthIntersectsEventRange(next.getFullYear(), next.getMonth() + 1, eventRange)) {
+      return;
+    }
     setCalendarDate({ year: next.getFullYear(), month: next.getMonth() + 1 });
   };
   const goToday = () => {
+    if (!canGoToday) {
+      return;
+    }
     const today = new Date();
     setCalendarDate({ year: today.getFullYear(), month: today.getMonth() + 1 });
   };
   const isLeader = event?.role === 'LEADER';
   const [selectedDateKey, setSelectedDateKey] = useState('');
   const [selectedCalendarItem, setSelectedCalendarItem] = useState(null);
+  const [editingCalendarItem, setEditingCalendarItem] = useState(null);
   const [isCreatePopupOpen, setIsCreatePopupOpen] = useState(false);
-  const [form, setForm] = useState({
-    title: '',
-    type: 'MEETING',
-    departmentId: '',
-    startTime: '',
-    endTime: '',
-    allDay: false,
-    location: '',
-    meetingUrl: '',
-    description: '',
-    attendeeIds: [],
-  });
-  const selectableMembers = useMemo(() => {
-    if (!form.departmentId) {
-      return members;
-    }
-    const departmentMembers = members.filter((member) => String(member.departmentId || '') === form.departmentId);
-    return departmentMembers.length > 0 ? departmentMembers : members;
-  }, [form.departmentId, members]);
+  const [form, setForm] = useState(() => buildEmptyCalendarForm());
+  const selectableMembers = members;
   const createCalendarItemMutation = useMutation({
     mutationFn: eventUtilityApi.createCalendarItem,
     onSuccess: () => {
-      setForm({
-        title: '',
-        type: 'MEETING',
-        departmentId: '',
-        startTime: '',
-        endTime: '',
-        allDay: false,
-        location: '',
-        meetingUrl: '',
-        description: '',
-        attendeeIds: [],
-      });
+      setForm(buildEmptyCalendarForm());
       setSelectedDateKey('');
       setIsCreatePopupOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['eventCalendar', eventId] });
+    },
+  });
+  const updateCalendarItemMutation = useMutation({
+    mutationFn: eventUtilityApi.updateCalendarItem,
+    onSuccess: (updatedItem) => {
+      setEditingCalendarItem(null);
+      setSelectedCalendarItem(updatedItem);
       queryClient.invalidateQueries({ queryKey: ['eventCalendar', eventId] });
     },
   });
@@ -244,29 +251,21 @@ const CalendarContent = ({ eventId, event, departments, members, calendar, calen
     submitEvent.preventDefault();
     createCalendarItemMutation.mutate({
       eventId,
-      payload: {
-        title: form.title,
-        type: form.type,
-        departmentId: form.departmentId ? Number(form.departmentId) : null,
-        startTime: form.startTime,
-        endTime: form.endTime,
-        allDay: form.allDay,
-        status: 'SCHEDULED',
-        location: form.location,
-        meetingUrl: form.meetingUrl,
-        description: form.description,
-        attendeeIds: form.attendeeIds.map((attendeeId) => Number(attendeeId)),
-      },
+      payload: buildCalendarPayload(form),
     });
   };
   const updateForm = (name, value) => {
     setForm((old) => ({ ...old, [name]: value }));
   };
-  const updateDepartment = (value) => {
-    setForm((old) => ({ ...old, departmentId: value, attendeeIds: [] }));
+  const openEditCalendarItem = (item) => {
+    setSelectedCalendarItem(null);
+    setEditingCalendarItem(item);
   };
   const selectCalendarDate = (dateKey) => {
     if (!isLeader) {
+      return;
+    }
+    if (!isDateKeyInEventRange(dateKey, eventRange)) {
       return;
     }
 
@@ -296,13 +295,13 @@ const CalendarContent = ({ eventId, event, departments, members, calendar, calen
         <div className="min-w-0">
           <h3 className="text-2xl font-extrabold capitalize text-slate-950">{monthLabel}</h3>
           <p className="mt-1 text-sm text-slate-500">
-            {monthItemsCount} lịch trong tháng • họp, rehearsal, setup và mốc vận hành của sự kiện.
+            {monthItemsCount} lịch trong tháng • chỉ hiển thị trong khoảng {formatCalendarDateKey(eventRange.start)} - {formatCalendarDateKey(eventRange.end)}.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="secondary" onClick={goToday}>Hôm nay</Button>
-          <Button type="button" variant="secondary" onClick={() => changeMonth(-1)}>Tháng trước</Button>
-          <Button type="button" variant="secondary" onClick={() => changeMonth(1)}>Tháng sau</Button>
+          <Button type="button" variant="secondary" onClick={goToday} disabled={!canGoToday}>Hôm nay</Button>
+          <Button type="button" variant="secondary" onClick={() => changeMonth(-1)} disabled={!canGoPrevious}>Tháng trước</Button>
+          <Button type="button" variant="secondary" onClick={() => changeMonth(1)} disabled={!canGoNext}>Tháng sau</Button>
         </div>
       </div>
 
@@ -342,7 +341,20 @@ const CalendarContent = ({ eventId, event, departments, members, calendar, calen
       <CalendarDetailsModal
         event={event}
         item={selectedCalendarItem}
+        canEdit={isLeader && !selectedCalendarItem.taskId}
+        onEdit={openEditCalendarItem}
         onClose={() => setSelectedCalendarItem(null)}
+      />
+    )}
+    {isLeader && editingCalendarItem && (
+      <CalendarEditModal
+        eventId={eventId}
+        item={editingCalendarItem}
+        members={members}
+        eventStartInput={eventStartInput}
+        eventEndInput={eventEndInput}
+        mutation={updateCalendarItemMutation}
+        onClose={() => setEditingCalendarItem(null)}
       />
     )}
     {isLeader && isCreatePopupOpen && (
@@ -395,21 +407,11 @@ const CalendarContent = ({ eventId, event, departments, members, calendar, calen
                 </select>
               </label>
 
-              <label className="space-y-1">
-                <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Phạm vi</span>
-                <select
-                  value={form.departmentId}
-                  onChange={(event) => updateDepartment(event.target.value)}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
-                >
-                  <option value="">Toàn sự kiện</option>
-                  {departments.map((department) => (
-                    <option key={department.id} value={department.id}>
-                      {department.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <div className="rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3">
+                <span className="text-xs font-bold uppercase tracking-wide text-indigo-600">Phạm vi</span>
+                <p className="mt-1 text-sm font-extrabold text-indigo-950">Ban tổ chức (BTC)</p>
+                <p className="mt-1 text-xs leading-5 text-indigo-700">Lịch này dành cho điều phối nội bộ của leader/BTC, không gắn riêng vào một ban.</p>
+              </div>
 
               <label className="space-y-1">
                 <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Bắt đầu</span>
@@ -417,6 +419,8 @@ const CalendarContent = ({ eventId, event, departments, members, calendar, calen
                   type="datetime-local"
                   value={form.startTime}
                   onChange={(event) => updateForm('startTime', event.target.value)}
+                  min={eventStartInput}
+                  max={eventEndInput}
                   required
                   className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
                 />
@@ -428,6 +432,8 @@ const CalendarContent = ({ eventId, event, departments, members, calendar, calen
                   type="datetime-local"
                   value={form.endTime}
                   onChange={(event) => updateForm('endTime', event.target.value)}
+                  min={form.startTime || eventStartInput}
+                  max={eventEndInput}
                   required
                   className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
                 />
@@ -550,7 +556,101 @@ const toDateKey = (date) => {
   return `${year}-${month}-${day}`;
 };
 
-const buildCalendarCells = (year, month, daysByDate) => {
+const toDateTimeLocalValue = (value) => {
+  if (!value) {
+    return '';
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
+
+const getEventDateRange = (event) => {
+  const startValue = event?.startTime || event?.eventDate;
+  const endValue = event?.endTime || startValue;
+  return {
+    start: startValue ? toDateKey(new Date(startValue)) : null,
+    end: endValue ? toDateKey(new Date(endValue)) : null,
+  };
+};
+
+const isDateKeyInEventRange = (dateKey, eventRange) => {
+  if (!dateKey) {
+    return false;
+  }
+  if (eventRange?.start && dateKey < eventRange.start) {
+    return false;
+  }
+  if (eventRange?.end && dateKey > eventRange.end) {
+    return false;
+  }
+  return true;
+};
+
+const monthIntersectsEventRange = (year, month, eventRange) => {
+  const first = new Date(year, month - 1, 1);
+  const last = new Date(year, month, 0);
+  const firstKey = toDateKey(first);
+  const lastKey = toDateKey(last);
+  if (eventRange?.start && lastKey < eventRange.start) {
+    return false;
+  }
+  if (eventRange?.end && firstKey > eventRange.end) {
+    return false;
+  }
+  return true;
+};
+
+const buildEmptyCalendarForm = () => ({
+  title: '',
+  type: 'MEETING',
+  startTime: '',
+  endTime: '',
+  allDay: false,
+  status: 'SCHEDULED',
+  location: '',
+  meetingUrl: '',
+  description: '',
+  attendeeIds: [],
+});
+
+const calendarItemToForm = (item) => ({
+  title: item?.title || '',
+  type: item?.type || 'MEETING',
+  startTime: toDateTimeLocalValue(item?.startTime),
+  endTime: toDateTimeLocalValue(item?.endTime || item?.startTime),
+  allDay: Boolean(item?.allDay),
+  status: item?.status || 'SCHEDULED',
+  location: item?.location || '',
+  meetingUrl: item?.meetingUrl || '',
+  description: item?.description || '',
+  attendeeIds: (item?.attendees || []).map((attendee) => String(attendee.userId)),
+});
+
+const buildCalendarPayload = (form) => ({
+  title: form.title,
+  type: form.type,
+  departmentId: null,
+  startTime: form.startTime,
+  endTime: form.endTime,
+  allDay: form.allDay,
+  status: form.status || 'SCHEDULED',
+  location: form.location,
+  meetingUrl: form.meetingUrl,
+  description: form.description,
+  attendeeIds: form.attendeeIds.map((attendeeId) => Number(attendeeId)),
+});
+
+const getCalendarScopeLabel = (item) => item?.departmentName || 'Ban tổ chức (BTC)';
+
+const buildCalendarCells = (year, month, daysByDate, eventRange) => {
   const firstDay = new Date(year, month - 1, 1);
   const firstWeekday = (firstDay.getDay() + 6) % 7;
   const gridStart = new Date(year, month - 1, 1 - firstWeekday);
@@ -561,14 +661,16 @@ const buildCalendarCells = (year, month, daysByDate) => {
     date.setDate(gridStart.getDate() + index);
     const dateKey = toDateKey(date);
     const apiDay = daysByDate.get(dateKey);
+    const inEventRange = isDateKeyInEventRange(dateKey, eventRange);
 
     return {
       dateKey,
       dayOfMonth: date.getDate(),
       inCurrentMonth: date.getMonth() === month - 1,
+      inEventRange,
       isToday: dateKey === todayKey,
       isWeekend: date.getDay() === 0 || date.getDay() === 6,
-      items: apiDay?.items || [],
+      items: inEventRange ? (apiDay?.items || []) : [],
     };
   });
 };
@@ -579,11 +681,11 @@ const CalendarDayCell = ({ event, cell, canCreate, isSelected, onSelectDate, onO
 
   return (
     <div
-      role={canCreate ? 'button' : undefined}
-      tabIndex={canCreate ? 0 : undefined}
+      role={canCreate && cell.inEventRange ? 'button' : undefined}
+      tabIndex={canCreate && cell.inEventRange ? 0 : undefined}
       onClick={() => onSelectDate?.(cell.dateKey)}
       onKeyDown={(event) => {
-        if (!canCreate) {
+        if (!canCreate || !cell.inEventRange) {
           return;
         }
         if (event.key === 'Enter' || event.key === ' ') {
@@ -591,12 +693,13 @@ const CalendarDayCell = ({ event, cell, canCreate, isSelected, onSelectDate, onO
           onSelectDate?.(cell.dateKey);
         }
       }}
-      title={canCreate ? `Thêm lịch vào ${formatCalendarDateKey(cell.dateKey)}` : undefined}
+      title={cell.inEventRange && canCreate ? `Thêm lịch vào ${formatCalendarDateKey(cell.dateKey)}` : 'Ngoài thời gian sự kiện'}
       className={[
         'min-h-32 border-b border-r border-slate-200 p-2 last:border-r-0 md:min-h-36',
-        cell.inCurrentMonth ? 'bg-white' : 'bg-slate-50 text-slate-400',
+        cell.inCurrentMonth && cell.inEventRange ? 'bg-white' : 'bg-slate-50 text-slate-400',
         cell.isWeekend && cell.inCurrentMonth ? 'bg-slate-50/60' : '',
-        canCreate ? 'cursor-pointer transition hover:bg-indigo-50/60 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-300' : '',
+        canCreate && cell.inEventRange ? 'cursor-pointer transition hover:bg-indigo-50/60 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-300' : '',
+        !cell.inEventRange ? 'opacity-45' : '',
         isSelected ? 'bg-indigo-50 ring-2 ring-inset ring-indigo-400' : '',
       ].join(' ')}
     >
@@ -609,7 +712,7 @@ const CalendarDayCell = ({ event, cell, canCreate, isSelected, onSelectDate, onO
         >
           {cell.dayOfMonth}
         </span>
-        {canCreate && (
+        {canCreate && cell.inEventRange && (
           <span className={[
             'rounded-full px-2 py-0.5 text-[11px] font-bold',
             isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500',
@@ -637,7 +740,7 @@ const CalendarDayCell = ({ event, cell, canCreate, isSelected, onSelectDate, onO
 const CalendarItem = ({ item, onOpenDetails }) => {
   const tone = getCalendarItemTone(item);
   const timeLabel = formatCalendarItemTime(item);
-  const scopeLabel = item.departmentName || 'Toàn sự kiện';
+  const scopeLabel = getCalendarScopeLabel(item);
   const attendees = item.attendees || [];
   const attendeeTitle = attendees.length > 0
     ? ` • Người tham gia: ${attendees.map((attendee) => attendee.name).join(', ')}`
@@ -661,7 +764,7 @@ const CalendarItem = ({ item, onOpenDetails }) => {
   );
 };
 
-const CalendarDetailsModal = ({ event, item, onClose }) => {
+const CalendarDetailsModal = ({ event, item, canEdit, onEdit, onClose }) => {
   const attendees = item.attendees || [];
   const typeLabel = CALENDAR_TYPE_LABELS[item.type] || item.type || 'Lịch';
   const statusLabel = CALENDAR_STATUS_LABELS[item.status] || item.status;
@@ -694,7 +797,7 @@ const CalendarDetailsModal = ({ event, item, onClose }) => {
         <div className="space-y-4 px-5 py-4">
           <div className="grid gap-3 sm:grid-cols-2">
             <CalendarDetailField label="Thời gian" value={timeRange || formatDate(item.date)} />
-            <CalendarDetailField label="Phạm vi" value={item.departmentName || 'Toàn sự kiện'} />
+            <CalendarDetailField label="Phạm vi" value={getCalendarScopeLabel(item)} />
             <CalendarDetailField label="Địa điểm" value={item.location || 'Chưa có địa điểm'} />
             <CalendarDetailField label="Người tạo" value={item.creatorName || 'Không có dữ liệu'} />
             {item.assigneeName && <CalendarDetailField label="Phụ trách task" value={item.assigneeName} />}
@@ -735,6 +838,12 @@ const CalendarDetailsModal = ({ event, item, onClose }) => {
         </div>
 
         <div className="flex flex-col gap-2 border-t border-slate-100 bg-white px-5 py-4 sm:flex-row sm:justify-end">
+          {canEdit && (
+            <Button type="button" variant="secondary" onClick={() => onEdit?.(item)}>
+              <Pencil size={16} />
+              Sửa lịch
+            </Button>
+          )}
           {taskUrl && (
             <Button as={Link} to={taskUrl} onClick={onClose} variant="secondary">
               <ExternalLink size={16} />
@@ -756,6 +865,209 @@ const CalendarDetailField = ({ label, value }) => (
     <p className="mt-1 text-sm font-semibold text-slate-900">{value || 'Không có dữ liệu'}</p>
   </div>
 );
+
+const CalendarEditModal = ({ eventId, item, members, eventStartInput, eventEndInput, mutation, onClose }) => {
+  const [form, setForm] = useState(() => calendarItemToForm(item));
+  const updateForm = (name, value) => setForm((old) => ({ ...old, [name]: value }));
+  const toggleAttendee = (userId) => {
+    setForm((old) => {
+      const value = String(userId);
+      const attendeeIds = old.attendeeIds.includes(value)
+        ? old.attendeeIds.filter((attendeeId) => attendeeId !== value)
+        : [...old.attendeeIds, value];
+      return { ...old, attendeeIds };
+    });
+  };
+  const handleSubmit = (submitEvent) => {
+    submitEvent.preventDefault();
+    mutation.mutate({
+      eventId,
+      calendarItemId: item.id,
+      payload: buildCalendarPayload(form),
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 p-4 backdrop-blur-sm">
+      <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-slate-900/10">
+        <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-gradient-to-r from-indigo-50 to-white px-5 py-4">
+          <div className="min-w-0">
+            <p className="text-xs font-bold uppercase tracking-wide text-indigo-600">Calendar event</p>
+            <h3 className="mt-1 text-xl font-extrabold text-slate-950">Sửa lịch BTC</h3>
+            <p className="mt-1 text-sm text-slate-500">Cập nhật lịch điều phối nội bộ của Ban tổ chức.</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full p-2 text-slate-500 hover:bg-white hover:text-slate-900"
+            aria-label="Đóng popup sửa lịch"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          <div className="grid gap-4 overflow-y-auto px-5 py-4 md:grid-cols-2">
+            <label className="space-y-1 md:col-span-2">
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Tên lịch</span>
+              <input
+                value={form.title}
+                onChange={(event) => updateForm('title', event.target.value)}
+                required
+                maxLength={255}
+                className="w-full rounded-xl border border-slate-200 px-4 py-3 text-base font-semibold text-slate-950 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
+              />
+            </label>
+
+            <label className="space-y-1">
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Loại lịch</span>
+              <select
+                value={form.type}
+                onChange={(event) => updateForm('type', event.target.value)}
+                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
+              >
+                <option value="MEETING">Họp</option>
+                <option value="REHEARSAL">Rehearsal</option>
+                <option value="SETUP">Setup</option>
+                <option value="CHECKIN">Check-in</option>
+                <option value="OTHER">Khác</option>
+              </select>
+            </label>
+
+            <div className="rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3">
+              <span className="text-xs font-bold uppercase tracking-wide text-indigo-600">Phạm vi</span>
+              <p className="mt-1 text-sm font-extrabold text-indigo-950">Ban tổ chức (BTC)</p>
+              <p className="mt-1 text-xs leading-5 text-indigo-700">Lịch sửa sẽ được lưu ở phạm vi BTC.</p>
+            </div>
+
+            <label className="space-y-1">
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Bắt đầu</span>
+              <input
+                type="datetime-local"
+                value={form.startTime}
+                onChange={(event) => updateForm('startTime', event.target.value)}
+                min={eventStartInput}
+                max={eventEndInput}
+                required
+                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
+              />
+            </label>
+
+            <label className="space-y-1">
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Kết thúc</span>
+              <input
+                type="datetime-local"
+                value={form.endTime}
+                onChange={(event) => updateForm('endTime', event.target.value)}
+                min={form.startTime || eventStartInput}
+                max={eventEndInput}
+                required
+                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
+              />
+            </label>
+
+            <label className="space-y-1">
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Địa điểm</span>
+              <input
+                value={form.location}
+                onChange={(event) => updateForm('location', event.target.value)}
+                maxLength={255}
+                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
+              />
+            </label>
+
+            <label className="space-y-1">
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Meeting URL</span>
+              <input
+                value={form.meetingUrl}
+                onChange={(event) => updateForm('meetingUrl', event.target.value)}
+                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
+              />
+            </label>
+
+            <label className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 md:col-span-2">
+              <span>
+                <span className="block text-sm font-bold text-slate-800">Cả ngày</span>
+                <span className="text-xs text-slate-500">Dùng cho lịch không cần giờ cụ thể.</span>
+              </span>
+              <input
+                type="checkbox"
+                checked={form.allDay}
+                onChange={(event) => updateForm('allDay', event.target.checked)}
+                className="h-4 w-4"
+              />
+            </label>
+
+            <label className="space-y-1 md:col-span-2">
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Ghi chú</span>
+              <textarea
+                value={form.description}
+                onChange={(event) => updateForm('description', event.target.value)}
+                maxLength={2000}
+                rows={3}
+                className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
+              />
+            </label>
+
+            <div className="rounded-xl border border-slate-200 bg-white md:col-span-2">
+              <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Người cần tham gia</p>
+                  <p className="text-xs text-slate-400">{form.attendeeIds.length} người đã chọn</p>
+                </div>
+              </div>
+              <div className="max-h-36 overflow-y-auto p-3">
+                {members.length === 0 ? (
+                  <p className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-500">Chưa có thành viên để tag.</p>
+                ) : (
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {members.map((member) => {
+                      const checked = form.attendeeIds.includes(String(member.userId));
+                      return (
+                        <label
+                          key={member.userId}
+                          className={[
+                            'flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2 text-sm transition',
+                            checked ? 'border-indigo-300 bg-indigo-50 text-indigo-900' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50',
+                          ].join(' ')}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleAttendee(member.userId)}
+                          />
+                          <span className="min-w-0">
+                            <span className="block truncate font-semibold">{member.name}</span>
+                            {member.departmentName ? <span className="block truncate text-xs text-slate-400">{member.departmentName}</span> : null}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {mutation.error && (
+              <div className="rounded-xl bg-red-50 p-3 text-sm text-red-700 md:col-span-2">
+                {mutation.error.userMessage || mutation.error.message}
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center justify-end gap-2 border-t border-slate-100 bg-white px-5 py-4">
+            <Button type="button" variant="secondary" onClick={onClose}>
+              Hủy
+            </Button>
+            <Button type="submit" disabled={mutation.isPending}>
+              Lưu thay đổi
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
 
 const CALENDAR_TYPE_LABELS = {
   EVENT: 'Sự kiện',
