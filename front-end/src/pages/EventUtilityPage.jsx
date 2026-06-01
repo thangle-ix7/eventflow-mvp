@@ -6,6 +6,7 @@ import {
   CalendarDays,
   ClipboardList,
   Download,
+  ExternalLink,
   FileJson,
   FileSpreadsheet,
   FileText,
@@ -198,6 +199,7 @@ const CalendarContent = ({ eventId, event, departments, members, calendar, calen
   };
   const isLeader = event?.role === 'LEADER';
   const [selectedDateKey, setSelectedDateKey] = useState('');
+  const [selectedCalendarItem, setSelectedCalendarItem] = useState(null);
   const [isCreatePopupOpen, setIsCreatePopupOpen] = useState(false);
   const [form, setForm] = useState({
     title: '',
@@ -321,6 +323,7 @@ const CalendarContent = ({ eventId, event, departments, members, calendar, calen
             canCreate={isLeader}
             isSelected={selectedDateKey === cell.dateKey}
             onSelectDate={selectCalendarDate}
+            onOpenDetails={setSelectedCalendarItem}
           />
         ))}
       </div>
@@ -335,6 +338,13 @@ const CalendarContent = ({ eventId, event, departments, members, calendar, calen
         </div>
       )}
     </Panel>
+    {selectedCalendarItem && (
+      <CalendarDetailsModal
+        event={event}
+        item={selectedCalendarItem}
+        onClose={() => setSelectedCalendarItem(null)}
+      />
+    )}
     {isLeader && isCreatePopupOpen && (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 p-4 backdrop-blur-sm">
         <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-slate-900/10">
@@ -563,7 +573,7 @@ const buildCalendarCells = (year, month, daysByDate) => {
   });
 };
 
-const CalendarDayCell = ({ event, cell, canCreate, isSelected, onSelectDate }) => {
+const CalendarDayCell = ({ event, cell, canCreate, isSelected, onSelectDate, onOpenDetails }) => {
   const visibleItems = cell.items.slice(0, 3);
   const hiddenCount = Math.max(cell.items.length - visibleItems.length, 0);
 
@@ -612,7 +622,7 @@ const CalendarDayCell = ({ event, cell, canCreate, isSelected, onSelectDate }) =
 
       <div className="space-y-1">
         {visibleItems.map((item) => (
-          <CalendarItem key={`${item.type}-${item.id}`} event={event} item={item} />
+          <CalendarItem key={`${item.type}-${item.id}`} event={event} item={item} onOpenDetails={onOpenDetails} />
         ))}
         {hiddenCount > 0 && (
           <div className="rounded px-2 py-1 text-xs font-semibold text-slate-500">
@@ -624,7 +634,7 @@ const CalendarDayCell = ({ event, cell, canCreate, isSelected, onSelectDate }) =
   );
 };
 
-const CalendarItem = ({ event, item }) => {
+const CalendarItem = ({ item, onOpenDetails }) => {
   const tone = getCalendarItemTone(item);
   const timeLabel = formatCalendarItemTime(item);
   const scopeLabel = item.departmentName || 'Toàn sự kiện';
@@ -634,18 +644,133 @@ const CalendarItem = ({ event, item }) => {
     : '';
 
   return (
-    <Link
-      to={`/events/${event?.id}`}
-      onClick={(clickEvent) => clickEvent.stopPropagation()}
+    <button
+      type="button"
+      onClick={(clickEvent) => {
+        clickEvent.stopPropagation();
+        onOpenDetails?.(item);
+      }}
       title={`${item.title} • ${scopeLabel}${item.location ? ` • ${item.location}` : ''}${timeLabel ? ` • ${timeLabel}` : ''}${attendeeTitle}`}
-      className={`block truncate rounded px-2 py-1 text-xs font-semibold transition ${tone}`}
+      className={`block w-full truncate rounded px-2 py-1 text-left text-xs font-semibold transition ${tone}`}
     >
       <span className="mr-1">•</span>
       {timeLabel && <span className="mr-1 font-bold">{timeLabel}</span>}
       {item.title}
       {attendees.length > 0 && <span className="ml-1 font-medium opacity-80">({attendees.length})</span>}
-    </Link>
+    </button>
   );
+};
+
+const CalendarDetailsModal = ({ event, item, onClose }) => {
+  const attendees = item.attendees || [];
+  const typeLabel = CALENDAR_TYPE_LABELS[item.type] || item.type || 'Lịch';
+  const statusLabel = CALENDAR_STATUS_LABELS[item.status] || item.status;
+  const timeRange = formatCalendarItemRange(item);
+  const taskUrl = item.taskId ? `/events/${event?.id}/tasks/${item.taskId}` : null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="w-full max-w-xl overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-slate-900/10" onClick={(clickEvent) => clickEvent.stopPropagation()}>
+        <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-gradient-to-r from-indigo-50 to-white px-5 py-4">
+          <div className="min-w-0">
+            <p className="text-xs font-bold uppercase tracking-wide text-indigo-600">Chi tiết lịch</p>
+            <h3 className="mt-1 text-xl font-extrabold text-slate-950">{item.title}</h3>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <StatusBadge status={typeLabel} />
+              {statusLabel && <StatusBadge status={statusLabel} />}
+              {item.taskStatus && <StatusBadge status={item.taskStatus} />}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full p-2 text-slate-500 hover:bg-white hover:text-slate-900"
+            aria-label="Đóng chi tiết lịch"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="space-y-4 px-5 py-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <CalendarDetailField label="Thời gian" value={timeRange || formatDate(item.date)} />
+            <CalendarDetailField label="Phạm vi" value={item.departmentName || 'Toàn sự kiện'} />
+            <CalendarDetailField label="Địa điểm" value={item.location || 'Chưa có địa điểm'} />
+            <CalendarDetailField label="Người tạo" value={item.creatorName || 'Không có dữ liệu'} />
+            {item.assigneeName && <CalendarDetailField label="Phụ trách task" value={item.assigneeName} />}
+            {item.taskPriority && <CalendarDetailField label="Ưu tiên task" value={item.taskPriority} />}
+          </div>
+
+          {item.meetingUrl && (
+            <a
+              href={item.meetingUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-bold text-indigo-700 hover:bg-indigo-100"
+            >
+              <ExternalLink size={16} />
+              Mở meeting link
+            </a>
+          )}
+
+          {item.description && (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Ghi chú</p>
+              <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">{item.description}</p>
+            </div>
+          )}
+
+          {attendees.length > 0 && (
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Người tham gia</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {attendees.map((attendee) => (
+                  <span key={attendee.userId} className="rounded-full border border-slate-200 bg-white px-3 py-1 text-sm font-semibold text-slate-700">
+                    {attendee.name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-2 border-t border-slate-100 bg-white px-5 py-4 sm:flex-row sm:justify-end">
+          {taskUrl && (
+            <Button as={Link} to={taskUrl} onClick={onClose} variant="secondary">
+              <ExternalLink size={16} />
+              Mở task
+            </Button>
+          )}
+          <Button type="button" onClick={onClose}>
+            Đóng
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const CalendarDetailField = ({ label, value }) => (
+  <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+    <p className="text-xs font-bold uppercase tracking-wide text-slate-500">{label}</p>
+    <p className="mt-1 text-sm font-semibold text-slate-900">{value || 'Không có dữ liệu'}</p>
+  </div>
+);
+
+const CALENDAR_TYPE_LABELS = {
+  EVENT: 'Sự kiện',
+  TASK_DEADLINE: 'Deadline task',
+  MEETING: 'Họp',
+  REHEARSAL: 'Rehearsal',
+  SETUP: 'Setup',
+  CHECKIN: 'Check-in',
+  OTHER: 'Khác',
+};
+
+const CALENDAR_STATUS_LABELS = {
+  SCHEDULED: 'Đã lên lịch',
+  CANCELLED: 'Đã hủy',
+  DONE: 'Hoàn thành',
 };
 
 const buildDateTimeLocalValue = (dateKey, currentValue) => {
@@ -685,6 +810,24 @@ const formatCalendarItemTime = (item) => {
   }
 
   return `${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`;
+};
+
+const formatCalendarItemRange = (item) => {
+  if (item.allDay) {
+    return `${formatDate(item.startTime || item.date)} • Cả ngày`;
+  }
+
+  if (!item.startTime && !item.endTime) {
+    return formatDate(item.date);
+  }
+
+  const startText = item.startTime ? formatDate(item.startTime) : '';
+  const endText = item.endTime ? formatDate(item.endTime) : '';
+  if (startText && endText) {
+    return `${startText} - ${endText}`;
+  }
+
+  return startText || endText;
 };
 
 const getCalendarItemTone = (item) => {
