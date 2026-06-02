@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft,
   CalendarDays,
@@ -45,21 +45,25 @@ const PAGE_CONFIG = {
   calendar: {
     title: 'Lịch',
     description: 'Quản lý lịch họp, rehearsal, setup và các mốc vận hành riêng của sự kiện.',
+    meta: 'Lịch họp, rehearsal và các mốc vận hành',
     icon: CalendarDays,
   },
   documents: {
     title: 'Tài liệu',
     description: 'Tổng hợp attachment của mọi công việc trong sự kiện.',
+    meta: 'Tài liệu và file đính kèm trong sự kiện',
     icon: FileText,
   },
   reports: {
     title: 'Báo cáo',
     description: 'Tổng hợp report tiến độ thật từ các công việc.',
+    meta: 'Tiến độ, report và dữ liệu vận hành',
     icon: TrendingUp,
   },
   settings: {
     title: 'Cài đặt',
     description: 'Thông tin cấu hình sự kiện và các giới hạn hiện có ở frontend.',
+    meta: 'Thông tin và thiết lập sự kiện',
     icon: Settings,
   },
 };
@@ -71,13 +75,37 @@ const EVENT_STATUS_LABELS = {
 
 const EventUtilityPage = ({ user, onLogout, type }) => {
   const { eventId } = useParams();
+  const [searchParams] = useSearchParams();
   const config = PAGE_CONFIG[type] || PAGE_CONFIG.calendar;
   const Icon = config.icon;
   const [now] = useState(() => Date.now());
   const [calendarDate, setCalendarDate] = useState(() => {
+    const queryYear = Number(searchParams.get('year'));
+    const queryMonth = Number(searchParams.get('month'));
+    if (Number.isInteger(queryYear) && Number.isInteger(queryMonth) && queryMonth >= 1 && queryMonth <= 12) {
+      return { year: queryYear, month: queryMonth };
+    }
+
     const today = new Date();
     return { year: today.getFullYear(), month: today.getMonth() + 1 };
   });
+  const queryYear = Number(searchParams.get('year'));
+  const queryMonth = Number(searchParams.get('month'));
+
+  useEffect(() => {
+    if (!Number.isInteger(queryYear) || !Number.isInteger(queryMonth) || queryMonth < 1 || queryMonth > 12) {
+      return;
+    }
+
+    const frameId = window.requestAnimationFrame(() => setCalendarDate((currentDate) => {
+      if (currentDate.year === queryYear && currentDate.month === queryMonth) {
+        return currentDate;
+      }
+      return { year: queryYear, month: queryMonth };
+    }));
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [queryMonth, queryYear]);
   const reportRange = useMemo(() => {
     const to = new Date();
     const from = new Date(to.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -156,7 +184,7 @@ const EventUtilityPage = ({ user, onLogout, type }) => {
           meta={
             <span className="inline-flex items-center gap-2">
               <Icon size={16} />
-              Dữ liệu đọc từ API tổng hợp của sự kiện
+              {config.meta}
             </span>
           }
         />
@@ -166,7 +194,7 @@ const EventUtilityPage = ({ user, onLogout, type }) => {
 
         {!isLoading && !error && (
           <>
-            {type === 'calendar' && <CalendarContent eventId={eventId} event={event} members={members} calendar={calendarQuery.data} calendarDate={calendarDate} setCalendarDate={setCalendarDate} />}
+            {type === 'calendar' && <CalendarContent eventId={eventId} event={event} departments={departments} members={members} calendar={calendarQuery.data} calendarDate={calendarDate} setCalendarDate={setCalendarDate} />}
             {type === 'documents' && <DocumentsContent eventId={eventId} documents={documentsQuery.data || []} />}
             {type === 'reports' && <ReportsContent event={event} stats={stats} departments={departments} members={members} tasks={tasks} reportsData={reportsQuery.data} reportRange={reportRange} />}
             {type === 'settings' && <SettingsContent event={event} departments={departments} members={members} />}
@@ -177,8 +205,9 @@ const EventUtilityPage = ({ user, onLogout, type }) => {
   );
 };
 
-const CalendarContent = ({ eventId, event, members, calendar, calendarDate, setCalendarDate }) => {
+const CalendarContent = ({ eventId, event, departments, members, calendar, calendarDate, setCalendarDate }) => {
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
   const titleInputRef = useRef(null);
   const days = calendar?.days || [];
   const daysByDate = new Map(days.map((day) => [day.date, day]));
@@ -229,6 +258,7 @@ const CalendarContent = ({ eventId, event, members, calendar, calendarDate, setC
   const [editingCalendarItem, setEditingCalendarItem] = useState(null);
   const [isCreatePopupOpen, setIsCreatePopupOpen] = useState(false);
   const [form, setForm] = useState(() => buildEmptyCalendarForm());
+  const calendarEventIdParam = searchParams.get('calendarEventId');
   const selectableMembers = members;
   const createCalendarItemMutation = useMutation({
     mutationFn: eventUtilityApi.createCalendarItem,
@@ -254,6 +284,35 @@ const CalendarContent = ({ eventId, event, members, calendar, calendarDate, setC
       payload: buildCalendarPayload(form),
     });
   };
+  useEffect(() => {
+    if (!calendarEventIdParam || !calendar?.days) {
+      return;
+    }
+
+    const targetId = Number(calendarEventIdParam);
+    if (!Number.isFinite(targetId)) {
+      return;
+    }
+
+    const targetItem = calendar.days
+      .flatMap((day) => day.items || [])
+      .find((item) => item.id === targetId && !item.taskId);
+
+    if (!targetItem) {
+      return;
+    }
+
+    const frameId = window.requestAnimationFrame(() => {
+      setSelectedCalendarItem(targetItem);
+      setSearchParams((params) => {
+        const next = new URLSearchParams(params);
+        next.delete('calendarEventId');
+        return next;
+      }, { replace: true });
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [calendar?.days, calendarEventIdParam, setSearchParams]);
   const updateForm = (name, value) => {
     setForm((old) => ({ ...old, [name]: value }));
   };
@@ -351,6 +410,7 @@ const CalendarContent = ({ eventId, event, members, calendar, calendarDate, setC
         eventId={eventId}
         item={editingCalendarItem}
         members={members}
+        departments={departments}
         eventStartInput={eventStartInput}
         eventEndInput={eventEndInput}
         mutation={updateCalendarItemMutation}
@@ -407,11 +467,21 @@ const CalendarContent = ({ eventId, event, members, calendar, calendarDate, setC
                 </select>
               </label>
 
-              <div className="rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3">
-                <span className="text-xs font-bold uppercase tracking-wide text-indigo-600">Phạm vi</span>
-                <p className="mt-1 text-sm font-extrabold text-indigo-950">Ban tổ chức (BTC)</p>
-                <p className="mt-1 text-xs leading-5 text-indigo-700">Lịch này dành cho điều phối nội bộ của leader/BTC, không gắn riêng vào một ban.</p>
-              </div>
+              <label className="space-y-1">
+                <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Ban liên quan</span>
+                <select
+                  value={form.departmentId}
+                  onChange={(event) => updateForm('departmentId', event.target.value)}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
+                >
+                  <option value="">Ban tổ chức (BTC)</option>
+                  {departments.map((department) => (
+                    <option key={department.id} value={String(department.id)}>
+                      {department.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
               <label className="space-y-1">
                 <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Bắt đầu</span>
@@ -611,6 +681,7 @@ const monthIntersectsEventRange = (year, month, eventRange) => {
 const buildEmptyCalendarForm = () => ({
   title: '',
   type: 'MEETING',
+  departmentId: '',
   startTime: '',
   endTime: '',
   allDay: false,
@@ -624,6 +695,7 @@ const buildEmptyCalendarForm = () => ({
 const calendarItemToForm = (item) => ({
   title: item?.title || '',
   type: item?.type || 'MEETING',
+  departmentId: item?.departmentId ? String(item.departmentId) : '',
   startTime: toDateTimeLocalValue(item?.startTime),
   endTime: toDateTimeLocalValue(item?.endTime || item?.startTime),
   allDay: Boolean(item?.allDay),
@@ -637,7 +709,7 @@ const calendarItemToForm = (item) => ({
 const buildCalendarPayload = (form) => ({
   title: form.title,
   type: form.type,
-  departmentId: null,
+  departmentId: form.departmentId ? Number(form.departmentId) : null,
   startTime: form.startTime,
   endTime: form.endTime,
   allDay: form.allDay,
@@ -866,7 +938,7 @@ const CalendarDetailField = ({ label, value }) => (
   </div>
 );
 
-const CalendarEditModal = ({ eventId, item, members, eventStartInput, eventEndInput, mutation, onClose }) => {
+const CalendarEditModal = ({ eventId, item, departments, members, eventStartInput, eventEndInput, mutation, onClose }) => {
   const [form, setForm] = useState(() => calendarItemToForm(item));
   const updateForm = (name, value) => setForm((old) => ({ ...old, [name]: value }));
   const toggleAttendee = (userId) => {
@@ -934,11 +1006,21 @@ const CalendarEditModal = ({ eventId, item, members, eventStartInput, eventEndIn
               </select>
             </label>
 
-            <div className="rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3">
-              <span className="text-xs font-bold uppercase tracking-wide text-indigo-600">Phạm vi</span>
-              <p className="mt-1 text-sm font-extrabold text-indigo-950">Ban tổ chức (BTC)</p>
-              <p className="mt-1 text-xs leading-5 text-indigo-700">Lịch sửa sẽ được lưu ở phạm vi BTC.</p>
-            </div>
+            <label className="space-y-1">
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Ban liên quan</span>
+              <select
+                value={form.departmentId}
+                onChange={(event) => updateForm('departmentId', event.target.value)}
+                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
+              >
+                <option value="">Ban tổ chức (BTC)</option>
+                {departments.map((department) => (
+                  <option key={department.id} value={String(department.id)}>
+                    {department.name}
+                  </option>
+                ))}
+              </select>
+            </label>
 
             <label className="space-y-1">
               <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Bắt đầu</span>

@@ -329,9 +329,25 @@ const AppLayout = ({
                               if (unread) {
                                 markNotificationReadMutation.mutate({ userId: user.userId, notificationId: notification.id });
                               }
+                              const isCalendarNotification = notification.type?.startsWith('CALENDAR');
                               if (notification.eventId && notification.taskId) {
                                 setNotificationOpen(false);
                                 navigate(`/events/${notification.eventId}/tasks/${notification.taskId}`);
+                              } else if (notification.eventId && (notification.calendarEventId || isCalendarNotification)) {
+                                setNotificationOpen(false);
+                                const params = new URLSearchParams();
+                                if (notification.calendarEventId) {
+                                  params.set('calendarEventId', String(notification.calendarEventId));
+                                }
+                                if (notification.calendarStartTime) {
+                                  const calendarDate = new Date(notification.calendarStartTime);
+                                  if (!Number.isNaN(calendarDate.getTime())) {
+                                    params.set('year', String(calendarDate.getFullYear()));
+                                    params.set('month', String(calendarDate.getMonth() + 1));
+                                  }
+                                }
+                                const query = params.toString();
+                                navigate(`/events/${notification.eventId}/calendar${query ? `?${query}` : ''}`);
                               }
                             }}
                             className="block w-full border-b border-slate-100 px-4 py-3 text-left last:border-b-0 hover:bg-indigo-50"
