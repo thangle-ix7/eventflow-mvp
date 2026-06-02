@@ -33,6 +33,7 @@ public class TaskReportService {
     private final UserRepository userRepository;
     private final JdbcTemplate jdbcTemplate;
     private final FileStorageService fileStorageService;
+    private final TaskService taskService;
 
     @Transactional(readOnly = true)
     public List<TaskReportResponseDTO> getTaskReports(Long taskId) {
@@ -53,9 +54,11 @@ public class TaskReportService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy task"));
         User reporter = userRepository.findById(reporterId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy người báo cáo"));
+        rejectSubtaskReport(task);
+        taskService.ensureManualProgressAllowed(taskId);
 
         StoredFile storedImage = image != null && !image.isEmpty()
-                ? fileStorageService.store(image, "task-reports/" + taskId, MAX_IMAGE_SIZE_BYTES, ALLOWED_IMAGE_TYPES)
+                ? fileStorageService.store(image, "task-report/" + taskId, MAX_IMAGE_SIZE_BYTES, ALLOWED_IMAGE_TYPES)
                 : null;
         TaskReport report = TaskReport.builder()
                 .task(task)
@@ -70,7 +73,9 @@ public class TaskReportService {
                 .build();
 
         applyProgressToTask(task, report.getProgressPercentage());
-        return mapToResponse(taskReportRepository.save(report));
+        TaskReport savedReport = taskReportRepository.save(report);
+        taskService.syncParentProgressFromSubtask(task.getId());
+        return mapToResponse(savedReport);
     }
 
     @Transactional
@@ -83,13 +88,15 @@ public class TaskReportService {
         TaskReport report = taskReportRepository.findByIdWithDetails(reportId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy report"));
 
+        rejectSubtaskReport(report.getTask());
         report.setProgressPercentage(validateProgress(progressPercentage));
         report.setDescription(validateDescription(description));
         report.setUpdatedAt(LocalDateTime.now());
+        taskService.ensureManualProgressAllowed(report.getTask().getId());
 
         if (image != null && !image.isEmpty()) {
             fileStorageService.delete(report.getImageStorageProvider(), report.getImageStoragePath());
-            StoredFile storedImage = fileStorageService.store(image, "task-reports/" + report.getTask().getId(), MAX_IMAGE_SIZE_BYTES, ALLOWED_IMAGE_TYPES);
+            StoredFile storedImage = fileStorageService.store(image, "task-report/" + report.getTask().getId(), MAX_IMAGE_SIZE_BYTES, ALLOWED_IMAGE_TYPES);
             report.setImageOriginalName(storedImage.originalName());
             report.setImageContentType(storedImage.contentType());
             report.setImageSizeBytes(storedImage.sizeBytes());
@@ -98,7 +105,9 @@ public class TaskReportService {
         }
 
         applyProgressToTask(report.getTask(), report.getProgressPercentage());
-        return mapToResponse(taskReportRepository.save(report));
+        TaskReport savedReport = taskReportRepository.save(report);
+        taskService.syncParentProgressFromSubtask(report.getTask().getId());
+        return mapToResponse(savedReport);
     }
 
     @Transactional(readOnly = true)
@@ -155,6 +164,12 @@ public class TaskReportService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tiến độ phải nằm trong khoảng 0-100");
         }
         return progressPercentage;
+    }
+
+    private void rejectSubtaskReport(Task task) {
+        if (task.getParent() != null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Subtask chỉ cập nhật bằng trạng thái, không dùng report tiến độ");
+        }
     }
 
     private String validateDescription(String description) {

@@ -20,21 +20,24 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
     @Query("""
             SELECT t FROM Task t
             JOIN FETCH t.event
+            LEFT JOIN FETCH t.parent
             LEFT JOIN FETCH t.assignee
             WHERE t.status != com.eventflow.backend.entity.TaskStatus.DONE
             AND t.status != com.eventflow.backend.entity.TaskStatus.IN_REVIEW
             """)
     List<Task> findAllPendingTasksForReminders();
 
-    @Query("SELECT t FROM Task t LEFT JOIN FETCH t.department LEFT JOIN FETCH t.assignee WHERE t.event.id = :eventId")
+    @Query("SELECT t FROM Task t LEFT JOIN FETCH t.department LEFT JOIN FETCH t.assignee WHERE t.event.id = :eventId AND t.parent IS NULL")
     List<Task> findAllByEventIdWithDetails(Long eventId);
 
     @Query("""
             SELECT t FROM Task t
             JOIN FETCH t.event
+            LEFT JOIN FETCH t.parent
             LEFT JOIN FETCH t.department
             LEFT JOIN FETCH t.assignee
             WHERE t.event.id = :eventId
+            AND t.parent IS NULL
             AND (:status IS NULL OR t.status = :status)
             AND (:priority IS NULL OR t.priority = :priority)
             AND (:departmentId IS NULL OR t.department.id = :departmentId)
@@ -53,9 +56,11 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
     @Query(value = """
             SELECT t FROM Task t
             JOIN FETCH t.event
+            LEFT JOIN FETCH t.parent
             LEFT JOIN FETCH t.department
             LEFT JOIN FETCH t.assignee
             WHERE t.event.id = :eventId
+            AND t.parent IS NULL
             AND (:status IS NULL OR t.status = :status)
             AND (:priority IS NULL OR t.priority = :priority)
             AND (:departmentId IS NULL OR t.department.id = :departmentId)
@@ -65,6 +70,7 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             countQuery = """
             SELECT COUNT(t) FROM Task t
             WHERE t.event.id = :eventId
+            AND t.parent IS NULL
             AND (:status IS NULL OR t.status = :status)
             AND (:priority IS NULL OR t.priority = :priority)
             AND (:departmentId IS NULL OR t.department.id = :departmentId)
@@ -83,9 +89,11 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
     @Query(value = """
             SELECT t FROM Task t
             JOIN FETCH t.event
+            LEFT JOIN FETCH t.parent
             LEFT JOIN FETCH t.department
             LEFT JOIN FETCH t.assignee
             WHERE t.event.id = :eventId
+            AND t.parent IS NULL
             AND (:status IS NULL OR t.status = :status)
             AND (:priority IS NULL OR t.priority = :priority)
             AND (:departmentId IS NULL OR t.department.id = :departmentId)
@@ -97,6 +105,7 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             countQuery = """
             SELECT COUNT(t) FROM Task t
             WHERE t.event.id = :eventId
+            AND t.parent IS NULL
             AND (:status IS NULL OR t.status = :status)
             AND (:priority IS NULL OR t.priority = :priority)
             AND (:departmentId IS NULL OR t.department.id = :departmentId)
@@ -116,8 +125,38 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             @Param("toDateTime") LocalDateTime toDateTime,
             Pageable pageable);
 
-    @Query("SELECT t FROM Task t JOIN FETCH t.event LEFT JOIN FETCH t.department LEFT JOIN FETCH t.assignee WHERE t.id = :taskId")
+    @Query("SELECT t FROM Task t JOIN FETCH t.event LEFT JOIN FETCH t.parent LEFT JOIN FETCH t.department LEFT JOIN FETCH t.assignee WHERE t.id = :taskId")
     Optional<Task> findByIdWithDetails(@Param("taskId") Long taskId);
+
+    @Query("""
+            SELECT t FROM Task t
+            JOIN FETCH t.event
+            LEFT JOIN FETCH t.parent
+            LEFT JOIN FETCH t.department
+            LEFT JOIN FETCH t.assignee
+            WHERE t.parent.id = :parentTaskId
+            ORDER BY t.createdAt ASC, t.id ASC
+            """)
+    List<Task> findAllByParentIdWithDetails(@Param("parentTaskId") Long parentTaskId);
+
+    @Query(value = """
+            SELECT t FROM Task t
+            JOIN FETCH t.event
+            LEFT JOIN FETCH t.parent
+            LEFT JOIN FETCH t.department
+            LEFT JOIN FETCH t.assignee
+            WHERE t.parent.id = :parentTaskId
+            """,
+            countQuery = """
+            SELECT COUNT(t) FROM Task t
+            WHERE t.parent.id = :parentTaskId
+            """)
+    Page<Task> findPageByParentIdWithDetails(
+            @Param("parentTaskId") Long parentTaskId,
+            Pageable pageable);
+
+    @Query("SELECT COUNT(t) > 0 FROM Task t WHERE t.parent.id = :parentTaskId")
+    boolean existsByParentId(@Param("parentTaskId") Long parentTaskId);
 
     @Query("SELECT t.event.id FROM Task t WHERE t.id = :taskId")
     Optional<Long> findEventIdByTaskId(@Param("taskId") Long taskId);

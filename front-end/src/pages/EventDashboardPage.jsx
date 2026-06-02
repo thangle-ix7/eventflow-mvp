@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, BarChart3, CheckCircle2, ClipboardList, Clock3, FileJson, FileSpreadsheet, ListTodo, Plus, Printer, TrendingUp } from 'lucide-react';
+import { ArrowLeft, BarChart3, CheckCircle2, ClipboardList, Clock3, ListTodo, Plus, TrendingUp } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import {
   Button,
@@ -20,12 +20,6 @@ import departmentApi from '../api/departmentApi';
 import eventApi from '../api/eventApi';
 import taskApi from '../api/taskApi';
 import { formatDate } from '../utils/dateUtils';
-import {
-  buildDashboardReport,
-  exportDashboardCsv,
-  exportDashboardJson,
-  openPrintableDashboardReport,
-} from '../utils/reportExport';
 
 const PAGE_SIZE = 8;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -68,24 +62,12 @@ const EventDashboardPage = ({ user, onLogout }) => {
       : dashboardApi.getSummary(eventId),
     enabled: Boolean(eventId),
   });
-  const trendQuery = useQuery({
-    queryKey: ['eventTaskStatusTrend', eventId, selectedDepartmentId, weekRange.fromDate, weekRange.toDate],
-    queryFn: () => selectedDepartmentId
-      ? dashboardApi.getDepartmentTaskTrend({ eventId, departmentId: selectedDepartmentId, ...weekRange })
-      : dashboardApi.getTaskTrend(eventId, weekRange),
-    enabled: Boolean(eventId && event),
-  });
   const statusQuery = useQuery({
     queryKey: ['eventTasksByStatus', eventId, selectedDepartmentId, weekRange.fromDate, weekRange.toDate],
     queryFn: () => selectedDepartmentId
       ? dashboardApi.getDepartmentTasksByStatus({ eventId, departmentId: selectedDepartmentId, ...weekRange })
       : dashboardApi.getTasksByStatus(eventId, weekRange),
     enabled: Boolean(eventId && event),
-  });
-  const comparisonQuery = useQuery({
-    queryKey: ['eventDashboardComparison', eventId, weekRange.fromDate, weekRange.toDate],
-    queryFn: () => dashboardApi.getComparison(eventId, weekRange),
-    enabled: Boolean(eventId && event && !selectedDepartmentId),
   });
   const tasksQuery = useQuery({
     queryKey: ['eventDashboardTasks', eventId, selectedDepartmentId, page, weekRange.fromDate, weekRange.toDate],
@@ -106,8 +88,8 @@ const EventDashboardPage = ({ user, onLogout }) => {
   const selectedDepartment = departments.find((department) => String(department.id) === String(selectedDepartmentId));
   const statusData = useMemo(() => normalizeStatusData(statusQuery.data), [statusQuery.data]);
   const tasks = useMemo(() => tasksQuery.data?.content || [], [tasksQuery.data]);
-  const isLoading = eventQuery.isLoading || departmentsQuery.isLoading || summaryQuery.isLoading || trendQuery.isLoading || statusQuery.isLoading || comparisonQuery.isLoading || tasksQuery.isLoading;
-  const error = departmentsQuery.error || summaryQuery.error || trendQuery.error || statusQuery.error || comparisonQuery.error || tasksQuery.error;
+  const isLoading = eventQuery.isLoading || departmentsQuery.isLoading || summaryQuery.isLoading || statusQuery.isLoading || tasksQuery.isLoading;
+  const error = departmentsQuery.error || summaryQuery.error || statusQuery.error || tasksQuery.error;
 
   const handleDepartmentChange = (event) => {
     setPage(0);
@@ -123,22 +105,6 @@ const EventDashboardPage = ({ user, onLogout }) => {
     navigate(`/events/${eventId}/tasks?${params.toString()}`);
   };
 
-  const reportData = useMemo(() => {
-    if (!summary) return null;
-
-    return buildDashboardReport({
-      event,
-      department: selectedDepartment,
-      summary,
-      trendData: trendQuery.data || [],
-      statusData,
-      tasks,
-      departments,
-      range: weekRange,
-      note: 'Dữ liệu xuất từ dashboard hiện tại. Phần so sánh dùng API kỳ hiện tại và kỳ liền trước theo khoảng ngày đang chọn.',
-    });
-  }, [departments, event, selectedDepartment, statusData, summary, tasks, trendQuery.data, weekRange]);
-
   return (
     <AppLayout user={user} events={event ? [event] : []} selectedEvent={event} onEventChange={() => {}} onLogout={onLogout}>
       <div className="space-y-6">
@@ -151,8 +117,7 @@ const EventDashboardPage = ({ user, onLogout }) => {
           <PageHeader
             eyebrow={`${event?.name || 'Sự kiện'} / ${selectedDepartment?.name || 'Toàn bộ ban'}`}
             title="Dashboard sự kiện"
-            description="Theo dõi tiến độ, trạng thái và công việc sắp tới theo tuần để biết ngay khu vực cần xử lý."
-            actions={<ReportExportActions report={reportData} />}
+            description="Tổng quan ngắn gọn về công việc hiện tại và những việc cần xử lý trong khoảng thời gian đang chọn."
           />
           <Panel className="p-4">
             <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-end">
@@ -193,21 +158,19 @@ const EventDashboardPage = ({ user, onLogout }) => {
               <MetricCard icon={Clock3} label="Quá hạn chưa xong" value={summary.overdueTasksCount} tone={summary.overdueTasksCount > 0 ? 'red' : 'slate'} />
             </section>
 
-            <MonthComparisonNotice comparison={comparisonQuery.data} selectedDepartmentId={selectedDepartmentId} />
-
-            <section className="grid gap-4">
-              <ChartPanel icon={<TrendingUp size={18} />} title="Xu hướng công việc theo ngày" description="Số lượng công việc theo deadline từng ngày, tách theo trạng thái hiện tại.">
-                <StatusLineChart
-                  data={trendQuery.data || []}
-                  onPointClick={({ status, date }) => openFilteredTasks({ status, fromDate: date, toDate: date })}
-                />
-              </ChartPanel>
-              <ChartPanel icon={<BarChart3 size={18} />} title="Phân bổ theo trạng thái" description="Số lượng công việc hiện tại theo từng trạng thái.">
+            <section className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+              <ChartPanel icon={<BarChart3 size={18} />} title="Trạng thái công việc" description="Bấm vào từng cột để xem danh sách task tương ứng.">
                 <StatusColumnChart
                   data={statusData}
                   onColumnClick={(status) => openFilteredTasks({ status, fromDate: weekRange.fromDate, toDate: weekRange.toDate })}
                 />
               </ChartPanel>
+              <DashboardNotes
+                summary={summary}
+                selectedDepartment={selectedDepartment}
+                weekRange={weekRange}
+                onOpenTasks={() => openFilteredTasks({ fromDate: weekRange.fromDate, toDate: weekRange.toDate })}
+              />
             </section>
 
             <TaskListSection tasks={tasks} page={page} setPage={setPage} pageData={tasksQuery.data} eventId={eventId} />
@@ -231,96 +194,6 @@ const normalizeStatusData = (data = []) => STATUS_ORDER.map((status) => ({
   totalTasks: statusValue(data, status),
 }));
 
-const ReportExportActions = ({ report }) => (
-  <div className="flex flex-wrap gap-2">
-    <Button
-      type="button"
-      onClick={() => report && exportDashboardCsv(report)}
-      disabled={!report}
-      variant="secondary"
-    >
-      <FileSpreadsheet size={16} />
-      CSV
-    </Button>
-    <Button
-      type="button"
-      onClick={() => report && exportDashboardJson(report)}
-      disabled={!report}
-      variant="secondary"
-    >
-      <FileJson size={16} />
-      JSON
-    </Button>
-    <Button
-      type="button"
-      onClick={() => report && openPrintableDashboardReport(report)}
-      disabled={!report}
-    >
-      <Printer size={16} />
-      In / lưu PDF
-    </Button>
-  </div>
-);
-
-const MonthComparisonNotice = ({ comparison, selectedDepartmentId }) => {
-  if (selectedDepartmentId) {
-    return (
-      <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
-        <span className="font-semibold text-slate-800">So với kỳ trước:</span>{' '}
-        đang hiển thị cho toàn sự kiện. Bộ lọc theo từng ban cần endpoint comparison riêng theo department.
-      </div>
-    );
-  }
-
-  if (!comparison) return null;
-
-  return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4">
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-sm font-bold text-slate-950">So với kỳ trước</p>
-          <p className="text-xs text-slate-500">
-            {comparison.fromDate} - {comparison.toDate} so với {comparison.previousFromDate} - {comparison.previousToDate}
-          </p>
-        </div>
-        <p className="text-sm font-semibold text-slate-700">
-          Tiến độ {formatSignedNumber(comparison.progressDeltaPoints, ' điểm')}
-        </p>
-      </div>
-      <div className="mt-3 grid gap-3 sm:grid-cols-3">
-        <ComparisonPill label="Tổng công việc" metric={comparison.totalTasks} />
-        <ComparisonPill label="Hoàn thành" metric={comparison.completedTasks} />
-        <ComparisonPill label="Quá hạn chưa xong" metric={comparison.overdueTasks} inverse />
-      </div>
-    </div>
-  );
-};
-
-const ComparisonPill = ({ label, metric, inverse = false }) => {
-  const delta = metric?.delta || 0;
-  const isPositive = delta > 0;
-  const isNegative = delta < 0;
-  const tone = inverse
-    ? (isPositive ? 'text-red-600' : isNegative ? 'text-emerald-600' : 'text-slate-500')
-    : (isPositive ? 'text-emerald-600' : isNegative ? 'text-red-600' : 'text-slate-500');
-
-  return (
-    <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
-      <p className="mt-1 text-lg font-extrabold text-slate-950">{metric?.currentValue ?? 0}</p>
-      <p className={`text-xs font-bold ${tone}`}>
-        {formatSignedNumber(delta)} ({formatSignedNumber(metric?.deltaPercent || 0, '%')})
-      </p>
-    </div>
-  );
-};
-
-const formatSignedNumber = (value, suffix = '') => {
-  const number = Number(value || 0);
-  const rounded = Math.round(number * 10) / 10;
-  return `${number > 0 ? '+' : ''}${rounded}${suffix}`;
-};
-
 const WeekControl = ({ weekIndex, setWeekIndex }) => (
   <div className="flex flex-col gap-1">
     <div className="flex gap-2">
@@ -343,116 +216,43 @@ const ChartPanel = ({ icon, title, description, children }) => (
   </Panel>
 );
 
-const StatusLineChart = ({ data, onPointClick }) => {
-  const [hoveredPoint, setHoveredPoint] = useState(null);
-  if (!data.length) return <EmptyChart message="Chưa có dữ liệu cập nhật status." />;
-
-  const width = 680;
-  const height = 280;
-  const padding = 36;
-  const series = [
-    { key: 'todoTasks', status: 'TODO', label: 'Cần làm', color: '#4f46e5', pointOffset: -9 },
-    { key: 'inProgressTasks', status: 'IN_PROGRESS', label: 'Đang làm', color: '#f59e0b', pointOffset: -3 },
-    { key: 'inReviewTasks', status: 'IN_REVIEW', label: 'Chờ duyệt', color: '#8b5cf6', pointOffset: 3 },
-    { key: 'completedTasks', status: 'DONE', label: 'Hoàn thành', color: '#10b981', pointOffset: 9 },
-  ];
-  const maxValue = Math.max(...data.flatMap((item) => series.map((line) => item[line.key] || 0)), 1);
-  const labelStep = Math.max(Math.ceil(data.length / 8), 1);
-  const shouldShowXAxisLabel = (index) => index === 0 || index === data.length - 1 || index % labelStep === 0;
-  const formatAxisLabel = (label) => label?.slice(5) || label;
-  const smoothPath = (points) => {
-    if (points.length < 2) {
-      return points[0] ? `M ${points[0].x} ${points[0].y}` : '';
-    }
-
-    return points.reduce((path, point, index) => {
-      if (index === 0) {
-        return `M ${point.x} ${point.y}`;
-      }
-
-      const previous = points[index - 1];
-      const controlDistance = (point.x - previous.x) * 0.45;
-      return `${path} C ${previous.x + controlDistance} ${previous.y}, ${point.x - controlDistance} ${point.y}, ${point.x} ${point.y}`;
-    }, '');
-  };
-  const pointsFor = (line) => data.map((item, index) => {
-    const baseX = padding + (index * (width - padding * 2)) / Math.max(data.length - 1, 1);
-    const x = Math.min(Math.max(baseX + line.pointOffset, padding), width - padding);
-    const y = height - padding - ((item[line.key] || 0) / maxValue) * (height - padding * 2);
-    return { x, y, label: item.label, value: item[line.key] || 0, index };
-  });
+const DashboardNotes = ({ summary, selectedDepartment, weekRange, onOpenTasks }) => {
+  const remainingTasks = Math.max((summary?.totalTasks || 0) - (summary?.completedTasks || 0), 0);
 
   return (
-    <div className="relative overflow-x-auto">
-      <div className="mb-3 flex flex-wrap gap-3 text-xs font-semibold text-slate-600">
-        {series.map((line) => <span key={line.key} className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: line.color }} />{line.label}</span>)}
+    <Panel className="p-4">
+      <div className="mb-4 flex items-start gap-3">
+        <div className="rounded-lg bg-slate-100 p-2 text-slate-700">
+          <ClipboardList size={18} />
+        </div>
+        <div>
+          <h3 className="font-semibold text-slate-950">Ghi chú vận hành</h3>
+          <p className="text-sm text-slate-500">
+            {selectedDepartment ? `Đang xem riêng ban ${selectedDepartment.name}.` : 'Đang xem toàn bộ sự kiện.'}
+          </p>
+        </div>
       </div>
-      <svg viewBox={`0 0 ${width} ${height}`} className="h-72 min-w-[560px]">
-        <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} className="stroke-gray-200" />
-        <line x1={padding} y1={padding} x2={padding} y2={height - padding} className="stroke-gray-200" />
-        {series.map((line) => {
-          const points = pointsFor(line);
-          const path = smoothPath(points);
-          return (
-            <g key={line.key}>
-              <path d={path} fill="none" stroke={line.color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-              {points.filter((point) => point.value > 0).map((point) => (
-                <g key={`${line.key}-${point.label}`}>
-                  <circle
-                    cx={point.x}
-                    cy={point.y}
-                    r="6"
-                    fill={line.color}
-                    className="cursor-pointer"
-                    onMouseEnter={() => setHoveredPoint({ ...point, statusLabel: line.label })}
-                    onMouseLeave={() => setHoveredPoint(null)}
-                    onFocus={() => setHoveredPoint({ ...point, statusLabel: line.label })}
-                    onBlur={() => setHoveredPoint(null)}
-                    onClick={() => onPointClick?.({ status: line.status, date: point.label })}
-                  />
-                  <circle
-                    cx={point.x}
-                    cy={point.y}
-                    r="14"
-                    fill="transparent"
-                    className="cursor-pointer"
-                    onMouseEnter={() => setHoveredPoint({ ...point, statusLabel: line.label })}
-                    onMouseLeave={() => setHoveredPoint(null)}
-                    onClick={() => onPointClick?.({ status: line.status, date: point.label })}
-                  />
-                  <text x={point.x} y={point.y - 10} textAnchor="middle" className="fill-gray-700 text-[11px] font-semibold">
-                    {point.value}
-                  </text>
-                </g>
-              ))}
-            </g>
-          );
-        })}
-        {hoveredPoint && (
-          <g className="pointer-events-none">
-            <rect
-              x={Math.min(Math.max(hoveredPoint.x - 78, 8), width - 166)}
-              y={Math.max(hoveredPoint.y - 72, 8)}
-              width="158"
-              height="52"
-              rx="8"
-              className="fill-white/95 stroke-slate-200"
-            />
-            <text x={Math.min(Math.max(hoveredPoint.x, 86), width - 86)} y={Math.max(hoveredPoint.y - 50, 30)} textAnchor="middle" className="fill-slate-900 text-[11px] font-bold">
-              {hoveredPoint.label}
-            </text>
-            <text x={Math.min(Math.max(hoveredPoint.x, 86), width - 86)} y={Math.max(hoveredPoint.y - 32, 48)} textAnchor="middle" className="fill-slate-600 text-[11px]">
-              {hoveredPoint.statusLabel}: {hoveredPoint.value} task
-            </text>
-          </g>
-        )}
-        {pointsFor(series[0]).filter((point) => shouldShowXAxisLabel(point.index)).map((point) => (
-          <text key={point.label} x={point.x} y={height - 10} textAnchor="middle" className="fill-gray-500 text-[10px]">{formatAxisLabel(point.label)}</text>
-        ))}
-      </svg>
-    </div>
+      <div className="space-y-3 text-sm">
+        <DashboardNoteItem label="Khoảng thời gian" value={`${weekRange.fromDate} - ${weekRange.toDate}`} />
+        <DashboardNoteItem label="Task chưa hoàn thành" value={`${remainingTasks} task`} />
+        <DashboardNoteItem label="Task quá hạn chưa xong" value={`${summary?.overdueTasksCount || 0} task`} />
+      </div>
+      <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+        Dùng trang này để nắm nhanh tình hình. Phần báo cáo và xuất tài liệu được xử lý ở khu vực riêng.
+      </div>
+      <Button type="button" onClick={onOpenTasks} variant="secondary" className="mt-4">
+        Mở danh sách task
+      </Button>
+    </Panel>
   );
 };
+
+const DashboardNoteItem = ({ label, value }) => (
+  <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-100 px-3 py-2">
+    <span className="text-slate-500">{label}</span>
+    <span className="font-semibold text-slate-900">{value}</span>
+  </div>
+);
 
 const StatusColumnChart = ({ data, onColumnClick }) => {
   const [hoveredColumn, setHoveredColumn] = useState(null);

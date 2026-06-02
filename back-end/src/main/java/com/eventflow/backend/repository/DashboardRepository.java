@@ -11,15 +11,15 @@ import java.util.List;
 public interface DashboardRepository extends JpaRepository<com.eventflow.backend.entity.Event, Long> {
 
     // Get total tasks count for an event
-    @Query(value = "SELECT COUNT(t) FROM tasks t WHERE t.event_id = :eventId", nativeQuery = true)
+    @Query(value = "SELECT COUNT(t) FROM tasks t WHERE t.event_id = :eventId AND t.parent_id IS NULL", nativeQuery = true)
     Long countTotalTasks(@Param("eventId") Long eventId);
 
     // Get completed tasks count for an event
-    @Query(value = "SELECT COUNT(t) FROM tasks t WHERE t.event_id = :eventId AND t.status = 'DONE'", nativeQuery = true)
+    @Query(value = "SELECT COUNT(t) FROM tasks t WHERE t.event_id = :eventId AND t.parent_id IS NULL AND t.status = 'DONE'", nativeQuery = true)
     Long countCompletedTasks(@Param("eventId") Long eventId);
 
     // Get overdue tasks count for an event
-    @Query(value = "SELECT COUNT(t) FROM tasks t WHERE t.event_id = :eventId AND t.deadline < NOW() AND t.status != 'DONE'", nativeQuery = true)
+    @Query(value = "SELECT COUNT(t) FROM tasks t WHERE t.event_id = :eventId AND t.parent_id IS NULL AND t.deadline < NOW() AND t.status != 'DONE'", nativeQuery = true)
     Long countOverdueTasks(@Param("eventId") Long eventId);
 
     // Get days until event (can be negative if event passed)
@@ -32,7 +32,7 @@ public interface DashboardRepository extends JpaRepository<com.eventflow.backend
             "COUNT(t.id) AS total_tasks, " +
             "COUNT(CASE WHEN t.deadline < NOW() AND t.status != 'DONE' THEN 1 END) AS overdue_tasks_count " +
             "FROM departments d " +
-            "LEFT JOIN tasks t ON t.department_id = d.id AND t.event_id = :eventId " +
+            "LEFT JOIN tasks t ON t.department_id = d.id AND t.event_id = :eventId AND t.parent_id IS NULL " +
             "WHERE d.event_id = :eventId " +
             "GROUP BY d.id, d.name " +
             "ORDER BY d.name", nativeQuery = true)

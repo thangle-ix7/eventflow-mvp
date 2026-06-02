@@ -15,6 +15,10 @@ public class EventDocumentDTO {
     private Long id;
     private Long taskId;
     private String taskTitle;
+    private Long parentTaskId;
+    private String parentTaskTitle;
+    private Boolean subtask;
+    private Long departmentId;
     private String departmentName;
     private String uploaderName;
     private String originalName;

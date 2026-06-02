@@ -60,7 +60,7 @@ public class TaskAttachmentService {
 
         return files.stream()
                 .map(file -> {
-                    StoredFile storedFile = fileStorageService.store(file, "task-attachments/" + taskId, MAX_ATTACHMENT_SIZE_BYTES, ALLOWED_ATTACHMENT_TYPES);
+                    StoredFile storedFile = fileStorageService.store(file, "task-attachment/" + taskId, MAX_ATTACHMENT_SIZE_BYTES, ALLOWED_ATTACHMENT_TYPES);
                     TaskAttachment attachment = TaskAttachment.builder()
                             .task(task)
                             .uploader(uploader)

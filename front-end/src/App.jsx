@@ -1,5 +1,7 @@
 import { Suspense, lazy, useEffect, useState } from 'react';
-import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
+import { Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import AppLayout from './components/AppLayout';
 import LoginPage from './components/LoginPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import DepartmentCreatePage from './pages/DepartmentCreatePage';
@@ -23,6 +25,7 @@ import TaskListPage from './pages/TaskListPage';
 import TaskReportsPage from './pages/TaskReportsPage';
 import TaskReviewsPage from './pages/TaskReviewsPage';
 import TaskUpdatePage from './pages/TaskUpdatePage';
+import eventApi from './api/eventApi';
 import userApi from './api/userApi';
 
 const EventDashboardPage = lazy(() => import('./pages/EventDashboardPage'));
@@ -114,6 +117,7 @@ function App() {
         element={<LoginPage onLoginSuccess={handleLoginSuccess} />}
       />
       <Route element={<ProtectedRoute user={user} />}>
+        <Route element={<RootAppLayout {...protectedProps} />}>
         <Route path="/" element={<EventListPage {...protectedProps} />} />
         <Route path="/profile" element={<ProfilePage {...protectedProps} />} />
         <Route path="/events/new" element={<EventCreatePage {...protectedProps} />} />
@@ -211,11 +215,51 @@ function App() {
           path="/events/:eventId/departments/:departmentId/tasks"
           element={<DepartmentTasksPage {...protectedProps} />}
         />
+        </Route>
       </Route>
       <Route path="*" element={<Navigate to={user ? '/' : '/login'} replace />} />
     </Routes>
   );
 }
+
+const RootAppLayout = ({ user, onLogout }) => {
+  const location = useLocation();
+  const eventId = resolveEventIdFromPath(location.pathname);
+  const eventsQuery = useQuery({
+    queryKey: ['events', 'layout'],
+    queryFn: () => eventApi.getMyEvents(),
+    enabled: Boolean(user?.userId),
+    staleTime: 60_000,
+  });
+  const selectedEventQuery = useQuery({
+    queryKey: ['event', eventId],
+    queryFn: () => eventApi.getEvent(eventId),
+    enabled: Boolean(eventId),
+  });
+  const events = eventsQuery.data || [];
+  const selectedEvent = selectedEventQuery.data || events.find((event) => String(event.id) === String(eventId)) || null;
+  const showTelegramOnboarding = !['/profile', '/events/new'].includes(location.pathname);
+
+  return (
+    <AppLayout
+      user={user}
+      events={events}
+      selectedEvent={selectedEvent}
+      onLogout={onLogout}
+      showTelegramOnboarding={showTelegramOnboarding}
+    >
+      <Outlet />
+    </AppLayout>
+  );
+};
+
+const resolveEventIdFromPath = (pathname) => {
+  const match = pathname.match(/^\/events\/([^/]+)/);
+  if (!match || match[1] === 'new') {
+    return null;
+  }
+  return match[1];
+};
 
 const LazyPageFallback = ({ children }) => (
   <Suspense

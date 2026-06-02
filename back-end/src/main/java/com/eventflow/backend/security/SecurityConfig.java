@@ -2,6 +2,7 @@ package com.eventflow.backend.security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -23,9 +24,11 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
+    private final ApiSecurityResponseWriter responseWriter;
 
-    public SecurityConfig(JwtAuthFilter jwtAuthFilter) {
+    public SecurityConfig(JwtAuthFilter jwtAuthFilter, ApiSecurityResponseWriter responseWriter) {
         this.jwtAuthFilter = jwtAuthFilter;
+        this.responseWriter = responseWriter;
     }
 
     @Bean
@@ -39,6 +42,11 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint((request, response, authException) ->
+                                responseWriter.writeError(request, response, HttpStatus.UNAUTHORIZED, "Bạn cần đăng nhập để thực hiện thao tác này"))
+                        .accessDeniedHandler((request, response, accessDeniedException) ->
+                                responseWriter.writeError(request, response, HttpStatus.FORBIDDEN, "Bạn không có quyền thực hiện thao tác này")))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/v1/auth/**").permitAll()

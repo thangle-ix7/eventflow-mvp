@@ -92,6 +92,15 @@ const TaskReportsPage = ({ user, onLogout }) => {
           Quay lại chi tiết task
         </Link>
 
+        {task?.parentId ? (
+          <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+            <h2 className="text-xl font-bold text-gray-900">Subtask chỉ cập nhật trạng thái</h2>
+            <p className="mt-1 text-sm text-gray-500">
+              Subtask không dùng report tiến độ. Hãy cập nhật trạng thái của subtask, task cha sẽ tự tính tiến độ theo tỷ lệ subtask DONE.
+            </p>
+          </section>
+        ) : (
+          <>
         <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
           <div className="flex items-center justify-between gap-3">
             <div>
@@ -246,6 +255,8 @@ const TaskReportsPage = ({ user, onLogout }) => {
           </div>
         </section>
 
+          </>
+        )}
       </div>
     </AppLayout>
   );

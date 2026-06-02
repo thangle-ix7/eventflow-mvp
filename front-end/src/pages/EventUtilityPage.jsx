@@ -1249,6 +1249,11 @@ const getCalendarItemTone = (item) => {
 };
 
 const DocumentsContent = ({ eventId, documents }) => {
+  const [search, setSearch] = useState('');
+  const filteredDocuments = useMemo(() => filterDocuments(documents, search), [documents, search]);
+  const documentTree = useMemo(() => buildDocumentTree(filteredDocuments), [filteredDocuments]);
+  const totalTasks = useMemo(() => documentTree.reduce((total, department) => total + department.tasks.length, 0), [documentTree]);
+
   const handleDownload = async (document) => {
     const blob = await taskApi.downloadTaskAttachment(document.id);
     const url = URL.createObjectURL(blob);
@@ -1263,38 +1268,205 @@ const DocumentsContent = ({ eventId, documents }) => {
 
   return (
   <Panel>
-    <div className="border-b border-slate-100 p-4">
-      <h3 className="font-bold text-slate-950">Tài liệu toàn sự kiện</h3>
-      <p className="mt-1 text-sm text-slate-500">Danh sách attachment được tổng hợp từ mọi task trong sự kiện.</p>
+    <div className="flex flex-col gap-3 border-b border-slate-100 p-4 lg:flex-row lg:items-start lg:justify-between">
+      <div>
+        <h3 className="font-bold text-slate-950">Tài liệu toàn sự kiện</h3>
+        <p className="mt-1 text-sm text-slate-500">
+          Attachment được nhóm theo ban, task lớn và subtask để dễ tìm đúng ngữ cảnh.
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-slate-600">
+          <span className="rounded-full bg-slate-100 px-2.5 py-1">{documentTree.length} ban</span>
+          <span className="rounded-full bg-slate-100 px-2.5 py-1">{totalTasks} task</span>
+          <span className="rounded-full bg-slate-100 px-2.5 py-1">{filteredDocuments.length} file</span>
+        </div>
+      </div>
+      <input
+        type="search"
+        value={search}
+        onChange={(event) => setSearch(event.target.value)}
+        placeholder="Tìm file, task, ban, người upload..."
+        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 lg:max-w-sm"
+      />
     </div>
     {documents.length === 0 ? (
       <div className="p-4">
         <EmptyState icon={FileText} title="Chưa có tài liệu" description="Attachment upload ở task sẽ xuất hiện tại đây." />
       </div>
+    ) : filteredDocuments.length === 0 ? (
+      <div className="p-4">
+        <EmptyState icon={FileText} title="Không tìm thấy tài liệu" description="Thử tìm bằng tên file, tên task, ban hoặc người upload khác." />
+      </div>
     ) : (
       <div className="divide-y divide-slate-100">
-        {documents.map((document) => (
-          <div key={document.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="font-semibold text-slate-950">{document.originalName}</p>
-              <p className="text-sm text-slate-500">{document.taskTitle} • {document.departmentName} • {document.uploaderName}</p>
-              <p className="mt-1 text-xs text-slate-400">{formatFileSize(document.sizeBytes)} • {formatDate(document.createdAt)}</p>
+        {documentTree.map((department) => (
+          <details key={department.key} className="group">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 transition hover:bg-slate-50">
+              <div>
+                <p className="font-bold text-slate-950">{department.departmentName}</p>
+                <p className="text-sm text-slate-500">{department.tasks.length} task • {department.fileCount} file</p>
+              </div>
+              <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-700 group-open:hidden">Mở</span>
+              <span className="hidden rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600 group-open:inline">Đóng</span>
+            </summary>
+            <div className="space-y-3 bg-slate-50/70 px-4 pb-4">
+              {department.tasks.map((task) => (
+                <details key={task.key} className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+                  <summary className="flex cursor-pointer list-none flex-col gap-2 border-b border-slate-100 px-4 py-3 transition hover:bg-indigo-50/40 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="font-semibold text-slate-950">{task.taskTitle}</p>
+                      <p className="text-sm text-slate-500">{task.fileCount} file • {task.subtasks.length} subtask có file</p>
+                    </div>
+                    <Button as={Link} to={`/events/${eventId}/tasks/${task.taskId}/attachments`} variant="secondary">
+                      Mở task
+                    </Button>
+                  </summary>
+                  <div className="divide-y divide-slate-100">
+                    {task.attachments.length > 0 && (
+                      <DocumentFileList
+                        documents={task.attachments}
+                        eventId={eventId}
+                        label="File của task lớn"
+                        onDownload={handleDownload}
+                      />
+                    )}
+                    {task.subtasks.map((subtask) => (
+                      <div key={subtask.key} className="bg-white">
+                        <div className="flex flex-col gap-2 bg-slate-50 px-4 py-2 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <p className="text-sm font-bold text-slate-800">Subtask: {subtask.taskTitle}</p>
+                            <p className="text-xs text-slate-500">{subtask.attachments.length} file</p>
+                          </div>
+                          <Button as={Link} to={`/events/${eventId}/tasks/${subtask.taskId}/attachments`} variant="secondary">
+                            Mở subtask
+                          </Button>
+                        </div>
+                        <DocumentFileList
+                          documents={subtask.attachments}
+                          eventId={eventId}
+                          onDownload={handleDownload}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              ))}
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Button as={Link} to={`/events/${eventId}/tasks/${document.taskId}/attachments`} variant="secondary">
-                Mở task
-              </Button>
-              <Button type="button" onClick={() => handleDownload(document)}>
-                <Download size={16} />
-                Tải xuống
-              </Button>
-            </div>
-          </div>
+          </details>
         ))}
       </div>
     )}
   </Panel>
   );
+};
+
+const DocumentFileList = ({ documents, eventId, label, onDownload }) => (
+  <div className="divide-y divide-slate-100">
+    {label && <p className="bg-white px-4 pt-3 text-xs font-bold uppercase tracking-wide text-slate-400">{label}</p>}
+    {documents.map((document) => (
+      <div key={document.id} className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <p className="truncate font-semibold text-slate-950">{document.originalName}</p>
+          <p className="text-sm text-slate-500">
+            {documentTypeLabel(document.contentType)} • {document.uploaderName} • {formatDate(document.createdAt)}
+          </p>
+          <p className="mt-1 text-xs text-slate-400">{formatFileSize(document.sizeBytes)}</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button as={Link} to={`/events/${eventId}/tasks/${document.taskId}/attachments`} variant="secondary">
+            Mở vị trí
+          </Button>
+          <Button type="button" onClick={() => onDownload(document)}>
+            <Download size={16} />
+            Tải xuống
+          </Button>
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
+const filterDocuments = (documents, search) => {
+  const keyword = search.trim().toLowerCase();
+  if (!keyword) {
+    return documents;
+  }
+
+  return documents.filter((document) => [
+    document.originalName,
+    document.taskTitle,
+    document.parentTaskTitle,
+    document.departmentName,
+    document.uploaderName,
+    document.contentType,
+  ].some((value) => String(value || '').toLowerCase().includes(keyword)));
+};
+
+const buildDocumentTree = (documents) => {
+  const departmentMap = new Map();
+
+  documents.forEach((document) => {
+    const departmentKey = String(document.departmentId ?? document.departmentName ?? 'none');
+    if (!departmentMap.has(departmentKey)) {
+      departmentMap.set(departmentKey, {
+        key: departmentKey,
+        departmentId: document.departmentId,
+        departmentName: document.departmentName || 'Chưa gán ban',
+        fileCount: 0,
+        taskMap: new Map(),
+      });
+    }
+
+    const department = departmentMap.get(departmentKey);
+    department.fileCount += 1;
+
+    const mainTaskId = document.parentTaskId || document.taskId;
+    const mainTaskKey = String(mainTaskId);
+    if (!department.taskMap.has(mainTaskKey)) {
+      department.taskMap.set(mainTaskKey, {
+        key: mainTaskKey,
+        taskId: mainTaskId,
+        taskTitle: document.parentTaskTitle || document.taskTitle || 'Task không tên',
+        fileCount: 0,
+        attachments: [],
+        subtaskMap: new Map(),
+      });
+    }
+
+    const task = department.taskMap.get(mainTaskKey);
+    task.fileCount += 1;
+
+    if (document.subtask) {
+      const subtaskKey = String(document.taskId);
+      if (!task.subtaskMap.has(subtaskKey)) {
+        task.subtaskMap.set(subtaskKey, {
+          key: subtaskKey,
+          taskId: document.taskId,
+          taskTitle: document.taskTitle || 'Subtask không tên',
+          attachments: [],
+        });
+      }
+      task.subtaskMap.get(subtaskKey).attachments.push(document);
+    } else {
+      task.attachments.push(document);
+    }
+  });
+
+  return Array.from(departmentMap.values()).map((department) => ({
+    ...department,
+    tasks: Array.from(department.taskMap.values()).map((task) => ({
+      ...task,
+      subtasks: Array.from(task.subtaskMap.values()),
+    })),
+  }));
+};
+
+const documentTypeLabel = (contentType) => {
+  if (!contentType) return 'File';
+  if (contentType.includes('pdf')) return 'PDF';
+  if (contentType.includes('word')) return 'Word';
+  if (contentType.includes('spreadsheet') || contentType.includes('excel')) return 'Excel';
+  if (contentType.includes('image')) return 'Image';
+  return 'File';
 };
 
 const formatFileSize = (sizeBytes) => {

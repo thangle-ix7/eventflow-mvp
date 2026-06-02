@@ -225,18 +225,31 @@ public class EventUtilityService {
         return jdbcTemplate.query("""
                 SELECT ta.id, ta.task_id, ta.original_name, ta.content_type, ta.size_bytes, ta.created_at,
                        t.title AS task_title,
+                       t.parent_id AS parent_task_id,
+                       pt.title AS parent_task_title,
+                       d.id AS department_id,
                        COALESCE(d.name, 'Chưa gán ban') AS department_name,
                        u.name AS uploader_name
                 FROM task_attachments ta
                 JOIN tasks t ON t.id = ta.task_id
+                LEFT JOIN tasks pt ON pt.id = t.parent_id
                 LEFT JOIN departments d ON d.id = t.department_id
                 JOIN users u ON u.id = ta.uploader_id
                 WHERE t.event_id = ?
-                ORDER BY ta.created_at DESC, ta.id DESC
+                ORDER BY d.name ASC NULLS LAST,
+                         COALESCE(pt.title, t.title) ASC,
+                         CASE WHEN t.parent_id IS NULL THEN 0 ELSE 1 END ASC,
+                         t.title ASC,
+                         ta.created_at DESC,
+                         ta.id DESC
                 """, (rs, rowNum) -> EventDocumentDTO.builder()
                 .id(rs.getLong("id"))
                 .taskId(rs.getLong("task_id"))
                 .taskTitle(rs.getString("task_title"))
+                .parentTaskId(readNullableLong(rs, "parent_task_id"))
+                .parentTaskTitle(rs.getString("parent_task_title"))
+                .subtask(readNullableLong(rs, "parent_task_id") != null)
+                .departmentId(readNullableLong(rs, "department_id"))
                 .departmentName(rs.getString("department_name"))
                 .uploaderName(rs.getString("uploader_name"))
                 .originalName(rs.getString("original_name"))
@@ -336,7 +349,7 @@ public class EventUtilityService {
                        COUNT(CASE WHEN status = 'DONE' THEN 1 END) AS completed_tasks,
                        COUNT(CASE WHEN deadline < NOW() AND status != 'DONE' THEN 1 END) AS overdue_tasks
                 FROM tasks
-                WHERE event_id = ? AND deadline >= CAST(? AS date) AND deadline < (CAST(? AS date) + INTERVAL '1 day')
+                WHERE event_id = ? AND parent_id IS NULL AND deadline >= CAST(? AS date) AND deadline < (CAST(? AS date) + INTERVAL '1 day')
                 """, (rs, rowNum) -> {
             long totalTasks = rs.getLong("total_tasks");
             long completedTasks = rs.getLong("completed_tasks");
@@ -602,6 +615,11 @@ public class EventUtilityService {
             return new LocalDate[]{resolvedTo, resolvedFrom};
         }
         return new LocalDate[]{resolvedFrom, resolvedTo};
+    }
+
+    private Long readNullableLong(ResultSet rs, String columnName) throws SQLException {
+        long value = rs.getLong(columnName);
+        return rs.wasNull() ? null : value;
     }
 
     private record PeriodStats(long totalTasks, long completedTasks, long overdueTasks, int progressPercentage) {

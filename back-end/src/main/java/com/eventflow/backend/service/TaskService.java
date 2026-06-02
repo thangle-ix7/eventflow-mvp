@@ -150,6 +150,21 @@ public class TaskService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy task"));
     }
 
+    @Transactional(readOnly = true)
+    public PageResponse<TaskResponseDTO> getSubtasks(Long parentTaskId, int page, int size) {
+        if (!taskRepository.existsById(parentTaskId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy task cha");
+        }
+
+        var pageable = PageRequest.of(
+                Math.max(page, 0),
+                Math.min(Math.max(size, 1), 100),
+                Sort.by(Sort.Direction.ASC, "createdAt").and(Sort.by(Sort.Direction.ASC, "id")));
+
+        return PageResponse.from(taskRepository.findPageByParentIdWithDetails(parentTaskId, pageable)
+                .map(this::mapToTaskResponse));
+    }
+
     @Transactional
     public TaskResponseDTO createTask(Long eventId, TaskRequestDTO request) {
         Event event = eventRepository.findById(eventId)
@@ -181,6 +196,39 @@ public class TaskService {
     }
 
     @Transactional
+    public TaskResponseDTO createSubtask(Long parentTaskId, TaskRequestDTO request) {
+        Task parentTask = taskRepository.findByIdWithDetails(parentTaskId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy task cha"));
+        if (parentTask.getParent() != null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chỉ task lớn mới được chia subtask");
+        }
+
+        TaskStatus status = parseStatusOrDefault(request.getStatus(), TaskStatus.TODO);
+        TaskPriority priority = parsePriorityOrDefault(request.getPriority(), TaskPriority.MEDIUM);
+        validateTaskDeadlineWithinEvent(request.getDeadline(), parentTask.getEvent());
+        User assignee = resolveAssignee(parentTask.getEvent().getId(), request.getAssigneeId(), parentTask.getDepartment());
+
+        Task subtask = Task.builder()
+                .event(parentTask.getEvent())
+                .parent(parentTask)
+                .department(parentTask.getDepartment())
+                .assignee(assignee)
+                .title(request.getTitle().trim())
+                .description(normalizeOptionalText(request.getDescription()))
+                .status(status)
+                .priority(priority)
+                .deadline(request.getDeadline())
+                .progressPercentage(progressFromSubtaskStatus(status))
+                .build();
+
+        Task savedTask = taskRepository.save(subtask);
+        recordStatusHistory(savedTask);
+        notificationWorkflowService.notifyTaskAssigned(savedTask);
+        recalculateParentProgress(parentTask);
+        return mapToTaskResponse(savedTask);
+    }
+
+    @Transactional
     public TaskResponseDTO updateTask(Long taskId, TaskRequestDTO request) {
         Task task = taskRepository.findByIdWithDetails(taskId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy task"));
@@ -190,24 +238,32 @@ public class TaskService {
         Long previousAssigneeId = task.getAssignee() != null ? task.getAssignee().getId() : null;
         LocalDateTime previousDeadline = task.getDeadline();
         String previousTitle = task.getTitle();
-        Department department = resolveDepartment(eventId, request.getDepartmentId());
+        Department department = task.getParent() != null
+                ? task.getParent().getDepartment()
+                : resolveDepartment(eventId, request.getDepartmentId());
         User assignee = resolveAssignee(eventId, request.getAssigneeId(), department);
         validateTaskDeadlineWithinEvent(request.getDeadline(), task.getEvent());
+        boolean hasSubtasks = taskRepository.existsByParentId(taskId);
 
         task.setDepartment(department);
         task.setAssignee(assignee);
         task.setTitle(request.getTitle().trim());
         task.setDescription(normalizeOptionalText(request.getDescription()));
-        TaskStatus status = parseStatusOrDefault(request.getStatus(), task.getStatus());
+        TaskStatus status = hasSubtasks ? task.getStatus() : parseStatusOrDefault(request.getStatus(), task.getStatus());
         task.setStatus(status);
         task.setPriority(parsePriorityOrDefault(request.getPriority(), task.getPriority()));
         task.setDeadline(request.getDeadline());
-        task.setProgressPercentage(resolveProgress(
-                request.getProgressPercentage(),
-                status,
-                task.getProgressPercentage()));
+        if (task.getParent() != null) {
+            task.setProgressPercentage(progressFromSubtaskStatus(status));
+        } else if (!hasSubtasks) {
+            task.setProgressPercentage(resolveProgress(
+                    request.getProgressPercentage(),
+                    status,
+                    task.getProgressPercentage()));
+        }
 
         Task savedTask = taskRepository.save(task);
+        syncSubtasksAssignmentIfParent(savedTask);
         if (previousStatus != status) {
             recordStatusHistory(savedTask);
             if (status == TaskStatus.IN_REVIEW) {
@@ -222,25 +278,36 @@ public class TaskService {
                 && (!savedTask.getDeadline().equals(previousDeadline) || !savedTask.getTitle().equals(previousTitle))) {
             notificationWorkflowService.notifyTaskUpdated(savedTask);
         }
+        recalculateParentProgressIfSubtask(savedTask);
         return mapToTaskResponse(savedTask);
     }
 
     @Transactional
     public void deleteTask(Long taskId) {
-        if (!taskRepository.existsById(taskId)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy task");
+        Task task = taskRepository.findByIdWithDetails(taskId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy task"));
+
+        if (task.getParent() == null && taskRepository.existsByParentId(taskId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không thể xóa task lớn khi vẫn còn subtask");
         }
 
-        taskRepository.deleteById(taskId);
+        Task parentTask = task.getParent();
+        taskRepository.delete(task);
+        if (parentTask != null) {
+            recalculateParentProgress(parentTask);
+        }
     }
 
     @Transactional
     public Task updateStatus(Long taskId, TaskStatus status) {
-        Task task = taskRepository.findById(taskId)
+        Task task = taskRepository.findByIdWithDetails(taskId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy task"));
+        assertManualProgressAllowed(task);
         TaskStatus previousStatus = task.getStatus();
         task.setStatus(status);
-        if (status == TaskStatus.DONE) {
+        if (task.getParent() != null) {
+            task.setProgressPercentage(progressFromSubtaskStatus(status));
+        } else if (status == TaskStatus.DONE) {
             task.setProgressPercentage(100);
         }
         Task savedTask = taskRepository.save(task);
@@ -250,6 +317,7 @@ public class TaskService {
                 notificationWorkflowService.notifyTaskReviewRequested(savedTask);
             }
         }
+        recalculateParentProgressIfSubtask(savedTask);
         return savedTask;
     }
 
@@ -257,15 +325,18 @@ public class TaskService {
     public TaskResponseDTO updateWork(Long taskId, TaskWorkUpdateRequest request) {
         Task task = taskRepository.findByIdWithDetails(taskId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy task"));
+        assertManualProgressAllowed(task);
 
         User updater = task.getAssignee();
         TaskStatus previousStatus = task.getStatus();
         TaskStatus status = parseStatus(request.getStatus());
         task.setStatus(status);
-        task.setProgressPercentage(resolveProgress(
-                request.getProgressPercentage(),
-                status,
-                task.getProgressPercentage()));
+        task.setProgressPercentage(task.getParent() != null
+                ? progressFromSubtaskStatus(status)
+                : resolveProgress(
+                        request.getProgressPercentage(),
+                        status,
+                        task.getProgressPercentage()));
 
         Task savedTask = taskRepository.save(task);
         if (previousStatus != status) {
@@ -275,6 +346,7 @@ public class TaskService {
             }
         }
         notificationWorkflowService.notifyTaskProgressUpdated(savedTask, updater);
+        recalculateParentProgressIfSubtask(savedTask);
 
         return mapToTaskResponse(savedTask);
     }
@@ -286,11 +358,14 @@ public class TaskService {
 
         Long previousAssigneeId = task.getAssignee() != null ? task.getAssignee().getId() : null;
         Long eventId = task.getEvent().getId();
-        Department department = resolveDepartment(eventId, request.getDepartmentId());
+        Department department = task.getParent() != null
+                ? task.getParent().getDepartment()
+                : resolveDepartment(eventId, request.getDepartmentId());
         task.setDepartment(department);
         task.setAssignee(resolveAssignee(eventId, request.getAssigneeId(), department));
 
         Task savedTask = taskRepository.save(task);
+        syncSubtasksAssignmentIfParent(savedTask);
         Long currentAssigneeId = savedTask.getAssignee() != null ? savedTask.getAssignee().getId() : null;
         if (currentAssigneeId != null && !currentAssigneeId.equals(previousAssigneeId)) {
             notificationWorkflowService.notifyTaskAssigned(savedTask);
@@ -313,6 +388,7 @@ public class TaskService {
     public TaskResponseDTO reviewTask(Long taskId, Long reviewerId, TaskReviewRequest request) {
         Task task = taskRepository.findByIdWithDetails(taskId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy task"));
+        assertManualProgressAllowed(task);
 
         if (task.getStatus() != TaskStatus.IN_REVIEW) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chỉ review được task đang IN_REVIEW");
@@ -326,7 +402,9 @@ public class TaskService {
         String feedback = validateFeedback(request.getFeedback());
 
         task.setStatus(nextStatus);
-        if (nextStatus == TaskStatus.DONE) {
+        if (task.getParent() != null) {
+            task.setProgressPercentage(progressFromSubtaskStatus(nextStatus));
+        } else if (nextStatus == TaskStatus.DONE) {
             task.setProgressPercentage(100);
         } else if (previousStatus == TaskStatus.DONE && task.getProgressPercentage() != null && task.getProgressPercentage() >= 100) {
             task.setProgressPercentage(99);
@@ -345,6 +423,7 @@ public class TaskService {
             recordStatusHistory(savedTask);
         }
         notificationWorkflowService.notifyTaskReviewed(savedTask);
+        recalculateParentProgressIfSubtask(savedTask);
 
         return mapToTaskResponse(savedTask);
     }
@@ -355,6 +434,20 @@ public class TaskService {
         }
 
         return parseStatusOrDefault(status, null);
+    }
+
+    @Transactional(readOnly = true)
+    public void ensureManualProgressAllowed(Long taskId) {
+        Task task = taskRepository.findByIdWithDetails(taskId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy task"));
+        assertManualProgressAllowed(task);
+    }
+
+    @Transactional
+    public void syncParentProgressFromSubtask(Long taskId) {
+        Task task = taskRepository.findByIdWithDetails(taskId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy task"));
+        recalculateParentProgressIfSubtask(task);
     }
 
     private Department resolveDepartment(Long eventId, Long departmentId) {
@@ -459,6 +552,7 @@ public class TaskService {
         return TaskResponseDTO.builder()
                 .id(task.getId())
                 .eventId(task.getEvent().getId())
+                .parentId(task.getParent() != null ? task.getParent().getId() : null)
                 .departmentId(task.getDepartment() != null ? task.getDepartment().getId() : null)
                 .departmentName(task.getDepartment() != null ? task.getDepartment().getName() : "Chưa gán ban")
                 .title(task.getTitle())
@@ -486,6 +580,85 @@ public class TaskService {
         }
 
         return requestedProgress;
+    }
+
+    private void assertManualProgressAllowed(Task task) {
+        if (task.getParent() == null && taskRepository.existsByParentId(task.getId())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Task đã có subtask nên tiến độ được tính tự động từ subtask");
+        }
+    }
+
+    private void recalculateParentProgressIfSubtask(Task task) {
+        if (task.getParent() != null) {
+            recalculateParentProgress(task.getParent());
+        }
+    }
+
+    private void recalculateParentProgress(Task parentTask) {
+        List<Task> subtasks = taskRepository.findAllByParentIdWithDetails(parentTask.getId());
+        if (subtasks.isEmpty()) {
+            return;
+        }
+
+        TaskStatus previousStatus = parentTask.getStatus();
+        int progress = Math.round((float) subtasks.stream()
+                .mapToInt(subtask -> progressFromSubtaskStatus(subtask.getStatus()))
+                .average()
+                .orElse(0));
+
+        parentTask.setProgressPercentage(progress);
+        parentTask.setStatus(resolveParentStatus(subtasks, progress));
+        Task savedParent = taskRepository.save(parentTask);
+        if (previousStatus != savedParent.getStatus()) {
+            recordStatusHistory(savedParent);
+        }
+    }
+
+    private void syncSubtasksAssignmentIfParent(Task parentTask) {
+        if (parentTask.getParent() != null || !taskRepository.existsByParentId(parentTask.getId())) {
+            return;
+        }
+
+        List<Task> subtasks = taskRepository.findAllByParentIdWithDetails(parentTask.getId());
+        subtasks.forEach(subtask -> {
+            subtask.setDepartment(parentTask.getDepartment());
+            if (!isAssigneeInDepartment(parentTask.getEvent().getId(), subtask.getAssignee(), parentTask.getDepartment())) {
+                subtask.setAssignee(null);
+            }
+        });
+        taskRepository.saveAll(subtasks);
+    }
+
+    private boolean isAssigneeInDepartment(Long eventId, User assignee, Department department) {
+        if (assignee == null) {
+            return true;
+        }
+
+        if (department == null) {
+            return false;
+        }
+
+        return eventMemberRepository.existsByEventIdAndUserIdAndDepartmentId(
+                eventId,
+                assignee.getId(),
+                department.getId());
+    }
+
+    private TaskStatus resolveParentStatus(List<Task> subtasks, int progress) {
+        boolean allDone = subtasks.stream().allMatch(subtask -> subtask.getStatus() == TaskStatus.DONE);
+        if (allDone) {
+            return TaskStatus.DONE;
+        }
+        boolean hasInReview = subtasks.stream().anyMatch(subtask -> subtask.getStatus() == TaskStatus.IN_REVIEW);
+        if (hasInReview) {
+            return TaskStatus.IN_REVIEW;
+        }
+        boolean hasStarted = progress > 0 || subtasks.stream().anyMatch(subtask -> subtask.getStatus() == TaskStatus.IN_PROGRESS);
+        return hasStarted ? TaskStatus.IN_PROGRESS : TaskStatus.TODO;
+    }
+
+    private int progressFromSubtaskStatus(TaskStatus status) {
+        return status == TaskStatus.DONE ? 100 : 0;
     }
 
     private TaskPriority parseOptionalPriority(String priority) {

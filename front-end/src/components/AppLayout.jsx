@@ -1,6 +1,6 @@
 import TelegramOnboarding from './TelegramOnboarding';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useMemo, useState } from 'react';
+import { createContext, useContext, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import AiChatBox from './AiChatBox';
 import userApi from '../api/userApi';
@@ -20,7 +20,22 @@ import {
   Workflow,
 } from 'lucide-react';
 
+const AppLayoutContext = createContext(false);
+
 const AppLayout = ({
+  children,
+  ...props
+}) => {
+  const hasParentLayout = useContext(AppLayoutContext);
+
+  if (hasParentLayout) {
+    return <>{children}</>;
+  }
+
+  return <AppLayoutFrame {...props}>{children}</AppLayoutFrame>;
+};
+
+const AppLayoutFrame = ({
   user,
   selectedEvent,
   events = [],
@@ -203,6 +218,7 @@ const AppLayout = ({
   );
 
   return (
+    <AppLayoutContext.Provider value>
     <div className="min-h-screen bg-slate-50 text-slate-950">
       {showTelegramOnboarding && <TelegramOnboarding userId={user.userId} />}
 
@@ -409,28 +425,74 @@ const AppLayout = ({
 
       {eventNav.length === 0 && (
         <footer className="border-t border-slate-200 bg-white">
-          <div className="mx-auto grid max-w-7xl gap-3 px-5 py-5 text-sm text-slate-500 md:grid-cols-[1fr_auto] md:items-center lg:px-8">
-          <div>
-            <p className="font-semibold text-slate-800">EventFlow - Nhóm EXE</p>
-            <p>Dự án hỗ trợ quản lý sự kiện FPTU.</p>
-          </div>
-          <div className="flex flex-col gap-1 md:text-right">
-            <span className="font-medium text-slate-700">Liên hệ</span>
-            <a
-              href="mailto:event.flow.corp.vn@gmail.com"
-              className="font-semibold text-indigo-600 hover:text-indigo-700"
-            >
-              event.flow.corp.vn@gmail.com
-            </a>
-          </div>
+          <div className="mx-auto grid max-w-7xl gap-6 px-5 py-8 text-sm text-slate-500 md:grid-cols-[1.35fr_0.95fr_0.85fr] lg:px-8">
+            <div>
+              <p className="text-base font-extrabold text-slate-900">EventFlow</p>
+              <p className="mt-2 leading-6">
+                Dự án EXE201 của nhóm sinh viên Trường Đại học FPT Hà Nội, cung cấp dịch vụ hỗ trợ tổ chức,
+                điều phối và quản lý sự kiện trên nền tảng số cho câu lạc bộ, đội nhóm, doanh nghiệp nhỏ và
+                các đơn vị tổ chức sự kiện.
+              </p>
+              <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                <TrustPoint title="Minh bạch" description="Quản lý task, report và tài liệu theo từng sự kiện." />
+                <TrustPoint title="Đồng hành" description="Hỗ trợ đội tổ chức theo quy trình rõ ràng." />
+                <TrustPoint title="Bảo mật" description="Tài khoản, phân quyền và lưu trữ file có kiểm soát." />
+              </div>
+              <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                EXE201 • FPT University Hanoi • Event Support Service
+              </p>
+            </div>
+
+            <div>
+              <p className="font-bold text-slate-800">Thông tin dự án</p>
+              <div className="mt-2 space-y-1.5">
+                <p>Nhóm dự án: EventFlow EXE201 Team</p>
+                <p>Đơn vị học thuật: Trường Đại học FPT Hà Nội</p>
+                <p>Trường Đại học FPT Hà Nội</p>
+                <p>Khu Công nghệ cao Hòa Lạc, Hà Nội</p>
+                <a href="mailto:event.flow.corp.vn@gmail.com" className="block pt-1 font-semibold text-indigo-600 hover:text-indigo-700">
+                  event.flow.corp.vn@gmail.com
+                </a>
+              </div>
+            </div>
+
+            <div>
+              <p className="font-bold text-slate-800">Kết nối với nhóm</p>
+              <p className="mt-2 leading-6">
+                Theo dõi tiến độ dự án, hình ảnh vận hành và thông báo dịch vụ trên các nền tảng xã hội của nhóm.
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <a href="https://facebook.com/eventflow" className="rounded-full border border-slate-200 px-3 py-1.5 font-semibold text-slate-700 hover:border-indigo-200 hover:text-indigo-700">
+                  Facebook
+                </a>
+                <a href="https://instagram.com/eventflow" className="rounded-full border border-slate-200 px-3 py-1.5 font-semibold text-slate-700 hover:border-indigo-200 hover:text-indigo-700">
+                  Instagram
+                </a>
+                <a href="https://linkedin.com/company/eventflow" className="rounded-full border border-slate-200 px-3 py-1.5 font-semibold text-slate-700 hover:border-indigo-200 hover:text-indigo-700">
+                  LinkedIn
+                </a>
+                <a href="https://github.com/eventflow" className="rounded-full border border-slate-200 px-3 py-1.5 font-semibold text-slate-700 hover:border-indigo-200 hover:text-indigo-700">
+                  GitHub
+                </a>
+              </div>
+              <p className="mt-4 text-xs text-slate-400">© 2026 EventFlow EXE201 Team. All rights reserved.</p>
+            </div>
           </div>
         </footer>
       )}
 
       <AiChatBox />
     </div>
+    </AppLayoutContext.Provider>
   );
 };
+
+const TrustPoint = ({ title, description }) => (
+  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+    <p className="font-bold text-slate-800">{title}</p>
+    <p className="mt-1 text-xs leading-5 text-slate-500">{description}</p>
+  </div>
+);
 
 const formatNotificationTime = (value) => {
   if (!value) {

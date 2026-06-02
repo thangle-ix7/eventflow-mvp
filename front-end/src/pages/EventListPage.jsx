@@ -6,7 +6,9 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
+  MapPin,
   Plus,
+  Search,
   Users,
 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
@@ -19,8 +21,6 @@ import {
   Panel,
   SelectControl,
   StatusBadge,
-  TextInput,
-  Toolbar,
 } from '../components/ui';
 import eventApi from '../api/eventApi';
 import { formatDate } from '../utils/dateUtils';
@@ -65,9 +65,9 @@ const EventListPage = ({ user, onLogout }) => {
     setSearch(searchInput.trim());
   };
 
-  const handleStatusChange = (event) => {
+  const handleStatusQuickChange = (nextStatus) => {
     setPage(0);
-    setStatus(event.target.value);
+    setStatus(nextStatus);
   };
 
   const handleSortChange = (event) => {
@@ -101,11 +101,11 @@ const EventListPage = ({ user, onLogout }) => {
       onEventChange={(event) => handleOpenEvent(event.target.value)}
       onLogout={onLogout}
     >
-      <div className="space-y-6">
+      <div className="mx-auto max-w-7xl space-y-6">
         <PageHeader
           eyebrow="EventFlow"
           title={pageTitle}
-          description="Tập trung mọi sự kiện bạn đang dẫn dắt hoặc tham gia. Tìm nhanh, lọc trạng thái và mở đúng workspace chỉ trong một bước."
+          description="Chọn sự kiện để tiếp tục quản lý task, ban tổ chức, tài liệu và báo cáo."
           actions={
             <Button as={Link} to="/events/new">
               <Plus size={18} />
@@ -114,59 +114,50 @@ const EventListPage = ({ user, onLogout }) => {
           }
         />
 
-        <Toolbar>
-          <form
-            onSubmit={handleSearchSubmit}
-            className="grid gap-3 lg:grid-cols-[1fr_160px_160px_140px_auto]"
-          >
-            <TextInput
-              id="event-search"
-              name="search"
-              aria-label="Tìm kiếm sự kiện"
-              value={searchInput}
-              onChange={(event) => setSearchInput(event.target.value)}
-              placeholder="Tìm theo tên sự kiện"
-            />
+        <Panel className="p-4">
+          <form onSubmit={handleSearchSubmit} className="space-y-4">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" strokeWidth={1.8} />
+              <input
+                id="event-search"
+                name="search"
+                aria-label="Tìm kiếm sự kiện"
+                value={searchInput}
+                onChange={(event) => setSearchInput(event.target.value)}
+                placeholder="Tìm theo tên sự kiện"
+                className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-11 text-sm font-medium text-slate-800 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
+              />
+              <Button type="submit" className="absolute right-1.5 top-1/2 hidden -translate-y-1/2 sm:inline-flex">
+                Tìm
+              </Button>
+            </div>
 
-            <SelectControl
-              aria-label="Lọc trạng thái sự kiện"
-              name="status"
-              value={status}
-              onChange={handleStatusChange}
-            >
-              <option value="">Tất cả trạng thái</option>
-              <option value="ACTIVE">Đang diễn ra</option>
-              <option value="DONE">Hoàn thành</option>
-              <option value="CANCELLED">Đã hủy</option>
-            </SelectControl>
+            <div className="flex flex-wrap gap-2">
+              <FilterChip active={!status} label="Tất cả" onClick={() => handleStatusQuickChange('')} />
+              <FilterChip active={status === 'ACTIVE'} label="Đang diễn ra" onClick={() => handleStatusQuickChange('ACTIVE')} />
+              <FilterChip active={status === 'DONE'} label="Hoàn thành" onClick={() => handleStatusQuickChange('DONE')} />
+              <FilterChip active={status === 'CANCELLED'} label="Đã hủy" onClick={() => handleStatusQuickChange('CANCELLED')} />
+            </div>
 
-            <SelectControl
-              aria-label="Sắp xếp sự kiện"
-              name="sort"
-              value={sort}
-              onChange={handleSortChange}
-            >
-              <option value="eventDate">Ngày diễn ra</option>
-              <option value="name">Tên sự kiện</option>
-              <option value="status">Trạng thái</option>
-              <option value="createdAt">Ngày tạo</option>
-            </SelectControl>
-
-            <SelectControl
-              aria-label="Thứ tự sắp xếp"
-              name="direction"
-              value={direction}
-              onChange={handleDirectionChange}
-            >
-              <option value="asc">Tăng dần</option>
-              <option value="desc">Giảm dần</option>
-            </SelectControl>
-
-            <Button type="submit" variant="secondary">
-              Tìm kiếm
-            </Button>
+            <div className="grid gap-3 md:grid-cols-[1fr_1fr_auto]">
+              <SelectControl label="Sắp xếp" aria-label="Sắp xếp sự kiện" name="sort" value={sort} onChange={handleSortChange}>
+                <option value="eventDate">Ngày diễn ra</option>
+                <option value="name">Tên sự kiện</option>
+                <option value="status">Trạng thái</option>
+                <option value="createdAt">Ngày tạo</option>
+              </SelectControl>
+              <SelectControl label="Thứ tự" aria-label="Thứ tự sắp xếp" name="direction" value={direction} onChange={handleDirectionChange}>
+                <option value="asc">Tăng dần</option>
+                <option value="desc">Giảm dần</option>
+              </SelectControl>
+              <div className="flex items-end">
+                <Button type="button" onClick={handleClearFilters} variant="secondary" className="w-full">
+                  Làm mới
+                </Button>
+              </div>
+            </div>
           </form>
-        </Toolbar>
+        </Panel>
 
         {query.isLoading && <LoadingState message="Đang tải danh sách sự kiện..." />}
 
@@ -180,42 +171,9 @@ const EventListPage = ({ user, onLogout }) => {
 
         {!query.isLoading && !query.error && events.length > 0 && (
           <>
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 lg:grid-cols-2">
               {events.map((event) => (
-                <button
-                  key={event.id}
-                  type="button"
-                  onClick={() => handleOpenEvent(event.id)}
-                  className="rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-indigo-200 hover:bg-indigo-50/40"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="truncate text-base font-semibold text-slate-950">
-                          {event.name}
-                        </h3>
-                        <StatusBadge status={event.role} />
-                      </div>
-                      <div className="mt-3 flex flex-wrap gap-3 text-sm text-slate-500">
-                        <span className="inline-flex items-center gap-1.5">
-                          <CalendarDays size={16} />
-                          {formatEventRange(event)}
-                        </span>
-                        <span className="inline-flex items-center gap-1.5">
-                          <Users size={16} />
-                          {event.role === 'LEADER' ? 'Bạn tạo sự kiện' : 'Bạn tham gia'}
-                        </span>
-                      </div>
-                    </div>
-                    <ArrowRight size={18} className="mt-1 shrink-0 text-slate-400" />
-                  </div>
-                  <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
-                    <StatusBadge status={event.status || 'ACTIVE'} />
-                    <span className="text-xs text-slate-500">
-                      Tạo lúc {formatDate(event.createdAt)}
-                    </span>
-                  </div>
-                </button>
+                <EventCard key={event.id} event={event} onOpen={() => handleOpenEvent(event.id)} />
               ))}
             </div>
 
@@ -265,6 +223,70 @@ const formatEventRange = (event) => {
   }
   return `${formatDate(start)} - ${formatDate(end)}`;
 };
+
+const FilterChip = ({ active, label, onClick }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className={`rounded-full border px-3 py-1.5 text-sm font-bold transition ${
+      active
+        ? 'border-indigo-200 bg-indigo-50 text-indigo-700'
+        : 'border-slate-200 bg-white text-slate-600 hover:border-indigo-200 hover:text-indigo-700'
+    }`}
+  >
+    {label}
+  </button>
+);
+
+const EventCard = ({ event, onOpen }) => (
+  <button
+    type="button"
+    onClick={onOpen}
+    className="group rounded-xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-md"
+  >
+    <div className="flex items-start justify-between gap-4">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusBadge status={event.status || 'ACTIVE'} />
+          <StatusBadge status={event.role} />
+        </div>
+        <h3 className="mt-3 line-clamp-2 text-lg font-extrabold text-slate-950">
+          {event.name}
+        </h3>
+        <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-500">
+          {event.description || 'Chưa có mô tả. Mở workspace để bổ sung thông tin và bắt đầu điều phối.'}
+        </p>
+      </div>
+      <span className="mt-1 rounded-full bg-slate-100 p-2 text-slate-400 transition group-hover:bg-indigo-50 group-hover:text-indigo-600">
+        <ArrowRight size={18} />
+      </span>
+    </div>
+
+    <div className="mt-5 grid gap-2 rounded-xl bg-slate-50 p-3 text-sm text-slate-600">
+      <span className="inline-flex items-center gap-2">
+        <CalendarDays size={16} />
+        {formatEventRange(event)}
+      </span>
+      <span className="inline-flex items-center gap-2">
+        <Users size={16} />
+        {event.role === 'LEADER' ? 'Bạn là người điều phối' : 'Bạn là thành viên'}
+      </span>
+      <span className="inline-flex items-center gap-2">
+        <MapPin size={16} />
+        {event.location || 'Chưa cập nhật địa điểm'}
+      </span>
+    </div>
+
+    <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
+      <span className="text-xs font-semibold text-slate-400">
+        Tạo lúc {formatDate(event.createdAt)}
+      </span>
+      <span className="text-sm font-bold text-indigo-600 group-hover:text-indigo-700">
+        Mở workspace
+      </span>
+    </div>
+  </button>
+);
 
 const EventListEmpty = ({ hasFilters, onClearFilters }) => (
   <EmptyState

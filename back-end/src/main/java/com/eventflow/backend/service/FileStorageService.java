@@ -15,6 +15,7 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 
 import java.io.IOException;
 import java.net.URI;
@@ -66,11 +67,15 @@ public class FileStorageService {
 
     public StoredFile.Content load(String storageProvider, String storagePath, String contentType, String originalName, long sizeBytes) {
         if (PROVIDER_SUPABASE.equalsIgnoreCase(storageProvider)) {
-            byte[] bytes = s3Client().getObjectAsBytes(GetObjectRequest.builder()
-                    .bucket(supabaseBucket)
-                    .key(storagePath)
-                    .build()).asByteArray();
-            return new StoredFile.Content(new ByteArrayResource(bytes), contentType, originalName, bytes.length);
+            try {
+                byte[] bytes = s3Client().getObjectAsBytes(GetObjectRequest.builder()
+                        .bucket(supabaseBucket)
+                        .key(storagePath)
+                        .build()).asByteArray();
+                return new StoredFile.Content(new ByteArrayResource(bytes), contentType, originalName, bytes.length);
+            } catch (S3Exception e) {
+                throw supabaseStorageException(e);
+            }
         }
 
         Path filePath = Paths.get(storagePath);
@@ -110,9 +115,27 @@ public class FileStorageService {
                             .build(),
                     RequestBody.fromBytes(file.getBytes()));
             return new StoredFile(file.getOriginalFilename(), file.getContentType(), file.getSize(), PROVIDER_SUPABASE, objectKey);
+        } catch (S3Exception e) {
+            throw supabaseStorageException(e);
         } catch (IOException e) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Không đọc được file upload", e);
         }
+    }
+
+    private ResponseStatusException supabaseStorageException(S3Exception e) {
+        String message = e.awsErrorDetails() != null
+                ? e.awsErrorDetails().errorMessage()
+                : e.getMessage();
+        if (message != null && message.toLowerCase().contains("signature")) {
+            return new ResponseStatusException(
+                    HttpStatus.BAD_GATEWAY,
+                    "Supabase Storage từ chối chữ ký S3. Kiểm tra lại endpoint, region, access key và secret key.",
+                    e);
+        }
+        return new ResponseStatusException(
+                HttpStatus.BAD_GATEWAY,
+                "Không kết nối được Supabase Storage: " + (message != null ? message : "lỗi S3 không xác định"),
+                e);
     }
 
     private StoredFile storeToLocal(MultipartFile file, String objectKey) {

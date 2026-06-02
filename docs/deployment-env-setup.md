@@ -23,6 +23,11 @@ Required production values:
 - `APP_FRONTEND_URL`: public frontend origin, for example `https://eventflow.example.com`.
 - `OPENAPI_SERVER_URL`: public API origin, for example `https://eventflow.example.com`. For local Docker, use `http://localhost:8080`.
 - `AUTH_REQUIRE_EMAIL_DELIVERY=true`: recommended in production so signup/reset flows fail closed if email cannot be delivered.
+- `SUPABASE_STORAGE_ENABLED=true`: store profile images, task reports, and task attachments in Supabase Storage instead of the local upload volume.
+- `SUPABASE_STORAGE_ENDPOINT`: Supabase S3 endpoint, for example `https://<project-ref>.storage.supabase.co/storage/v1/s3`.
+- `SUPABASE_STORAGE_REGION`: region shown in Supabase Storage S3 Configuration.
+- `SUPABASE_STORAGE_ACCESS_KEY` and `SUPABASE_STORAGE_SECRET_KEY`: server-side S3 access keys generated in Supabase. Never expose these in the frontend.
+- `SUPABASE_STORAGE_BUCKET=eventflow-storage`: bucket used by EventFlow. Objects are written under `profile/`, `task-report/`, and `task-attachment/`.
 
 Recommended defaults to keep enabled:
 

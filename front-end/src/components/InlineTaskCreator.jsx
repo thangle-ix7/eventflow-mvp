@@ -21,12 +21,12 @@ const toDateTimeLocalValue = (value) => {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 };
 
-const createEmptyRow = (departmentId = '') => ({
+const createEmptyRow = (departmentId = '', assigneeId = '') => ({
   id: crypto.randomUUID(),
   title: '',
   description: '',
   departmentId: departmentId ? String(departmentId) : '',
-  assigneeId: '',
+  assigneeId: assigneeId ? String(assigneeId) : '',
   deadline: '',
   status: 'TODO',
   priority: 'MEDIUM',
@@ -34,11 +34,17 @@ const createEmptyRow = (departmentId = '') => ({
 
 const InlineTaskCreator = ({
   eventId,
+  parentTaskId,
   event,
   departments = [],
   departmentId = '',
+  assigneeId = '',
   lockedDepartment = false,
+  lockedAssignee = false,
   invalidateKeys = [],
+  title = 'Thêm task theo danh sách',
+  saveLabel = 'Save',
+  openLabel,
 }) => {
   const queryClient = useQueryClient();
   const defaultDeadline = useMemo(
@@ -49,8 +55,10 @@ const InlineTaskCreator = ({
     () => toDateTimeLocalValue(event?.endTime || event?.startTime || event?.eventDate),
     [event?.endTime, event?.eventDate, event?.startTime]
   );
-  const [rows, setRows] = useState([createEmptyRow(departmentId)]);
+  const [rows, setRows] = useState([createEmptyRow(departmentId, assigneeId)]);
   const [localError, setLocalError] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
+  const addButtonLabel = openLabel || (parentTaskId ? 'Thêm subtask' : 'Thêm task');
   const membersQuery = useQuery({
     queryKey: ['eventMembers', eventId],
     queryFn: () => eventMemberApi.getMembers(eventId),
@@ -58,22 +66,29 @@ const InlineTaskCreator = ({
   });
 
   const mutation = useMutation({
-    mutationFn: async (payloads) => Promise.all(payloads.map((payload) => taskApi.createTask({ eventId, payload }))),
+    mutationFn: async (payloads) => Promise.all(payloads.map((payload) => (
+      parentTaskId
+        ? taskApi.createSubtask({ taskId: parentTaskId, payload })
+        : taskApi.createTask({ eventId, payload })
+    ))),
     onSuccess: () => {
-      setRows([createEmptyRow(departmentId)]);
+      setRows([createEmptyRow(departmentId, assigneeId)]);
       setLocalError('');
+      setIsOpen(false);
       invalidateKeys.forEach((queryKey) => {
         queryClient.invalidateQueries({ queryKey });
       });
       queryClient.invalidateQueries({ queryKey: ['eventTaskPage', eventId] });
       queryClient.invalidateQueries({ queryKey: ['eventTasks', eventId] });
+      if (parentTaskId) {
+        queryClient.invalidateQueries({ queryKey: ['subtasks', String(parentTaskId)] });
+      }
       invalidateDashboardQueries(queryClient, eventId);
     },
   });
 
-  const getEffectiveDepartmentId = (row) => (
-    lockedDepartment ? String(departmentId || '') : row.departmentId
-  );
+  const getEffectiveDepartmentId = (row) => (lockedDepartment ? String(departmentId || '') : row.departmentId);
+  const getEffectiveAssigneeId = (row) => (lockedAssignee ? String(assigneeId || '') : row.assigneeId);
 
   const getAssignableMembers = (row) => {
     const effectiveDepartmentId = getEffectiveDepartmentId(row);
@@ -94,21 +109,27 @@ const InlineTaskCreator = ({
       return {
         ...row,
         [name]: value,
-        ...(name === 'departmentId' ? { assigneeId: '' } : {}),
+        ...(name === 'departmentId' ? { assigneeId: lockedAssignee ? String(assigneeId || '') : '' } : {}),
       };
     }));
   };
 
   const addRow = () => {
-    setRows((old) => [...old, createEmptyRow(departmentId)]);
+    setRows((old) => [...old, createEmptyRow(departmentId, assigneeId)]);
   };
 
   const removeRow = (rowId) => {
     setRows((old) => (
       old.length === 1
-        ? [createEmptyRow(departmentId)]
+        ? [createEmptyRow(departmentId, assigneeId)]
         : old.filter((row) => row.id !== rowId)
     ));
+  };
+
+  const handleClose = () => {
+    setRows([createEmptyRow(departmentId, assigneeId)]);
+    setLocalError('');
+    setIsOpen(false);
   };
 
   const handleSave = () => {
@@ -129,12 +150,13 @@ const InlineTaskCreator = ({
 
     mutation.mutate(filledRows.map((row) => {
       const effectiveDepartmentId = getEffectiveDepartmentId(row);
+      const effectiveAssigneeId = getEffectiveAssigneeId(row);
 
       return {
         title: row.title.trim(),
         description: row.description,
         departmentId: effectiveDepartmentId ? Number(effectiveDepartmentId) : null,
-        assigneeId: row.assigneeId ? Number(row.assigneeId) : null,
+        assigneeId: effectiveAssigneeId ? Number(effectiveAssigneeId) : null,
         status: row.status,
         priority: row.priority,
         deadline: row.deadline || defaultDeadline,
@@ -143,10 +165,25 @@ const InlineTaskCreator = ({
     }));
   };
 
+  if (!isOpen) {
+    return (
+      <div className="border-b border-slate-100 bg-white px-4 py-3">
+        <button
+          type="button"
+          onClick={() => setIsOpen(true)}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-semibold text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-100"
+        >
+          <Plus size={16} />
+          {addButtonLabel}
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="border-b border-slate-100 bg-indigo-50/30">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-indigo-100 px-4 py-3">
-        <p className="text-sm font-bold text-slate-900">Thêm task theo danh sách</p>
+        <p className="text-sm font-bold text-slate-900">{title}</p>
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -164,7 +201,16 @@ const InlineTaskCreator = ({
             className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
           >
             {mutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-            Save
+            {saveLabel}
+          </button>
+          <button
+            type="button"
+            onClick={handleClose}
+            disabled={mutation.isPending}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-white hover:text-slate-700 disabled:opacity-60"
+            aria-label="Đóng form thêm task"
+          >
+            <X size={16} />
           </button>
         </div>
       </div>
@@ -183,6 +229,7 @@ const InlineTaskCreator = ({
           </div>
           {rows.map((row, index) => {
             const effectiveDepartmentId = getEffectiveDepartmentId(row);
+            const effectiveAssigneeId = getEffectiveAssigneeId(row);
             const assignableMembers = getAssignableMembers(row);
 
             return (
@@ -226,9 +273,9 @@ const InlineTaskCreator = ({
                   ))}
                 </select>
                 <select
-                  value={row.assigneeId}
+                  value={effectiveAssigneeId}
                   onChange={(event) => updateRow(row.id, 'assigneeId', event.target.value)}
-                  disabled={!effectiveDepartmentId || mutation.isPending}
+                  disabled={!effectiveDepartmentId || lockedAssignee || mutation.isPending}
                   aria-label="Phụ trách"
                   className={taskInputClassName}
                 >
@@ -287,7 +334,7 @@ const InlineTaskCreator = ({
         </div>
       </div>
       {(localError || mutation.error) && (
-        <div className="mt-3">
+        <div className="px-4 pb-3 pt-2">
           <ErrorState error={localError || mutation.error} title="Không tạo được công việc" />
         </div>
       )}

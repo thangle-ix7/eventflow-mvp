@@ -107,6 +107,22 @@ public class TaskController {
         return ResponseEntity.ok(taskService.getTask(taskId));
     }
 
+    @GetMapping("/tasks/{taskId}/subtasks")
+    public ResponseEntity<PageResponse<TaskResponseDTO>> getSubtasks(
+            @PathVariable Long taskId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "8") int size,
+            Authentication authentication) {
+
+        Long userId = (Long) authentication.getPrincipal();
+        Long eventId = taskService.getEventIdByTaskId(taskId);
+        if (!eventSecurityService.isMemberOfEvent(eventId, userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        return ResponseEntity.ok(taskService.getSubtasks(taskId, page, size));
+    }
+
     @PostMapping("/events/{eventId}/tasks")
     public ResponseEntity<TaskResponseDTO> createTask(
             @PathVariable Long eventId,
@@ -119,6 +135,22 @@ public class TaskController {
         }
 
         TaskResponseDTO response = taskService.createTask(eventId, request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PostMapping("/tasks/{taskId}/subtasks")
+    public ResponseEntity<TaskResponseDTO> createSubtask(
+            @PathVariable Long taskId,
+            @Valid @RequestBody TaskRequestDTO request,
+            Authentication authentication) {
+
+        Long userId = (Long) authentication.getPrincipal();
+        Long eventId = taskService.getEventIdByTaskId(taskId);
+        if (!eventSecurityService.isLeaderOfEvent(eventId, userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        TaskResponseDTO response = taskService.createSubtask(taskId, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 

@@ -55,12 +55,35 @@ const taskApi = {
     return response.data;
   },
 
+  getSubtasks: async ({ taskId, page = 0, size = 8 }) => {
+    if (!taskId) {
+      throw new Error('taskId không hợp lệ');
+    }
+
+    const response = await apiClient.get(`/tasks/${taskId}/subtasks`, {
+      params: {
+        page,
+        size,
+      },
+    });
+    return response.data;
+  },
+
   createTask: async ({ eventId, payload }) => {
     if (!eventId) {
       throw new Error('eventId không hợp lệ');
     }
 
     const response = await apiClient.post(`/events/${eventId}/tasks`, payload);
+    return response.data;
+  },
+
+  createSubtask: async ({ taskId, payload }) => {
+    if (!taskId) {
+      throw new Error('taskId không hợp lệ');
+    }
+
+    const response = await apiClient.post(`/tasks/${taskId}/subtasks`, payload);
     return response.data;
   },
 

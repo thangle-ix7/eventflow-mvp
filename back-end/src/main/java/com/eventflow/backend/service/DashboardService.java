@@ -64,7 +64,7 @@ public class DashboardService {
         Long overdueTasksCount = jdbcTemplate.queryForObject("""
                 SELECT COUNT(*)
                 FROM tasks
-                WHERE event_id = ? AND department_id = ? AND deadline < NOW() AND status != 'DONE'
+                WHERE event_id = ? AND department_id = ? AND parent_id IS NULL AND deadline < NOW() AND status != 'DONE'
                 """, Long.class, eventId, departmentId);
 
         int progressPercentage = totalTasks != null && totalTasks > 0
@@ -107,7 +107,7 @@ public class DashboardService {
                        COALESCE(SUM(CASE WHEN t.deadline < NOW() AND t.status != 'DONE' THEN 1 ELSE 0 END), 0) AS overdue_tasks_count
                 FROM tasks t
                 LEFT JOIN departments d ON d.id = t.department_id
-                WHERE t.event_id = ?
+                WHERE t.event_id = ? AND t.parent_id IS NULL
                 GROUP BY COALESCE(d.name, 'Chưa gán ban')
                 ORDER BY total_tasks DESC, label ASC
                 """, (rs, rowNum) -> CategoryMetricDTO.builder()
@@ -126,7 +126,7 @@ public class DashboardService {
                        COALESCE(SUM(CASE WHEN t.deadline < NOW() AND t.status != 'DONE' THEN 1 ELSE 0 END), 0) AS overdue_tasks_count
                 FROM tasks t
                 LEFT JOIN users u ON u.id = t.assignee_id
-                WHERE t.event_id = ?
+                WHERE t.event_id = ? AND t.parent_id IS NULL
                 GROUP BY COALESCE(u.name, 'Chưa phân công')
                 ORDER BY total_tasks DESC, label ASC
                 """, (rs, rowNum) -> CategoryMetricDTO.builder()
@@ -154,7 +154,7 @@ public class DashboardService {
                        COALESCE(SUM(CASE WHEN t.deadline < NOW() AND t.status != 'DONE' THEN 1 ELSE 0 END), 0) AS overdue_tasks_count
                 FROM tasks t
                 LEFT JOIN users u ON u.id = t.assignee_id
-                WHERE t.event_id = ? AND t.department_id = ?
+                WHERE t.event_id = ? AND t.department_id = ? AND t.parent_id IS NULL
                 GROUP BY COALESCE(u.name, 'Chưa phân công')
                 ORDER BY total_tasks DESC, label ASC
                 """, (rs, rowNum) -> CategoryMetricDTO.builder()
@@ -190,6 +190,7 @@ public class DashboardService {
                     SELECT deadline, status
                     FROM tasks
                     WHERE event_id = ?
+                    AND parent_id IS NULL
                     """ + departmentClause + """
                     """ + dateClause + """
                 ),
@@ -271,6 +272,7 @@ public class DashboardService {
                        COUNT(*) AS total_tasks
                 FROM tasks
                 WHERE event_id = ?
+                AND parent_id IS NULL
                 """ + departmentClause + """
                 """ + dateClause + """
                 GROUP BY status
@@ -292,14 +294,14 @@ public class DashboardService {
     private Long countTasks(Long eventId, Long departmentId, String status) {
         if (status == null) {
             return jdbcTemplate.queryForObject(
-                    "SELECT COUNT(*) FROM tasks WHERE event_id = ? AND department_id = ?",
+                    "SELECT COUNT(*) FROM tasks WHERE event_id = ? AND department_id = ? AND parent_id IS NULL",
                     Long.class,
                     eventId,
                     departmentId);
         }
 
         return jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM tasks WHERE event_id = ? AND department_id = ? AND status = ?",
+                "SELECT COUNT(*) FROM tasks WHERE event_id = ? AND department_id = ? AND parent_id IS NULL AND status = ?",
                 Long.class,
                 eventId,
                 departmentId,

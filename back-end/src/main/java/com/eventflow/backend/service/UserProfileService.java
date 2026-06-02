@@ -47,7 +47,7 @@ public class UserProfileService {
         StoredFile oldAvatar = currentAvatar(user);
         StoredFile storedAvatar = fileStorageService.store(
                 avatar,
-                "avatars/" + userId,
+                "profile/" + userId,
                 MAX_AVATAR_SIZE_BYTES,
                 ALLOWED_AVATAR_TYPES);
 

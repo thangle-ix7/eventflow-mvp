@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 public class TaskResponseDTO {
     private Long id;
     private Long eventId;
+    private Long parentId;
     private Long departmentId;
     private String departmentName;
     private String title;
