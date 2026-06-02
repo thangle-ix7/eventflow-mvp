@@ -38,14 +38,14 @@ public class TaskReminderScheduler {
             Long eventId = task.getEvent().getId();
 
             if (assignee != null && task.getDeadline().isAfter(now) && task.getDeadline().isBefore(twentyFourHoursLater)) {
-                notificationRepository.insertIdempotentNotification(
+                notificationRepository.insertTaskNotification(
                         assignee.getId(), taskId, resolveChannel(assignee), "UPCOMING", "PENDING"
                 );
             }
 
             if (task.getDeadline().isBefore(now)) {
                 if (assignee != null) {
-                    notificationRepository.insertIdempotentNotification(
+                    notificationRepository.insertTaskNotification(
                             assignee.getId(), taskId, resolveChannel(assignee), "OVERDUE", "PENDING"
                     );
                 }
@@ -53,7 +53,7 @@ public class TaskReminderScheduler {
                 List<EventMember> leaders = eventMemberRepository.findByEventIdAndRoleWithUser(eventId, UserRole.LEADER);
                 for (EventMember leaderMember : leaders) {
                     User leader = leaderMember.getUser();
-                    notificationRepository.insertIdempotentNotification(
+                    notificationRepository.insertTaskNotification(
                             leader.getId(), taskId, resolveChannel(leader), "OVERDUE", "PENDING"
                     );
                 }

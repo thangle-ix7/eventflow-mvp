@@ -42,6 +42,7 @@ public class EventUtilityService {
 
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
+    private final NotificationWorkflowService notificationWorkflowService;
 
     public CalendarMonthResponse getCalendarMonth(Long eventId, Integer year, Integer month) {
         YearMonth targetMonth = resolveMonth(year, month);
@@ -135,6 +136,15 @@ public class EventUtilityService {
                 normalizeOptionalText(request.getRecurrenceRule()));
 
         saveAttendees(id, attendeeIds);
+        notificationWorkflowService.notifyCalendarCreated(
+                eventId,
+                request.getDepartmentId(),
+                attendeeIds,
+                id,
+                creatorId,
+                request.getTitle().trim(),
+                request.getStartTime(),
+                request.getEndTime());
         List<CalendarAttendeeDTO> attendees = loadAttendees(eventId, List.of(id)).getOrDefault(id, List.of());
 
         return CalendarEventDTO.builder()
@@ -158,7 +168,7 @@ public class EventUtilityService {
                 .build();
     }
 
-    public CalendarEventDTO updateCalendarItem(Long eventId, Long calendarItemId, EventCalendarItemRequest request) {
+    public CalendarEventDTO updateCalendarItem(Long eventId, Long calendarItemId, Long updaterId, EventCalendarItemRequest request) {
         validateCalendarRequest(eventId, request);
         List<Long> attendeeIds = normalizeAttendeeIds(request.getAttendeeIds());
         assertAttendeesBelongToEvent(eventId, attendeeIds);
@@ -199,6 +209,15 @@ public class EventUtilityService {
         }
 
         replaceAttendees(calendarItemId, attendeeIds);
+        notificationWorkflowService.notifyCalendarUpdated(
+                eventId,
+                request.getDepartmentId(),
+                attendeeIds,
+                calendarItemId,
+                updaterId,
+                request.getTitle().trim(),
+                request.getStartTime(),
+                request.getEndTime());
         return getCalendarItem(eventId, calendarItemId);
     }
 

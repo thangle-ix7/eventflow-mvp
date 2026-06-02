@@ -103,6 +103,10 @@ public class NotificationSenderService {
     }
 
     private String buildMessage(Notification notification, User user, Task task) {
+        if (notification.getMessage() != null && !notification.getMessage().isBlank()) {
+            return notification.getMessage();
+        }
+
         String userName = user != null ? user.getName() : "Người dùng";
         String taskTitle = task != null ? task.getTitle() : "N/A";
 
@@ -117,6 +121,8 @@ public class NotificationSenderService {
                     "Công việc \"" + taskTitle + "\" của bạn ĐÃ QUÁ HẠN!\n" +
                     "Vui lòng cập nhật trạng thái ngay.\n\n" +
                     "EventFlow - Hệ thống quản lý sự kiện.";
+            case TASK_ASSIGNED, TASK_UPDATED, TASK_REVIEW_REQUESTED, TASK_REVIEWED, CALENDAR_INVITE, CALENDAR_UPDATED ->
+                    notification.getTitle() != null ? notification.getTitle() : "Bạn có thông báo mới từ EventFlow.";
         };
     }
 }

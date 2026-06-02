@@ -70,7 +70,7 @@ public class EventUtilityController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
-        return ResponseEntity.ok(eventUtilityService.updateCalendarItem(eventId, calendarItemId, request));
+        return ResponseEntity.ok(eventUtilityService.updateCalendarItem(eventId, calendarItemId, currentUserId(authentication), request));
     }
 
     @GetMapping("/events/{eventId}/documents")

@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -15,35 +16,55 @@ import java.util.List;
 @Repository
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
 
-    // Idempotent insert - prevents duplicate notifications
+    // Idempotent task insert - prevents duplicate notifications
     @Modifying
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     @Query(value = """
             INSERT INTO notifications 
             (user_id, task_id, channel, type, status, created_at)
             VALUES 
             (:userId, :taskId, :channel, :type, :status, CURRENT_TIMESTAMP)
-            ON CONFLICT ON CONSTRAINT uq_notif_user_task_type DO NOTHING
+            ON CONFLICT DO NOTHING
             """,
             nativeQuery = true)
-    void insertIdempotentNotification(@Param("userId") Long userId,
-                                      @Param("taskId") Long taskId,
-                                      @Param("channel") String channel,
-                                      @Param("type") String type,
-                                      @Param("status") String status);
+    void insertTaskNotification(@Param("userId") Long userId,
+                                @Param("taskId") Long taskId,
+                                @Param("channel") String channel,
+                                @Param("type") String type,
+                                @Param("status") String status);
+
+    @Modifying
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Query(value = """
+            INSERT INTO notifications
+            (user_id, task_id, event_id, calendar_event_id, channel, type, status, title, message, created_at)
+            VALUES
+            (:userId, :taskId, :eventId, :calendarEventId, :channel, :type, :status, :title, :message, CURRENT_TIMESTAMP)
+            ON CONFLICT DO NOTHING
+            """,
+            nativeQuery = true)
+    void insertWorkflowNotification(@Param("userId") Long userId,
+                                    @Param("taskId") Long taskId,
+                                    @Param("eventId") Long eventId,
+                                    @Param("calendarEventId") Long calendarEventId,
+                                    @Param("channel") String channel,
+                                    @Param("type") String type,
+                                    @Param("status") String status,
+                                    @Param("title") String title,
+                                    @Param("message") String message);
 
     // Find all PENDING notifications with retry count < 3, eagerly fetch user and task
     @Query("SELECT n FROM Notification n " +
            "JOIN FETCH n.user " +
-           "JOIN FETCH n.task " +
-           "JOIN FETCH n.task.event " +
+           "LEFT JOIN FETCH n.task t " +
+           "LEFT JOIN FETCH t.event " +
            "WHERE n.status = :status AND n.retryCount < 3")
     List<Notification> findPendingWithDetails(@Param("status") NotiStatus status);
 
     @Query("""
             SELECT n FROM Notification n
-            JOIN FETCH n.task t
-            JOIN FETCH t.event
+            LEFT JOIN FETCH n.task t
+            LEFT JOIN FETCH t.event
             WHERE n.user.id = :userId
             ORDER BY n.createdAt DESC, n.id DESC
             """)

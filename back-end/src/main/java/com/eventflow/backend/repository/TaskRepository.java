@@ -22,6 +22,7 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             JOIN FETCH t.event
             LEFT JOIN FETCH t.assignee
             WHERE t.status != com.eventflow.backend.entity.TaskStatus.DONE
+            AND t.status != com.eventflow.backend.entity.TaskStatus.IN_REVIEW
             """)
     List<Task> findAllPendingTasksForReminders();
 

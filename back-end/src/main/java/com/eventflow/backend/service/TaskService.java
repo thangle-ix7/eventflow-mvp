@@ -48,6 +48,7 @@ public class TaskService {
     private final EventMemberRepository eventMemberRepository;
     private final TaskReviewRepository taskReviewRepository;
     private final JdbcTemplate jdbcTemplate;
+    private final NotificationWorkflowService notificationWorkflowService;
 
     @Transactional(readOnly = true)
     public Long getEventIdByTaskId(Long taskId) {
@@ -175,6 +176,7 @@ public class TaskService {
 
         Task savedTask = taskRepository.save(task);
         recordStatusHistory(savedTask);
+        notificationWorkflowService.notifyTaskAssigned(savedTask);
         return mapToTaskResponse(savedTask);
     }
 
@@ -185,6 +187,9 @@ public class TaskService {
 
         Long eventId = task.getEvent().getId();
         TaskStatus previousStatus = task.getStatus();
+        Long previousAssigneeId = task.getAssignee() != null ? task.getAssignee().getId() : null;
+        LocalDateTime previousDeadline = task.getDeadline();
+        String previousTitle = task.getTitle();
         Department department = resolveDepartment(eventId, request.getDepartmentId());
         User assignee = resolveAssignee(eventId, request.getAssigneeId(), department);
         validateTaskDeadlineWithinEvent(request.getDeadline(), task.getEvent());
@@ -205,6 +210,17 @@ public class TaskService {
         Task savedTask = taskRepository.save(task);
         if (previousStatus != status) {
             recordStatusHistory(savedTask);
+            if (status == TaskStatus.IN_REVIEW) {
+                notificationWorkflowService.notifyTaskReviewRequested(savedTask);
+            }
+        }
+
+        Long currentAssigneeId = savedTask.getAssignee() != null ? savedTask.getAssignee().getId() : null;
+        if (currentAssigneeId != null && !currentAssigneeId.equals(previousAssigneeId)) {
+            notificationWorkflowService.notifyTaskAssigned(savedTask);
+        } else if (currentAssigneeId != null
+                && (!savedTask.getDeadline().equals(previousDeadline) || !savedTask.getTitle().equals(previousTitle))) {
+            notificationWorkflowService.notifyTaskUpdated(savedTask);
         }
         return mapToTaskResponse(savedTask);
     }
@@ -230,6 +246,9 @@ public class TaskService {
         Task savedTask = taskRepository.save(task);
         if (previousStatus != status) {
             recordStatusHistory(savedTask);
+            if (status == TaskStatus.IN_REVIEW) {
+                notificationWorkflowService.notifyTaskReviewRequested(savedTask);
+            }
         }
         return savedTask;
     }
@@ -239,6 +258,7 @@ public class TaskService {
         Task task = taskRepository.findByIdWithDetails(taskId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy task"));
 
+        User updater = task.getAssignee();
         TaskStatus previousStatus = task.getStatus();
         TaskStatus status = parseStatus(request.getStatus());
         task.setStatus(status);
@@ -250,7 +270,11 @@ public class TaskService {
         Task savedTask = taskRepository.save(task);
         if (previousStatus != status) {
             recordStatusHistory(savedTask);
+            if (status == TaskStatus.IN_REVIEW) {
+                notificationWorkflowService.notifyTaskReviewRequested(savedTask);
+            }
         }
+        notificationWorkflowService.notifyTaskProgressUpdated(savedTask, updater);
 
         return mapToTaskResponse(savedTask);
     }
@@ -260,12 +284,18 @@ public class TaskService {
         Task task = taskRepository.findByIdWithDetails(taskId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy task"));
 
+        Long previousAssigneeId = task.getAssignee() != null ? task.getAssignee().getId() : null;
         Long eventId = task.getEvent().getId();
         Department department = resolveDepartment(eventId, request.getDepartmentId());
         task.setDepartment(department);
         task.setAssignee(resolveAssignee(eventId, request.getAssigneeId(), department));
 
-        return mapToTaskResponse(taskRepository.save(task));
+        Task savedTask = taskRepository.save(task);
+        Long currentAssigneeId = savedTask.getAssignee() != null ? savedTask.getAssignee().getId() : null;
+        if (currentAssigneeId != null && !currentAssigneeId.equals(previousAssigneeId)) {
+            notificationWorkflowService.notifyTaskAssigned(savedTask);
+        }
+        return mapToTaskResponse(savedTask);
     }
 
     @Transactional(readOnly = true)
@@ -314,6 +344,7 @@ public class TaskService {
         if (previousStatus != nextStatus) {
             recordStatusHistory(savedTask);
         }
+        notificationWorkflowService.notifyTaskReviewed(savedTask);
 
         return mapToTaskResponse(savedTask);
     }

@@ -16,6 +16,8 @@ public class NotificationResponse {
     private String message;
     private Long taskId;
     private String taskTitle;
+    private Long calendarEventId;
+    private LocalDateTime calendarStartTime;
     private Long eventId;
     private String eventName;
     private LocalDateTime deadline;
