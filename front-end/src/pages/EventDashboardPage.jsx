@@ -69,6 +69,13 @@ const EventDashboardPage = ({ user, onLogout }) => {
       : dashboardApi.getTasksByStatus(eventId, weekRange),
     enabled: Boolean(eventId && event),
   });
+  const trendQuery = useQuery({
+    queryKey: ['eventTaskStatusTrend', eventId, selectedDepartmentId, weekRange.fromDate, weekRange.toDate],
+    queryFn: () => selectedDepartmentId
+      ? dashboardApi.getDepartmentTaskTrend({ eventId, departmentId: selectedDepartmentId, ...weekRange })
+      : dashboardApi.getTaskTrend(eventId, weekRange),
+    enabled: Boolean(eventId && event),
+  });
   const tasksQuery = useQuery({
     queryKey: ['eventDashboardTasks', eventId, selectedDepartmentId, page, weekRange.fromDate, weekRange.toDate],
     queryFn: () => taskApi.getEventTaskPage({
@@ -88,8 +95,8 @@ const EventDashboardPage = ({ user, onLogout }) => {
   const selectedDepartment = departments.find((department) => String(department.id) === String(selectedDepartmentId));
   const statusData = useMemo(() => normalizeStatusData(statusQuery.data), [statusQuery.data]);
   const tasks = useMemo(() => tasksQuery.data?.content || [], [tasksQuery.data]);
-  const isLoading = eventQuery.isLoading || departmentsQuery.isLoading || summaryQuery.isLoading || statusQuery.isLoading || tasksQuery.isLoading;
-  const error = departmentsQuery.error || summaryQuery.error || statusQuery.error || tasksQuery.error;
+  const isLoading = eventQuery.isLoading || departmentsQuery.isLoading || summaryQuery.isLoading || statusQuery.isLoading || trendQuery.isLoading || tasksQuery.isLoading;
+  const error = departmentsQuery.error || summaryQuery.error || statusQuery.error || trendQuery.error || tasksQuery.error;
 
   const handleDepartmentChange = (event) => {
     setPage(0);
@@ -158,19 +165,19 @@ const EventDashboardPage = ({ user, onLogout }) => {
               <MetricCard icon={Clock3} label="Quá hạn chưa xong" value={summary.overdueTasksCount} tone={summary.overdueTasksCount > 0 ? 'red' : 'slate'} />
             </section>
 
-            <section className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+            <section className="grid gap-4">
+              <ChartPanel icon={<TrendingUp size={18} />} title="Line chart task theo ngày" description="Số lượng task theo deadline từng ngày, tách theo trạng thái hiện tại.">
+                <StatusLineChart
+                  data={trendQuery.data || []}
+                  onPointClick={({ status, date }) => openFilteredTasks({ status, fromDate: date, toDate: date })}
+                />
+              </ChartPanel>
               <ChartPanel icon={<BarChart3 size={18} />} title="Trạng thái công việc" description="Bấm vào từng cột để xem danh sách task tương ứng.">
                 <StatusColumnChart
                   data={statusData}
                   onColumnClick={(status) => openFilteredTasks({ status, fromDate: weekRange.fromDate, toDate: weekRange.toDate })}
                 />
               </ChartPanel>
-              <DashboardNotes
-                summary={summary}
-                selectedDepartment={selectedDepartment}
-                weekRange={weekRange}
-                onOpenTasks={() => openFilteredTasks({ fromDate: weekRange.fromDate, toDate: weekRange.toDate })}
-              />
             </section>
 
             <TaskListSection tasks={tasks} page={page} setPage={setPage} pageData={tasksQuery.data} eventId={eventId} />
@@ -216,43 +223,123 @@ const ChartPanel = ({ icon, title, description, children }) => (
   </Panel>
 );
 
-const DashboardNotes = ({ summary, selectedDepartment, weekRange, onOpenTasks }) => {
-  const remainingTasks = Math.max((summary?.totalTasks || 0) - (summary?.completedTasks || 0), 0);
+const StatusLineChart = ({ data, onPointClick }) => {
+  const [hoveredPoint, setHoveredPoint] = useState(null);
+  if (!data.length) return <EmptyChart message="Chưa có dữ liệu cập nhật status." />;
+
+  const width = 680;
+  const height = 280;
+  const padding = 36;
+  const series = [
+    { key: 'todoTasks', status: 'TODO', label: 'TODO', color: '#4f46e5', pointOffset: -9 },
+    { key: 'inProgressTasks', status: 'IN_PROGRESS', label: 'IN_PROGRESS', color: '#f59e0b', pointOffset: -3 },
+    { key: 'inReviewTasks', status: 'IN_REVIEW', label: 'IN_REVIEW', color: '#8b5cf6', pointOffset: 3 },
+    { key: 'completedTasks', status: 'DONE', label: 'DONE', color: '#10b981', pointOffset: 9 },
+  ];
+  const maxValue = Math.max(...data.flatMap((item) => series.map((line) => item[line.key] || 0)), 1);
+  const labelStep = Math.max(Math.ceil(data.length / 8), 1);
+  const shouldShowXAxisLabel = (index) => index === 0 || index === data.length - 1 || index % labelStep === 0;
+  const formatAxisLabel = (label) => label?.slice(5) || label;
+  const smoothPath = (points) => {
+    if (points.length < 2) {
+      return points[0] ? `M ${points[0].x} ${points[0].y}` : '';
+    }
+
+    return points.reduce((path, point, index) => {
+      if (index === 0) {
+        return `M ${point.x} ${point.y}`;
+      }
+
+      const previous = points[index - 1];
+      const controlDistance = (point.x - previous.x) * 0.45;
+      return `${path} C ${previous.x + controlDistance} ${previous.y}, ${point.x - controlDistance} ${point.y}, ${point.x} ${point.y}`;
+    }, '');
+  };
+  const pointsFor = (line) => data.map((item, index) => {
+    const baseX = padding + (index * (width - padding * 2)) / Math.max(data.length - 1, 1);
+    const x = Math.min(Math.max(baseX + line.pointOffset, padding), width - padding);
+    const y = height - padding - ((item[line.key] || 0) / maxValue) * (height - padding * 2);
+    return { x, y, label: item.label, value: item[line.key] || 0, index };
+  });
 
   return (
-    <Panel className="p-4">
-      <div className="mb-4 flex items-start gap-3">
-        <div className="rounded-lg bg-slate-100 p-2 text-slate-700">
-          <ClipboardList size={18} />
-        </div>
-        <div>
-          <h3 className="font-semibold text-slate-950">Ghi chú vận hành</h3>
-          <p className="text-sm text-slate-500">
-            {selectedDepartment ? `Đang xem riêng ban ${selectedDepartment.name}.` : 'Đang xem toàn bộ sự kiện.'}
-          </p>
-        </div>
+    <div className="overflow-x-auto">
+      <div className="mb-3 flex flex-wrap gap-3 text-xs font-semibold text-slate-600">
+        {series.map((line) => (
+          <span key={line.key} className="inline-flex items-center gap-1">
+            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: line.color }} />
+            {line.label}
+          </span>
+        ))}
       </div>
-      <div className="space-y-3 text-sm">
-        <DashboardNoteItem label="Khoảng thời gian" value={`${weekRange.fromDate} - ${weekRange.toDate}`} />
-        <DashboardNoteItem label="Task chưa hoàn thành" value={`${remainingTasks} task`} />
-        <DashboardNoteItem label="Task quá hạn chưa xong" value={`${summary?.overdueTasksCount || 0} task`} />
-      </div>
-      <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
-        Dùng trang này để nắm nhanh tình hình. Phần báo cáo và xuất tài liệu được xử lý ở khu vực riêng.
-      </div>
-      <Button type="button" onClick={onOpenTasks} variant="secondary" className="mt-4">
-        Mở danh sách task
-      </Button>
-    </Panel>
+      <svg viewBox={`0 0 ${width} ${height}`} className="h-72 min-w-[560px]">
+        <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} className="stroke-slate-200" />
+        <line x1={padding} y1={padding} x2={padding} y2={height - padding} className="stroke-slate-200" />
+        {series.map((line) => {
+          const points = pointsFor(line);
+          const path = smoothPath(points);
+          return (
+            <g key={line.key}>
+              <path d={path} fill="none" stroke={line.color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+              {points.filter((point) => point.value > 0).map((point) => (
+                <g key={`${line.key}-${point.label}`}>
+                  <circle
+                    cx={point.x}
+                    cy={point.y}
+                    r="5"
+                    fill={line.color}
+                    className="cursor-pointer"
+                    onMouseEnter={() => setHoveredPoint({ ...point, statusLabel: line.label })}
+                    onMouseLeave={() => setHoveredPoint(null)}
+                    onFocus={() => setHoveredPoint({ ...point, statusLabel: line.label })}
+                    onBlur={() => setHoveredPoint(null)}
+                    onClick={() => onPointClick?.({ status: line.status, date: point.label })}
+                  />
+                  <circle
+                    cx={point.x}
+                    cy={point.y}
+                    r="14"
+                    fill="transparent"
+                    className="cursor-pointer"
+                    onMouseEnter={() => setHoveredPoint({ ...point, statusLabel: line.label })}
+                    onMouseLeave={() => setHoveredPoint(null)}
+                    onClick={() => onPointClick?.({ status: line.status, date: point.label })}
+                  />
+                  <text x={point.x} y={point.y - 10} textAnchor="middle" className="fill-slate-700 text-[11px] font-semibold">
+                    {point.value}
+                  </text>
+                </g>
+              ))}
+            </g>
+          );
+        })}
+        {hoveredPoint && (
+          <g className="pointer-events-none">
+            <rect
+              x={Math.min(Math.max(hoveredPoint.x - 78, 8), width - 166)}
+              y={Math.max(hoveredPoint.y - 72, 8)}
+              width="158"
+              height="52"
+              rx="8"
+              className="fill-white/95 stroke-slate-200"
+            />
+            <text x={Math.min(Math.max(hoveredPoint.x, 86), width - 86)} y={Math.max(hoveredPoint.y - 50, 30)} textAnchor="middle" className="fill-slate-900 text-[11px] font-bold">
+              {hoveredPoint.label}
+            </text>
+            <text x={Math.min(Math.max(hoveredPoint.x, 86), width - 86)} y={Math.max(hoveredPoint.y - 32, 48)} textAnchor="middle" className="fill-slate-600 text-[11px]">
+              {hoveredPoint.statusLabel}: {hoveredPoint.value} task
+            </text>
+          </g>
+        )}
+        {pointsFor(series[0]).filter((point) => shouldShowXAxisLabel(point.index)).map((point) => (
+          <text key={point.label} x={point.x} y={height - 10} textAnchor="middle" className="fill-slate-500 text-[10px]">
+            {formatAxisLabel(point.label)}
+          </text>
+        ))}
+      </svg>
+    </div>
   );
 };
-
-const DashboardNoteItem = ({ label, value }) => (
-  <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-100 px-3 py-2">
-    <span className="text-slate-500">{label}</span>
-    <span className="font-semibold text-slate-900">{value}</span>
-  </div>
-);
 
 const StatusColumnChart = ({ data, onColumnClick }) => {
   const [hoveredColumn, setHoveredColumn] = useState(null);
