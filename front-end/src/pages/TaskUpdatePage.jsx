@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, FileText, Loader2, Paperclip, Save } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import eventApi from '../api/eventApi';
@@ -10,6 +10,7 @@ import { invalidateDashboardQueries } from '../utils/dashboardQueryUtils';
 const TaskUpdatePage = ({ user, onLogout }) => {
   const { eventId, taskId } = useParams();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const eventQuery = useQuery({ queryKey: ['event', eventId], queryFn: () => eventApi.getEvent(eventId), enabled: Boolean(eventId) });
   const taskQuery = useQuery({ queryKey: ['task', taskId], queryFn: () => taskApi.getTask(taskId), enabled: Boolean(taskId) });
@@ -18,10 +19,12 @@ const TaskUpdatePage = ({ user, onLogout }) => {
 
   const mutation = useMutation({
     mutationFn: taskApi.updateTaskWork,
-    onSuccess: () => {
+    onSuccess: (updatedTask) => {
+      queryClient.setQueryData(['task', taskId], updatedTask);
       queryClient.invalidateQueries({ queryKey: ['task', taskId] });
       queryClient.invalidateQueries({ queryKey: ['eventTaskPage', eventId] });
       invalidateDashboardQueries(queryClient, eventId);
+      navigate(`/events/${eventId}/tasks/${taskId}`, { replace: true });
     },
   });
 
