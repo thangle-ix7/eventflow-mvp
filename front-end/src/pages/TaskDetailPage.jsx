@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, CalendarDays, ClipboardCheck, Edit, FileText, Paperclip, RefreshCw, UserRound } from 'lucide-react';
+import { CalendarDays, ClipboardCheck, Edit, FileText, Paperclip, RefreshCw, UserRound } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import InlineTaskCreator from '../components/InlineTaskCreator';
 import { Button, ErrorState, LoadingState, PageHeader, Panel, PriorityBadge, ProgressBar, StatusBadge } from '../components/ui';
@@ -37,11 +37,6 @@ const TaskDetailPage = ({ user, onLogout }) => {
   return (
     <AppLayout user={user} events={event ? [event] : []} selectedEvent={event} onEventChange={() => {}} onLogout={onLogout}>
       <div className="space-y-6">
-        <Link to={`/events/${eventId}/tasks`} className="inline-flex items-center gap-2 text-sm font-semibold text-blue-600">
-          <ArrowLeft size={16} />
-          Quay lại task
-        </Link>
-
         {taskQuery.isLoading && <LoadingState message="Đang tải công việc..." />}
         {taskQuery.error && <ErrorState error={taskQuery.error} title="Không tải được công việc" />}
 

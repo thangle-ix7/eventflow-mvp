@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, BarChart3, CheckCircle2, ClipboardList, Clock3, ListTodo, Plus, TrendingUp } from 'lucide-react';
+import { BarChart3, CheckCircle2, ClipboardList, Clock3, ListTodo, Plus, TrendingUp } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import {
   Button,
@@ -116,11 +116,6 @@ const EventDashboardPage = ({ user, onLogout }) => {
     <AppLayout user={user} events={event ? [event] : []} selectedEvent={event} onEventChange={() => {}} onLogout={onLogout}>
       <div className="space-y-6">
         <section className="space-y-4">
-          <Link to={`/events/${eventId}`} className="inline-flex items-center gap-2 text-sm font-semibold text-blue-600">
-            <ArrowLeft size={16} />
-            Quay lại sự kiện
-          </Link>
-
           <PageHeader
             eyebrow={`${event?.name || 'Sự kiện'} / ${selectedDepartment?.name || 'Toàn bộ ban'}`}
             title="Dashboard sự kiện"

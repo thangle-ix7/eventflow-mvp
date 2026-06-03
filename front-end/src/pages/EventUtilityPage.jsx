@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import {
-  ArrowLeft,
   CalendarDays,
   ClipboardList,
   Download,
@@ -172,11 +171,6 @@ const EventUtilityPage = ({ user, onLogout, type }) => {
   return (
     <AppLayout user={user} events={event ? [event] : []} selectedEvent={event} onLogout={onLogout}>
       <div className="space-y-6">
-        <Link to={`/events/${eventId}`} className="inline-flex items-center gap-2 text-sm font-semibold text-indigo-600">
-          <ArrowLeft size={16} />
-          Quay lại sự kiện
-        </Link>
-
         <PageHeader
           eyebrow={event?.name || 'Sự kiện'}
           title={config.title}

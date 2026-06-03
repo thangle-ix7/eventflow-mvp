@@ -1,41 +1,114 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Loader2, Users } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
+import { Button, PageHeader, Panel } from '../components/ui';
 import departmentApi from '../api/departmentApi';
 import eventApi from '../api/eventApi';
+import eventMemberApi from '../api/eventMemberApi';
 
 const DepartmentCreatePage = ({ user, onLogout }) => {
   const { eventId } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [name, setName] = useState('');
+  const [form, setForm] = useState({ name: '', description: '', leaderUserId: '' });
   const eventQuery = useQuery({ queryKey: ['event', eventId], queryFn: () => eventApi.getEvent(eventId), enabled: Boolean(eventId) });
+  const membersQuery = useQuery({ queryKey: ['eventMembers', eventId], queryFn: () => eventMemberApi.getMembers(eventId), enabled: Boolean(eventId) });
   const mutation = useMutation({
     mutationFn: departmentApi.createDepartment,
     onSuccess: (department) => {
       queryClient.invalidateQueries({ queryKey: ['eventDepartments', eventId] });
+      queryClient.invalidateQueries({ queryKey: ['eventMembers', eventId] });
       navigate(`/events/${eventId}/departments/${department.id}`, { replace: true });
     },
   });
+
+  const handleChange = (event) => {
+    const { name, value } = event.target;
+    setForm((old) => ({ ...old, [name]: value }));
+  };
+
   const handleSubmit = (event) => {
     event.preventDefault();
-    mutation.mutate({ eventId, payload: { name } });
+    mutation.mutate({
+      eventId,
+      payload: {
+        name: form.name,
+        description: form.description,
+        leaderUserId: form.leaderUserId ? Number(form.leaderUserId) : null,
+      },
+    });
   };
+
   return (
     <AppLayout user={user} events={eventQuery.data ? [eventQuery.data] : []} selectedEvent={eventQuery.data} onEventChange={() => {}} onLogout={onLogout}>
-      <div className="mx-auto max-w-xl space-y-6">
-        <Link to={`/events/${eventId}/departments`} className="inline-flex items-center gap-2 text-sm font-semibold text-blue-600"><ArrowLeft size={16} />Quay lại departments</Link>
-        <form onSubmit={handleSubmit} className="space-y-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-          <h2 className="text-2xl font-bold text-gray-900">Tạo department</h2>
+      <div className="mx-auto max-w-2xl space-y-6">
+        <PageHeader
+          eyebrow={eventQuery.data?.name || 'Sự kiện'}
+          title="Tạo ban tổ chức"
+          description="Khai báo thông tin vận hành cơ bản để ban có người phụ trách và phạm vi công việc rõ ràng."
+        />
+
+        <Panel>
+          <form onSubmit={handleSubmit} className="space-y-4 p-5">
           {mutation.error && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{mutation.error.userMessage || mutation.error.message}</div>}
-          <label className="block"><span className="text-sm font-medium text-gray-700">Tên department</span><input value={name} onChange={(event) => setName(event.target.value)} required maxLength={100} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500" /></label>
-          <button type="submit" disabled={mutation.isPending} className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60">{mutation.isPending && <Loader2 size={16} className="animate-spin" />}Tạo department</button>
-        </form>
+            <Field label="Tên ban">
+              <input
+                name="name"
+                value={form.name}
+                onChange={handleChange}
+                required
+                maxLength={100}
+                placeholder="Ví dụ: Hậu cần, Truyền thông, Kỹ thuật"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+              />
+            </Field>
+            <Field label="Mô tả nhiệm vụ">
+              <textarea
+                name="description"
+                value={form.description}
+                onChange={handleChange}
+                maxLength={1000}
+                rows={4}
+                placeholder="Mô tả phạm vi công việc, trách nhiệm chính, đầu mối phối hợp của ban..."
+                className="w-full resize-y rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+              />
+            </Field>
+            <Field label="Trưởng ban">
+              <select
+                name="leaderUserId"
+                value={form.leaderUserId}
+                onChange={handleChange}
+                disabled={membersQuery.isLoading}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50"
+              >
+                <option value="">Chưa chọn trưởng ban</option>
+                {(membersQuery.data || []).map((member) => (
+                  <option key={member.userId} value={member.userId}>{member.name} ({member.email})</option>
+                ))}
+              </select>
+              <p className="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
+                <Users size={14} />
+                Trưởng ban sẽ tự được gán vào ban này nếu chưa thuộc ban.
+              </p>
+            </Field>
+            <Button type="submit" disabled={mutation.isPending} className="w-full">
+              {mutation.isPending && <Loader2 size={16} className="animate-spin" />}
+              Tạo ban
+            </Button>
+          </form>
+        </Panel>
       </div>
     </AppLayout>
   );
 };
+
+const Field = ({ label, children }) => (
+  <label className="block">
+    <span className="text-sm font-semibold text-slate-700">{label}</span>
+    <div className="mt-1">{children}</div>
+  </label>
+);
 
 export default DepartmentCreatePage;

@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, CalendarDays, Loader2, Mail, Send, Shield, Users } from 'lucide-react';
+import { useParams } from 'react-router-dom';
+import { CalendarDays, Loader2, Mail, Send, Shield, Users } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import UserAvatar from '../components/UserAvatar';
 import eventApi from '../api/eventApi';
@@ -28,11 +28,6 @@ const MemberDetailPage = ({ user, onLogout }) => {
   return (
     <AppLayout user={user} events={event ? [event] : []} selectedEvent={event} onEventChange={() => {}} onLogout={onLogout}>
       <div className="mx-auto max-w-3xl space-y-6">
-        <Link to={`/events/${eventId}/members`} className="inline-flex items-center gap-2 text-sm font-semibold text-blue-600 hover:text-blue-700">
-          <ArrowLeft size={16} />
-          Quay lại danh sách member
-        </Link>
-
         {(eventQuery.isLoading || memberQuery.isLoading) && (
           <div className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white p-8 text-gray-500">
             <Loader2 size={20} className="animate-spin" />

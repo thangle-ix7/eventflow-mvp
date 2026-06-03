@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
-import { AlertCircle, ArrowLeft, CalendarPlus, Loader2 } from 'lucide-react';
+import { AlertCircle, CalendarPlus, Loader2 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import eventApi from '../api/eventApi';
 
@@ -54,14 +54,7 @@ const EventCreatePage = ({ user, onLogout }) => {
     >
       <div className="mx-auto max-w-2xl space-y-6">
         <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-          <Link
-            to="/"
-            className="inline-flex items-center gap-2 text-sm font-semibold text-blue-600 hover:text-blue-700"
-          >
-            <ArrowLeft size={16} />
-            Quay lại danh sách
-          </Link>
-          <div className="mt-4 flex items-start gap-3">
+          <div className="flex items-start gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600">
               <CalendarPlus size={24} />
             </div>

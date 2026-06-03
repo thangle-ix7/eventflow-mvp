@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, FileText, Loader2, Paperclip, Save } from 'lucide-react';
+import { FileText, Loader2, Paperclip, Save } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import eventApi from '../api/eventApi';
 import taskApi from '../api/taskApi';
@@ -38,11 +38,6 @@ const TaskUpdatePage = ({ user, onLogout }) => {
   return (
     <AppLayout user={user} events={eventQuery.data ? [eventQuery.data] : []} selectedEvent={eventQuery.data} onEventChange={() => {}} onLogout={onLogout}>
       <div className="mx-auto max-w-3xl space-y-6">
-        <Link to={`/events/${eventId}/tasks/${taskId}`} className="inline-flex items-center gap-2 text-sm font-semibold text-blue-600">
-          <ArrowLeft size={16} />
-          Quay lại chi tiết task
-        </Link>
-
         {taskQuery.isLoading && <div className="flex items-center gap-2 rounded-xl bg-white p-6 text-gray-500"><Loader2 className="animate-spin" size={18} />Đang tải task...</div>}
         {taskQuery.error && <div className="rounded-xl bg-red-50 p-4 text-red-700">{taskQuery.error.userMessage || taskQuery.error.message}</div>}
         {task && (

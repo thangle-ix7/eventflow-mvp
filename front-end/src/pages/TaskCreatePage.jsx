@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Loader2 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import departmentApi from '../api/departmentApi';
 import eventApi from '../api/eventApi';
@@ -87,10 +87,6 @@ const TaskCreatePage = ({ user, onLogout }) => {
   return (
     <AppLayout user={user} events={eventQuery.data ? [eventQuery.data] : []} selectedEvent={eventQuery.data} onEventChange={() => {}} onLogout={onLogout}>
       <div className="mx-auto max-w-2xl space-y-6">
-        <Link to={`/events/${eventId}/tasks`} className="inline-flex items-center gap-2 text-sm font-semibold text-blue-600">
-          <ArrowLeft size={16} />
-          Quay lại danh sách task
-        </Link>
         <form onSubmit={handleSubmit} className="space-y-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
           <div>
             <h2 className="text-2xl font-bold text-gray-900">Tạo task</h2>

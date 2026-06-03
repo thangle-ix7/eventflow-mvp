@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ChevronLeft, ChevronRight, ClipboardList, Loader2, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ClipboardList, Loader2, Search } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import InlineTaskCreator from '../components/InlineTaskCreator';
 import departmentApi from '../api/departmentApi';
@@ -70,11 +70,6 @@ const DepartmentTasksPage = ({ user, onLogout, onUserUpdate }) => {
   return (
     <AppLayout user={user} events={event ? [event] : []} selectedEvent={event} onEventChange={() => {}} onLogout={onLogout}>
       <div className="space-y-6">
-        <Link to={`/events/${eventId}/departments/${departmentId}`} className="inline-flex items-center gap-2 text-sm font-semibold text-blue-600">
-          <ArrowLeft size={16} />
-          Quay lại department
-        </Link>
-
         <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>

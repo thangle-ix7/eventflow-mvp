@@ -13,4 +13,8 @@ public class DepartmentResponseDTO {
     private Long id;
     private Long eventId;
     private String name;
+    private String description;
+    private Long leaderUserId;
+    private String leaderName;
+    private String leaderEmail;
 }

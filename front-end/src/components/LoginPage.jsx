@@ -362,7 +362,7 @@ const LoginPage = ({ onLoginSuccess }) => {
             onClick={() => switchMode('login')}
             className="mt-4 w-full text-sm text-slate-500 hover:text-slate-700"
           >
-            Quay lại đăng nhập
+            Đăng nhập
           </button>
         )}
       </div>

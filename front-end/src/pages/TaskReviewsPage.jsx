@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, ClipboardCheck, Loader2, Save } from 'lucide-react';
+import { useParams } from 'react-router-dom';
+import { ClipboardCheck, Loader2, Save } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import eventApi from '../api/eventApi';
 import taskApi from '../api/taskApi';
@@ -50,11 +50,6 @@ const TaskReviewsPage = ({ user, onLogout }) => {
   return (
     <AppLayout user={user} events={event ? [event] : []} selectedEvent={event} onEventChange={() => {}} onLogout={onLogout}>
       <div className="space-y-6">
-        <Link to={`/events/${eventId}/tasks/${taskId}`} className="inline-flex items-center gap-2 text-sm font-semibold text-blue-600">
-          <ArrowLeft size={16} />
-          Quay lại chi tiết task
-        </Link>
-
         <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>

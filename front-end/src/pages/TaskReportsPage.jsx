@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, FileImage, Loader2, Pencil, Save, Upload, X } from 'lucide-react';
+import { useParams } from 'react-router-dom';
+import { FileImage, Loader2, Pencil, Save, Upload, X } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import eventApi from '../api/eventApi';
 import taskApi from '../api/taskApi';
@@ -87,11 +87,6 @@ const TaskReportsPage = ({ user, onLogout }) => {
   return (
     <AppLayout user={user} events={event ? [event] : []} selectedEvent={event} onEventChange={() => {}} onLogout={onLogout}>
       <div className="space-y-6">
-        <Link to={`/events/${eventId}/tasks/${taskId}`} className="inline-flex items-center gap-2 text-sm font-semibold text-blue-600">
-          <ArrowLeft size={16} />
-          Quay lại chi tiết task
-        </Link>
-
         {task?.parentId ? (
           <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
             <h2 className="text-xl font-bold text-gray-900">Subtask chỉ cập nhật trạng thái</h2>

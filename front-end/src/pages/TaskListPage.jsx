@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import InlineTaskCreator from '../components/InlineTaskCreator';
 import {
@@ -104,11 +104,6 @@ const TaskListPage = ({ user, onLogout, onUserUpdate }) => {
   return (
     <AppLayout user={user} events={event ? [event] : []} selectedEvent={event} onEventChange={() => {}} onLogout={onLogout}>
       <div className="space-y-6">
-        <Link to={`/events/${eventId}`} className="inline-flex items-center gap-2 text-sm font-semibold text-blue-600">
-          <ArrowLeft size={16} />
-          Quay lại sự kiện
-        </Link>
-
         <Panel className="p-5">
           <PageHeader
             eyebrow={event?.name || 'Sự kiện'}

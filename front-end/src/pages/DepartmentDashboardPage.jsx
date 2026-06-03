@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, BarChart3, ClipboardList, Loader2, TrendingUp } from 'lucide-react';
+import { BarChart3, ClipboardList, Loader2, TrendingUp, Users } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import dashboardApi from '../api/dashboardApi';
 import eventApi from '../api/eventApi';
@@ -58,19 +58,26 @@ const DepartmentDashboardPage = ({ user, onLogout }) => {
     <AppLayout user={user} events={event ? [event] : []} selectedEvent={event} onEventChange={() => {}} onLogout={onLogout}>
       <div className="space-y-6">
         <section className="space-y-4">
-          <Link to={`/events/${eventId}/departments/${departmentId}`} className="inline-flex items-center gap-2 text-sm font-semibold text-blue-600">
-            <ArrowLeft size={16} />
-            Quay lại department
-          </Link>
-
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <p className="text-sm font-semibold text-gray-500">
                 {event?.name || 'Event'} / Department / {summary?.departmentName || 'Dashboard'}
               </p>
-              <h2 className="mt-1 text-2xl font-bold text-gray-900">Dashboard department</h2>
+              <h2 className="mt-1 text-2xl font-bold text-gray-900">{summary?.departmentName || 'Dashboard ban'}</h2>
             </div>
-            <WeekControl weekIndex={weekIndex} setWeekIndex={(next) => { setPage(0); setWeekIndex(next); }} weekRange={weekRange} />
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+              <div className="flex gap-2">
+                <Link to={`/events/${eventId}/departments/${departmentId}/members`} className="inline-flex items-center justify-center gap-2 rounded-full bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-700 shadow-sm transition hover:bg-emerald-100 active:translate-y-px">
+                  <Users size={16} />
+                  Member
+                </Link>
+                <Link to={`/events/${eventId}/departments/${departmentId}/tasks`} className="inline-flex items-center justify-center gap-2 rounded-full bg-indigo-50 px-3 py-2 text-sm font-bold text-indigo-700 shadow-sm transition hover:bg-indigo-100 active:translate-y-px">
+                  <ClipboardList size={16} />
+                  Task
+                </Link>
+              </div>
+              <WeekControl weekIndex={weekIndex} setWeekIndex={(next) => { setPage(0); setWeekIndex(next); }} weekRange={weekRange} />
+            </div>
           </div>
         </section>
 

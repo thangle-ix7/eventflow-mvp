@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { AlertCircle, ArrowLeft, Loader2, Save } from 'lucide-react';
+import { AlertCircle, Loader2, Save } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import { Button, ErrorState, LoadingState, Panel } from '../components/ui';
 import eventApi from '../api/eventApi';
@@ -42,11 +42,6 @@ const EventEditPage = ({ user, onLogout }) => {
   return (
     <AppLayout user={user} events={eventQuery.data ? [eventQuery.data] : []} selectedEvent={eventQuery.data} onEventChange={() => {}} onLogout={onLogout}>
       <div className="mx-auto max-w-2xl space-y-6">
-        <Link to={`/events/${eventId}`} className="inline-flex items-center gap-2 text-sm font-semibold text-indigo-600">
-          <ArrowLeft size={16} />
-          Quay lại sự kiện
-        </Link>
-
         {eventQuery.isLoading && <LoadingState message="Đang tải thông tin sự kiện..." />}
         {eventQuery.error && <ErrorState error={eventQuery.error} title="Không tải được thông tin sự kiện" />}
 

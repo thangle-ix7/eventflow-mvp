@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Camera, Loader2, Mail, Send, User } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Camera, Loader2, Mail, Send, User } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import userApi from '../api/userApi';
 
@@ -56,14 +55,6 @@ const ProfilePage = ({ user, onLogout, onUserUpdate }) => {
       showTelegramOnboarding={false}
     >
       <div className="mx-auto max-w-3xl space-y-6">
-        <Link
-          to="/"
-          className="inline-flex items-center gap-2 text-sm font-semibold text-blue-600 hover:text-blue-700"
-        >
-          <ArrowLeft size={16} />
-          Quay lại trang chủ
-        </Link>
-
         <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
             <div className="relative h-28 w-28 shrink-0">

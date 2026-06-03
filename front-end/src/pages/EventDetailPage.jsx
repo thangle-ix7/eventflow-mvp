@@ -1,18 +1,28 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
 import {
-  ArrowLeft,
   BarChart3,
+  Building2,
   CalendarDays,
   ClipboardList,
   Edit,
+  Mail,
   MapPin,
+  Send,
+  UserRound,
   Users,
 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
-import { Button, ErrorState, LoadingState, PageHeader, Panel, StatusBadge } from '../components/ui';
+import UserAvatar from '../components/UserAvatar';
+import { Button, EmptyState, ErrorState, LoadingState, PageHeader, Panel, StatusBadge } from '../components/ui';
+import departmentApi from '../api/departmentApi';
 import eventApi from '../api/eventApi';
+import eventMemberApi from '../api/eventMemberApi';
+import taskApi from '../api/taskApi';
 import { formatDate } from '../utils/dateUtils';
+
+const EMPTY_DEPARTMENTS = [];
+const EMPTY_MEMBERS = [];
 
 const EventDetailPage = ({ user, onLogout }) => {
   const { eventId } = useParams();
@@ -22,9 +32,27 @@ const EventDetailPage = ({ user, onLogout }) => {
     queryFn: () => eventApi.getEvent(eventId),
     enabled: Boolean(eventId),
   });
+  const membersQuery = useQuery({
+    queryKey: ['eventMembers', eventId],
+    queryFn: () => eventMemberApi.getMembers(eventId),
+    enabled: Boolean(eventId),
+  });
+  const departmentsQuery = useQuery({
+    queryKey: ['eventDepartments', eventId],
+    queryFn: () => departmentApi.getEventDepartments(eventId),
+    enabled: Boolean(eventId),
+  });
+  const tasksQuery = useQuery({
+    queryKey: ['eventTasksSummary', eventId],
+    queryFn: () => taskApi.getEventTaskPage({ eventId, size: 1 }),
+    enabled: Boolean(eventId),
+  });
 
   const event = eventQuery.data;
   const isLeader = event?.role === 'LEADER';
+  const members = membersQuery.data || EMPTY_MEMBERS;
+  const departments = departmentsQuery.data || EMPTY_DEPARTMENTS;
+  const taskCount = tasksQuery.data?.totalElements ?? tasksQuery.data?.totalItems ?? 0;
 
   return (
     <AppLayout
@@ -34,16 +62,8 @@ const EventDetailPage = ({ user, onLogout }) => {
       onEventChange={() => {}}
       onLogout={onLogout}
     >
-      <div className="space-y-6">
-        <Link
-          to="/"
-          className="inline-flex items-center gap-2 text-sm font-semibold text-blue-600 hover:text-blue-700"
-        >
-          <ArrowLeft size={16} />
-          Quay lại danh sách sự kiện
-        </Link>
-
-        {eventQuery.isLoading && <LoadingState message="Đang tải thông tin sự kiện..." />}
+      <div className="space-y-5">
+        {eventQuery.isLoading && <LoadingState message="Đang tải tổng quan sự kiện..." />}
 
         {eventQuery.error && (
           <ErrorState error={eventQuery.error} title="Không tải được thông tin sự kiện" />
@@ -75,35 +95,167 @@ const EventDetailPage = ({ user, onLogout }) => {
                       <MapPin size={16} />
                       {event.location || 'Chưa có địa điểm'}
                     </span>
+                    <span className="inline-flex items-center gap-2">
+                      <Users size={16} />
+                      {members.length} thành viên
+                    </span>
+                    <span className="inline-flex items-center gap-2">
+                      <ClipboardList size={16} />
+                      {taskCount} task
+                    </span>
                   </>
                 }
               />
             </Panel>
 
-            <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              <QuickLink
+            <Panel className="overflow-hidden">
+              <div className="flex flex-col gap-2 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-950">Thành viên sự kiện</h3>
+                  <p className="text-sm text-slate-500">Những tài khoản đang tham gia và có thể được phân công trong sự kiện.</p>
+                </div>
+                <Link
+                  to={`/events/${eventId}/members`}
+                  className="inline-flex w-fit items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+                >
+                  Quản lý thành viên
+                </Link>
+              </div>
+
+              {membersQuery.isLoading && <LoadingState message="Đang tải thành viên sự kiện..." />}
+              {membersQuery.error && (
+                <div className="p-4">
+                  <ErrorState error={membersQuery.error} title="Không tải được thành viên sự kiện" />
+                </div>
+              )}
+              {!membersQuery.isLoading && !membersQuery.error && members.length === 0 && (
+                <div className="p-4">
+                  <EmptyState
+                    icon={Users}
+                    title="Chưa có thành viên"
+                    description="Khi thêm thành viên vào sự kiện, danh sách sẽ hiển thị tại đây."
+                  />
+                </div>
+              )}
+              {!membersQuery.isLoading && !membersQuery.error && members.length > 0 && (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[860px] text-left text-sm">
+                    <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500">
+                      <tr>
+                        <th className="px-4 py-3">Thành viên</th>
+                        <th className="px-4 py-3">Email</th>
+                        <th className="px-4 py-3">Role</th>
+                        <th className="px-4 py-3">Ban</th>
+                        <th className="px-4 py-3">Telegram</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {members.map((member) => (
+                        <tr key={member.id || member.userId} className="transition hover:bg-indigo-50/40">
+                          <td className="px-4 py-3">
+                            <Link to={`/events/${eventId}/members/${member.userId}`} className="flex min-w-0 items-center gap-3 rounded-lg p-1 transition hover:bg-white">
+                              <UserAvatar userId={member.userId} avatarUrl={member.avatarUrl} name={member.name} size="sm" />
+                              <span className="min-w-0 truncate font-semibold text-slate-950">{member.name || 'Chưa có tên'}</span>
+                            </Link>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="flex max-w-[260px] items-center gap-2 truncate text-slate-600">
+                              <Mail size={15} className="shrink-0 text-slate-400" />
+                              <span className="truncate">{member.email || 'Chưa có email'}</span>
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <StatusBadge status={member.role} />
+                          </td>
+                          <td className="px-4 py-3 text-slate-700">
+                            {member.departmentName || 'Chưa gán ban'}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${
+                              member.telegramLinked ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'
+                            }`}>
+                              <Send size={13} />
+                              {member.telegramLinked ? 'Đã kết nối' : 'Chưa kết nối'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </Panel>
+
+            <Panel className="overflow-hidden">
+              <div className="flex flex-col gap-2 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-950">Ban tổ chức</h3>
+                  <p className="text-sm text-slate-500">Chỉ hiển thị trưởng ban để người xem biết đầu mối liên hệ.</p>
+                </div>
+                <Link
+                  to={`/events/${eventId}/departments`}
+                  className="inline-flex w-fit items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+                >
+                  Quản lý ban
+                </Link>
+              </div>
+
+              {departmentsQuery.isLoading && <LoadingState message="Đang tải ban tổ chức..." />}
+              {departmentsQuery.error && (
+                <div className="p-4">
+                  <ErrorState error={departmentsQuery.error} title="Không tải được ban tổ chức" />
+                </div>
+              )}
+              {!departmentsQuery.isLoading && !departmentsQuery.error && departments.length === 0 && (
+                <div className="p-4">
+                  <EmptyState
+                    icon={Building2}
+                    title="Chưa có ban tổ chức"
+                    description="Tạo ban để chia đầu mối phụ trách rõ hơn cho sự kiện."
+                  />
+                </div>
+              )}
+              {!departmentsQuery.isLoading && !departmentsQuery.error && departments.length > 0 && (
+                <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
+                  {departments.map((department) => (
+                    <Link
+                      key={department.id}
+                      to={`/events/${eventId}/departments/${department.id}`}
+                      className="rounded-lg border border-slate-200 bg-white p-4 transition hover:border-indigo-200 hover:bg-indigo-50/40"
+                    >
+                      <div className="flex items-start gap-3">
+                        <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-700">
+                          <Building2 size={18} />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate font-bold text-slate-950">{department.name}</p>
+                          <p className="mt-2 flex items-center gap-2 text-sm font-medium text-slate-600">
+                            <UserRound size={15} className="shrink-0 text-slate-400" />
+                            <span className="truncate">{department.leaderName || 'Chưa chọn trưởng ban'}</span>
+                          </p>
+                          {department.leaderEmail && (
+                            <p className="mt-1 truncate text-xs text-slate-500">{department.leaderEmail}</p>
+                          )}
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </Panel>
+
+            <section className="grid gap-3 md:grid-cols-2">
+              <OverviewAction
                 to={`/events/${eventId}/tasks`}
-                icon={<ClipboardList size={22} />}
-                title="Công việc"
-                description="Xem danh sách, tạo mới, cập nhật tiến độ và phân công."
+                icon={<ClipboardList size={18} />}
+                title="Task của sự kiện"
+                description="Đi tới danh sách công việc và phân công."
               />
-              <QuickLink
-                to={`/events/${eventId}/departments`}
-                icon={<Users size={22} />}
-                title="Ban tổ chức"
-                description="Quản lý ban phụ trách và công việc theo từng nhóm."
-              />
-              <QuickLink
-                to={`/events/${eventId}/members`}
-                icon={<Users size={22} />}
-                title="Thành viên"
-                description="Quản lý thành viên sự kiện."
-              />
-              <QuickLink
+              <OverviewAction
                 to={`/events/${eventId}/dashboard`}
-                icon={<BarChart3 size={22} />}
-                title="Dashboard"
-                description="Tổng quan tiến độ, trạng thái và công việc sắp tới."
+                icon={<BarChart3 size={18} />}
+                title="Dashboard sự kiện"
+                description="Xem tiến độ tổng quan khi cần theo dõi sâu hơn."
                 disabled={!isLeader}
               />
             </section>
@@ -123,13 +275,23 @@ const formatEventRange = (event) => {
   return `${formatDate(start)} - ${formatDate(end)}`;
 };
 
-const QuickLink = ({ to, icon, title, description, disabled = false }) => {
+const OverviewAction = ({ to, icon, title, description, disabled = false }) => {
+  const content = (
+    <div className="flex items-center gap-3">
+      <span className={`inline-flex h-10 w-10 items-center justify-center rounded-lg ${disabled ? 'bg-slate-100 text-slate-400' : 'bg-indigo-50 text-indigo-700'}`}>
+        {icon}
+      </span>
+      <span className="min-w-0">
+        <span className="block font-bold text-slate-950">{title}</span>
+        <span className="mt-1 block text-sm text-slate-500">{description}</span>
+      </span>
+    </div>
+  );
+
   if (disabled) {
     return (
       <div className="rounded-xl border border-slate-200 bg-white p-4 opacity-60 shadow-sm">
-        <div className="text-slate-400">{icon}</div>
-        <h3 className="mt-3 font-semibold text-slate-950">{title}</h3>
-        <p className="mt-1 text-sm text-slate-500">{description}</p>
+        {content}
       </div>
     );
   }
@@ -137,11 +299,9 @@ const QuickLink = ({ to, icon, title, description, disabled = false }) => {
   return (
     <Link
       to={to}
-      className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-indigo-200 hover:bg-indigo-50/60"
+      className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-indigo-200 hover:bg-indigo-50/50"
     >
-      <div className="text-indigo-600">{icon}</div>
-      <h3 className="mt-3 font-semibold text-slate-950">{title}</h3>
-      <p className="mt-1 text-sm text-slate-500">{description}</p>
+      {content}
     </Link>
   );
 };

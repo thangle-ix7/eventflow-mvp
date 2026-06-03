@@ -160,18 +160,6 @@ const AppLayoutFrame = ({
 
   const renderEventNavigation = () => (
     <div className="space-y-5 p-4">
-      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-        <p className="text-sm font-bold text-slate-950">{selectedEvent?.name || 'Sự kiện'}</p>
-        <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">
-          {selectedEvent?.description || 'Workspace điều phối sự kiện'}
-        </p>
-        {selectedEvent?.role && (
-          <span className="mt-3 inline-flex rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-700">
-            {selectedEvent.role === 'LEADER' ? 'Trưởng nhóm' : 'Thành viên'}
-          </span>
-        )}
-      </div>
-
       <nav className="space-y-1" aria-label="Điều hướng sự kiện">
         {eventNav.map((item) => {
           const Icon = item.icon;

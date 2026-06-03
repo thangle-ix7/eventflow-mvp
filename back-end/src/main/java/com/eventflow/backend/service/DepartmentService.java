@@ -76,13 +76,18 @@ public class DepartmentService {
         if (departmentRepository.existsByEventIdAndName(eventId, name)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Tên ban đã tồn tại trong sự kiện");
         }
+        EventMember leaderMember = resolveLeaderMember(eventId, request.getLeaderUserId());
 
         Department department = Department.builder()
                 .event(event)
                 .name(name)
+                .description(normalizeOptionalText(request.getDescription()))
+                .leader(leaderMember != null ? leaderMember.getUser() : null)
                 .build();
 
-        return mapToResponse(saveDepartment(department));
+        Department savedDepartment = saveDepartment(department);
+        assignLeaderToDepartment(savedDepartment, leaderMember);
+        return mapToResponse(savedDepartment);
     }
 
     @Transactional
@@ -94,9 +99,14 @@ public class DepartmentService {
         if (departmentRepository.existsByEventIdAndNameAndIdNot(eventId, name, departmentId)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Tên ban đã tồn tại trong sự kiện");
         }
+        EventMember leaderMember = resolveLeaderMember(eventId, request.getLeaderUserId());
 
         department.setName(name);
-        return mapToResponse(saveDepartment(department));
+        department.setDescription(normalizeOptionalText(request.getDescription()));
+        department.setLeader(leaderMember != null ? leaderMember.getUser() : null);
+        Department savedDepartment = saveDepartment(department);
+        assignLeaderToDepartment(savedDepartment, leaderMember);
+        return mapToResponse(savedDepartment);
     }
 
     @Transactional
@@ -145,6 +155,31 @@ public class DepartmentService {
         return name.trim();
     }
 
+    private String normalizeOptionalText(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
+    }
+
+    private EventMember resolveLeaderMember(Long eventId, Long leaderUserId) {
+        if (leaderUserId == null) {
+            return null;
+        }
+
+        return eventMemberRepository.findByEventIdAndUserId(eventId, leaderUserId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Trưởng ban phải là thành viên của sự kiện"));
+    }
+
+    private void assignLeaderToDepartment(Department department, EventMember leaderMember) {
+        if (leaderMember == null) {
+            return;
+        }
+
+        leaderMember.setDepartment(department);
+        eventMemberRepository.save(leaderMember);
+    }
+
     private void assertDepartmentExists(Long eventId, Long departmentId) {
         if (!departmentRepository.existsByIdAndEventId(departmentId, eventId)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy ban");
@@ -167,10 +202,15 @@ public class DepartmentService {
     }
 
     private DepartmentResponseDTO mapToResponse(Department department) {
+        User leader = department.getLeader();
         return DepartmentResponseDTO.builder()
                 .id(department.getId())
                 .eventId(department.getEvent().getId())
                 .name(department.getName())
+                .description(department.getDescription())
+                .leaderUserId(leader != null ? leader.getId() : null)
+                .leaderName(leader != null ? leader.getName() : null)
+                .leaderEmail(leader != null ? leader.getEmail() : null)
                 .build();
     }
 
