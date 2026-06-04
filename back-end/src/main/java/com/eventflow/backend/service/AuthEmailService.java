@@ -8,6 +8,7 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import org.springframework.web.util.HtmlUtils;
+import org.springframework.web.util.UriComponentsBuilder;
 import org.springframework.web.server.ResponseStatusException;
 
 import jakarta.mail.internet.MimeMessage;
@@ -33,7 +34,10 @@ public class AuthEmailService {
     private boolean requireEmailDelivery;
 
     public void sendVerificationEmail(String toEmail, String token) {
-        String link = frontendUrl + "/verify-email?token=" + token;
+        String link = UriComponentsBuilder.fromHttpUrl(normalizedFrontendUrl())
+                .path("/verify-email")
+                .queryParam("token", token)
+                .toUriString();
         sendAuthEmail(
                 toEmail,
                 "Event Flow - Xác thực email",
@@ -50,7 +54,10 @@ public class AuthEmailService {
     }
 
     public void sendPasswordResetEmail(String toEmail, String token) {
-        String link = frontendUrl + "/reset-password?token=" + token;
+        String link = UriComponentsBuilder.fromHttpUrl(normalizedFrontendUrl())
+                .path("/reset-password")
+                .queryParam("token", token)
+                .toUriString();
         sendAuthEmail(
                 toEmail,
                 "Event Flow - Đặt lại mật khẩu",
@@ -124,12 +131,14 @@ public class AuthEmailService {
                                 <table role="presentation" cellspacing="0" cellpadding="0" style="margin-top:24px;">
                                   <tr>
                                     <td style="border-radius:12px;background:#4f46e5;">
-                                      <a href="%s" style="display:inline-block;padding:13px 20px;border-radius:12px;color:#ffffff;text-decoration:none;font-size:15px;font-weight:800;">%s</a>
+                                      <a href="%s" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:13px 20px;border-radius:12px;color:#ffffff;text-decoration:none;font-size:15px;font-weight:800;">%s</a>
                                     </td>
                                   </tr>
                                 </table>
                                 <p style="margin:22px 0 0;font-size:13px;line-height:1.6;color:#64748b;">Nếu nút không mở được, hãy copy đường dẫn này vào trình duyệt:</p>
-                                <p style="margin:8px 0 0;word-break:break-all;font-size:12px;line-height:1.6;color:#4f46e5;">%s</p>
+                                <p style="margin:8px 0 0;word-break:break-all;font-size:12px;line-height:1.6;">
+                                  <a href="%s" target="_blank" rel="noopener noreferrer" style="color:#4f46e5;text-decoration:underline;">%s</a>
+                                </p>
                                 <div style="margin-top:24px;padding-top:18px;border-top:1px solid #e2e8f0;font-size:12px;line-height:1.6;color:#94a3b8;">Nếu bạn không thực hiện yêu cầu này, có thể bỏ qua email.</div>
                               </td>
                             </tr>
@@ -139,11 +148,16 @@ public class AuthEmailService {
                     </table>
                   </body>
                 </html>
-                """.formatted(safeEyebrow, safeHeading, safeIntro, safeActionUrl, safeButtonLabel, safeActionUrl);
+                """.formatted(safeEyebrow, safeHeading, safeIntro, safeActionUrl, safeButtonLabel, safeActionUrl, safeActionUrl);
     }
 
     private String escape(String value) {
         return HtmlUtils.htmlEscape(value == null ? "" : value);
+    }
+
+    private String normalizedFrontendUrl() {
+        String value = isBlank(frontendUrl) ? "http://localhost:5173" : frontendUrl.trim();
+        return value.endsWith("/") ? value.substring(0, value.length() - 1) : value;
     }
 
     private void handleEmailFailure(String message, Exception e) {

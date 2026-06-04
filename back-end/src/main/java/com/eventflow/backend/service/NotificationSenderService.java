@@ -165,11 +165,17 @@ public class NotificationSenderService {
                 <table role="presentation" cellspacing="0" cellpadding="0" style="margin-top:24px;">
                   <tr>
                     <td style="border-radius:12px;background:%s;">
-                      <a href="%s" style="display:inline-block;padding:13px 20px;border-radius:12px;color:#ffffff;text-decoration:none;font-size:15px;font-weight:800;">%s</a>
+                      <a href="%s" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:13px 20px;border-radius:12px;color:#ffffff;text-decoration:none;font-size:15px;font-weight:800;">%s</a>
                     </td>
                   </tr>
                 </table>
                 """.formatted(toneColor, escape(actionUrl), task != null ? "Mở công việc" : "Mở Event Flow");
+        String fallbackLink = actionUrl == null ? "" : """
+                <p style="margin:18px 0 0;font-size:13px;line-height:1.6;color:#64748b;">Nếu nút không mở được, dùng link này:</p>
+                <p style="margin:8px 0 0;word-break:break-all;font-size:12px;line-height:1.6;">
+                  <a href="%s" target="_blank" rel="noopener noreferrer" style="color:#4f46e5;text-decoration:underline;">%s</a>
+                </p>
+                """.formatted(escape(actionUrl), escape(actionUrl));
         String taskBlock = taskTitle == null ? "" : """
                 <div style="margin-top:18px;padding:14px;border:1px solid #e2e8f0;border-radius:14px;background:#f8fafc;">
                   <div style="font-size:12px;font-weight:800;text-transform:uppercase;color:#64748b;">Công việc</div>
@@ -200,6 +206,7 @@ public class NotificationSenderService {
                                 <p style="margin:8px 0 0;white-space:pre-line;font-size:15px;line-height:1.7;color:#475569;">%s</p>
                                 %s
                                 %s
+                                %s
                                 <div style="margin-top:24px;padding-top:18px;border-top:1px solid #e2e8f0;font-size:12px;line-height:1.6;color:#94a3b8;">Email này được gửi tự động từ Event Flow. Bạn vẫn có thể xem thông báo trong ứng dụng.</div>
                               </td>
                             </tr>
@@ -209,7 +216,7 @@ public class NotificationSenderService {
                     </table>
                   </body>
                 </html>
-                """.formatted(escape(heading), escape(userName), escape(text), taskBlock, cta);
+                """.formatted(escape(heading), escape(userName), escape(text), taskBlock, cta, fallbackLink);
     }
 
     private String buildNotificationUrl(Notification notification, Task task) {
@@ -218,18 +225,30 @@ public class NotificationSenderService {
             eventId = task.getEvent().getId();
         }
         if (eventId == null) {
-            return frontendUrl;
+            return normalizedFrontendUrl();
         }
         if (task != null && task.getId() != null) {
-            return frontendUrl + "/events/" + eventId + "/tasks/" + task.getId();
+            return UriComponentsBuilder.fromHttpUrl(normalizedFrontendUrl())
+                    .pathSegment("events", String.valueOf(eventId), "tasks", String.valueOf(task.getId()))
+                    .toUriString();
         }
         if (notification.getCalendarEventId() != null) {
-            return frontendUrl + "/events/" + eventId + "/calendar?calendarEventId=" + notification.getCalendarEventId();
+            return UriComponentsBuilder.fromHttpUrl(normalizedFrontendUrl())
+                    .pathSegment("events", String.valueOf(eventId), "calendar")
+                    .queryParam("calendarEventId", notification.getCalendarEventId())
+                    .toUriString();
         }
-        return frontendUrl + "/events/" + eventId;
+        return UriComponentsBuilder.fromHttpUrl(normalizedFrontendUrl())
+                .pathSegment("events", String.valueOf(eventId))
+                .toUriString();
     }
 
     private String escape(String value) {
         return HtmlUtils.htmlEscape(value == null ? "" : value);
+    }
+
+    private String normalizedFrontendUrl() {
+        String value = frontendUrl == null || frontendUrl.isBlank() ? "http://localhost:5173" : frontendUrl.trim();
+        return value.endsWith("/") ? value.substring(0, value.length() - 1) : value;
     }
 }
