@@ -5,13 +5,11 @@ import com.eventflow.backend.dto.NotificationResponse;
 import com.eventflow.backend.dto.TelegramLinkTokenResponse;
 import com.eventflow.backend.dto.UserProfileDTO;
 import com.eventflow.backend.dto.UserPreferencesRequest;
-import com.eventflow.backend.entity.Notification;
 import jakarta.validation.Valid;
 import com.eventflow.backend.repository.NotificationRepository;
 import com.eventflow.backend.service.TelegramBotService;
 import com.eventflow.backend.service.UserProfileService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -29,10 +27,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.concurrent.TimeUnit;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping({"/api/users", "/api/v1/users"})
@@ -90,11 +90,6 @@ public class UserController {
             @PathVariable Long userId,
             Authentication authentication) {
 
-        Long authenticatedUserId = (Long) authentication.getPrincipal();
-        if (!authenticatedUserId.equals(userId)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        }
-
         var avatar = userProfileService.getAvatar(userId);
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.maxAge(10, TimeUnit.MINUTES).cachePrivate())
@@ -128,14 +123,7 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
-        List<Notification> notifications = notificationRepository
-                .findRecentByUserIdWithDetails(userId, PageRequest.of(0, 20));
-        Map<Long, CalendarNotificationContext> calendarContextById = loadCalendarContext(notifications);
-
-        List<NotificationResponse> responses = notifications.stream()
-                .map(notification -> toNotificationResponse(notification, calendarContextById.get(notification.getCalendarEventId())))
-                .toList();
-        return ResponseEntity.ok(responses);
+        return ResponseEntity.ok(loadRecentNotifications(userId));
     }
 
     @PatchMapping("/{userId}/notifications/{notificationId}/read")
@@ -180,72 +168,84 @@ public class UserController {
         return ResponseEntity.ok(telegramBotService.createLinkToken(userId));
     }
 
-    private NotificationResponse toNotificationResponse(Notification notification, CalendarNotificationContext calendarContext) {
-        var task = notification.getTask();
-        var event = task != null ? task.getEvent() : null;
-        boolean overdue = notification.getType() != null && notification.getType().name().equals("OVERDUE");
-        String taskTitle = task != null ? task.getTitle() : "Công việc";
+    private List<NotificationResponse> loadRecentNotifications(Long userId) {
+        return jdbcTemplate.query("""
+                SELECT n.id,
+                       n.type,
+                       n.status,
+                       n.channel,
+                       n.title,
+                       n.message,
+                       n.task_id,
+                       t.title AS task_title,
+                       n.calendar_event_id,
+                       ce.start_time AS calendar_start_time,
+                       COALESCE(t.event_id, n.event_id, ce.event_id) AS event_id,
+                       COALESCE(task_event.name, notification_event.name, calendar_event_owner.name) AS event_name,
+                       t.deadline,
+                       n.created_at,
+                       n.sent_at,
+                       n.read_at,
+                       n.error_log
+                FROM notifications n
+                LEFT JOIN tasks t ON t.id = n.task_id
+                LEFT JOIN events task_event ON task_event.id = t.event_id
+                LEFT JOIN events notification_event ON notification_event.id = n.event_id
+                LEFT JOIN calendar_event ce ON ce.id = n.calendar_event_id
+                LEFT JOIN events calendar_event_owner ON calendar_event_owner.id = ce.event_id
+                WHERE n.user_id = ?
+                ORDER BY n.created_at DESC, n.id DESC
+                LIMIT 20
+                """, (rs, rowNum) -> toNotificationResponse(rs), userId);
+    }
+
+    private NotificationResponse toNotificationResponse(ResultSet rs) throws SQLException {
+        String type = rs.getString("type");
+        String taskTitle = rs.getString("task_title");
+        if (taskTitle == null || taskTitle.isBlank()) {
+            taskTitle = "Công việc";
+        }
+        boolean overdue = "OVERDUE".equals(type);
         String fallbackTitle = overdue ? "Task quá hạn" : "Task sắp đến hạn";
         String fallbackMessage = overdue
                 ? "Công việc \"" + taskTitle + "\" đã quá hạn. Vui lòng cập nhật trạng thái."
                 : "Công việc \"" + taskTitle + "\" sẽ đến hạn trong 24 giờ tới.";
 
         return NotificationResponse.builder()
-                .id(notification.getId())
-                .type(notification.getType() != null ? notification.getType().name() : null)
-                .status(notification.getStatus() != null ? notification.getStatus().name() : null)
-                .channel(notification.getChannel() != null ? notification.getChannel().name() : null)
-                .title(notification.getTitle() != null ? notification.getTitle() : fallbackTitle)
-                .message(notification.getMessage() != null ? notification.getMessage() : fallbackMessage)
-                .taskId(task != null ? task.getId() : null)
+                .id(rs.getLong("id"))
+                .type(type)
+                .status(rs.getString("status"))
+                .channel(rs.getString("channel"))
+                .title(firstPresent(rs.getString("title"), fallbackTitle))
+                .message(firstPresent(rs.getString("message"), fallbackMessage))
+                .taskId(getNullableLong(rs, "task_id"))
                 .taskTitle(taskTitle)
-                .calendarEventId(notification.getCalendarEventId())
-                .calendarStartTime(calendarContext != null ? calendarContext.startTime() : null)
-                .eventId(event != null
-                        ? event.getId()
-                        : (notification.getEventId() != null
-                                ? notification.getEventId()
-                                : (calendarContext != null ? calendarContext.eventId() : null)))
-                .eventName(event != null ? event.getName() : (calendarContext != null ? calendarContext.eventName() : null))
-                .deadline(task != null ? task.getDeadline() : null)
-                .createdAt(notification.getCreatedAt())
-                .sentAt(notification.getSentAt())
-                .readAt(notification.getReadAt())
-                .errorLog(notification.getErrorLog())
+                .calendarEventId(getNullableLong(rs, "calendar_event_id"))
+                .calendarStartTime(getNullableDateTime(rs, "calendar_start_time"))
+                .eventId(getNullableLong(rs, "event_id"))
+                .eventName(rs.getString("event_name"))
+                .deadline(getNullableDateTime(rs, "deadline"))
+                .createdAt(getNullableDateTime(rs, "created_at"))
+                .sentAt(getNullableDateTime(rs, "sent_at"))
+                .readAt(getNullableDateTime(rs, "read_at"))
+                .errorLog(rs.getString("error_log"))
                 .build();
     }
 
-    private Map<Long, CalendarNotificationContext> loadCalendarContext(List<Notification> notifications) {
-        List<Long> calendarEventIds = notifications.stream()
-                .map(Notification::getCalendarEventId)
-                .filter(id -> id != null)
-                .distinct()
-                .toList();
-
-        if (calendarEventIds.isEmpty()) {
-            return Map.of();
+    private String firstPresent(String value, String fallback) {
+        if (value == null || value.isBlank()) {
+            return fallback;
         }
-
-        String placeholders = calendarEventIds.stream().map(id -> "?").collect(Collectors.joining(","));
-        return jdbcTemplate.query("""
-                SELECT ce.id, ce.event_id, ce.start_time, e.name AS event_name
-                FROM calendar_event ce
-                JOIN events e ON e.id = ce.event_id
-                WHERE ce.id IN (%s)
-                """.formatted(placeholders), rs -> {
-            Map<Long, CalendarNotificationContext> contexts = new java.util.HashMap<>();
-            while (rs.next()) {
-                contexts.put(
-                        rs.getLong("id"),
-                        new CalendarNotificationContext(
-                                rs.getLong("event_id"),
-                                rs.getTimestamp("start_time").toLocalDateTime(),
-                                rs.getString("event_name")));
-            }
-            return contexts;
-        }, calendarEventIds.toArray());
+        return value;
     }
 
-    private record CalendarNotificationContext(Long eventId, java.time.LocalDateTime startTime, String eventName) {
+    private Long getNullableLong(ResultSet rs, String column) throws SQLException {
+        long value = rs.getLong(column);
+        return rs.wasNull() ? null : value;
+    }
+
+    private LocalDateTime getNullableDateTime(ResultSet rs, String column) throws SQLException {
+        Timestamp value = rs.getTimestamp(column);
+        return value != null ? value.toLocalDateTime() : null;
     }
 }

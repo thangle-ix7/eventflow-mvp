@@ -1,9 +1,10 @@
 import TelegramOnboarding from './TelegramOnboarding';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { createContext, useContext, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import AiChatBox from './AiChatBox';
 import userApi from '../api/userApi';
+import { getDepartmentHomePath, getEventPermissions } from '../utils/permissionUtils';
 import {
   BarChart3,
   Bell,
@@ -49,6 +50,7 @@ const AppLayoutFrame = ({
   const [globalSearch, setGlobalSearch] = useState('');
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [sidebarState, setSidebarState] = useState({ eventId: null, open: true });
+  const notificationRef = useRef(null);
   const notificationCountKey = ['pendingNotificationCount', user.userId];
   const notificationListKey = ['notifications', user.userId];
   const notificationCountQuery = useQuery({
@@ -83,13 +85,15 @@ const AppLayoutFrame = ({
   const sidebarOpen = Boolean(selectedEventId) && (
     sidebarState.eventId === selectedEventId ? sidebarState.open : true
   );
+  const permissions = getEventPermissions(selectedEvent);
+  const departmentHomePath = getDepartmentHomePath(selectedEvent);
 
   const eventNav = selectedEvent?.id
     ? [
       { to: `/events/${selectedEvent.id}`, label: 'Tổng quan', icon: Workflow },
-      { to: `/events/${selectedEvent.id}/dashboard`, label: 'Dashboard', icon: BarChart3 },
+      ...(permissions.canViewEventDashboard ? [{ to: `/events/${selectedEvent.id}/dashboard`, label: 'Dashboard', icon: BarChart3 }] : []),
       { to: `/events/${selectedEvent.id}/tasks`, label: 'Công việc', icon: ClipboardList },
-      { to: `/events/${selectedEvent.id}/departments`, label: 'Ban tổ chức', icon: Users },
+      ...(departmentHomePath ? [{ to: departmentHomePath, label: 'Ban tổ chức', icon: Users }] : []),
       { to: `/events/${selectedEvent.id}/members`, label: 'Thành viên', icon: UserRound },
     ]
     : [];
@@ -97,42 +101,46 @@ const AppLayoutFrame = ({
     { to: `/events/${selectedEvent.id}/calendar`, label: 'Lịch', icon: CalendarDays },
     { to: `/events/${selectedEvent.id}/documents`, label: 'Tài liệu', icon: FileText },
     { to: `/events/${selectedEvent.id}/reports`, label: 'Báo cáo', icon: TrendingUp },
-    { to: `/events/${selectedEvent.id}/settings`, label: 'Cài đặt', icon: Settings },
+    { to: `/events/${selectedEvent.id}/settings`, label: permissions.canManageEvent ? 'Cài đặt' : 'Thông tin', icon: Settings },
   ] : [
     { to: '/', label: 'Sự kiện của bạn', icon: CalendarDays },
   ];
-  const searchSuggestions = useMemo(() => {
-    const base = [
-      { label: 'Sự kiện của bạn', description: 'Danh sách sự kiện', to: '/' },
-      { label: 'Tạo sự kiện', description: 'Bắt đầu workspace mới', to: '/events/new' },
-      { label: 'Hồ sơ cá nhân', description: 'Thông tin tài khoản', to: '/profile' },
-      ...events.map((event) => ({
-        label: event.name,
-        description: event.role === 'LEADER' ? 'Sự kiện bạn quản lý' : 'Sự kiện bạn tham gia',
-        to: `/events/${event.id}`,
-      })),
-    ];
+  const searchSuggestionBase = [
+    { label: 'Sự kiện của bạn', description: 'Danh sách sự kiện', to: '/' },
+    { label: 'Tạo sự kiện', description: 'Bắt đầu workspace mới', to: '/events/new' },
+    { label: 'Hồ sơ cá nhân', description: 'Thông tin tài khoản', to: '/profile' },
+    ...events.map((event) => ({
+      label: event.name,
+      description: event.role === 'LEADER' ? 'Sự kiện bạn quản lý' : 'Sự kiện bạn tham gia',
+      to: `/events/${event.id}`,
+    })),
+  ];
 
-    if (selectedEvent?.id) {
-      base.push(
-        { label: 'Dashboard sự kiện', description: selectedEvent.name, to: `/events/${selectedEvent.id}/dashboard` },
-        { label: 'Công việc', description: 'Danh sách task và tiến độ', to: `/events/${selectedEvent.id}/tasks` },
-        { label: 'Ban tổ chức', description: 'Các nhóm phụ trách', to: `/events/${selectedEvent.id}/departments` },
-        { label: 'Thành viên', description: 'Danh sách thành viên', to: `/events/${selectedEvent.id}/members` },
-        { label: 'Lịch', description: 'Mốc sự kiện và deadline', to: `/events/${selectedEvent.id}/calendar` },
-        { label: 'Tài liệu', description: 'Lối vào attachment theo task', to: `/events/${selectedEvent.id}/documents` },
-        { label: 'Báo cáo', description: 'Tổng hợp tiến độ từ dữ liệu hiện có', to: `/events/${selectedEvent.id}/reports` },
-        { label: 'Cài đặt', description: 'Thông tin và giới hạn cấu hình sự kiện', to: `/events/${selectedEvent.id}/settings` },
-      );
+  if (selectedEvent?.id) {
+    searchSuggestionBase.push(
+      { label: 'Công việc', description: 'Danh sách task và tiến độ', to: `/events/${selectedEvent.id}/tasks` },
+      { label: 'Thành viên', description: 'Danh sách thành viên', to: `/events/${selectedEvent.id}/members` },
+      { label: 'Lịch', description: 'Mốc sự kiện và deadline', to: `/events/${selectedEvent.id}/calendar` },
+      { label: 'Tài liệu', description: 'Lối vào attachment theo task', to: `/events/${selectedEvent.id}/documents` },
+      { label: 'Báo cáo', description: 'Tổng hợp tiến độ từ dữ liệu hiện có', to: `/events/${selectedEvent.id}/reports` },
+      { label: permissions.canManageEvent ? 'Cài đặt' : 'Thông tin', description: permissions.canManageEvent ? 'Thông tin và giới hạn cấu hình sự kiện' : 'Thông tin sự kiện bạn được xem', to: `/events/${selectedEvent.id}/settings` },
+    );
+
+    if (departmentHomePath) {
+      searchSuggestionBase.push({ label: 'Ban tổ chức', description: permissions.canManageDepartments ? 'Các nhóm phụ trách' : selectedEvent.departmentName, to: departmentHomePath });
     }
 
-    const needle = globalSearch.trim().toLowerCase();
-    if (!needle) return base.slice(0, 6);
+    if (permissions.canViewEventDashboard) {
+      searchSuggestionBase.push({ label: 'Dashboard sự kiện', description: selectedEvent.name, to: `/events/${selectedEvent.id}/dashboard` });
+    }
+  }
 
-    return base
-      .filter((item) => `${item.label} ${item.description}`.toLowerCase().includes(needle))
-      .slice(0, 8);
-  }, [events, globalSearch, selectedEvent]);
+  const searchNeedle = globalSearch.trim().toLowerCase();
+  const searchSuggestions = searchNeedle
+    ? searchSuggestionBase
+      .filter((item) => `${item.label} ${item.description}`.toLowerCase().includes(searchNeedle))
+      .slice(0, 8)
+    : searchSuggestionBase.slice(0, 6);
 
   const handleGlobalSearchSubmit = (event) => {
     event.preventDefault();
@@ -157,6 +165,30 @@ const AppLayoutFrame = ({
       setSidebarState({ eventId: selectedEventId, open: false });
     }
   };
+
+  useEffect(() => {
+    if (!notificationOpen) {
+      return undefined;
+    }
+
+    const handlePointerDown = (event) => {
+      if (notificationRef.current && !notificationRef.current.contains(event.target)) {
+        setNotificationOpen(false);
+      }
+    };
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setNotificationOpen(false);
+      }
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [notificationOpen]);
 
   const renderEventNavigation = () => (
     <div className="space-y-5 p-4">
@@ -282,7 +314,7 @@ const AppLayoutFrame = ({
                 <CalendarDays className="h-5 w-5" strokeWidth={1.8} />
               </Link>
               )}
-              <div className="relative">
+              <div className="relative" ref={notificationRef}>
                 <button
                   type="button"
                   className="relative rounded-lg p-2 hover:bg-white/10 hover:text-white"

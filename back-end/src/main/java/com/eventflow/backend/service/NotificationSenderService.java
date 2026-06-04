@@ -121,7 +121,8 @@ public class NotificationSenderService {
                     "Công việc \"" + taskTitle + "\" của bạn ĐÃ QUÁ HẠN!\n" +
                     "Vui lòng cập nhật trạng thái ngay.\n\n" +
                     "EventFlow - Hệ thống quản lý sự kiện.";
-            case TASK_ASSIGNED, TASK_UPDATED, TASK_REVIEW_REQUESTED, TASK_REVIEWED, CALENDAR_INVITE, CALENDAR_UPDATED ->
+            case TASK_ASSIGNED, TASK_UPDATED, TASK_REVIEW_REQUESTED, TASK_REVIEWED,
+                    CALENDAR_INVITE, CALENDAR_UPDATED, CALENDAR_REMINDER_TOMORROW, CALENDAR_REMINDER_SOON ->
                     notification.getTitle() != null ? notification.getTitle() : "Bạn có thông báo mới từ EventFlow.";
         };
     }

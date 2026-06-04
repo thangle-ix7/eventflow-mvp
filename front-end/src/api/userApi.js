@@ -107,6 +107,7 @@ const userApi = {
 
     const response = await apiClient.get(`/users/${userId}/avatar`, {
       responseType: 'blob',
+      skipGlobalErrorRedirect: true,
     });
     return response.data;
   },
