@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { BarChart3, ClipboardList, Loader2, TrendingUp, Users } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import dashboardApi from '../api/dashboardApi';
@@ -8,6 +8,7 @@ import eventApi from '../api/eventApi';
 import taskApi from '../api/taskApi';
 import { PriorityBadge, StatusBadge } from '../components/ui';
 import { formatDate } from '../utils/dateUtils';
+import { getEventPermissions } from '../utils/permissionUtils';
 
 const PAGE_SIZE = 8;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -25,26 +26,29 @@ const getWeekRange = (eventDate, weekIndex) => {
 const DepartmentDashboardPage = ({ user, onLogout }) => {
   const { eventId, departmentId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [page, setPage] = useState(0);
   const [weekIndex, setWeekIndex] = useState(0);
 
   const eventQuery = useQuery({ queryKey: ['event', eventId], queryFn: () => eventApi.getEvent(eventId), enabled: Boolean(eventId) });
   const event = eventQuery.data;
+  const permissions = getEventPermissions(event);
+  const canViewDashboard = permissions.canViewDepartmentDashboard;
   const weekRange = getWeekRange(event?.startTime || event?.eventDate, weekIndex);
-  const summaryQuery = useQuery({ queryKey: ['departmentDashboardSummary', eventId, departmentId], queryFn: () => dashboardApi.getDepartmentSummary({ eventId, departmentId }), enabled: Boolean(eventId && departmentId) });
-  const trendQuery = useQuery({ queryKey: ['departmentTaskStatusTrend', eventId, departmentId, weekRange.fromDate, weekRange.toDate], queryFn: () => dashboardApi.getDepartmentTaskTrend({ eventId, departmentId, ...weekRange }), enabled: Boolean(eventId && departmentId && event) });
-  const statusQuery = useQuery({ queryKey: ['departmentTasksByStatus', eventId, departmentId, weekRange.fromDate, weekRange.toDate], queryFn: () => dashboardApi.getDepartmentTasksByStatus({ eventId, departmentId, ...weekRange }), enabled: Boolean(eventId && departmentId && event) });
+  const summaryQuery = useQuery({ queryKey: ['departmentDashboardSummary', eventId, departmentId], queryFn: () => dashboardApi.getDepartmentSummary({ eventId, departmentId }), enabled: Boolean(eventId && departmentId && canViewDashboard) });
+  const trendQuery = useQuery({ queryKey: ['departmentTaskStatusTrend', eventId, departmentId, weekRange.fromDate, weekRange.toDate], queryFn: () => dashboardApi.getDepartmentTaskTrend({ eventId, departmentId, ...weekRange }), enabled: Boolean(eventId && departmentId && canViewDashboard) });
+  const statusQuery = useQuery({ queryKey: ['departmentTasksByStatus', eventId, departmentId, weekRange.fromDate, weekRange.toDate], queryFn: () => dashboardApi.getDepartmentTasksByStatus({ eventId, departmentId, ...weekRange }), enabled: Boolean(eventId && departmentId && canViewDashboard) });
   const tasksQuery = useQuery({
     queryKey: ['departmentDashboardTasks', eventId, departmentId, page, weekRange.fromDate, weekRange.toDate],
     queryFn: () => taskApi.getEventTaskPage({ eventId, departmentId, page, size: PAGE_SIZE, sort: 'deadline', direction: 'asc', ...weekRange }),
-    enabled: Boolean(eventId && departmentId && event),
+    enabled: Boolean(eventId && departmentId && canViewDashboard),
   });
 
   const summary = summaryQuery.data;
   const statusData = normalizeStatusData(statusQuery.data);
   const tasks = tasksQuery.data?.content || [];
-  const isLoading = eventQuery.isLoading || summaryQuery.isLoading || trendQuery.isLoading || statusQuery.isLoading || tasksQuery.isLoading;
-  const error = summaryQuery.error || trendQuery.error || statusQuery.error || tasksQuery.error;
+  const isLoading = eventQuery.isLoading || (canViewDashboard && (summaryQuery.isLoading || trendQuery.isLoading || statusQuery.isLoading || tasksQuery.isLoading));
+  const error = eventQuery.error || summaryQuery.error || trendQuery.error || statusQuery.error || tasksQuery.error;
 
   const openFilteredTasks = ({ status, fromDate, toDate }) => {
     const params = new URLSearchParams();
@@ -53,6 +57,44 @@ const DepartmentDashboardPage = ({ user, onLogout }) => {
     if (toDate) params.set('toDate', toDate);
     navigate(`/events/${eventId}/departments/${departmentId}/tasks?${params.toString()}`);
   };
+
+  if (isLoading) {
+    return (
+      <AppLayout user={user} events={event ? [event] : []} selectedEvent={event} onEventChange={() => {}} onLogout={onLogout}>
+        <LoadingBlock message="Đang tải dashboard department..." />
+      </AppLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <Navigate
+        to="/error"
+        replace
+        state={{
+          status: error.status,
+          title: error.status === 403 ? 'Không có quyền truy cập dashboard ban' : 'Không tải được dashboard',
+          message: error.userMessage || 'EventFlow chưa thể tải dữ liệu dashboard. Vui lòng thử lại hoặc quay về trang trước.',
+          requestUrl: location.pathname,
+        }}
+      />
+    );
+  }
+
+  if (event && !canViewDashboard) {
+    return (
+      <Navigate
+        to="/error"
+        replace
+        state={{
+          status: 403,
+          title: 'Không có quyền truy cập dashboard ban',
+          message: 'Dashboard ban chỉ dành cho leader của sự kiện. Bạn vẫn có thể xem các màn hình được phân quyền cho tài khoản hiện tại.',
+          requestUrl: location.pathname,
+        }}
+      />
+    );
+  }
 
   return (
     <AppLayout user={user} events={event ? [event] : []} selectedEvent={event} onEventChange={() => {}} onLogout={onLogout}>
@@ -81,10 +123,7 @@ const DepartmentDashboardPage = ({ user, onLogout }) => {
           </div>
         </section>
 
-        {isLoading && <LoadingBlock message="Đang tải dashboard department..." />}
-        {error && <ErrorBlock error={error} />}
-
-        {summary && !error && (
+        {canViewDashboard && summary && !error && (
           <>
             <section className="grid gap-4">
               <ChartPanel icon={<TrendingUp size={18} />} title="Line chart task theo ngày" description="Số lượng task theo deadline từng ngày trong department, tách theo trạng thái hiện tại.">
@@ -323,7 +362,6 @@ const TaskListSection = ({ tasks, page, setPage, pageData, eventId }) => (
 );
 
 const LoadingBlock = ({ message }) => <div className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white p-8 text-gray-500"><Loader2 size={20} className="animate-spin" />{message}</div>;
-const ErrorBlock = ({ error }) => <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error.userMessage || error.message}</div>;
 const EmptyChart = ({ message }) => <div className="flex h-72 items-center justify-center rounded-lg border border-dashed border-gray-300 text-sm text-gray-500">{message}</div>;
 
 export default DepartmentDashboardPage;

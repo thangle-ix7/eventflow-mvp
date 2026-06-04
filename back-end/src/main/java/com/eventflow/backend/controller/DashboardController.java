@@ -7,9 +7,11 @@ import com.eventflow.backend.dto.DepartmentDashboardSummaryDTO;
 import com.eventflow.backend.security.EventSecurityService;
 import com.eventflow.backend.service.DashboardService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -21,6 +23,7 @@ public class DashboardController {
 
     private final DashboardService dashboardService;
     private final EventSecurityService eventSecurityService;
+    private static final String DASHBOARD_ACCESS_DENIED = "Chỉ leader của sự kiện mới được xem dashboard.";
 
     @GetMapping("/events/{eventId}/dashboard-summary")
     public ResponseEntity<DashboardSummaryDTO> getDashboardSummary(
@@ -30,7 +33,7 @@ public class DashboardController {
         Long userId = (Long) authentication.getPrincipal();
         // Only LEADER can view dashboard summary
         if (!eventSecurityService.isLeaderOfEvent(eventId, userId)) {
-            return ResponseEntity.status(403).build();
+            throw dashboardAccessDenied();
         }
 
         return ResponseEntity.ok(dashboardService.getEventDashboardSummary(eventId));
@@ -44,7 +47,7 @@ public class DashboardController {
             Authentication authentication) {
 
         if (!eventSecurityService.isLeaderOfEvent(eventId, currentUserId(authentication))) {
-            return ResponseEntity.status(403).build();
+            throw dashboardAccessDenied();
         }
 
         return ResponseEntity.ok(dashboardService.getEventTaskTrend(eventId, fromDate, toDate));
@@ -56,7 +59,7 @@ public class DashboardController {
             Authentication authentication) {
 
         if (!eventSecurityService.isLeaderOfEvent(eventId, currentUserId(authentication))) {
-            return ResponseEntity.status(403).build();
+            throw dashboardAccessDenied();
         }
 
         return ResponseEntity.ok(dashboardService.getEventTasksByDepartment(eventId));
@@ -68,7 +71,7 @@ public class DashboardController {
             Authentication authentication) {
 
         if (!eventSecurityService.isLeaderOfEvent(eventId, currentUserId(authentication))) {
-            return ResponseEntity.status(403).build();
+            throw dashboardAccessDenied();
         }
 
         return ResponseEntity.ok(dashboardService.getEventTasksByAssignee(eventId));
@@ -82,7 +85,7 @@ public class DashboardController {
             Authentication authentication) {
 
         if (!eventSecurityService.isLeaderOfEvent(eventId, currentUserId(authentication))) {
-            return ResponseEntity.status(403).build();
+            throw dashboardAccessDenied();
         }
 
         return ResponseEntity.ok(dashboardService.getEventTasksByStatus(eventId, fromDate, toDate));
@@ -95,7 +98,7 @@ public class DashboardController {
             Authentication authentication) {
 
         if (!eventSecurityService.isLeaderOfEvent(eventId, currentUserId(authentication))) {
-            return ResponseEntity.status(403).build();
+            throw dashboardAccessDenied();
         }
 
         return ResponseEntity.ok(dashboardService.getDepartmentDashboardSummary(eventId, departmentId));
@@ -110,7 +113,7 @@ public class DashboardController {
             Authentication authentication) {
 
         if (!eventSecurityService.isLeaderOfEvent(eventId, currentUserId(authentication))) {
-            return ResponseEntity.status(403).build();
+            throw dashboardAccessDenied();
         }
 
         return ResponseEntity.ok(dashboardService.getDepartmentTaskTrend(eventId, departmentId, fromDate, toDate));
@@ -123,7 +126,7 @@ public class DashboardController {
             Authentication authentication) {
 
         if (!eventSecurityService.isLeaderOfEvent(eventId, currentUserId(authentication))) {
-            return ResponseEntity.status(403).build();
+            throw dashboardAccessDenied();
         }
 
         return ResponseEntity.ok(dashboardService.getDepartmentTasksByAssignee(eventId, departmentId));
@@ -138,7 +141,7 @@ public class DashboardController {
             Authentication authentication) {
 
         if (!eventSecurityService.isLeaderOfEvent(eventId, currentUserId(authentication))) {
-            return ResponseEntity.status(403).build();
+            throw dashboardAccessDenied();
         }
 
         return ResponseEntity.ok(dashboardService.getDepartmentTasksByStatus(eventId, departmentId, fromDate, toDate));
@@ -146,5 +149,9 @@ public class DashboardController {
 
     private Long currentUserId(Authentication authentication) {
         return (Long) authentication.getPrincipal();
+    }
+
+    private ResponseStatusException dashboardAccessDenied() {
+        return new ResponseStatusException(HttpStatus.FORBIDDEN, DASHBOARD_ACCESS_DENIED);
     }
 }

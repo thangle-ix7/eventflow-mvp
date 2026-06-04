@@ -15,6 +15,7 @@ import EventEditPage from './pages/EventEditPage';
 import EventListPage from './pages/EventListPage';
 import EventMembersPage from './pages/EventMembersPage';
 import EventUtilityPage from './pages/EventUtilityPage';
+import ErrorPage from './pages/ErrorPage';
 import MemberDetailPage from './pages/MemberDetailPage';
 import ProfilePage from './pages/ProfilePage';
 import TaskCreatePage from './pages/TaskCreatePage';
@@ -33,6 +34,7 @@ const DepartmentDashboardPage = lazy(() => import('./pages/DepartmentDashboardPa
 
 function App() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [user, setUser] = useState(() => {
     try {
       const saved = localStorage.getItem('user');
@@ -96,8 +98,24 @@ function App() {
     onUserUpdate: handleUserUpdate,
   };
 
+  useEffect(() => {
+    const handleApiError = (event) => {
+      navigate('/error', {
+        replace: false,
+        state: event.detail,
+      });
+    };
+
+    window.addEventListener('eventflow:api-error', handleApiError);
+    return () => window.removeEventListener('eventflow:api-error', handleApiError);
+  }, [navigate]);
+
   return (
     <Routes>
+      <Route
+        path="/error"
+        element={<ErrorRoutePage homePath={user ? '/' : '/login'} state={location.state} />}
+      />
       <Route
         path="/login"
         element={
@@ -217,7 +235,10 @@ function App() {
         />
         </Route>
       </Route>
-      <Route path="*" element={<Navigate to={user ? '/' : '/login'} replace />} />
+      <Route
+        path="*"
+        element={<ErrorPage variant="notFound" showReload={false} homePath={user ? '/' : '/login'} fullScreen />}
+      />
     </Routes>
   );
 }
@@ -272,5 +293,53 @@ const LazyPageFallback = ({ children }) => (
     {children}
   </Suspense>
 );
+
+const ErrorRoutePage = ({ homePath, state }) => {
+  const title = state?.title || resolveErrorTitle(state?.status);
+  const message = state?.message || 'EventFlow chưa thể tải nội dung này. Vui lòng thử lại hoặc quay về trang trước.';
+
+  return (
+    <ErrorPage
+      variant={resolveErrorVariant(state?.status)}
+      title={title}
+      message={message}
+      homePath={homePath}
+      requestUrl={state?.requestUrl}
+      fullScreen
+    />
+  );
+};
+
+const resolveErrorVariant = (status) => {
+  if (!status) {
+    return 'offline';
+  }
+  if (status === 403) {
+    return 'accessDenied';
+  }
+  if (status === 404) {
+    return 'notFound';
+  }
+  if (status >= 500) {
+    return 'serverError';
+  }
+  return 'unexpected';
+};
+
+const resolveErrorTitle = (status) => {
+  if (!status) {
+    return 'Không kết nối được hệ thống';
+  }
+  if (status === 403) {
+    return 'Không có quyền truy cập';
+  }
+  if (status === 404) {
+    return 'Không tìm thấy nội dung này';
+  }
+  if (status >= 500) {
+    return 'Hệ thống đang gián đoạn';
+  }
+  return 'Có lỗi xảy ra';
+};
 
 export default App;

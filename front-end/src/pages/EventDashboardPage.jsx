@@ -1,12 +1,11 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { BarChart3, CheckCircle2, ClipboardList, Clock3, ListTodo, Plus, TrendingUp } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import {
   Button,
   EmptyState,
-  ErrorState,
   LoadingState,
   MetricCard,
   PageHeader,
@@ -20,6 +19,7 @@ import departmentApi from '../api/departmentApi';
 import eventApi from '../api/eventApi';
 import taskApi from '../api/taskApi';
 import { formatDate } from '../utils/dateUtils';
+import { getEventPermissions } from '../utils/permissionUtils';
 
 const PAGE_SIZE = 8;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -37,12 +37,15 @@ const getWeekRange = (eventDate, weekIndex) => {
 const EventDashboardPage = ({ user, onLogout }) => {
   const { eventId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [page, setPage] = useState(0);
   const [weekIndex, setWeekIndex] = useState(0);
   const [departmentId, setDepartmentId] = useState('');
 
   const eventQuery = useQuery({ queryKey: ['event', eventId], queryFn: () => eventApi.getEvent(eventId), enabled: Boolean(eventId) });
   const event = eventQuery.data;
+  const permissions = getEventPermissions(event);
+  const canViewDashboard = permissions.canViewEventDashboard;
   const weekRange = useMemo(
     () => getWeekRange(event?.startTime || event?.eventDate, weekIndex),
     [event?.eventDate, event?.startTime, weekIndex]
@@ -52,7 +55,7 @@ const EventDashboardPage = ({ user, onLogout }) => {
   const departmentsQuery = useQuery({
     queryKey: ['departments', eventId],
     queryFn: () => departmentApi.getEventDepartments(eventId),
-    enabled: Boolean(eventId && event),
+    enabled: Boolean(eventId && canViewDashboard),
   });
 
   const summaryQuery = useQuery({
@@ -60,21 +63,21 @@ const EventDashboardPage = ({ user, onLogout }) => {
     queryFn: () => selectedDepartmentId
       ? dashboardApi.getDepartmentSummary({ eventId, departmentId: selectedDepartmentId })
       : dashboardApi.getSummary(eventId),
-    enabled: Boolean(eventId),
+    enabled: Boolean(eventId && canViewDashboard),
   });
   const statusQuery = useQuery({
     queryKey: ['eventTasksByStatus', eventId, selectedDepartmentId, weekRange.fromDate, weekRange.toDate],
     queryFn: () => selectedDepartmentId
       ? dashboardApi.getDepartmentTasksByStatus({ eventId, departmentId: selectedDepartmentId, ...weekRange })
       : dashboardApi.getTasksByStatus(eventId, weekRange),
-    enabled: Boolean(eventId && event),
+    enabled: Boolean(eventId && canViewDashboard),
   });
   const trendQuery = useQuery({
     queryKey: ['eventTaskStatusTrend', eventId, selectedDepartmentId, weekRange.fromDate, weekRange.toDate],
     queryFn: () => selectedDepartmentId
       ? dashboardApi.getDepartmentTaskTrend({ eventId, departmentId: selectedDepartmentId, ...weekRange })
       : dashboardApi.getTaskTrend(eventId, weekRange),
-    enabled: Boolean(eventId && event),
+    enabled: Boolean(eventId && canViewDashboard),
   });
   const tasksQuery = useQuery({
     queryKey: ['eventDashboardTasks', eventId, selectedDepartmentId, page, weekRange.fromDate, weekRange.toDate],
@@ -87,7 +90,7 @@ const EventDashboardPage = ({ user, onLogout }) => {
       departmentId: selectedDepartmentId,
       ...weekRange,
     }),
-    enabled: Boolean(eventId && event),
+    enabled: Boolean(eventId && canViewDashboard),
   });
 
   const summary = summaryQuery.data;
@@ -95,8 +98,8 @@ const EventDashboardPage = ({ user, onLogout }) => {
   const selectedDepartment = departments.find((department) => String(department.id) === String(selectedDepartmentId));
   const statusData = useMemo(() => normalizeStatusData(statusQuery.data), [statusQuery.data]);
   const tasks = useMemo(() => tasksQuery.data?.content || [], [tasksQuery.data]);
-  const isLoading = eventQuery.isLoading || departmentsQuery.isLoading || summaryQuery.isLoading || statusQuery.isLoading || trendQuery.isLoading || tasksQuery.isLoading;
-  const error = departmentsQuery.error || summaryQuery.error || statusQuery.error || trendQuery.error || tasksQuery.error;
+  const isLoading = eventQuery.isLoading || (canViewDashboard && (departmentsQuery.isLoading || summaryQuery.isLoading || statusQuery.isLoading || trendQuery.isLoading || tasksQuery.isLoading));
+  const error = eventQuery.error || departmentsQuery.error || summaryQuery.error || statusQuery.error || trendQuery.error || tasksQuery.error;
 
   const handleDepartmentChange = (event) => {
     setPage(0);
@@ -111,6 +114,44 @@ const EventDashboardPage = ({ user, onLogout }) => {
     if (toDate) params.set('toDate', toDate);
     navigate(`/events/${eventId}/tasks?${params.toString()}`);
   };
+
+  if (isLoading) {
+    return (
+      <AppLayout user={user} events={event ? [event] : []} selectedEvent={event} onEventChange={() => {}} onLogout={onLogout}>
+        <LoadingState message="Đang tải dashboard..." />
+      </AppLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <Navigate
+        to="/error"
+        replace
+        state={{
+          status: error.status,
+          title: error.status === 403 ? 'Không có quyền truy cập dashboard' : 'Không tải được dashboard',
+          message: error.userMessage || 'EventFlow chưa thể tải dữ liệu dashboard. Vui lòng thử lại hoặc quay về trang trước.',
+          requestUrl: location.pathname,
+        }}
+      />
+    );
+  }
+
+  if (event && !canViewDashboard) {
+    return (
+      <Navigate
+        to="/error"
+        replace
+        state={{
+          status: 403,
+          title: 'Không có quyền truy cập dashboard',
+          message: 'Dashboard sự kiện chỉ dành cho leader. Bạn vẫn có thể xem các công việc, thành viên và thông tin sự kiện được phân quyền cho tài khoản của mình.',
+          requestUrl: location.pathname,
+        }}
+      />
+    );
+  }
 
   return (
     <AppLayout user={user} events={event ? [event] : []} selectedEvent={event} onEventChange={() => {}} onLogout={onLogout}>
@@ -148,10 +189,7 @@ const EventDashboardPage = ({ user, onLogout }) => {
           </Panel>
         </section>
 
-        {isLoading && <LoadingState message="Đang tải dashboard..." />}
-        {error && <ErrorState error={error} title="Không tải được dashboard" />}
-
-        {summary && !error && (
+        {canViewDashboard && summary && !error && (
           <>
             <section className="grid gap-4 md:grid-cols-4">
               <MetricCard icon={ListTodo} label="Tổng công việc" value={summary.totalTasks} tone="indigo" />

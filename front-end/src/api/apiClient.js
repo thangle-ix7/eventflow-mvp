@@ -34,6 +34,7 @@ apiClient.interceptors.response.use(
       window.location.assign('/login');
     }
 
+    const status = error.response?.status;
     const fieldErrors = error.response?.data?.fieldErrors;
     const validationMessage = fieldErrors
       ? Object.values(fieldErrors).join('\n')
@@ -41,16 +42,78 @@ apiClient.interceptors.response.use(
 
     const message =
       validationMessage ||
-      error.response?.data?.message ||
-      error.response?.data?.error ||
-      error.message ||
-      'Có lỗi xảy ra khi gọi API';
+      getFriendlyErrorMessage(status, error);
+    redirectPageLoadError(error, status, message, isAuthRequest);
 
     return Promise.reject({
       ...error,
+      status,
       userMessage: message,
     });
   }
 );
+
+const redirectPageLoadError = (error, status, message, isAuthRequest) => {
+  const method = (error.config?.method || 'get').toLowerCase();
+  if (method !== 'get' || isAuthRequest || error.config?.skipGlobalErrorRedirect) {
+    return;
+  }
+
+  const shouldRedirect =
+    !status ||
+    status === 403 ||
+    status === 404 ||
+    status >= 500;
+
+  if (!shouldRedirect || window.location.pathname === '/error') {
+    return;
+  }
+
+  window.dispatchEvent(new CustomEvent('eventflow:api-error', {
+    detail: {
+      status,
+      message,
+      requestUrl: error.config?.url,
+    },
+  }));
+};
+
+const getFriendlyErrorMessage = (status, error) => {
+  const serverMessage = error.response?.data?.message || error.response?.data?.error;
+
+  if (!status) {
+    return 'Không kết nối được tới hệ thống. Vui lòng kiểm tra mạng hoặc thử lại sau.';
+  }
+
+  if (status === 400) {
+    return serverMessage || 'Thông tin gửi lên chưa hợp lệ. Vui lòng kiểm tra lại.';
+  }
+
+  if (status === 403) {
+    return serverMessage || 'Bạn không có quyền truy cập nội dung này.';
+  }
+
+  if (status === 404) {
+    return 'Không tìm thấy dữ liệu cần truy cập. Nội dung có thể đã bị xóa hoặc thay đổi.';
+  }
+
+  if (status === 409) {
+    return serverMessage || 'Dữ liệu đã thay đổi. Vui lòng tải lại trang và thử lại.';
+  }
+
+  if (status === 413) {
+    return 'Tệp hoặc dữ liệu gửi lên quá lớn. Vui lòng giảm dung lượng và thử lại.';
+  }
+
+  if (status === 429) {
+    return 'Bạn thao tác hơi nhanh. Vui lòng chờ một chút rồi thử lại.';
+  }
+
+  if (status >= 500) {
+    return 'Hệ thống đang gặp sự cố tạm thời. Vui lòng thử lại sau.';
+  }
+
+  return serverMessage || 'Có lỗi xảy ra. Vui lòng thử lại.';
+};
 
 export default apiClient;

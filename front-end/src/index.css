@@ -28,3 +28,318 @@ textarea,
 select {
   font: inherit;
 }
+
+.error-dino-scene {
+  position: relative;
+  height: 170px;
+  margin: 24px auto 0;
+  overflow: hidden;
+  border-radius: 12px;
+  border: 1px solid #dbeafe;
+  background:
+    linear-gradient(180deg, #eff6ff 0%, #ecfeff 58%, #f8fafc 58%, #f8fafc 100%);
+}
+
+.error-dino-sun {
+  position: absolute;
+  right: 38px;
+  top: 24px;
+  height: 34px;
+  width: 34px;
+  border-radius: 999px;
+  background: #facc15;
+  box-shadow: 0 0 0 8px rgba(250, 204, 21, 0.16);
+}
+
+.error-dino-cloud {
+  position: absolute;
+  height: 18px;
+  width: 64px;
+  border-radius: 999px;
+  background: #ffffff;
+  opacity: 0.9;
+  animation: error-cloud-drift 7s linear infinite;
+}
+
+.error-dino-cloud::before,
+.error-dino-cloud::after {
+  position: absolute;
+  content: '';
+  border-radius: 999px;
+  background: #ffffff;
+}
+
+.error-dino-cloud::before {
+  left: 10px;
+  top: -11px;
+  height: 24px;
+  width: 24px;
+}
+
+.error-dino-cloud::after {
+  right: 12px;
+  top: -8px;
+  height: 20px;
+  width: 20px;
+}
+
+.error-dino-cloud-one {
+  left: 12%;
+  top: 32px;
+}
+
+.error-dino-cloud-two {
+  left: 66%;
+  top: 50px;
+  animation-delay: -3.5s;
+}
+
+.error-dino {
+  position: absolute;
+  left: 50%;
+  bottom: 36px;
+  height: 92px;
+  width: 150px;
+  transform: translateX(-50%);
+  animation: error-dino-bob 0.5s ease-in-out infinite;
+}
+
+.error-dino-body {
+  position: absolute;
+  left: 38px;
+  bottom: 20px;
+  height: 56px;
+  width: 78px;
+  border-radius: 32px 34px 28px 26px;
+  background: #34d399;
+  box-shadow: inset -12px -10px 0 rgba(5, 150, 105, 0.18);
+}
+
+.error-dino-belly {
+  position: absolute;
+  left: 55px;
+  bottom: 24px;
+  height: 30px;
+  width: 42px;
+  border-radius: 999px;
+  background: rgba(236, 253, 245, 0.78);
+}
+
+.error-dino-tail {
+  position: absolute;
+  left: 12px;
+  bottom: 42px;
+  height: 18px;
+  width: 54px;
+  border-radius: 999px 0 0 999px;
+  background: #34d399;
+  transform: rotate(-18deg);
+  transform-origin: right center;
+}
+
+.error-dino-head {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  height: 46px;
+  width: 54px;
+  border-radius: 26px 24px 22px 18px;
+  background: #34d399;
+  box-shadow: inset -8px -7px 0 rgba(5, 150, 105, 0.16);
+}
+
+.error-dino-eye {
+  position: absolute;
+  right: 15px;
+  top: 14px;
+  height: 5px;
+  width: 5px;
+  border-radius: 999px;
+  background: #0f172a;
+}
+
+.error-dino-brow {
+  position: absolute;
+  right: 13px;
+  top: 9px;
+  height: 2px;
+  width: 12px;
+  border-radius: 999px;
+  background: #0f766e;
+  transform: rotate(18deg);
+}
+
+.error-dino-mouth {
+  position: absolute;
+  right: 8px;
+  bottom: 13px;
+  height: 8px;
+  width: 16px;
+  border-top: 2px solid #0f766e;
+  border-radius: 50%;
+  transform: rotate(-12deg);
+}
+
+.error-dino-tear {
+  position: absolute;
+  right: 14px;
+  top: 22px;
+  height: 8px;
+  width: 5px;
+  border-radius: 999px;
+  background: #38bdf8;
+  animation: error-dino-tear 1.2s ease-in-out infinite;
+}
+
+.error-dino-arm {
+  position: absolute;
+  right: 48px;
+  bottom: 42px;
+  height: 18px;
+  width: 10px;
+  border-radius: 999px;
+  background: #10b981;
+  transform: rotate(38deg);
+  transform-origin: top center;
+  animation: error-dino-arm 0.5s ease-in-out infinite;
+}
+
+.error-dino-leg {
+  position: absolute;
+  bottom: 9px;
+  height: 28px;
+  width: 13px;
+  border-radius: 999px;
+  background: #059669;
+  transform-origin: top center;
+}
+
+.error-dino-leg::after {
+  position: absolute;
+  left: 0;
+  bottom: -4px;
+  content: '';
+  height: 8px;
+  width: 22px;
+  border-radius: 999px;
+  background: #047857;
+}
+
+.error-dino-leg-front {
+  right: 42px;
+  animation: error-dino-leg-front 0.5s ease-in-out infinite;
+}
+
+.error-dino-leg-back {
+  left: 58px;
+  animation: error-dino-leg-back 0.5s ease-in-out infinite;
+}
+
+.error-dino-shadow {
+  position: absolute;
+  left: 50%;
+  bottom: 31px;
+  height: 14px;
+  width: 126px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.12);
+  transform: translateX(-50%);
+  animation: error-dino-shadow 0.5s ease-in-out infinite;
+}
+
+.error-dino-ground {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 27px;
+  height: 4px;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      #94a3b8 0,
+      #94a3b8 18px,
+      transparent 18px,
+      transparent 34px
+    );
+  animation: error-dino-road 0.75s linear infinite;
+}
+
+@keyframes error-dino-bob {
+  0%,
+  100% {
+    transform: translateX(-50%) translateY(0);
+  }
+  50% {
+    transform: translateX(-50%) translateY(-5px);
+  }
+}
+
+@keyframes error-dino-leg-front {
+  0%,
+  100% {
+    transform: rotate(18deg);
+  }
+  50% {
+    transform: rotate(-24deg);
+  }
+}
+
+@keyframes error-dino-leg-back {
+  0%,
+  100% {
+    transform: rotate(-24deg);
+  }
+  50% {
+    transform: rotate(18deg);
+  }
+}
+
+@keyframes error-dino-arm {
+  0%,
+  100% {
+    transform: rotate(38deg);
+  }
+  50% {
+    transform: rotate(56deg);
+  }
+}
+
+@keyframes error-dino-road {
+  to {
+    background-position-x: -34px;
+  }
+}
+
+@keyframes error-cloud-drift {
+  from {
+    transform: translateX(16px);
+  }
+  to {
+    transform: translateX(-52px);
+  }
+}
+
+@keyframes error-dino-shadow {
+  0%,
+  100% {
+    transform: translateX(-50%) scaleX(1);
+  }
+  50% {
+    transform: translateX(-50%) scaleX(0.86);
+  }
+}
+
+@keyframes error-dino-tear {
+  0%,
+  55% {
+    opacity: 0;
+    transform: translateY(0);
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
