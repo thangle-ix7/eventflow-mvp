@@ -243,8 +243,8 @@ const AppLayoutFrame = ({
       {showTelegramOnboarding && <TelegramOnboarding userId={user.userId} />}
 
       <header className="sticky top-0 z-40 bg-slate-950 text-white shadow-sm">
-        <div className="flex min-h-16 flex-wrap items-center gap-3 px-4 py-3 sm:px-5 lg:h-16 lg:flex-nowrap lg:justify-between lg:gap-6 lg:px-6 lg:py-0">
-          <div className="flex min-w-0 flex-1 items-center gap-3 lg:flex-none">
+        <div className="flex min-h-16 flex-nowrap items-center gap-2 px-3 py-3 sm:gap-3 sm:px-5 lg:h-16 lg:justify-between lg:gap-6 lg:px-6 lg:py-0">
+          <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3 lg:flex-none">
             {eventNav.length > 0 && (
               <button
                 type="button"
@@ -256,11 +256,11 @@ const AppLayoutFrame = ({
                 <Menu className="h-5 w-5" strokeWidth={1.8} />
               </button>
             )}
-            <Link to="/" className="flex min-w-0 items-center gap-3">
+            <Link to="/" className="flex min-w-0 items-center gap-2 sm:gap-3">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white ring-1 ring-white/10">
                 <img src="/event-flow-logo-mark.png" alt="" className="h-8 w-8 object-contain" />
               </span>
-              <span className="min-w-0">
+              <span className="hidden min-w-0 sm:block">
                 <span className="block truncate text-lg font-extrabold leading-tight tracking-tight sm:text-xl">Event Flow</span>
                 <span className="block text-xs text-slate-400 lg:hidden">Nhóm EXE • FPTU</span>
               </span>
@@ -330,7 +330,7 @@ const AppLayoutFrame = ({
                   )}
                 </button>
                 {notificationOpen && (
-                  <div className="absolute right-0 top-12 z-50 w-[min(360px,calc(100vw-2rem))] overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-900 shadow-xl">
+                  <div className="fixed left-3 right-3 top-[4.75rem] z-50 max-h-[min(28rem,calc(100vh-5.5rem))] overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-900 shadow-xl sm:absolute sm:left-auto sm:right-0 sm:top-12 sm:max-h-none sm:w-[min(360px,calc(100vw-2rem))]">
                     <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3">
                       <div>
                         <p className="text-sm font-extrabold text-slate-950">Thông báo</p>
@@ -345,7 +345,7 @@ const AppLayoutFrame = ({
                         Đọc hết
                       </button>
                     </div>
-                    <div className="max-h-96 overflow-y-auto">
+                    <div className="max-h-[min(22rem,calc(100vh-10rem))] overflow-y-auto sm:max-h-96">
                       {notificationListQuery.isLoading && (
                         <div className="px-4 py-5 text-sm text-slate-500">Đang tải thông báo...</div>
                       )}
@@ -406,7 +406,7 @@ const AppLayoutFrame = ({
                 )}
               </div>
             </div>
-            <div className="min-w-0 text-right text-sm text-slate-300">
+            <div className="hidden min-w-0 text-right text-sm text-slate-300 sm:block">
               <span className="block max-w-[7.5rem] truncate font-semibold text-white sm:max-w-[10rem] lg:max-w-[14rem]">{user.name}</span>
               <span className="hidden text-xs sm:block">
                 {selectedEvent?.role ? (selectedEvent.role === 'LEADER' ? 'Trưởng nhóm' : 'Thành viên') : 'Tài khoản'}
