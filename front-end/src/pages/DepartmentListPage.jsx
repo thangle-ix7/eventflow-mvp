@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Building2, Edit3, Loader2, Plus, Save, Trash2, UserRound, X } from 'lucide-react';
@@ -7,6 +7,8 @@ import { Button, EmptyState, ErrorState, LoadingState, PageHeader, Panel } from 
 import departmentApi from '../api/departmentApi';
 import eventApi from '../api/eventApi';
 import eventMemberApi from '../api/eventMemberApi';
+import ErrorPage from './ErrorPage';
+import { getDepartmentHomePath, getEventPermissions } from '../utils/permissionUtils';
 
 const DepartmentListPage = ({ user, onLogout }) => {
   const { eventId } = useParams();
@@ -15,10 +17,12 @@ const DepartmentListPage = ({ user, onLogout }) => {
   const [editingDepartmentId, setEditingDepartmentId] = useState(null);
   const [editingForm, setEditingForm] = useState({ name: '', description: '', leaderUserId: '' });
   const eventQuery = useQuery({ queryKey: ['event', eventId], queryFn: () => eventApi.getEvent(eventId), enabled: Boolean(eventId) });
-  const departmentsQuery = useQuery({ queryKey: ['eventDepartments', eventId], queryFn: () => departmentApi.getEventDepartments(eventId), enabled: Boolean(eventId) });
-  const membersQuery = useQuery({ queryKey: ['eventMembers', eventId], queryFn: () => eventMemberApi.getMembers(eventId), enabled: Boolean(eventId) });
   const event = eventQuery.data;
-  const isLeader = event?.role === 'LEADER';
+  const permissions = getEventPermissions(event);
+  const isLeader = permissions.canManageDepartments;
+  const departmentHomePath = getDepartmentHomePath(event);
+  const departmentsQuery = useQuery({ queryKey: ['eventDepartments', eventId], queryFn: () => departmentApi.getEventDepartments(eventId), enabled: Boolean(eventId && isLeader) });
+  const membersQuery = useQuery({ queryKey: ['eventMembers', eventId], queryFn: () => eventMemberApi.getMembers(eventId), enabled: Boolean(eventId && isLeader) });
   const departments = departmentsQuery.data || [];
   const members = membersQuery.data || [];
 
@@ -83,9 +87,27 @@ const DepartmentListPage = ({ user, onLogout }) => {
     navigate(`/events/${eventId}/departments/${departmentId}`);
   };
 
+  useEffect(() => {
+    if (!event || isLeader || !departmentHomePath) {
+      return;
+    }
+
+    navigate(departmentHomePath, { replace: true });
+  }, [departmentHomePath, event, isLeader, navigate]);
+
   return (
     <AppLayout user={user} events={event ? [event] : []} selectedEvent={event} onEventChange={() => {}} onLogout={onLogout}>
       <div className="space-y-6">
+        {!eventQuery.isLoading && event && !isLeader && !departmentHomePath && (
+          <ErrorPage
+            variant="unexpected"
+            title="Không có quyền truy cập"
+            message="Bạn chưa được gán vào ban nào trong sự kiện này."
+          />
+        )}
+
+        {isLeader && (
+        <>
         <PageHeader
           eyebrow={event?.name || 'Sự kiện'}
           title="Ban tổ chức"
@@ -146,6 +168,8 @@ const DepartmentListPage = ({ user, onLogout }) => {
             </div>
           )}
         </Panel>
+        </>
+        )}
       </div>
     </AppLayout>
   );
@@ -172,7 +196,7 @@ const DepartmentRow = ({
     <tr
       onClick={isEditing ? undefined : () => onOpen(department.id)}
       className={`transition ${isEditing ? '' : 'cursor-pointer hover:bg-indigo-50/50'}`}
-      title={isEditing ? undefined : 'Mở dashboard ban'}
+      title={isEditing ? undefined : 'Mở chi tiết ban'}
     >
       <td className="px-4 py-3">
         {isEditing ? (

@@ -34,8 +34,12 @@ public class EventMemberController {
             @PathVariable Long eventId,
             Authentication authentication) {
 
-        if (!eventSecurityService.isMemberOfEvent(eventId, currentUserId(authentication))) {
+        Long currentUserId = currentUserId(authentication);
+        if (!eventSecurityService.isMemberOfEvent(eventId, currentUserId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        if (!eventSecurityService.isLeaderOfEvent(eventId, currentUserId)) {
+            return ResponseEntity.ok(eventMemberService.getMembersVisibleToMember(eventId, currentUserId));
         }
 
         return ResponseEntity.ok(eventMemberService.getMembers(eventId));
@@ -47,8 +51,12 @@ public class EventMemberController {
             @PathVariable Long userId,
             Authentication authentication) {
 
-        if (!eventSecurityService.isMemberOfEvent(eventId, currentUserId(authentication))) {
+        Long currentUserId = currentUserId(authentication);
+        if (!eventSecurityService.isMemberOfEvent(eventId, currentUserId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        if (!eventSecurityService.isLeaderOfEvent(eventId, currentUserId)) {
+            return ResponseEntity.ok(eventMemberService.getMemberVisibleToMember(eventId, userId, currentUserId));
         }
 
         return ResponseEntity.ok(eventMemberService.getMember(eventId, userId));

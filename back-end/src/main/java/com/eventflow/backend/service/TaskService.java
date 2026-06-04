@@ -65,7 +65,8 @@ public class TaskService {
             Long assigneeId,
             String search,
             String sort,
-            String direction) {
+            String direction,
+            boolean includeSubtasks) {
 
         List<Task> tasks = taskRepository.findAllByEventIdWithFilters(
                 eventId,
@@ -74,6 +75,7 @@ public class TaskService {
                 departmentId,
                 assigneeId,
                 normalizeSearch(search),
+                includeSubtasks,
                 Sort.by(resolveDirection(direction), resolveSort(sort)));
 
         Map<Department, List<Task>> grouped = new LinkedHashMap<>();
@@ -110,7 +112,8 @@ public class TaskService {
             Long assigneeId,
             String search,
             LocalDate fromDate,
-            LocalDate toDate) {
+            LocalDate toDate,
+            boolean includeSubtasks) {
 
         var pageable = PageRequest.of(
                 Math.max(page, 0),
@@ -128,6 +131,7 @@ public class TaskService {
                         departmentId,
                         assigneeId,
                         searchPattern,
+                        includeSubtasks,
                         startOfDay(fromDate),
                         endExclusive(toDate),
                         pageable)
@@ -138,6 +142,7 @@ public class TaskService {
                         departmentId,
                         assigneeId,
                         searchPattern,
+                        includeSubtasks,
                         pageable);
 
         return PageResponse.from(taskPage.map(this::mapToTaskResponse));

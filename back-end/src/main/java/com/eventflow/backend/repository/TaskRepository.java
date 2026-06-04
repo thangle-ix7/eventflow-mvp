@@ -37,7 +37,7 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             LEFT JOIN FETCH t.department
             LEFT JOIN FETCH t.assignee
             WHERE t.event.id = :eventId
-            AND t.parent IS NULL
+            AND (:includeSubtasks = true OR t.parent IS NULL)
             AND (:status IS NULL OR t.status = :status)
             AND (:priority IS NULL OR t.priority = :priority)
             AND (:departmentId IS NULL OR t.department.id = :departmentId)
@@ -51,6 +51,7 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             @Param("departmentId") Long departmentId,
             @Param("assigneeId") Long assigneeId,
             @Param("searchPattern") String searchPattern,
+            @Param("includeSubtasks") boolean includeSubtasks,
             org.springframework.data.domain.Sort sort);
 
     @Query(value = """
@@ -60,7 +61,7 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             LEFT JOIN FETCH t.department
             LEFT JOIN FETCH t.assignee
             WHERE t.event.id = :eventId
-            AND t.parent IS NULL
+            AND (:includeSubtasks = true OR t.parent IS NULL)
             AND (:status IS NULL OR t.status = :status)
             AND (:priority IS NULL OR t.priority = :priority)
             AND (:departmentId IS NULL OR t.department.id = :departmentId)
@@ -70,7 +71,7 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             countQuery = """
             SELECT COUNT(t) FROM Task t
             WHERE t.event.id = :eventId
-            AND t.parent IS NULL
+            AND (:includeSubtasks = true OR t.parent IS NULL)
             AND (:status IS NULL OR t.status = :status)
             AND (:priority IS NULL OR t.priority = :priority)
             AND (:departmentId IS NULL OR t.department.id = :departmentId)
@@ -84,6 +85,7 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             @Param("departmentId") Long departmentId,
             @Param("assigneeId") Long assigneeId,
             @Param("searchPattern") String searchPattern,
+            @Param("includeSubtasks") boolean includeSubtasks,
             Pageable pageable);
 
     @Query(value = """
@@ -93,7 +95,7 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             LEFT JOIN FETCH t.department
             LEFT JOIN FETCH t.assignee
             WHERE t.event.id = :eventId
-            AND t.parent IS NULL
+            AND (:includeSubtasks = true OR t.parent IS NULL)
             AND (:status IS NULL OR t.status = :status)
             AND (:priority IS NULL OR t.priority = :priority)
             AND (:departmentId IS NULL OR t.department.id = :departmentId)
@@ -105,7 +107,7 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             countQuery = """
             SELECT COUNT(t) FROM Task t
             WHERE t.event.id = :eventId
-            AND t.parent IS NULL
+            AND (:includeSubtasks = true OR t.parent IS NULL)
             AND (:status IS NULL OR t.status = :status)
             AND (:priority IS NULL OR t.priority = :priority)
             AND (:departmentId IS NULL OR t.department.id = :departmentId)
@@ -121,6 +123,7 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             @Param("departmentId") Long departmentId,
             @Param("assigneeId") Long assigneeId,
             @Param("searchPattern") String searchPattern,
+            @Param("includeSubtasks") boolean includeSubtasks,
             @Param("fromDateTime") LocalDateTime fromDateTime,
             @Param("toDateTime") LocalDateTime toDateTime,
             Pageable pageable);

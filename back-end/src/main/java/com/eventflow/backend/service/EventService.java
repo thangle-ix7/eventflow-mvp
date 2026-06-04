@@ -3,6 +3,7 @@ package com.eventflow.backend.service;
 import com.eventflow.backend.dto.EventRequestDTO;
 import com.eventflow.backend.dto.EventResponseDTO;
 import com.eventflow.backend.dto.PageResponse;
+import com.eventflow.backend.entity.Department;
 import com.eventflow.backend.entity.Event;
 import com.eventflow.backend.entity.EventMember;
 import com.eventflow.backend.entity.User;
@@ -183,10 +184,19 @@ public class EventService {
     }
 
     private EventResponseDTO mapToResponse(EventMember member) {
-        return mapToResponse(member.getEvent(), member.getRole());
+        Department department = member.getDepartment();
+        return mapToResponse(
+                member.getEvent(),
+                member.getRole(),
+                department != null ? department.getId() : null,
+                department != null ? department.getName() : null);
     }
 
     private EventResponseDTO mapToResponse(Event event, UserRole role) {
+        return mapToResponse(event, role, null, null);
+    }
+
+    private EventResponseDTO mapToResponse(Event event, UserRole role, Long departmentId, String departmentName) {
         return EventResponseDTO.builder()
                 .id(event.getId())
                 .name(event.getName())
@@ -197,6 +207,8 @@ public class EventService {
                 .eventDate(event.getEventDate())
                 .status(event.getStatus())
                 .role(role.name())
+                .departmentId(departmentId)
+                .departmentName(departmentName)
                 .createdAt(event.getCreatedAt())
                 .build();
     }

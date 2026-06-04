@@ -143,6 +143,13 @@ public class TaskReportService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy report"));
     }
 
+    @Transactional(readOnly = true)
+    public Long getReportTaskId(Long reportId) {
+        return taskReportRepository.findByIdWithDetails(reportId)
+                .map(report -> report.getTask().getId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy report"));
+    }
+
     private void applyProgressToTask(Task task, Integer progressPercentage) {
         TaskStatus previousStatus = task.getStatus();
         task.setProgressPercentage(progressPercentage);

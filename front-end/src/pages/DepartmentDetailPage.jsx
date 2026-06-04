@@ -15,6 +15,8 @@ import { Button, EmptyState, ErrorState, LoadingState, PageHeader, Panel, Status
 import departmentApi from '../api/departmentApi';
 import eventApi from '../api/eventApi';
 import taskApi from '../api/taskApi';
+import ErrorPage from './ErrorPage';
+import { canAccessDepartment, getEventPermissions } from '../utils/permissionUtils';
 
 const EMPTY_MEMBERS = [];
 
@@ -26,25 +28,26 @@ const DepartmentDetailPage = ({ user, onLogout }) => {
     queryFn: () => eventApi.getEvent(eventId),
     enabled: Boolean(eventId),
   });
+  const event = eventQuery.data;
+  const permissions = getEventPermissions(event);
+  const canReadDepartment = Boolean(event && canAccessDepartment(event, departmentId));
   const departmentQuery = useQuery({
     queryKey: ['department', eventId, departmentId],
     queryFn: () => departmentApi.getDepartment({ eventId, departmentId }),
-    enabled: Boolean(eventId && departmentId),
+    enabled: Boolean(eventId && departmentId && canReadDepartment),
   });
   const membersQuery = useQuery({
     queryKey: ['departmentMembers', eventId, departmentId],
     queryFn: () => departmentApi.getDepartmentMembers({ eventId, departmentId }),
-    enabled: Boolean(eventId && departmentId),
+    enabled: Boolean(eventId && departmentId && canReadDepartment),
   });
   const tasksQuery = useQuery({
     queryKey: ['departmentTasksSummary', eventId, departmentId],
     queryFn: () => taskApi.getEventTaskPage({ eventId, departmentId, size: 1 }),
-    enabled: Boolean(eventId && departmentId),
+    enabled: Boolean(eventId && departmentId && canReadDepartment),
   });
-
-  const event = eventQuery.data;
   const department = departmentQuery.data;
-  const isLeader = event?.role === 'LEADER';
+  const isLeader = permissions.canManageDepartments;
   const members = membersQuery.data || EMPTY_MEMBERS;
   const taskCount = tasksQuery.data?.totalElements ?? tasksQuery.data?.totalItems ?? 0;
 
@@ -62,7 +65,15 @@ const DepartmentDetailPage = ({ user, onLogout }) => {
           />
         )}
 
-        {department && (
+        {!eventQuery.isLoading && event && !canReadDepartment && (
+          <ErrorPage
+            variant="unexpected"
+            title="Không có quyền truy cập"
+            message="Bạn chỉ có thể xem ban mà mình đang tham gia."
+          />
+        )}
+
+        {canReadDepartment && department && (
           <>
             <Panel className="p-5">
               <PageHeader
@@ -104,7 +115,7 @@ const DepartmentDetailPage = ({ user, onLogout }) => {
                   to={`/events/${eventId}/departments/${departmentId}/members`}
                   className="inline-flex w-fit items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
                 >
-                  Quản lý thành viên
+                  {isLeader ? 'Quản lý thành viên' : 'Thông tin thành viên'}
                 </Link>
               </div>
 
@@ -119,7 +130,7 @@ const DepartmentDetailPage = ({ user, onLogout }) => {
                   <EmptyState
                     icon={Users}
                     title="Chưa có thành viên trong ban"
-                    description="Khi gán người vào ban, họ sẽ xuất hiện tại đây để leader theo dõi nhanh."
+                    description={isLeader ? 'Khi gán người vào ban, họ sẽ xuất hiện tại đây để leader theo dõi nhanh.' : 'Khi có thành viên được gán vào ban, họ sẽ xuất hiện tại đây.'}
                   />
                 </div>
               )}
@@ -169,12 +180,14 @@ const DepartmentDetailPage = ({ user, onLogout }) => {
             </Panel>
 
             <section className="grid gap-3 md:grid-cols-2">
-              <OverviewAction
-                to={`/events/${eventId}/departments/${departmentId}/dashboard`}
-                icon={<BarChart3 size={18} />}
-                title="Dashboard của ban"
-                description="Xem tiến độ và trạng thái công việc theo ban."
-              />
+              {isLeader && (
+                <OverviewAction
+                  to={`/events/${eventId}/departments/${departmentId}/dashboard`}
+                  icon={<BarChart3 size={18} />}
+                  title="Dashboard của ban"
+                  description="Xem tiến độ và trạng thái công việc theo ban."
+                />
+              )}
               <OverviewAction
                 to={`/events/${eventId}/departments/${departmentId}/tasks`}
                 icon={<ClipboardList size={18} />}

@@ -20,6 +20,7 @@ import eventApi from '../api/eventApi';
 import eventMemberApi from '../api/eventMemberApi';
 import taskApi from '../api/taskApi';
 import { formatDate } from '../utils/dateUtils';
+import { getDepartmentHomePath, getEventPermissions } from '../utils/permissionUtils';
 
 const EMPTY_DEPARTMENTS = [];
 const EMPTY_MEMBERS = [];
@@ -49,9 +50,14 @@ const EventDetailPage = ({ user, onLogout }) => {
   });
 
   const event = eventQuery.data;
-  const isLeader = event?.role === 'LEADER';
+  const permissions = getEventPermissions(event);
+  const isLeader = permissions.canManageEvent;
   const members = membersQuery.data || EMPTY_MEMBERS;
   const departments = departmentsQuery.data || EMPTY_DEPARTMENTS;
+  const visibleDepartments = isLeader
+    ? departments
+    : departments.filter((department) => String(department.id) === String(permissions.ownDepartmentId));
+  const departmentHomePath = getDepartmentHomePath(event);
   const taskCount = tasksQuery.data?.totalElements ?? tasksQuery.data?.totalItems ?? 0;
 
   return (
@@ -118,7 +124,7 @@ const EventDetailPage = ({ user, onLogout }) => {
                   to={`/events/${eventId}/members`}
                   className="inline-flex w-fit items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
                 >
-                  Quản lý thành viên
+                  {permissions.canManageMembers ? 'Quản lý thành viên' : 'Xem thành viên'}
                 </Link>
               </div>
 
@@ -186,18 +192,23 @@ const EventDetailPage = ({ user, onLogout }) => {
               )}
             </Panel>
 
+            {permissions.canViewDepartments && (
             <Panel className="overflow-hidden">
               <div className="flex flex-col gap-2 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h3 className="text-lg font-bold text-slate-950">Ban tổ chức</h3>
-                  <p className="text-sm text-slate-500">Chỉ hiển thị trưởng ban để người xem biết đầu mối liên hệ.</p>
+                  <p className="text-sm text-slate-500">
+                    {isLeader ? 'Chỉ hiển thị trưởng ban để người xem biết đầu mối liên hệ.' : 'Ban mà bạn đang tham gia trong sự kiện này.'}
+                  </p>
                 </div>
-                <Link
-                  to={`/events/${eventId}/departments`}
-                  className="inline-flex w-fit items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
-                >
-                  Quản lý ban
-                </Link>
+                {departmentHomePath && (
+                  <Link
+                    to={departmentHomePath}
+                    className="inline-flex w-fit items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+                  >
+                    {isLeader ? 'Quản lý ban' : 'Xem ban của bạn'}
+                  </Link>
+                )}
               </div>
 
               {departmentsQuery.isLoading && <LoadingState message="Đang tải ban tổ chức..." />}
@@ -206,7 +217,7 @@ const EventDetailPage = ({ user, onLogout }) => {
                   <ErrorState error={departmentsQuery.error} title="Không tải được ban tổ chức" />
                 </div>
               )}
-              {!departmentsQuery.isLoading && !departmentsQuery.error && departments.length === 0 && (
+              {!departmentsQuery.isLoading && !departmentsQuery.error && visibleDepartments.length === 0 && (
                 <div className="p-4">
                   <EmptyState
                     icon={Building2}
@@ -215,9 +226,9 @@ const EventDetailPage = ({ user, onLogout }) => {
                   />
                 </div>
               )}
-              {!departmentsQuery.isLoading && !departmentsQuery.error && departments.length > 0 && (
+              {!departmentsQuery.isLoading && !departmentsQuery.error && visibleDepartments.length > 0 && (
                 <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
-                  {departments.map((department) => (
+                  {visibleDepartments.map((department) => (
                     <Link
                       key={department.id}
                       to={`/events/${eventId}/departments/${department.id}`}
@@ -243,6 +254,7 @@ const EventDetailPage = ({ user, onLogout }) => {
                 </div>
               )}
             </Panel>
+            )}
 
             <section className="grid gap-3 md:grid-cols-2">
               <OverviewAction
@@ -251,13 +263,14 @@ const EventDetailPage = ({ user, onLogout }) => {
                 title="Task của sự kiện"
                 description="Đi tới danh sách công việc và phân công."
               />
-              <OverviewAction
-                to={`/events/${eventId}/dashboard`}
-                icon={<BarChart3 size={18} />}
-                title="Dashboard sự kiện"
-                description="Xem tiến độ tổng quan khi cần theo dõi sâu hơn."
-                disabled={!isLeader}
-              />
+              {permissions.canViewEventDashboard && (
+                <OverviewAction
+                  to={`/events/${eventId}/dashboard`}
+                  icon={<BarChart3 size={18} />}
+                  title="Dashboard sự kiện"
+                  description="Xem tiến độ tổng quan khi cần theo dõi sâu hơn."
+                />
+              )}
             </section>
           </>
         )}
@@ -275,10 +288,13 @@ const formatEventRange = (event) => {
   return `${formatDate(start)} - ${formatDate(end)}`;
 };
 
-const OverviewAction = ({ to, icon, title, description, disabled = false }) => {
-  const content = (
+const OverviewAction = ({ to, icon, title, description }) => (
+  <Link
+    to={to}
+    className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-indigo-200 hover:bg-indigo-50/50"
+  >
     <div className="flex items-center gap-3">
-      <span className={`inline-flex h-10 w-10 items-center justify-center rounded-lg ${disabled ? 'bg-slate-100 text-slate-400' : 'bg-indigo-50 text-indigo-700'}`}>
+      <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-50 text-indigo-700">
         {icon}
       </span>
       <span className="min-w-0">
@@ -286,24 +302,7 @@ const OverviewAction = ({ to, icon, title, description, disabled = false }) => {
         <span className="mt-1 block text-sm text-slate-500">{description}</span>
       </span>
     </div>
-  );
-
-  if (disabled) {
-    return (
-      <div className="rounded-xl border border-slate-200 bg-white p-4 opacity-60 shadow-sm">
-        {content}
-      </div>
-    );
-  }
-
-  return (
-    <Link
-      to={to}
-      className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-indigo-200 hover:bg-indigo-50/50"
-    >
-      {content}
-    </Link>
-  );
-};
+  </Link>
+);
 
 export default EventDetailPage;

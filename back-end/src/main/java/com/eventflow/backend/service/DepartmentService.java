@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -53,10 +54,43 @@ public class DepartmentService {
     }
 
     @Transactional(readOnly = true)
+    public PageResponse<DepartmentResponseDTO> getDepartmentsForMember(
+            Long eventId,
+            Long userId,
+            int page,
+            int size,
+            String search) {
+
+        EventMember member = eventMemberRepository.findMemberDetailByEventIdAndUserId(eventId, userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn chưa thuộc sự kiện này"));
+        Department department = member.getDepartment();
+        List<DepartmentResponseDTO> content = new ArrayList<>();
+        if (department != null && matchesSearch(department, search)) {
+            content.add(mapToResponse(department));
+        }
+
+        return PageResponse.<DepartmentResponseDTO>builder()
+                .content(content)
+                .page(Math.max(page, 0))
+                .size(Math.min(Math.max(size, 1), 100))
+                .totalElements(content.size())
+                .totalPages(content.isEmpty() ? 0 : 1)
+                .first(true)
+                .last(true)
+                .build();
+    }
+
+    @Transactional(readOnly = true)
     public DepartmentResponseDTO getDepartment(Long eventId, Long departmentId) {
         return departmentRepository.findByIdAndEventId(departmentId, eventId)
                 .map(this::mapToResponse)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy ban"));
+    }
+
+    @Transactional(readOnly = true)
+    public DepartmentResponseDTO getDepartmentForMember(Long eventId, Long departmentId, Long userId) {
+        assertMemberCanReadDepartment(eventId, departmentId, userId);
+        return getDepartment(eventId, departmentId);
     }
 
     @Transactional(readOnly = true)
@@ -65,6 +99,12 @@ public class DepartmentService {
         return eventMemberRepository.findAllByEventIdAndDepartmentIdWithUser(eventId, departmentId).stream()
                 .map(this::mapMemberToResponse)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<EventMemberResponseDTO> getDepartmentMembersForMember(Long eventId, Long departmentId, Long userId) {
+        assertMemberCanReadDepartment(eventId, departmentId, userId);
+        return getDepartmentMembers(eventId, departmentId);
     }
 
     @Transactional
@@ -184,6 +224,21 @@ public class DepartmentService {
         if (!departmentRepository.existsByIdAndEventId(departmentId, eventId)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy ban");
         }
+    }
+
+    private void assertMemberCanReadDepartment(Long eventId, Long departmentId, Long userId) {
+        if (!eventMemberRepository.existsByEventIdAndUserIdAndDepartmentId(eventId, userId, departmentId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn chỉ có thể xem ban mình tham gia");
+        }
+    }
+
+    private boolean matchesSearch(Department department, String search) {
+        if (search == null || search.isBlank()) {
+            return true;
+        }
+        String keyword = search.trim().toLowerCase();
+        return String.valueOf(department.getName()).toLowerCase().contains(keyword)
+                || String.valueOf(department.getDescription()).toLowerCase().contains(keyword);
     }
 
     private Sort.Direction resolveDirection(String direction) {

@@ -21,5 +21,7 @@ public class EventResponseDTO {
     private LocalDateTime eventDate;
     private String status;
     private String role;
+    private Long departmentId;
+    private String departmentName;
     private LocalDateTime createdAt;
 }

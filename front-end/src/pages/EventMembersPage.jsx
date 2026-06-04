@@ -60,6 +60,10 @@ const EventMembersPage = ({ user, onLogout }) => {
   const isLeader = event?.role === 'LEADER';
   const members = membersQuery.data || EMPTY_MEMBERS;
   const departments = departmentsQuery.data || EMPTY_DEPARTMENTS;
+  const memberPageTitle = isLeader ? 'Thành viên sự kiện' : 'Thành viên trong phạm vi của bạn';
+  const memberPageDescription = isLeader
+    ? 'Quản lý vai trò, ban phụ trách và trạng thái kết nối của từng tài khoản.'
+    : 'Xem những thành viên cùng ban hoặc những tài khoản được phân quyền hiển thị với bạn.';
   const filteredMembers = useMemo(() => {
     const keyword = search.trim().toLowerCase();
 
@@ -96,8 +100,8 @@ const EventMembersPage = ({ user, onLogout }) => {
         <Panel className="p-4">
           <PageHeader
             eyebrow={event?.name || 'Sự kiện'}
-            title="Thành viên sự kiện"
-            description="Quản lý vai trò, ban phụ trách và trạng thái kết nối của từng tài khoản."
+            title={memberPageTitle}
+            description={memberPageDescription}
           />
 
           {isLeader && (
@@ -139,39 +143,47 @@ const EventMembersPage = ({ user, onLogout }) => {
         <Panel className="overflow-hidden">
           <div className="flex flex-col gap-3 border-b border-slate-100 p-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h2 className="text-lg font-bold text-slate-950">Danh sách user</h2>
-              <p className="text-sm text-slate-500">Hiển thị theo cột để dễ kiểm tra thông tin từng thành viên.</p>
+              <h2 className="text-lg font-bold text-slate-950">Danh sách thành viên</h2>
+              <p className="text-sm text-slate-500">
+                {isLeader
+                  ? 'Hiển thị theo cột để dễ kiểm tra thông tin từng thành viên.'
+                  : 'Danh sách đã được lọc theo quyền truy cập của tài khoản hiện tại.'}
+              </p>
             </div>
-            <div className="grid w-full gap-2 lg:max-w-3xl lg:grid-cols-[minmax(220px,1fr)_150px_190px]">
+            <div className={`grid w-full gap-2 ${isLeader ? 'lg:max-w-3xl lg:grid-cols-[minmax(220px,1fr)_150px_190px]' : 'lg:max-w-sm'}`}>
               <TextInput
                 aria-label="Tìm kiếm thành viên"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Tìm tên, email, ban..."
               />
-              <select
-                aria-label="Lọc theo role"
-                value={roleFilter}
-                onChange={(event) => setRoleFilter(event.target.value)}
-                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-              >
-                <option value="">Tất cả role</option>
-                <option value="LEADER">LEADER</option>
-                <option value="MEMBER">MEMBER</option>
-              </select>
-              <select
-                aria-label="Lọc theo ban"
-                value={departmentFilter}
-                onChange={(event) => setDepartmentFilter(event.target.value)}
-                disabled={departmentsQuery.isLoading}
-                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50"
-              >
-                <option value="">Tất cả ban</option>
-                <option value="__none">Chưa gán ban</option>
-                {departments.map((department) => (
-                  <option key={department.id} value={department.id}>{department.name}</option>
-                ))}
-              </select>
+              {isLeader && (
+                <>
+                  <select
+                    aria-label="Lọc theo role"
+                    value={roleFilter}
+                    onChange={(event) => setRoleFilter(event.target.value)}
+                    className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                  >
+                    <option value="">Tất cả role</option>
+                    <option value="LEADER">LEADER</option>
+                    <option value="MEMBER">MEMBER</option>
+                  </select>
+                  <select
+                    aria-label="Lọc theo ban"
+                    value={departmentFilter}
+                    onChange={(event) => setDepartmentFilter(event.target.value)}
+                    disabled={departmentsQuery.isLoading}
+                    className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50"
+                  >
+                    <option value="">Tất cả ban</option>
+                    <option value="__none">Chưa gán ban</option>
+                    {departments.map((department) => (
+                      <option key={department.id} value={department.id}>{department.name}</option>
+                    ))}
+                  </select>
+                </>
+              )}
             </div>
           </div>
 
@@ -179,7 +191,11 @@ const EventMembersPage = ({ user, onLogout }) => {
           {membersQuery.error && <div className="p-4"><ErrorState error={membersQuery.error} title="Không tải được thành viên" /></div>}
           {!membersQuery.isLoading && !membersQuery.error && members.length === 0 && (
             <div className="p-4">
-              <EmptyState icon={Users} title="Chưa có thành viên" description="Thêm thành viên bằng email tài khoản đã đăng ký EventFlow." />
+              <EmptyState
+                icon={Users}
+                title="Chưa có thành viên"
+                description={isLeader ? 'Thêm thành viên bằng email tài khoản đã đăng ký EventFlow.' : 'Bạn chưa được phân quyền xem thành viên nào khác trong sự kiện này.'}
+              />
             </div>
           )}
           {!membersQuery.isLoading && !membersQuery.error && members.length > 0 && filteredMembers.length === 0 && (

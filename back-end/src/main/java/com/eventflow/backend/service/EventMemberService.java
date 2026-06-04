@@ -35,10 +35,39 @@ public class EventMemberService {
     }
 
     @Transactional(readOnly = true)
+    public List<EventMemberResponseDTO> getMembersVisibleToMember(Long eventId, Long currentUserId) {
+        EventMember currentMember = eventMemberRepository.findMemberDetailByEventIdAndUserId(eventId, currentUserId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn chưa thuộc sự kiện này"));
+        if (currentMember.getDepartment() == null) {
+            return List.of(mapToResponse(currentMember));
+        }
+        return eventMemberRepository.findAllByEventIdAndDepartmentIdWithUser(eventId, currentMember.getDepartment().getId()).stream()
+                .map(this::mapToResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public EventMemberResponseDTO getMember(Long eventId, Long userId) {
         return eventMemberRepository.findMemberDetailByEventIdAndUserId(eventId, userId)
                 .map(this::mapToResponse)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy thành viên trong sự kiện"));
+    }
+
+    @Transactional(readOnly = true)
+    public EventMemberResponseDTO getMemberVisibleToMember(Long eventId, Long targetUserId, Long currentUserId) {
+        EventMember currentMember = eventMemberRepository.findMemberDetailByEventIdAndUserId(eventId, currentUserId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn chưa thuộc sự kiện này"));
+        if (currentUserId.equals(targetUserId)) {
+            return mapToResponse(currentMember);
+        }
+        if (currentMember.getDepartment() == null
+                || !eventMemberRepository.existsByEventIdAndUserIdAndDepartmentId(
+                eventId,
+                targetUserId,
+                currentMember.getDepartment().getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn chỉ có thể xem thành viên trong ban mình");
+        }
+        return getMember(eventId, targetUserId);
     }
 
     @Transactional
@@ -67,7 +96,9 @@ public class EventMemberService {
         EventMember member = eventMemberRepository.findByEventIdAndUserId(eventId, userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy thành viên trong sự kiện"));
 
-        member.setRole(parseRoleOrDefault(request.getRole(), null));
+        UserRole nextRole = parseRoleOrDefault(request.getRole(), null);
+        assertEventKeepsLeader(eventId, member, nextRole);
+        member.setRole(nextRole);
         return mapToResponse(eventMemberRepository.save(member));
     }
 
@@ -79,6 +110,7 @@ public class EventMemberService {
         if (member.getUser().getId().equals(currentUserId)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "LEADER không thể tự xóa mình khỏi sự kiện");
         }
+        assertEventKeepsLeader(eventId, member, null);
 
         eventMemberRepository.delete(member);
     }
@@ -114,6 +146,15 @@ public class EventMemberService {
             return UserRole.valueOf(role.trim().toUpperCase());
         } catch (IllegalArgumentException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "role không hợp lệ", e);
+        }
+    }
+
+    private void assertEventKeepsLeader(Long eventId, EventMember member, UserRole nextRole) {
+        if (member.getRole() != UserRole.LEADER || nextRole == UserRole.LEADER) {
+            return;
+        }
+        if (eventMemberRepository.countByEventIdAndRole(eventId, UserRole.LEADER) <= 1) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Sự kiện cần giữ ít nhất một leader");
         }
     }
 }

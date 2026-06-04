@@ -9,6 +9,8 @@ import departmentApi from '../api/departmentApi';
 import eventApi from '../api/eventApi';
 import eventMemberApi from '../api/eventMemberApi';
 import { formatDate } from '../utils/dateUtils';
+import ErrorPage from './ErrorPage';
+import { canAccessDepartment, getEventPermissions } from '../utils/permissionUtils';
 
 const EMPTY_MEMBERS = [];
 
@@ -20,9 +22,12 @@ const DepartmentMembersPage = ({ user, onLogout }) => {
   const [roleFilter, setRoleFilter] = useState('');
 
   const eventQuery = useQuery({ queryKey: ['event', eventId], queryFn: () => eventApi.getEvent(eventId), enabled: Boolean(eventId) });
-  const departmentQuery = useQuery({ queryKey: ['department', eventId, departmentId], queryFn: () => departmentApi.getDepartment({ eventId, departmentId }), enabled: Boolean(eventId && departmentId) });
-  const eventMembersQuery = useQuery({ queryKey: ['eventMembers', eventId], queryFn: () => eventMemberApi.getMembers(eventId), enabled: Boolean(eventId) });
-  const departmentMembersQuery = useQuery({ queryKey: ['departmentMembers', eventId, departmentId], queryFn: () => departmentApi.getDepartmentMembers({ eventId, departmentId }), enabled: Boolean(eventId && departmentId) });
+  const event = eventQuery.data;
+  const permissions = getEventPermissions(event);
+  const canReadDepartment = Boolean(event && canAccessDepartment(event, departmentId));
+  const departmentQuery = useQuery({ queryKey: ['department', eventId, departmentId], queryFn: () => departmentApi.getDepartment({ eventId, departmentId }), enabled: Boolean(eventId && departmentId && canReadDepartment) });
+  const eventMembersQuery = useQuery({ queryKey: ['eventMembers', eventId], queryFn: () => eventMemberApi.getMembers(eventId), enabled: Boolean(eventId && permissions.canManageDepartments) });
+  const departmentMembersQuery = useQuery({ queryKey: ['departmentMembers', eventId, departmentId], queryFn: () => departmentApi.getDepartmentMembers({ eventId, departmentId }), enabled: Boolean(eventId && departmentId && canReadDepartment) });
 
   const assignMemberMutation = useMutation({
     mutationFn: departmentApi.assignMember,
@@ -41,10 +46,12 @@ const DepartmentMembersPage = ({ user, onLogout }) => {
     },
   });
 
-  const event = eventQuery.data;
   const department = departmentQuery.data;
-  const isLeader = event?.role === 'LEADER';
+  const isLeader = permissions.canManageDepartments;
   const departmentMembers = departmentMembersQuery.data || EMPTY_MEMBERS;
+  const pageTitle = isLeader
+    ? `Quản lý thành viên ${department?.name || 'ban'}`
+    : `Thông tin thành viên ${department?.name || 'ban'}`;
   const filteredMembers = useMemo(() => {
     const keyword = search.trim().toLowerCase();
 
@@ -75,11 +82,23 @@ const DepartmentMembersPage = ({ user, onLogout }) => {
   return (
     <AppLayout user={user} events={event ? [event] : []} selectedEvent={event} onEventChange={() => {}} onLogout={onLogout}>
       <div className="space-y-6">
+        {!eventQuery.isLoading && event && !canReadDepartment && (
+          <ErrorPage
+            variant="unexpected"
+            title="Không có quyền truy cập"
+            message="Bạn chỉ có thể xem thành viên của ban mà mình đang tham gia."
+          />
+        )}
+
+        {canReadDepartment && (
+        <>
         <Panel className="p-4">
           <PageHeader
             eyebrow={event?.name || 'Sự kiện'}
-            title={`Thành viên ${department?.name || 'ban'}`}
-            description="Quản lý thành viên thuộc ban, trạng thái kết nối và thao tác gỡ khỏi ban."
+            title={pageTitle}
+            description={isLeader
+              ? 'Quản lý thành viên thuộc ban, trạng thái kết nối và thao tác gỡ khỏi ban.'
+              : 'Xem thông tin thành viên thuộc ban và trạng thái kết nối. Tài khoản member không có quyền gán hoặc gỡ người khỏi ban.'}
           />
 
           {isLeader && (
@@ -114,26 +133,28 @@ const DepartmentMembersPage = ({ user, onLogout }) => {
         <Panel className="overflow-hidden">
           <div className="flex flex-col gap-3 border-b border-slate-100 p-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h2 className="text-lg font-bold text-slate-950">Danh sách user</h2>
+              <h2 className="text-lg font-bold text-slate-950">Danh sách thành viên</h2>
               <p className="text-sm text-slate-500">Các thành viên hiện đang thuộc ban này.</p>
             </div>
-            <div className="grid w-full gap-2 lg:max-w-xl lg:grid-cols-[minmax(220px,1fr)_150px]">
+            <div className={`grid w-full gap-2 ${isLeader ? 'lg:max-w-xl lg:grid-cols-[minmax(220px,1fr)_150px]' : 'lg:max-w-sm'}`}>
               <TextInput
                 aria-label="Tìm kiếm thành viên trong ban"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Tìm tên, email, role..."
               />
-              <select
-                aria-label="Lọc theo role"
-                value={roleFilter}
-                onChange={(event) => setRoleFilter(event.target.value)}
-                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-              >
-                <option value="">Tất cả role</option>
-                <option value="LEADER">LEADER</option>
-                <option value="MEMBER">MEMBER</option>
-              </select>
+              {isLeader && (
+                <select
+                  aria-label="Lọc theo role"
+                  value={roleFilter}
+                  onChange={(event) => setRoleFilter(event.target.value)}
+                  className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                >
+                  <option value="">Tất cả role</option>
+                  <option value="LEADER">LEADER</option>
+                  <option value="MEMBER">MEMBER</option>
+                </select>
+              )}
             </div>
           </div>
 
@@ -145,7 +166,11 @@ const DepartmentMembersPage = ({ user, onLogout }) => {
           )}
           {!departmentMembersQuery.isLoading && !departmentMembersQuery.error && departmentMembers.length === 0 && (
             <div className="p-4">
-              <EmptyState icon={Users} title="Chưa có thành viên trong ban" description="Gán thành viên từ danh sách sự kiện vào ban này." />
+              <EmptyState
+                icon={Users}
+                title="Chưa có thành viên trong ban"
+                description={isLeader ? 'Gán thành viên từ danh sách sự kiện vào ban này.' : 'Ban này chưa có thành viên được gán.'}
+              />
             </div>
           )}
           {!departmentMembersQuery.isLoading && !departmentMembersQuery.error && departmentMembers.length > 0 && filteredMembers.length === 0 && (
@@ -182,6 +207,8 @@ const DepartmentMembersPage = ({ user, onLogout }) => {
             </div>
           )}
         </Panel>
+        </>
+        )}
       </div>
     </AppLayout>
   );

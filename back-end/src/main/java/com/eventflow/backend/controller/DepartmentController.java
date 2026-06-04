@@ -34,8 +34,12 @@ public class DepartmentController {
             @RequestParam(required = false) String search,
             Authentication authentication) {
 
-        if (!eventSecurityService.isMemberOfEvent(eventId, currentUserId(authentication))) {
+        Long userId = currentUserId(authentication);
+        if (!eventSecurityService.isMemberOfEvent(eventId, userId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        if (!eventSecurityService.isLeaderOfEvent(eventId, userId)) {
+            return ResponseEntity.ok(departmentService.getDepartmentsForMember(eventId, userId, page, size, search));
         }
 
         return ResponseEntity.ok(departmentService.getDepartments(eventId, page, size, sort, direction, search));
@@ -47,8 +51,12 @@ public class DepartmentController {
             @PathVariable Long departmentId,
             Authentication authentication) {
 
-        if (!eventSecurityService.isMemberOfEvent(eventId, currentUserId(authentication))) {
+        Long userId = currentUserId(authentication);
+        if (!eventSecurityService.isMemberOfEvent(eventId, userId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        if (!eventSecurityService.isLeaderOfEvent(eventId, userId)) {
+            return ResponseEntity.ok(departmentService.getDepartmentForMember(eventId, departmentId, userId));
         }
 
         return ResponseEntity.ok(departmentService.getDepartment(eventId, departmentId));
@@ -60,8 +68,12 @@ public class DepartmentController {
             @PathVariable Long departmentId,
             Authentication authentication) {
 
-        if (!eventSecurityService.isMemberOfEvent(eventId, currentUserId(authentication))) {
+        Long userId = currentUserId(authentication);
+        if (!eventSecurityService.isMemberOfEvent(eventId, userId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        if (!eventSecurityService.isLeaderOfEvent(eventId, userId)) {
+            return ResponseEntity.ok(departmentService.getDepartmentMembersForMember(eventId, departmentId, userId));
         }
 
         return ResponseEntity.ok(departmentService.getDepartmentMembers(eventId, departmentId));

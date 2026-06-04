@@ -42,8 +42,9 @@ class DepartmentControllerTest {
     }
 
     @Test
-    void getDepartmentsReturnsPageWhenUserIsEventMember() throws Exception {
+    void getDepartmentsReturnsPageWhenUserIsEventLeader() throws Exception {
         when(eventSecurityService.isMemberOfEvent(10L, 42L)).thenReturn(true);
+        when(eventSecurityService.isLeaderOfEvent(10L, 42L)).thenReturn(true);
         when(departmentService.getDepartments(10L, 0, 50, "name", "asc", "ops"))
                 .thenReturn(PageResponse.<DepartmentResponseDTO>builder()
                         .content(List.of(DepartmentResponseDTO.builder()
@@ -66,6 +67,33 @@ class DepartmentControllerTest {
                 .andExpect(jsonPath("$.content", hasSize(1)))
                 .andExpect(jsonPath("$.content[0].name").value("Operations"))
                 .andExpect(jsonPath("$.totalElements").value(1));
+    }
+
+    @Test
+    void getDepartmentsReturnsOnlyMemberDepartmentWhenUserIsMember() throws Exception {
+        when(eventSecurityService.isMemberOfEvent(10L, 42L)).thenReturn(true);
+        when(eventSecurityService.isLeaderOfEvent(10L, 42L)).thenReturn(false);
+        when(departmentService.getDepartmentsForMember(10L, 42L, 0, 50, "ops"))
+                .thenReturn(PageResponse.<DepartmentResponseDTO>builder()
+                        .content(List.of(DepartmentResponseDTO.builder()
+                                .id(2L)
+                                .eventId(10L)
+                                .name("Member Department")
+                                .build()))
+                        .page(0)
+                        .size(50)
+                        .totalElements(1)
+                        .totalPages(1)
+                        .first(true)
+                        .last(true)
+                        .build());
+
+        mockMvc.perform(get("/api/v1/events/10/departments")
+                        .queryParam("search", "ops")
+                        .principal(authenticatedUser(42L)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(1)))
+                .andExpect(jsonPath("$.content[0].name").value("Member Department"));
     }
 
     @Test

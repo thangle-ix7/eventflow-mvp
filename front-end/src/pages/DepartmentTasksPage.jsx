@@ -11,6 +11,8 @@ import userApi from '../api/userApi';
 import { PriorityBadge, ProgressBar, StatusBadge } from '../components/ui';
 import { formatDate } from '../utils/dateUtils';
 import { normalizeTaskPageSize } from '../utils/paginationUtils';
+import ErrorPage from './ErrorPage';
+import { canAccessDepartment, getEventPermissions } from '../utils/permissionUtils';
 
 const DepartmentTasksPage = ({ user, onLogout, onUserUpdate }) => {
   const { eventId, departmentId } = useParams();
@@ -27,18 +29,20 @@ const DepartmentTasksPage = ({ user, onLogout, onUserUpdate }) => {
   const [toDate, setToDate] = useState(() => searchParams.get('toDate') || '');
 
   const eventQuery = useQuery({ queryKey: ['event', eventId], queryFn: () => eventApi.getEvent(eventId), enabled: Boolean(eventId) });
-  const departmentQuery = useQuery({ queryKey: ['department', eventId, departmentId], queryFn: () => departmentApi.getDepartment({ eventId, departmentId }), enabled: Boolean(eventId && departmentId) });
-  const departmentsQuery = useQuery({ queryKey: ['eventDepartments', eventId], queryFn: () => departmentApi.getEventDepartments(eventId), enabled: Boolean(eventId) });
+  const event = eventQuery.data;
+  const permissions = getEventPermissions(event);
+  const canReadDepartment = Boolean(event && canAccessDepartment(event, departmentId));
+  const departmentQuery = useQuery({ queryKey: ['department', eventId, departmentId], queryFn: () => departmentApi.getDepartment({ eventId, departmentId }), enabled: Boolean(eventId && departmentId && canReadDepartment) });
+  const departmentsQuery = useQuery({ queryKey: ['eventDepartments', eventId], queryFn: () => departmentApi.getEventDepartments(eventId), enabled: Boolean(eventId && permissions.canManageDepartments) });
   const tasksQuery = useQuery({
     queryKey: ['departmentTaskPage', eventId, departmentId, page, pageSize, search, status, priority, fromDate, toDate],
     queryFn: () => taskApi.getEventTaskPage({ eventId, departmentId, page, size: pageSize, search, status, priority, fromDate, toDate }),
-    enabled: Boolean(eventId && departmentId),
+    enabled: Boolean(eventId && departmentId && canReadDepartment),
   });
 
-  const event = eventQuery.data;
   const department = departmentQuery.data;
   const tasks = tasksQuery.data?.content || [];
-  const isLeader = event?.role === 'LEADER';
+  const isLeader = permissions.canCreateTasks;
   const updatePreferencesMutation = useMutation({
     mutationFn: userApi.updatePreferences,
     onSuccess: (profile) => {
@@ -70,6 +74,16 @@ const DepartmentTasksPage = ({ user, onLogout, onUserUpdate }) => {
   return (
     <AppLayout user={user} events={event ? [event] : []} selectedEvent={event} onEventChange={() => {}} onLogout={onLogout}>
       <div className="space-y-6">
+        {!eventQuery.isLoading && event && !canReadDepartment && (
+          <ErrorPage
+            variant="unexpected"
+            title="Không có quyền truy cập"
+            message="Bạn chỉ có thể xem công việc trong ban mà mình đang tham gia."
+          />
+        )}
+
+        {canReadDepartment && (
+        <>
         <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -204,6 +218,8 @@ const DepartmentTasksPage = ({ user, onLogout, onUserUpdate }) => {
             </button>
           </div>
         </div>
+        </>
+        )}
       </div>
     </AppLayout>
   );
