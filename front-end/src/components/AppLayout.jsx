@@ -257,8 +257,8 @@ const AppLayoutFrame = ({
               </button>
             )}
             <Link to="/" className="flex min-w-0 items-center gap-3">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-600 font-black text-white">
-                E
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white ring-1 ring-white/10">
+                <img src="/event-flow-logo-mark.png" alt="" className="h-8 w-8 object-contain" />
               </span>
               <span className="min-w-0">
                 <span className="block truncate text-lg font-extrabold leading-tight tracking-tight sm:text-xl">Event Flow</span>
@@ -308,9 +308,9 @@ const AppLayoutFrame = ({
           )}
 
           <div className="ml-auto flex min-w-0 items-center justify-end gap-2 lg:gap-3">
-            <div className="hidden items-center gap-1 text-slate-300 lg:flex">
+            <div className="flex items-center gap-1 text-slate-300">
               {selectedEvent?.id && (
-              <Link to={`/events/${selectedEvent.id}/calendar`} className="rounded-lg p-2 hover:bg-white/10 hover:text-white" aria-label="Lịch sự kiện">
+              <Link to={`/events/${selectedEvent.id}/calendar`} className="hidden rounded-lg p-2 hover:bg-white/10 hover:text-white lg:inline-flex" aria-label="Lịch sự kiện">
                 <CalendarDays className="h-5 w-5" strokeWidth={1.8} />
               </Link>
               )}

@@ -168,11 +168,16 @@ const LoginPage = ({ onLoginSuccess }) => {
     <div className="flex min-h-screen flex-col bg-slate-50 text-slate-950">
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-5 sm:py-4 lg:px-8">
-          <div className="min-w-0">
-            <p className="text-xl font-extrabold text-slate-950">Event Flow</p>
-            <p className="text-sm text-slate-500">
-              Nhóm EXE • Dự án hỗ trợ sự kiện FPTU
-            </p>
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white">
+              <img src="/event-flow-logo-mark.png" alt="" className="h-9 w-9 object-contain" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-xl font-extrabold text-slate-950">Event Flow</p>
+              <p className="text-sm text-slate-500">
+                Nhóm EXE • Dự án hỗ trợ sự kiện FPTU
+              </p>
+            </div>
           </div>
           <a
             href="mailto:event.flow.corp.vn@gmail.com"
@@ -209,6 +214,9 @@ const LoginPage = ({ onLoginSuccess }) => {
 
         <div className="mx-auto w-full max-w-md rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:rounded-2xl sm:p-8">
           <div className="mb-6 sm:mb-8">
+            <div className="mb-4 flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+              <img src="/event-flow-logo-mark.png" alt="" className="h-12 w-12 object-contain" />
+            </div>
             <p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">
               Event Flow
             </p>

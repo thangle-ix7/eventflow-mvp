@@ -98,22 +98,22 @@ const DepartmentDashboardPage = ({ user, onLogout }) => {
 
   return (
     <AppLayout user={user} events={event ? [event] : []} selectedEvent={event} onEventChange={() => {}} onLogout={onLogout}>
-      <div className="space-y-6">
+      <div className="min-w-0 space-y-6">
         <section className="space-y-4">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
+            <div className="min-w-0">
               <p className="text-sm font-semibold text-gray-500">
                 {event?.name || 'Event'} / Department / {summary?.departmentName || 'Dashboard'}
               </p>
               <h2 className="mt-1 text-2xl font-bold text-gray-900">{summary?.departmentName || 'Dashboard ban'}</h2>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-              <div className="flex gap-2">
-                <Link to={`/events/${eventId}/departments/${departmentId}/members`} className="inline-flex items-center justify-center gap-2 rounded-full bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-700 shadow-sm transition hover:bg-emerald-100 active:translate-y-px">
+              <div className="grid grid-cols-2 gap-2 sm:flex">
+                <Link to={`/events/${eventId}/departments/${departmentId}/members`} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-700 shadow-sm transition hover:bg-emerald-100 active:translate-y-px sm:rounded-full">
                   <Users size={16} />
                   Member
                 </Link>
-                <Link to={`/events/${eventId}/departments/${departmentId}/tasks`} className="inline-flex items-center justify-center gap-2 rounded-full bg-indigo-50 px-3 py-2 text-sm font-bold text-indigo-700 shadow-sm transition hover:bg-indigo-100 active:translate-y-px">
+                <Link to={`/events/${eventId}/departments/${departmentId}/tasks`} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-indigo-50 px-3 py-2 text-sm font-bold text-indigo-700 shadow-sm transition hover:bg-indigo-100 active:translate-y-px sm:rounded-full">
                   <ClipboardList size={16} />
                   Task
                 </Link>
@@ -162,22 +162,22 @@ const normalizeStatusData = (data = []) => STATUS_ORDER.map((status) => ({
 }));
 
 const WeekControl = ({ weekIndex, setWeekIndex, weekRange }) => (
-  <div className="flex flex-col gap-1">
+  <div className="flex min-w-0 flex-col gap-1">
     <div className="text-sm font-semibold text-gray-700">
       Tuần {weekIndex + 1}: {weekRange.fromDate} đến {weekRange.toDate}
     </div>
-    <div className="flex gap-2">
-      <button type="button" onClick={() => setWeekIndex(Math.max(weekIndex - 1, 0))} disabled={weekIndex === 0} className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 disabled:opacity-50">Tuần trước</button>
-      <button type="button" onClick={() => setWeekIndex(weekIndex + 1)} className="rounded-lg border border-blue-600 px-3 py-2 text-sm font-semibold text-blue-600 hover:bg-blue-50">Tuần sau</button>
+    <div className="grid grid-cols-2 gap-2 sm:flex">
+      <button type="button" onClick={() => setWeekIndex(Math.max(weekIndex - 1, 0))} disabled={weekIndex === 0} className="min-h-10 rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 disabled:opacity-50">Tuần trước</button>
+      <button type="button" onClick={() => setWeekIndex(weekIndex + 1)} className="min-h-10 rounded-lg border border-blue-600 px-3 py-2 text-sm font-semibold text-blue-600 hover:bg-blue-50">Tuần sau</button>
     </div>
   </div>
 );
 
 const ChartPanel = ({ icon, title, description, children }) => (
-  <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+  <section className="min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
     <div className="mb-4 flex items-start gap-3">
       <div className="rounded-lg bg-blue-50 p-2 text-blue-600">{icon}</div>
-      <div>
+      <div className="min-w-0">
         <h3 className="font-semibold text-gray-900">{title}</h3>
         <p className="text-sm text-gray-500">{description}</p>
       </div>
@@ -226,11 +226,11 @@ const StatusLineChart = ({ data, onPointClick }) => {
   });
 
   return (
-    <div className="overflow-x-auto">
+    <div className="min-w-0">
       <div className="mb-3 flex flex-wrap gap-3 text-xs font-semibold text-gray-600">
         {series.map((line) => <span key={line.key} className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: line.color }} />{line.label}</span>)}
       </div>
-      <svg viewBox={`0 0 ${width} ${height}`} className="h-72 min-w-[560px]">
+      <svg viewBox={`0 0 ${width} ${height}`} className="h-64 w-full sm:h-72">
         <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} className="stroke-gray-200" />
         <line x1={padding} y1={padding} x2={padding} y2={height - padding} className="stroke-gray-200" />
         {series.map((line) => {
@@ -303,7 +303,7 @@ const StatusColumnChart = ({ data, onColumnClick }) => {
   const colorByStatus = { TODO: 'bg-blue-500', IN_PROGRESS: 'bg-amber-500', IN_REVIEW: 'bg-violet-500', DONE: 'bg-emerald-500' };
 
   return (
-    <div className="grid h-72 grid-cols-4 items-end gap-4 border-b border-gray-200 pb-3">
+    <div className="grid h-64 grid-cols-4 items-end gap-2 border-b border-gray-200 pb-3 sm:h-72 sm:gap-4">
       {data.map((item) => (
         <button
           key={item.label}
@@ -313,7 +313,7 @@ const StatusColumnChart = ({ data, onColumnClick }) => {
           onFocus={() => setHoveredColumn(item.label)}
           onBlur={() => setHoveredColumn(null)}
           onClick={() => onColumnClick?.(item.label)}
-          className="relative flex h-full flex-col items-center justify-end rounded-lg px-2 transition hover:bg-blue-50"
+          className="relative flex h-full min-w-0 flex-col items-center justify-end rounded-lg px-1 transition hover:bg-blue-50 sm:px-2"
           title={`Xem task ${STATUS_LABELS[item.label] || item.label}`}
         >
           {hoveredColumn === item.label && (
@@ -323,10 +323,10 @@ const StatusColumnChart = ({ data, onColumnClick }) => {
             </div>
           )}
           <div className="flex h-52 w-full items-end justify-center">
-            <div className={`w-14 rounded-t ${colorByStatus[item.label] || 'bg-gray-500'}`} style={{ height: `${Math.max(((item.totalTasks || 0) / maxValue) * 100, item.totalTasks ? 10 : 2)}%` }} />
+            <div className={`w-8 rounded-t sm:w-14 ${colorByStatus[item.label] || 'bg-gray-500'}`} style={{ height: `${Math.max(((item.totalTasks || 0) / maxValue) * 100, item.totalTasks ? 10 : 2)}%` }} />
           </div>
           <p className="mt-2 text-xs font-bold text-gray-700">{item.totalTasks || 0}</p>
-          <p className="text-center text-xs font-semibold text-gray-500">{item.label}</p>
+          <p className="max-w-full truncate text-center text-[11px] font-semibold text-gray-500 sm:text-xs">{STATUS_LABELS[item.label] || item.label}</p>
         </button>
       ))}
     </div>
@@ -334,7 +334,7 @@ const StatusColumnChart = ({ data, onColumnClick }) => {
 };
 
 const TaskListSection = ({ tasks, page, setPage, pageData, eventId }) => (
-  <section className="rounded-xl border border-gray-200 bg-white shadow-sm">
+  <section className="min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
     <div className="flex items-center gap-2 border-b border-gray-100 p-4">
       <ClipboardList size={18} className="text-blue-600" />
       <h3 className="font-semibold text-gray-900">Danh sách công việc</h3>
@@ -354,9 +354,9 @@ const TaskListSection = ({ tasks, page, setPage, pageData, eventId }) => (
         </div>
       </Link>
     ))}
-    <div className="flex justify-end gap-2 p-4">
-      <button type="button" onClick={() => setPage((old) => Math.max(old - 1, 0))} disabled={page === 0} className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 disabled:opacity-50">Trước</button>
-      <button type="button" onClick={() => setPage((old) => old + 1)} disabled={pageData?.last !== false} className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 disabled:opacity-50">Sau</button>
+    <div className="grid grid-cols-2 gap-2 p-4 sm:flex sm:justify-end">
+      <button type="button" onClick={() => setPage((old) => Math.max(old - 1, 0))} disabled={page === 0} className="min-h-10 rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 disabled:opacity-50">Trước</button>
+      <button type="button" onClick={() => setPage((old) => old + 1)} disabled={pageData?.last !== false} className="min-h-10 rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 disabled:opacity-50">Sau</button>
     </div>
   </section>
 );

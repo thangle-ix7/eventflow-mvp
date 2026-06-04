@@ -155,7 +155,7 @@ const EventDashboardPage = ({ user, onLogout }) => {
 
   return (
     <AppLayout user={user} events={event ? [event] : []} selectedEvent={event} onEventChange={() => {}} onLogout={onLogout}>
-      <div className="space-y-6">
+      <div className="min-w-0 space-y-6">
         <section className="space-y-4">
           <PageHeader
             eyebrow={`${event?.name || 'Sự kiện'} / ${selectedDepartment?.name || 'Toàn bộ ban'}`}
@@ -191,7 +191,7 @@ const EventDashboardPage = ({ user, onLogout }) => {
 
         {canViewDashboard && summary && !error && (
           <>
-            <section className="grid gap-4 md:grid-cols-4">
+            <section className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <MetricCard icon={ListTodo} label="Tổng công việc" value={summary.totalTasks} tone="indigo" />
               <MetricCard icon={CheckCircle2} label="Đã hoàn thành" value={summary.completedTasks} tone="emerald" />
               <MetricCard icon={TrendingUp} label="Tiến độ" value={`${summary.progressPercentage || 0}%`} tone="violet" />
@@ -244,10 +244,10 @@ const WeekControl = ({ weekIndex, setWeekIndex }) => (
 );
 
 const ChartPanel = ({ icon, title, description, children }) => (
-  <Panel className="p-4">
+  <Panel className="min-w-0 overflow-hidden p-4">
     <div className="mb-4 flex items-start gap-3">
       <div className="rounded-lg bg-indigo-50 p-2 text-indigo-600">{icon}</div>
-      <div>
+      <div className="min-w-0">
         <h3 className="font-semibold text-slate-950">{title}</h3>
         <p className="text-sm text-slate-500">{description}</p>
       </div>
@@ -296,7 +296,7 @@ const StatusLineChart = ({ data, onPointClick }) => {
   });
 
   return (
-    <div className="overflow-x-auto">
+    <div className="min-w-0">
       <div className="mb-3 flex flex-wrap gap-3 text-xs font-semibold text-slate-600">
         {series.map((line) => (
           <span key={line.key} className="inline-flex items-center gap-1">
@@ -305,7 +305,7 @@ const StatusLineChart = ({ data, onPointClick }) => {
           </span>
         ))}
       </div>
-      <svg viewBox={`0 0 ${width} ${height}`} className="h-72 min-w-[560px]">
+      <svg viewBox={`0 0 ${width} ${height}`} className="h-64 w-full sm:h-72">
         <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} className="stroke-slate-200" />
         <line x1={padding} y1={padding} x2={padding} y2={height - padding} className="stroke-slate-200" />
         {series.map((line) => {
@@ -382,7 +382,7 @@ const StatusColumnChart = ({ data, onColumnClick }) => {
   const colorByStatus = { TODO: 'bg-indigo-500', IN_PROGRESS: 'bg-amber-500', IN_REVIEW: 'bg-violet-500', DONE: 'bg-emerald-500' };
 
   return (
-    <div className="grid h-72 grid-cols-4 items-end gap-4 border-b border-gray-200 pb-3">
+    <div className="grid h-64 grid-cols-4 items-end gap-2 border-b border-gray-200 pb-3 sm:h-72 sm:gap-4">
       {data.map((item) => (
         <button
           key={item.label}
@@ -392,7 +392,7 @@ const StatusColumnChart = ({ data, onColumnClick }) => {
           onFocus={() => setHoveredColumn(item.label)}
           onBlur={() => setHoveredColumn(null)}
           onClick={() => onColumnClick?.(item.label)}
-          className="relative flex h-full flex-col items-center justify-end rounded-lg px-2 transition hover:bg-indigo-50"
+          className="relative flex h-full min-w-0 flex-col items-center justify-end rounded-lg px-1 transition hover:bg-indigo-50 sm:px-2"
           title={`Xem task ${STATUS_LABELS[item.label] || item.label}`}
         >
           {hoveredColumn === item.label && (
@@ -402,10 +402,10 @@ const StatusColumnChart = ({ data, onColumnClick }) => {
             </div>
           )}
           <div className="flex h-52 w-full items-end justify-center">
-            <div className={`w-14 rounded-t ${colorByStatus[item.label] || 'bg-gray-500'}`} style={{ height: `${Math.max(((item.totalTasks || 0) / maxValue) * 100, item.totalTasks ? 10 : 2)}%` }} />
+            <div className={`w-8 rounded-t sm:w-14 ${colorByStatus[item.label] || 'bg-gray-500'}`} style={{ height: `${Math.max(((item.totalTasks || 0) / maxValue) * 100, item.totalTasks ? 10 : 2)}%` }} />
           </div>
           <p className="mt-2 text-xs font-bold text-slate-700">{item.totalTasks || 0}</p>
-          <p className="text-center text-xs font-semibold text-slate-500">{STATUS_LABELS[item.label] || item.label}</p>
+          <p className="max-w-full truncate text-center text-[11px] font-semibold text-slate-500 sm:text-xs">{STATUS_LABELS[item.label] || item.label}</p>
         </button>
       ))}
     </div>
@@ -413,7 +413,7 @@ const StatusColumnChart = ({ data, onColumnClick }) => {
 };
 
 const TaskListSection = ({ tasks, page, setPage, pageData, eventId }) => (
-  <Panel>
+  <Panel className="min-w-0 overflow-hidden">
     <div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex items-center gap-2">
         <ClipboardList size={18} className="text-indigo-600" />
@@ -431,7 +431,21 @@ const TaskListSection = ({ tasks, page, setPage, pageData, eventId }) => (
       </div>
     )}
     {tasks.length > 0 && (
-      <div className="overflow-x-auto">
+      <>
+      <div className="grid gap-3 p-3 sm:hidden">
+        {tasks.map((task) => (
+          <Link key={task.id} to={`/events/${eventId}/tasks/${task.id}`} className="rounded-lg border border-slate-200 bg-white p-3 transition hover:border-indigo-200 hover:bg-indigo-50/40">
+            <p className="line-clamp-2 font-semibold text-slate-950">{task.title}</p>
+            <p className="mt-2 text-sm text-slate-600">{task.departmentName || 'Chưa gán ban'} • {task.assigneeName || 'Chưa phân công'}</p>
+            <p className="mt-1 text-sm text-slate-500">{formatDate(task.deadline)}</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <PriorityBadge priority={task.priority} />
+              <StatusBadge status={task.status} />
+            </div>
+          </Link>
+        ))}
+      </div>
+      <div className="hidden overflow-x-auto sm:block">
         <table className="min-w-[760px] w-full text-left text-sm">
           <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500">
             <tr>
@@ -462,8 +476,9 @@ const TaskListSection = ({ tasks, page, setPage, pageData, eventId }) => (
           </tbody>
         </table>
       </div>
+      </>
     )}
-    <div className="flex justify-end gap-2 p-4">
+    <div className="grid grid-cols-2 gap-2 p-4 sm:flex sm:justify-end">
       <Button type="button" onClick={() => setPage((old) => Math.max(old - 1, 0))} disabled={page === 0} variant="secondary">Trước</Button>
       <Button type="button" onClick={() => setPage((old) => old + 1)} disabled={pageData?.last !== false} variant="secondary">Sau</Button>
     </div>
