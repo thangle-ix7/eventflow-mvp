@@ -67,6 +67,7 @@ services:
     networks:
       - app
       - data
+      - egress
 
   backend-staging:
     build:
@@ -93,6 +94,7 @@ services:
     networks:
       - app
       - data
+      - egress
 
   frontend-prod:
     build:
@@ -128,6 +130,7 @@ services:
 
 networks:
   edge:
+  egress:
   app:
     internal: true
   data:
