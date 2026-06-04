@@ -12,6 +12,8 @@ front-end/dist/
 
 # Environment
 .env
+deploy/env/*.env
+!deploy/env/*.env.example
 
 # GitNexus
 .gitnexus/

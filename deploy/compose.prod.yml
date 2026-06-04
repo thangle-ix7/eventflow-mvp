@@ -1,0 +1,137 @@
+name: eventflow
+
+services:
+  proxy:
+    image: caddy:2.8-alpine
+    container_name: eventflow-proxy
+    restart: unless-stopped
+    env_file:
+      - ./env/proxy.env
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      frontend-prod:
+        condition: service_started
+      backend-prod:
+        condition: service_healthy
+    networks:
+      - edge
+      - app
+
+  db:
+    image: postgres:16-alpine
+    container_name: eventflow-db
+    restart: unless-stopped
+    env_file:
+      - ./env/postgres.env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init-multiple-databases.sh:/docker-entrypoint-initdb.d/10-init-multiple-databases.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - data
+
+  backend-prod:
+    build:
+      context: ../back-end
+      dockerfile: Dockerfile
+    container_name: eventflow-backend-prod
+    restart: unless-stopped
+    env_file:
+      - ./env/backend-prod.env
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/eventflow_prod
+      SERVER_PORT: 8080
+    volumes:
+      - backend_prod_uploads:/app/uploads/task-reports
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 45s
+    networks:
+      - app
+      - data
+
+  backend-staging:
+    build:
+      context: ../back-end
+      dockerfile: Dockerfile
+    container_name: eventflow-backend-staging
+    restart: unless-stopped
+    env_file:
+      - ./env/backend-staging.env
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/eventflow_staging
+      SERVER_PORT: 8080
+    volumes:
+      - backend_staging_uploads:/app/uploads/task-reports
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 45s
+    networks:
+      - app
+      - data
+
+  frontend-prod:
+    build:
+      context: ../front-end
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: /api/v1
+    container_name: eventflow-frontend-prod
+    restart: unless-stopped
+    depends_on:
+      backend-prod:
+        condition: service_healthy
+    networks:
+      - app
+
+  frontend-staging:
+    build:
+      context: ../front-end
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: /api/v1
+    container_name: eventflow-frontend-staging
+    restart: unless-stopped
+    depends_on:
+      backend-staging:
+        condition: service_healthy
+    networks:
+      - app
+
+networks:
+  edge:
+  app:
+    internal: true
+  data:
+    internal: true
+
+volumes:
+  postgres_data:
+  backend_prod_uploads:
+  backend_staging_uploads:
+  caddy_data:
+  caddy_config:

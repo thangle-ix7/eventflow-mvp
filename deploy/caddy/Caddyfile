@@ -1,0 +1,44 @@
+{
+	email {$ACME_EMAIL}
+}
+
+{$PROD_DOMAIN} {
+	encode zstd gzip
+
+	@blocked_ops {
+		path /actuator* /api-docs* /v3/api-docs* /swagger-ui* /swagger-ui.html
+	}
+	respond @blocked_ops 404
+
+	handle /api/* {
+		reverse_proxy backend-prod:8080
+	}
+
+	handle /api/webhooks/* {
+		reverse_proxy backend-prod:8080
+	}
+
+	handle {
+		reverse_proxy frontend-prod:80
+	}
+}
+
+{$STAGING_DOMAIN} {
+	encode zstd gzip
+
+	basic_auth {
+		{$STAGING_BASIC_AUTH_USER} {$STAGING_BASIC_AUTH_HASH}
+	}
+
+	handle /api/* {
+		reverse_proxy backend-staging:8080
+	}
+
+	handle /api/webhooks/* {
+		reverse_proxy backend-staging:8080
+	}
+
+	handle {
+		reverse_proxy frontend-staging:80
+	}
+}
