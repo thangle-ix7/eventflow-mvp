@@ -72,13 +72,13 @@ const TelegramOnboarding = ({ userId }) => {
   if (isLoading || isTelegramConnected || dismissed) return null;
 
   return (
-    <div className="fixed bottom-4 left-4 right-4 z-50 mx-auto max-w-4xl rounded-xl border border-indigo-200 bg-white p-3 shadow-xl shadow-slate-950/10 sm:p-4">
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+    <div className="fixed bottom-3 left-3 right-3 z-50 mx-auto max-h-[calc(100vh-1.5rem)] max-w-4xl overflow-y-auto rounded-xl border border-indigo-200 bg-white p-3 shadow-xl shadow-slate-950/10 sm:bottom-4 sm:left-4 sm:right-4 sm:p-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex min-w-0 gap-3">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
             <MessageCircle className="h-4 w-4" strokeWidth={1.8} />
           </div>
-          <div>
+          <div className="min-w-0">
             <h2 className="font-bold text-slate-950">Kết nối Telegram</h2>
             <p className="mt-1 text-sm leading-5 text-slate-600">
               Nhận nhắc nhở deadline tự động. Bạn có thể bỏ qua và tiếp tục dùng dashboard.
@@ -94,12 +94,12 @@ const TelegramOnboarding = ({ userId }) => {
           </div>
         )}
 
-        <div className="grid shrink-0 grid-cols-[1fr_1fr_auto] gap-2">
+        <div className="grid shrink-0 grid-cols-[1fr_auto] gap-2 sm:grid-cols-[1fr_1fr_auto] lg:min-w-[390px]">
           <button
             type="button"
             onClick={handleOpenTelegram}
             disabled={createTokenMutation.isPending}
-            className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-70"
+            className="min-h-10 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-70"
           >
             {createTokenMutation.isPending ? 'Đang tạo link...' : 'Mở Telegram'}
           </button>
@@ -108,7 +108,7 @@ const TelegramOnboarding = ({ userId }) => {
             type="button"
             onClick={() => refetch()}
             disabled={isFetching}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+            className="min-h-10 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60 max-sm:col-span-2 max-sm:row-start-2"
           >
             {isFetching ? 'Đang kiểm tra...' : 'Kiểm tra kết nối'}
           </button>
@@ -116,7 +116,7 @@ const TelegramOnboarding = ({ userId }) => {
           <button
             type="button"
             onClick={handleDismiss}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"
             aria-label="Bỏ qua kết nối Telegram"
           >
             <X className="h-4 w-4" strokeWidth={1.8} />

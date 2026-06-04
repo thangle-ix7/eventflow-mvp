@@ -243,12 +243,12 @@ const AppLayoutFrame = ({
       {showTelegramOnboarding && <TelegramOnboarding userId={user.userId} />}
 
       <header className="sticky top-0 z-40 bg-slate-950 text-white shadow-sm">
-        <div className="flex h-auto min-h-16 flex-col gap-3 px-5 py-3 lg:h-16 lg:flex-row lg:items-center lg:justify-between lg:gap-6 lg:px-6 lg:py-0">
-          <div className="flex items-center gap-3">
+        <div className="flex min-h-16 flex-wrap items-center gap-3 px-4 py-3 sm:px-5 lg:h-16 lg:flex-nowrap lg:justify-between lg:gap-6 lg:px-6 lg:py-0">
+          <div className="flex min-w-0 flex-1 items-center gap-3 lg:flex-none">
             {eventNav.length > 0 && (
               <button
                 type="button"
-                className="rounded-lg p-2 text-slate-300 hover:bg-white/10 hover:text-white"
+                className="shrink-0 rounded-lg p-2 text-slate-300 hover:bg-white/10 hover:text-white"
                 aria-label={sidebarOpen ? 'Ẩn thanh điều hướng' : 'Mở thanh điều hướng'}
                 aria-expanded={sidebarOpen}
                 onClick={() => setSidebarState({ eventId: selectedEventId, open: !sidebarOpen })}
@@ -256,12 +256,12 @@ const AppLayoutFrame = ({
                 <Menu className="h-5 w-5" strokeWidth={1.8} />
               </button>
             )}
-            <Link to="/" className="flex items-center gap-3">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 font-black text-white">
+            <Link to="/" className="flex min-w-0 items-center gap-3">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-600 font-black text-white">
                 E
               </span>
-              <span>
-                <span className="block text-xl font-extrabold leading-tight tracking-tight">Event Flow</span>
+              <span className="min-w-0">
+                <span className="block truncate text-lg font-extrabold leading-tight tracking-tight sm:text-xl">Event Flow</span>
                 <span className="block text-xs text-slate-400 lg:hidden">Nhóm EXE • FPTU</span>
               </span>
             </Link>
@@ -307,7 +307,7 @@ const AppLayoutFrame = ({
           </form>
           )}
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end lg:ml-auto">
+          <div className="ml-auto flex min-w-0 items-center justify-end gap-2 lg:gap-3">
             <div className="hidden items-center gap-1 text-slate-300 lg:flex">
               {selectedEvent?.id && (
               <Link to={`/events/${selectedEvent.id}/calendar`} className="rounded-lg p-2 hover:bg-white/10 hover:text-white" aria-label="Lịch sự kiện">
@@ -406,26 +406,28 @@ const AppLayoutFrame = ({
                 )}
               </div>
             </div>
-            <div className="text-sm text-slate-300 lg:text-right">
-              <span className="block font-semibold text-white">{user.name}</span>
-              <span className="block text-xs">
+            <div className="min-w-0 text-right text-sm text-slate-300">
+              <span className="block max-w-[7.5rem] truncate font-semibold text-white sm:max-w-[10rem] lg:max-w-[14rem]">{user.name}</span>
+              <span className="hidden text-xs sm:block">
                 {selectedEvent?.role ? (selectedEvent.role === 'LEADER' ? 'Trưởng nhóm' : 'Thành viên') : 'Tài khoản'}
               </span>
             </div>
             <Link
               to="/profile"
-              className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/15 px-3 py-1.5 text-sm font-medium text-slate-100 transition-colors hover:bg-white/10 active:translate-y-px"
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center gap-2 rounded-lg border border-white/15 text-sm font-medium text-slate-100 transition-colors hover:bg-white/10 active:translate-y-px sm:w-auto sm:px-3"
+              aria-label="Mở hồ sơ cá nhân"
             >
               <UserRound className="h-4 w-4" strokeWidth={1.8} />
-              Profile
+              <span className="hidden sm:inline">Profile</span>
             </Link>
             <button
               type="button"
               onClick={onLogout}
-              className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/15 px-3 py-1.5 text-sm font-medium text-slate-100 transition-colors hover:bg-white/10 active:translate-y-px"
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center gap-2 rounded-lg border border-white/15 text-sm font-medium text-slate-100 transition-colors hover:bg-white/10 active:translate-y-px sm:w-auto sm:px-3"
+              aria-label="Đăng xuất"
             >
               <LogOut className="h-4 w-4" strokeWidth={1.8} />
-              Đăng xuất
+              <span className="hidden sm:inline">Đăng xuất</span>
             </button>
           </div>
         </div>
@@ -438,7 +440,7 @@ const AppLayoutFrame = ({
           </aside>
         )}
 
-        <main className="min-w-0 p-5 md:p-8 lg:p-10">
+        <main className="min-w-0 px-4 py-5 sm:p-6 md:p-8 lg:p-10">
           {children}
         </main>
       </div>

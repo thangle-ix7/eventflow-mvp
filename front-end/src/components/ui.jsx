@@ -36,7 +36,7 @@ export const PageHeader = ({ eyebrow, title, description, actions, meta }) => (
       {description && <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">{description}</p>}
       {meta && <div className="mt-4 flex flex-wrap gap-3 text-sm text-slate-500">{meta}</div>}
     </div>
-    {actions && <div className="flex flex-col gap-2 sm:flex-row sm:items-center">{actions}</div>}
+    {actions && <div className="flex flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">{actions}</div>}
   </section>
 );
 
@@ -50,7 +50,7 @@ export const Button = ({ as: Component = 'button', variant = 'primary', classNam
 
   return (
     <Component
-      className={`inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60 ${variants[variant]} ${className}`}
+      className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60 ${variants[variant]} ${className}`}
       {...props}
     >
       {children}
@@ -146,7 +146,7 @@ export const LoadingState = ({ message = 'Đang tải dữ liệu...' }) => (
 );
 
 export const EmptyState = ({ icon: Icon = CheckCircle2, title, description, actions }) => (
-  <Panel className="p-8 text-center">
+  <Panel className="p-5 text-center sm:p-8">
     <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-500">
       <Icon className="h-6 w-6" strokeWidth={1.8} />
     </div>

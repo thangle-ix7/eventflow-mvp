@@ -184,16 +184,24 @@ const AiChatBox = () => {
     }
 
     setOpen(true);
-    moveToPosition(position, PANEL_SIZE);
+    if (getViewportSize().width >= 640) {
+      moveToPosition(position, PANEL_SIZE);
+    }
   };
+
+  const compactViewport = getViewportSize().width < 640;
 
   return (
     <div
       className="fixed z-50"
-      style={{ left: position.x, top: position.y }}
+      style={
+        open && compactViewport
+          ? { bottom: 8, left: 8, right: 8, top: 8 }
+          : { left: position.x, top: position.y }
+      }
     >
       {open ? (
-        <section className="flex h-[520px] w-[360px] max-w-[calc(100vw-2.5rem)] flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl">
+        <section className="flex h-full w-full flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl sm:h-[520px] sm:w-[360px] sm:max-w-[calc(100vw-2.5rem)]">
           <div
             onPointerDown={(event) => startDrag(event, PANEL_SIZE)}
             onPointerMove={handleDragMove}
@@ -205,8 +213,8 @@ const AiChatBox = () => {
               <span className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-white">
                 <Bot size={18} />
               </span>
-              <div>
-                <h3 className="text-sm font-bold text-gray-900">EventFlow AI</h3>
+              <div className="min-w-0">
+                <h3 className="text-sm font-bold text-gray-900">Event Flow AI</h3>
                 <p className="text-xs text-gray-500">Tạo sự kiện và task bằng chat</p>
               </div>
             </div>
@@ -215,7 +223,9 @@ const AiChatBox = () => {
               onPointerDown={(event) => event.stopPropagation()}
               onClick={() => {
                 setOpen(false);
-                moveToPosition(position, BUTTON_SIZE);
+                if (!compactViewport) {
+                  moveToPosition(position, BUTTON_SIZE);
+                }
               }}
               className="rounded-lg p-2 text-gray-500 hover:bg-gray-100"
             >

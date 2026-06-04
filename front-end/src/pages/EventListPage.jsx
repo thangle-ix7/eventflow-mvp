@@ -103,18 +103,18 @@ const EventListPage = ({ user, onLogout }) => {
     >
       <div className="mx-auto max-w-7xl space-y-6">
         <PageHeader
-          eyebrow="EventFlow"
+          eyebrow="Event Flow"
           title={pageTitle}
           description="Chọn sự kiện để tiếp tục quản lý task, ban tổ chức, tài liệu và báo cáo."
           actions={
-            <Button as={Link} to="/events/new">
+            <Button as={Link} to="/events/new" className="w-full sm:w-auto">
               <Plus size={18} />
               Tạo sự kiện
             </Button>
           }
         />
 
-        <Panel className="p-4">
+        <Panel className="p-3 sm:p-4">
           <form onSubmit={handleSearchSubmit} className="space-y-4">
             <div className="relative">
               <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" strokeWidth={1.8} />
@@ -125,21 +125,21 @@ const EventListPage = ({ user, onLogout }) => {
                 value={searchInput}
                 onChange={(event) => setSearchInput(event.target.value)}
                 placeholder="Tìm theo tên sự kiện"
-                className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-11 text-sm font-medium text-slate-800 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
+                className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-11 text-sm font-medium text-slate-800 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100 sm:h-11"
               />
               <Button type="submit" className="absolute right-1.5 top-1/2 hidden -translate-y-1/2 sm:inline-flex">
                 Tìm
               </Button>
             </div>
 
-            <div className="flex flex-wrap gap-2">
+            <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0">
               <FilterChip active={!status} label="Tất cả" onClick={() => handleStatusQuickChange('')} />
               <FilterChip active={status === 'ACTIVE'} label="Đang diễn ra" onClick={() => handleStatusQuickChange('ACTIVE')} />
               <FilterChip active={status === 'DONE'} label="Hoàn thành" onClick={() => handleStatusQuickChange('DONE')} />
               <FilterChip active={status === 'CANCELLED'} label="Đã hủy" onClick={() => handleStatusQuickChange('CANCELLED')} />
             </div>
 
-            <div className="grid gap-3 md:grid-cols-[1fr_1fr_auto]">
+            <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-[1fr_1fr_auto]">
               <SelectControl label="Sắp xếp" aria-label="Sắp xếp sự kiện" name="sort" value={sort} onChange={handleSortChange}>
                 <option value="eventDate">Ngày diễn ra</option>
                 <option value="name">Tên sự kiện</option>
@@ -187,7 +187,7 @@ const EventListPage = ({ user, onLogout }) => {
                   </>
                 )}
               </p>
-              <div className="flex gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:flex">
                 <Button
                   type="button"
                   onClick={() => setPage((old) => Math.max(old - 1, 0))}
@@ -228,7 +228,7 @@ const FilterChip = ({ active, label, onClick }) => (
   <button
     type="button"
     onClick={onClick}
-    className={`rounded-full border px-3 py-1.5 text-sm font-bold transition ${
+    className={`min-h-9 shrink-0 rounded-full border px-3 py-1.5 text-sm font-bold transition ${
       active
         ? 'border-indigo-200 bg-indigo-50 text-indigo-700'
         : 'border-slate-200 bg-white text-slate-600 hover:border-indigo-200 hover:text-indigo-700'
@@ -242,9 +242,9 @@ const EventCard = ({ event, onOpen }) => (
   <button
     type="button"
     onClick={onOpen}
-    className="group rounded-xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-md"
+    className="group rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-md sm:p-5"
   >
-    <div className="flex items-start justify-between gap-4">
+    <div className="flex items-start justify-between gap-3 sm:gap-4">
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <StatusBadge status={event.status || 'ACTIVE'} />
@@ -257,27 +257,27 @@ const EventCard = ({ event, onOpen }) => (
           {event.description || 'Chưa có mô tả. Mở workspace để bổ sung thông tin và bắt đầu điều phối.'}
         </p>
       </div>
-      <span className="mt-1 rounded-full bg-slate-100 p-2 text-slate-400 transition group-hover:bg-indigo-50 group-hover:text-indigo-600">
+      <span className="mt-1 shrink-0 rounded-full bg-slate-100 p-2 text-slate-400 transition group-hover:bg-indigo-50 group-hover:text-indigo-600">
         <ArrowRight size={18} />
       </span>
     </div>
 
-    <div className="mt-5 grid gap-2 rounded-xl bg-slate-50 p-3 text-sm text-slate-600">
-      <span className="inline-flex items-center gap-2">
+    <div className="mt-4 grid gap-2 rounded-xl bg-slate-50 p-3 text-sm text-slate-600 sm:mt-5">
+      <span className="inline-flex min-w-0 items-center gap-2">
         <CalendarDays size={16} />
-        {formatEventRange(event)}
+        <span className="min-w-0 truncate">{formatEventRange(event)}</span>
       </span>
-      <span className="inline-flex items-center gap-2">
+      <span className="inline-flex min-w-0 items-center gap-2">
         <Users size={16} />
-        {event.role === 'LEADER' ? 'Bạn là người điều phối' : 'Bạn là thành viên'}
+        <span className="min-w-0 truncate">{event.role === 'LEADER' ? 'Bạn là người điều phối' : 'Bạn là thành viên'}</span>
       </span>
-      <span className="inline-flex items-center gap-2">
+      <span className="inline-flex min-w-0 items-center gap-2">
         <MapPin size={16} />
-        {event.location || 'Chưa cập nhật địa điểm'}
+        <span className="min-w-0 truncate">{event.location || 'Chưa cập nhật địa điểm'}</span>
       </span>
     </div>
 
-    <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
+    <div className="mt-4 flex flex-col gap-2 border-t border-slate-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
       <span className="text-xs font-semibold text-slate-400">
         Tạo lúc {formatDate(event.createdAt)}
       </span>

@@ -167,8 +167,8 @@ const LoginPage = ({ onLoginSuccess }) => {
   return (
     <div className="flex min-h-screen flex-col bg-slate-50 text-slate-950">
       <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-7xl flex-col gap-2 px-5 py-4 sm:flex-row sm:items-center sm:justify-between lg:px-8">
-          <div>
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-5 sm:py-4 lg:px-8">
+          <div className="min-w-0">
             <p className="text-xl font-extrabold text-slate-950">Event Flow</p>
             <p className="text-sm text-slate-500">
               Nhóm EXE • Dự án hỗ trợ sự kiện FPTU
@@ -176,14 +176,14 @@ const LoginPage = ({ onLoginSuccess }) => {
           </div>
           <a
             href="mailto:event.flow.corp.vn@gmail.com"
-            className="text-sm font-semibold text-indigo-600 hover:text-indigo-700"
+            className="hidden shrink-0 text-sm font-semibold text-indigo-600 hover:text-indigo-700 sm:block"
           >
             event.flow.corp.vn@gmail.com
           </a>
         </div>
       </header>
 
-      <main className="mx-auto grid w-full max-w-7xl flex-1 items-center gap-8 px-5 py-8 lg:grid-cols-[1.1fr_0.9fr] lg:px-8">
+      <main className="mx-auto grid w-full max-w-7xl flex-1 items-center gap-8 px-4 py-5 sm:px-5 sm:py-8 lg:grid-cols-[1.1fr_0.9fr] lg:px-8">
         <section className="hidden lg:block">
           <div className="max-w-xl">
             <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-sm font-semibold text-indigo-700">
@@ -207,12 +207,12 @@ const LoginPage = ({ onLoginSuccess }) => {
           </div>
         </section>
 
-        <div className="mx-auto w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-          <div className="mb-8">
+        <div className="mx-auto w-full max-w-md rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:rounded-2xl sm:p-8">
+          <div className="mb-6 sm:mb-8">
             <p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">
               Event Flow
             </p>
-            <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-950">
+            <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-slate-950 sm:text-3xl">
               {title}
             </h1>
             <p className="mt-2 text-sm text-slate-500">
@@ -221,7 +221,7 @@ const LoginPage = ({ onLoginSuccess }) => {
           </div>
 
           {mode !== 'reset' && (
-            <div className="mb-6 flex rounded-xl bg-slate-100 p-1">
+            <div className="mb-5 flex rounded-xl bg-slate-100 p-1 sm:mb-6">
             <button
               type="button"
               onClick={() => switchMode('login')}
@@ -264,7 +264,7 @@ const LoginPage = ({ onLoginSuccess }) => {
                   placeholder="Nguyễn Văn A"
                   autoComplete="name"
                   required
-                  className="w-full rounded-xl border border-slate-300 px-10 py-2.5 text-sm transition-colors focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                  className="min-h-11 w-full rounded-xl border border-slate-300 px-10 py-2.5 text-sm transition-colors focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
                 />
               </div>
             </div>
@@ -286,7 +286,7 @@ const LoginPage = ({ onLoginSuccess }) => {
                   placeholder="email@example.com"
                   autoComplete="email"
                   required
-                  className="w-full rounded-xl border border-slate-300 px-10 py-2.5 text-sm transition-colors focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                  className="min-h-11 w-full rounded-xl border border-slate-300 px-10 py-2.5 text-sm transition-colors focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
                 />
               </div>
             </div>
@@ -309,7 +309,7 @@ const LoginPage = ({ onLoginSuccess }) => {
                   autoComplete={mode === 'reset' || mode === 'signup' ? 'new-password' : 'current-password'}
                   required
                   minLength={6}
-                  className="w-full rounded-xl border border-slate-300 px-10 py-2.5 text-sm transition-colors focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                  className="min-h-11 w-full rounded-xl border border-slate-300 px-10 py-2.5 text-sm transition-colors focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
                 />
               </div>
             </div>
@@ -330,7 +330,7 @@ const LoginPage = ({ onLoginSuccess }) => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-xl bg-indigo-600 py-3 font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
+            className="min-h-11 w-full rounded-xl bg-indigo-600 py-3 font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loading ? 'Đang xử lý...' : submitLabel}
           </button>
@@ -369,7 +369,7 @@ const LoginPage = ({ onLoginSuccess }) => {
       </main>
 
       <footer className="border-t border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-7xl flex-col gap-1 px-5 py-4 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between lg:px-8">
+        <div className="mx-auto flex max-w-7xl flex-col gap-1 px-4 py-4 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-5 lg:px-8">
           <span>© Event Flow - Nhóm EXE, dự án hỗ trợ sự kiện FPTU.</span>
           <a
             href="mailto:event.flow.corp.vn@gmail.com"
