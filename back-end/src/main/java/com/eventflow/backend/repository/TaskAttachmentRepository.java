@@ -22,9 +22,19 @@ public interface TaskAttachmentRepository extends JpaRepository<TaskAttachment, 
     List<TaskAttachment> findAllByTaskIdWithUploader(@Param("taskId") Long taskId);
 
     @Query("""
+            SELECT COALESCE(SUM(ta.sizeBytes), 0)
+            FROM TaskAttachment ta
+            WHERE ta.task.id = :taskId
+              AND UPPER(ta.storageProvider) <> 'LINK'
+            """)
+    long sumStoredFileSizeByTaskId(@Param("taskId") Long taskId);
+
+    @Query("""
             SELECT ta FROM TaskAttachment ta
             JOIN FETCH ta.task t
             JOIN FETCH t.event
+            LEFT JOIN FETCH t.department
+            LEFT JOIN FETCH t.assignee
             JOIN FETCH ta.uploader
             WHERE ta.id = :attachmentId
             """)

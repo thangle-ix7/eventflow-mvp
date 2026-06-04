@@ -20,7 +20,6 @@ import AppLayout from '../components/AppLayout';
 import {
   Button,
   EmptyState,
-  ErrorState,
   LoadingState,
   MetricCard,
   PageHeader,
@@ -32,7 +31,9 @@ import eventApi from '../api/eventApi';
 import eventMemberApi from '../api/eventMemberApi';
 import eventUtilityApi from '../api/eventUtilityApi';
 import taskApi from '../api/taskApi';
+import ErrorPage from './ErrorPage';
 import { formatDate } from '../utils/dateUtils';
+import { getDepartmentHomePath, getEventPermissions } from '../utils/permissionUtils';
 import {
   buildDashboardReport,
   exportDashboardCsv,
@@ -49,8 +50,8 @@ const PAGE_CONFIG = {
   },
   documents: {
     title: 'Tài liệu',
-    description: 'Tổng hợp attachment của mọi công việc trong sự kiện.',
-    meta: 'Tài liệu và file đính kèm trong sự kiện',
+    description: 'Tổng hợp attachment của các công việc trong phạm vi bạn được cấp quyền.',
+    meta: 'Tài liệu và file đính kèm',
     icon: FileText,
   },
   reports: {
@@ -70,6 +71,27 @@ const EVENT_STATUS_LABELS = {
   ACTIVE: 'Đang diễn ra',
   DONE: 'Hoàn thành',
   CANCELLED: 'Đã hủy',
+};
+
+const getUtilityDescription = (type, event, fallback) => {
+  if (event?.role === 'LEADER') {
+    return fallback;
+  }
+
+  if (type === 'calendar') {
+    return 'Các mốc chung của sự kiện, lịch thuộc ban của bạn hoặc lịch có bạn trong danh sách tham dự.';
+  }
+  if (type === 'documents') {
+    return 'Tài liệu bạn được cấp quyền xem: task của bạn, tài liệu ban của bạn, hoặc tài liệu được leader chia sẻ toàn sự kiện.';
+  }
+  if (type === 'reports') {
+    return 'Báo cáo từ task bạn phụ trách hoặc report do bạn tạo trong phạm vi sự kiện.';
+  }
+  if (type === 'settings') {
+    return 'Thông tin sự kiện ở chế độ xem, không bao gồm cấu hình quản trị.';
+  }
+
+  return fallback;
 };
 
 const EventUtilityPage = ({ user, onLogout, type }) => {
@@ -119,20 +141,22 @@ const EventUtilityPage = ({ user, onLogout, type }) => {
     queryFn: () => eventApi.getEvent(eventId),
     enabled: Boolean(eventId),
   });
+  const event = eventQuery.data;
+  const permissions = getEventPermissions(event);
   const tasksQuery = useQuery({
     queryKey: ['eventUtilityTasks', eventId],
     queryFn: () => taskApi.getEventTaskPage({ eventId, size: 100, sort: 'deadline', direction: 'asc' }),
-    enabled: Boolean(eventId),
+    enabled: Boolean(eventId && type === 'reports'),
   });
   const departmentsQuery = useQuery({
     queryKey: ['eventDepartments', eventId],
     queryFn: () => departmentApi.getEventDepartments(eventId),
-    enabled: Boolean(eventId),
+    enabled: Boolean(eventId && event && type !== 'documents' && (permissions.canManageDepartments || type === 'reports' || type === 'settings')),
   });
   const membersQuery = useQuery({
     queryKey: ['eventMembers', eventId],
     queryFn: () => eventMemberApi.getMembers(eventId),
-    enabled: Boolean(eventId),
+    enabled: Boolean(eventId && event && type !== 'documents' && (permissions.canManageMembers || type === 'reports' || type === 'settings')),
   });
   const calendarQuery = useQuery({
     queryKey: ['eventCalendar', eventId, calendarDate.year, calendarDate.month],
@@ -150,7 +174,6 @@ const EventUtilityPage = ({ user, onLogout, type }) => {
     enabled: Boolean(eventId && type === 'reports'),
   });
 
-  const event = eventQuery.data;
   const tasks = useMemo(() => tasksQuery.data?.content || [], [tasksQuery.data]);
   const departments = useMemo(() => departmentsQuery.data || [], [departmentsQuery.data]);
   const members = useMemo(() => membersQuery.data || [], [membersQuery.data]);
@@ -173,8 +196,8 @@ const EventUtilityPage = ({ user, onLogout, type }) => {
       <div className="space-y-6">
         <PageHeader
           eyebrow={event?.name || 'Sự kiện'}
-          title={config.title}
-          description={config.description}
+          title={type === 'settings' && event?.role !== 'LEADER' ? 'Thông tin' : config.title}
+          description={getUtilityDescription(type, event, config.description)}
           meta={
             <span className="inline-flex items-center gap-2">
               <Icon size={16} />
@@ -184,12 +207,18 @@ const EventUtilityPage = ({ user, onLogout, type }) => {
         />
 
         {isLoading && <LoadingState message={`Đang tải ${config.title.toLowerCase()}...`} />}
-        {error && <ErrorState error={error} title={`Không tải được ${config.title.toLowerCase()}`} />}
+        {!isLoading && error && (
+          <ErrorPage
+            variant="unexpected"
+            title={`Không tải được ${config.title.toLowerCase()}`}
+            message={error.userMessage || 'EventFlow chưa thể tải dữ liệu trang này. Vui lòng thử lại hoặc quay về trang trước.'}
+          />
+        )}
 
         {!isLoading && !error && (
           <>
             {type === 'calendar' && <CalendarContent eventId={eventId} event={event} departments={departments} members={members} calendar={calendarQuery.data} calendarDate={calendarDate} setCalendarDate={setCalendarDate} />}
-            {type === 'documents' && <DocumentsContent eventId={eventId} documents={documentsQuery.data || []} />}
+            {type === 'documents' && <DocumentsContent eventId={eventId} event={event} documents={documentsQuery.data || []} />}
             {type === 'reports' && <ReportsContent event={event} stats={stats} departments={departments} members={members} tasks={tasks} reportsData={reportsQuery.data} reportRange={reportRange} />}
             {type === 'settings' && <SettingsContent event={event} departments={departments} members={members} />}
           </>
@@ -1242,11 +1271,12 @@ const getCalendarItemTone = (item) => {
   return 'bg-slate-100 text-slate-700 hover:bg-slate-200';
 };
 
-const DocumentsContent = ({ eventId, documents }) => {
+const DocumentsContent = ({ eventId, event, documents }) => {
   const [search, setSearch] = useState('');
   const filteredDocuments = useMemo(() => filterDocuments(documents, search), [documents, search]);
   const documentTree = useMemo(() => buildDocumentTree(filteredDocuments), [filteredDocuments]);
   const totalTasks = useMemo(() => documentTree.reduce((total, department) => total + department.tasks.length, 0), [documentTree]);
+  const isLeader = event?.role === 'LEADER';
 
   const handleDownload = async (document) => {
     const blob = await taskApi.downloadTaskAttachment(document.id);
@@ -1264,9 +1294,11 @@ const DocumentsContent = ({ eventId, documents }) => {
   <Panel>
     <div className="flex flex-col gap-3 border-b border-slate-100 p-4 lg:flex-row lg:items-start lg:justify-between">
       <div>
-        <h3 className="font-bold text-slate-950">Tài liệu toàn sự kiện</h3>
+        <h3 className="font-bold text-slate-950">{isLeader ? 'Tài liệu toàn sự kiện' : 'Tài liệu được chia sẻ với bạn'}</h3>
         <p className="mt-1 text-sm text-slate-500">
-          Attachment được nhóm theo ban, task lớn và subtask để dễ tìm đúng ngữ cảnh.
+          {isLeader
+            ? 'Attachment được nhóm theo ban, task lớn và subtask để dễ tìm đúng ngữ cảnh.'
+            : 'Chỉ hiển thị tài liệu thuộc task của bạn, ban của bạn hoặc tài liệu được chia sẻ toàn sự kiện.'}
         </p>
         <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-slate-600">
           <span className="rounded-full bg-slate-100 px-2.5 py-1">{documentTree.length} ban</span>
@@ -1310,9 +1342,11 @@ const DocumentsContent = ({ eventId, documents }) => {
                       <p className="font-semibold text-slate-950">{task.taskTitle}</p>
                       <p className="text-sm text-slate-500">{task.fileCount} file • {task.subtasks.length} subtask có file</p>
                     </div>
-                    <Button as={Link} to={`/events/${eventId}/tasks/${task.taskId}/attachments`} variant="secondary">
-                      Mở task
-                    </Button>
+                    {task.canOpenTask && (
+                      <Button as={Link} to={`/events/${eventId}/tasks/${task.taskId}/attachments`} variant="secondary">
+                        Mở task
+                      </Button>
+                    )}
                   </summary>
                   <div className="divide-y divide-slate-100">
                     {task.attachments.length > 0 && (
@@ -1330,9 +1364,11 @@ const DocumentsContent = ({ eventId, documents }) => {
                             <p className="text-sm font-bold text-slate-800">Subtask: {subtask.taskTitle}</p>
                             <p className="text-xs text-slate-500">{subtask.attachments.length} file</p>
                           </div>
-                          <Button as={Link} to={`/events/${eventId}/tasks/${subtask.taskId}/attachments`} variant="secondary">
-                            Mở subtask
-                          </Button>
+                          {subtask.canOpenTask && (
+                            <Button as={Link} to={`/events/${eventId}/tasks/${subtask.taskId}/attachments`} variant="secondary">
+                              Mở subtask
+                            </Button>
+                          )}
                         </div>
                         <DocumentFileList
                           documents={subtask.attachments}
@@ -1361,18 +1397,32 @@ const DocumentFileList = ({ documents, eventId, label, onDownload }) => (
         <div className="min-w-0">
           <p className="truncate font-semibold text-slate-950">{document.originalName}</p>
           <p className="text-sm text-slate-500">
-            {documentTypeLabel(document.contentType)} • {document.uploaderName} • {formatDate(document.createdAt)}
+            {documentTypeLabel(document)} • {document.uploaderName} • {formatDate(document.createdAt)}
           </p>
-          <p className="mt-1 text-xs text-slate-400">{formatFileSize(document.sizeBytes)}</p>
+          <p className="mt-1 text-xs text-slate-400">
+            {document.attachmentType === 'LINK' ? 'Link ngoài' : formatFileSize(document.sizeBytes)}
+          </p>
+          <div className="mt-2">
+            <DocumentVisibilityBadge visibility={document.visibility} />
+          </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button as={Link} to={`/events/${eventId}/tasks/${document.taskId}/attachments`} variant="secondary">
-            Mở vị trí
-          </Button>
-          <Button type="button" onClick={() => onDownload(document)}>
-            <Download size={16} />
-            Tải xuống
-          </Button>
+          {document.canOpenTask && (
+            <Button as={Link} to={`/events/${eventId}/tasks/${document.taskId}/attachments`} variant="secondary">
+              Mở vị trí
+            </Button>
+          )}
+          {document.attachmentType === 'LINK' ? (
+            <Button as="a" href={document.externalUrl} target="_blank" rel="noreferrer" variant="secondary">
+              <ExternalLink size={16} />
+              Mở link
+            </Button>
+          ) : (
+            <Button type="button" onClick={() => onDownload(document)}>
+              <Download size={16} />
+              Tải xuống
+            </Button>
+          )}
         </div>
       </div>
     ))}
@@ -1392,6 +1442,7 @@ const filterDocuments = (documents, search) => {
     document.departmentName,
     document.uploaderName,
     document.contentType,
+    DOCUMENT_VISIBILITY_META[document.visibility]?.label,
   ].some((value) => String(value || '').toLowerCase().includes(keyword)));
 };
 
@@ -1421,6 +1472,7 @@ const buildDocumentTree = (documents) => {
         taskId: mainTaskId,
         taskTitle: document.parentTaskTitle || document.taskTitle || 'Task không tên',
         fileCount: 0,
+        canOpenTask: Boolean(document.canOpenTask),
         attachments: [],
         subtaskMap: new Map(),
       });
@@ -1428,6 +1480,7 @@ const buildDocumentTree = (documents) => {
 
     const task = department.taskMap.get(mainTaskKey);
     task.fileCount += 1;
+    task.canOpenTask = task.canOpenTask || Boolean(document.canOpenTask);
 
     if (document.subtask) {
       const subtaskKey = String(document.taskId);
@@ -1436,10 +1489,13 @@ const buildDocumentTree = (documents) => {
           key: subtaskKey,
           taskId: document.taskId,
           taskTitle: document.taskTitle || 'Subtask không tên',
+          canOpenTask: Boolean(document.canOpenTask),
           attachments: [],
         });
       }
-      task.subtaskMap.get(subtaskKey).attachments.push(document);
+      const subtask = task.subtaskMap.get(subtaskKey);
+      subtask.canOpenTask = subtask.canOpenTask || Boolean(document.canOpenTask);
+      subtask.attachments.push(document);
     } else {
       task.attachments.push(document);
     }
@@ -1454,13 +1510,30 @@ const buildDocumentTree = (documents) => {
   }));
 };
 
-const documentTypeLabel = (contentType) => {
+const documentTypeLabel = (document) => {
+  if (document?.attachmentType === 'LINK') return 'Link';
+  const contentType = document?.contentType;
   if (!contentType) return 'File';
   if (contentType.includes('pdf')) return 'PDF';
   if (contentType.includes('word')) return 'Word';
   if (contentType.includes('spreadsheet') || contentType.includes('excel')) return 'Excel';
   if (contentType.includes('image')) return 'Image';
   return 'File';
+};
+
+const DOCUMENT_VISIBILITY_META = {
+  TASK_ONLY: { label: 'Chỉ task này', className: 'bg-slate-100 text-slate-700' },
+  DEPARTMENT: { label: 'Ban phụ trách', className: 'bg-emerald-50 text-emerald-700' },
+  EVENT_PUBLIC: { label: 'Toàn sự kiện', className: 'bg-indigo-50 text-indigo-700' },
+};
+
+const DocumentVisibilityBadge = ({ visibility }) => {
+  const meta = DOCUMENT_VISIBILITY_META[visibility] || DOCUMENT_VISIBILITY_META.TASK_ONLY;
+  return (
+    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${meta.className}`}>
+      {meta.label}
+    </span>
+  );
 };
 
 const formatFileSize = (sizeBytes) => {
@@ -1569,31 +1642,70 @@ const ReportDownloadButtons = ({ report }) => (
   </div>
 );
 
-const SettingsContent = ({ event, departments, members }) => (
-  <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
-    <Panel className="p-5">
-      <h3 className="font-bold text-slate-950">Thông tin sự kiện</h3>
-      <dl className="mt-4 grid gap-4 sm:grid-cols-2">
-        <InfoItem label="Tên sự kiện" value={event?.name} />
-        <InfoItem label="Trạng thái" value={EVENT_STATUS_LABELS[event?.status] || event?.status || 'Đang diễn ra'} />
-        <InfoItem label="Vai trò của bạn" value={event?.role === 'LEADER' ? 'Trưởng nhóm' : 'Thành viên'} />
-        <InfoItem label="Thời gian diễn ra" value={formatEventRange(event)} />
-        <InfoItem label="Địa điểm" value={event?.location || 'Chưa có địa điểm'} />
-        <InfoItem label="Mô tả" value={event?.description || 'Chưa có mô tả'} />
-      </dl>
-    </Panel>
-    <Panel className="p-5">
-      <h3 className="font-bold text-slate-950">Cấu hình khả dụng</h3>
-      <p className="mt-2 text-sm leading-6 text-slate-600">
-        Trang này là khung cài đặt frontend. Các thao tác cấu hình nâng cao cần API backend riêng.
-      </p>
-      <div className="mt-4 space-y-3">
-        <SummaryPill label="Ban tổ chức" value={departments.length} />
-        <SummaryPill label="Thành viên" value={members.length} />
-      </div>
-    </Panel>
-  </div>
-);
+const SettingsContent = ({ event, departments, members }) => {
+  const isLeader = event?.role === 'LEADER';
+  const departmentPath = getDepartmentHomePath(event);
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
+      <Panel className="p-5">
+        <h3 className="font-bold text-slate-950">Thông tin sự kiện</h3>
+        <dl className="mt-4 grid gap-4 sm:grid-cols-2">
+          <InfoItem label="Tên sự kiện" value={event?.name} />
+          <InfoItem label="Trạng thái" value={EVENT_STATUS_LABELS[event?.status] || event?.status || 'Đang diễn ra'} />
+          <InfoItem label="Vai trò của bạn" value={isLeader ? 'Trưởng nhóm' : 'Thành viên'} />
+          <InfoItem label="Thời gian diễn ra" value={formatEventRange(event)} />
+          <InfoItem label="Địa điểm" value={event?.location || 'Chưa có địa điểm'} />
+          <InfoItem label="Mô tả" value={event?.description || 'Chưa có mô tả'} />
+        </dl>
+      </Panel>
+      <Panel className="p-5">
+        <h3 className="font-bold text-slate-950">{isLeader ? 'Cấu hình khả dụng' : 'Phạm vi hiển thị'}</h3>
+        <p className="mt-2 text-sm leading-6 text-slate-600">
+          {isLeader
+            ? 'Trang này là khung cài đặt frontend. Các thao tác cấu hình nâng cao cần API backend riêng.'
+            : 'Các số liệu bên dưới chỉ phản ánh dữ liệu bạn được phân quyền xem trong sự kiện này.'}
+        </p>
+        <div className="mt-4 space-y-3">
+          <SummaryPill label="Ban tổ chức" value={departments.length} />
+          <SummaryPill label="Thành viên" value={members.length} />
+        </div>
+      </Panel>
+      <Panel className="p-5 lg:col-span-2">
+        <h3 className="font-bold text-slate-950">{isLeader ? 'Tác vụ quản trị' : 'Lối tắt của bạn'}</h3>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {isLeader ? (
+            <>
+              <Button as={Link} to={`/events/${event?.id}/edit`} variant="secondary">
+                Sửa thông tin sự kiện
+              </Button>
+              <Button as={Link} to={`/events/${event?.id}/departments`} variant="secondary">
+                Quản lý ban
+              </Button>
+              <Button as={Link} to={`/events/${event?.id}/members`} variant="secondary">
+                Quản lý thành viên
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button as={Link} to={`/events/${event?.id}/tasks`} variant="secondary">
+                Công việc của tôi
+              </Button>
+              <Button as={Link} to={`/events/${event?.id}/documents`} variant="secondary">
+                Tài liệu được xem
+              </Button>
+              {departmentPath && (
+                <Button as={Link} to={departmentPath} variant="secondary">
+                  Thông tin ban
+                </Button>
+              )}
+            </>
+          )}
+        </div>
+      </Panel>
+    </div>
+  );
+};
 
 const SummaryPill = ({ label, value }) => (
   <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">

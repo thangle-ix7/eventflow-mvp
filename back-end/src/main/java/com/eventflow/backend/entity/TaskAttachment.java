@@ -36,8 +36,13 @@ public class TaskAttachment {
     @Column(name = "storage_provider", nullable = false, length = 50)
     private String storageProvider;
 
-    @Column(name = "storage_path", nullable = false, length = 500)
+    @Column(name = "storage_path", nullable = false, length = 2000)
     private String storagePath;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "visibility", nullable = false, length = 30)
+    @Builder.Default
+    private TaskAttachmentVisibility visibility = TaskAttachmentVisibility.TASK_ONLY;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     @Builder.Default

@@ -1,0 +1,2 @@
+ALTER TABLE task_attachments
+    ADD COLUMN visibility VARCHAR(30) NOT NULL DEFAULT 'TASK_ONLY';

@@ -244,22 +244,52 @@ const taskApi = {
     return response.data;
   },
 
-  uploadTaskAttachments: async ({ taskId, files }) => {
+  uploadTaskAttachments: async ({ taskId, files, linkUrl, linkTitle, visibility }) => {
     if (!taskId) {
       throw new Error('taskId không hợp lệ');
     }
 
-    if (!files?.length) {
-      throw new Error('Cần chọn ít nhất một file');
+    if (!files?.length && !linkUrl?.trim()) {
+      throw new Error('Cần chọn file hoặc nhập đường dẫn');
     }
 
     const formData = new FormData();
-    Array.from(files).forEach((file) => formData.append('files', file));
+    Array.from(files || []).forEach((file) => formData.append('files', file));
+    if (linkUrl?.trim()) {
+      formData.append('linkUrl', linkUrl.trim());
+    }
+    if (linkTitle?.trim()) {
+      formData.append('linkTitle', linkTitle.trim());
+    }
+    if (visibility) {
+      formData.append('visibility', visibility);
+    }
 
     const response = await apiClient.post(`/tasks/${taskId}/attachments`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     return response.data;
+  },
+
+  updateTaskAttachment: async ({ attachmentId, originalName, externalUrl, visibility }) => {
+    if (!attachmentId) {
+      throw new Error('attachmentId không hợp lệ');
+    }
+
+    const response = await apiClient.put(`/task-attachments/${attachmentId}`, {
+      originalName: originalName || undefined,
+      externalUrl: externalUrl || undefined,
+      visibility: visibility || undefined,
+    });
+    return response.data;
+  },
+
+  deleteTaskAttachment: async (attachmentId) => {
+    if (!attachmentId) {
+      throw new Error('attachmentId không hợp lệ');
+    }
+
+    await apiClient.delete(`/task-attachments/${attachmentId}`);
   },
 
   downloadTaskAttachment: async (attachmentId) => {

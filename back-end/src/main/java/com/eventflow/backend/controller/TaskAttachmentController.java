@@ -1,6 +1,7 @@
 package com.eventflow.backend.controller;
 
 import com.eventflow.backend.dto.TaskAttachmentResponseDTO;
+import com.eventflow.backend.dto.TaskAttachmentUpdateRequest;
 import com.eventflow.backend.security.EventSecurityService;
 import com.eventflow.backend.service.TaskAttachmentService;
 import com.eventflow.backend.service.TaskService;
@@ -33,27 +34,31 @@ public class TaskAttachmentController {
 
         Long userId = currentUserId(authentication);
         Long eventId = taskService.getEventIdByTaskId(taskId);
-        if (!eventSecurityService.isMemberOfEvent(eventId, userId)) {
+        if (!canViewTask(taskId, eventId, userId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
-        return ResponseEntity.ok(taskAttachmentService.getTaskAttachments(taskId));
+        return ResponseEntity.ok(taskAttachmentService.getTaskAttachments(taskId, userId));
     }
 
     @PostMapping(value = "/tasks/{taskId}/attachments", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<List<TaskAttachmentResponseDTO>> uploadTaskAttachments(
             @PathVariable Long taskId,
-            @RequestPart List<MultipartFile> files,
+            @RequestPart(required = false) List<MultipartFile> files,
+            @RequestParam(required = false) String linkUrl,
+            @RequestParam(required = false) String linkTitle,
+            @RequestParam(required = false) String visibility,
             Authentication authentication) {
 
         Long userId = currentUserId(authentication);
         Long eventId = taskService.getEventIdByTaskId(taskId);
-        if (!canAttachToTask(taskId, eventId, userId)) {
+        boolean leader = eventSecurityService.isLeaderOfEvent(eventId, userId);
+        if (!canAttachToTask(taskId, eventId, userId, leader)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(taskAttachmentService.uploadTaskAttachments(taskId, userId, files));
+                .body(taskAttachmentService.uploadTaskAttachments(taskId, userId, leader, visibility, files, linkUrl, linkTitle));
     }
 
     @GetMapping("/task-attachments/{attachmentId}/download")
@@ -61,12 +66,12 @@ public class TaskAttachmentController {
             @PathVariable Long attachmentId,
             Authentication authentication) {
 
-        var attachment = taskAttachmentService.getAttachmentDownload(attachmentId);
         Long userId = currentUserId(authentication);
-        if (!eventSecurityService.isMemberOfEvent(attachment.eventId(), userId)) {
+        if (!taskAttachmentService.canViewAttachment(attachmentId, userId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
+        var attachment = taskAttachmentService.getAttachmentDownload(attachmentId);
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.maxAge(10, TimeUnit.MINUTES).cachePrivate())
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + attachment.originalName() + "\"")
@@ -75,7 +80,41 @@ public class TaskAttachmentController {
                 .body(attachment.resource());
     }
 
-    private boolean canAttachToTask(Long taskId, Long eventId, Long userId) {
+    @PutMapping("/task-attachments/{attachmentId}")
+    public ResponseEntity<TaskAttachmentResponseDTO> updateTaskAttachment(
+            @PathVariable Long attachmentId,
+            @RequestBody TaskAttachmentUpdateRequest request,
+            Authentication authentication) {
+
+        Long userId = currentUserId(authentication);
+        Long eventId = taskAttachmentService.getAttachmentEventId(attachmentId);
+        boolean leader = eventSecurityService.isLeaderOfEvent(eventId, userId);
+        return ResponseEntity.ok(taskAttachmentService.updateAttachment(attachmentId, userId, leader, request));
+    }
+
+    @DeleteMapping("/task-attachments/{attachmentId}")
+    public ResponseEntity<Void> deleteTaskAttachment(
+            @PathVariable Long attachmentId,
+            Authentication authentication) {
+
+        Long userId = currentUserId(authentication);
+        Long eventId = taskAttachmentService.getAttachmentEventId(attachmentId);
+        boolean leader = eventSecurityService.isLeaderOfEvent(eventId, userId);
+        taskAttachmentService.deleteAttachment(attachmentId, userId, leader);
+        return ResponseEntity.noContent().build();
+    }
+
+    private boolean canAttachToTask(Long taskId, Long eventId, Long userId, boolean leader) {
+        if (!eventSecurityService.isMemberOfEvent(eventId, userId)) {
+            return false;
+        }
+        return leader || eventSecurityService.isTaskAssignee(taskId, userId);
+    }
+
+    private boolean canViewTask(Long taskId, Long eventId, Long userId) {
+        if (!eventSecurityService.isMemberOfEvent(eventId, userId)) {
+            return false;
+        }
         return eventSecurityService.isLeaderOfEvent(eventId, userId)
                 || eventSecurityService.isTaskAssignee(taskId, userId);
     }

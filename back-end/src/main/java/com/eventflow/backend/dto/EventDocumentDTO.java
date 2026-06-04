@@ -25,5 +25,11 @@ public class EventDocumentDTO {
     private String contentType;
     private Long sizeBytes;
     private String downloadUrl;
+    private String externalUrl;
+    private String attachmentType;
+    private String visibility;
+    private Boolean canEdit;
+    private Boolean canDelete;
+    private Boolean canOpenTask;
     private LocalDateTime createdAt;
 }

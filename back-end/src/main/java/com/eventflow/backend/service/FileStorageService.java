@@ -191,7 +191,10 @@ public class FileStorageService {
                 case "image/gif" -> ".gif";
                 case "image/jpeg" -> ".jpg";
                 case "application/pdf" -> ".pdf";
-                default -> "";
+                case "application/zip", "application/x-zip-compressed", "multipart/x-zip", "application/octet-stream" -> ".zip";
+                default -> originalName != null && originalName.contains(".")
+                        ? originalName.substring(originalName.lastIndexOf('.'))
+                        : "";
             };
         }
         if (originalName == null || !originalName.contains(".")) {

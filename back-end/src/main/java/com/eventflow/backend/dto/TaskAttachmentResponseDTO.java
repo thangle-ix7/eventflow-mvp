@@ -20,5 +20,10 @@ public class TaskAttachmentResponseDTO {
     private String contentType;
     private Long sizeBytes;
     private String downloadUrl;
+    private String externalUrl;
+    private String attachmentType;
+    private String visibility;
+    private Boolean canEdit;
+    private Boolean canDelete;
     private LocalDateTime createdAt;
 }

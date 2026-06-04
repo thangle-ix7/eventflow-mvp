@@ -44,7 +44,7 @@ public class EventUtilityService {
     private final ObjectMapper objectMapper;
     private final NotificationWorkflowService notificationWorkflowService;
 
-    public CalendarMonthResponse getCalendarMonth(Long eventId, Integer year, Integer month) {
+    public CalendarMonthResponse getCalendarMonth(Long eventId, Integer year, Integer month, Long userId, boolean leader) {
         YearMonth targetMonth = resolveMonth(year, month);
         LocalDate firstDay = targetMonth.atDay(1);
         LocalDate lastDay = targetMonth.atEndOfMonth();
@@ -75,13 +75,27 @@ public class EventUtilityService {
                   AND ce.start_time >= ?
                   AND ce.start_time < ?
                   AND ce.end_time < ?
+                  AND (
+                    ? = TRUE
+                    OR ce.department_id IS NULL
+                    OR ce.department_id = (
+                        SELECT em.department_id
+                        FROM event_members em
+                        WHERE em.event_id = ? AND em.user_id = ?
+                    )
+                    OR EXISTS (
+                        SELECT 1
+                        FROM calendar_event_attendees cea
+                        WHERE cea.calendar_event_id = ce.id AND cea.user_id = ?
+                    )
+                  )
                 ORDER BY ce.start_time ASC, ce.id ASC
                 """, rs -> {
             CalendarEventDTO item = mapCalendarEvent(rs, eventId);
             LocalDate date = item.getStartTime().toLocalDate();
             monthItems.add(item);
             itemsByDay.computeIfAbsent(date, ignored -> new ArrayList<>()).add(item);
-        }, eventId, Timestamp.valueOf(from), Timestamp.valueOf(toExclusive), Timestamp.valueOf(eventFrom), Timestamp.valueOf(eventToExclusive), Timestamp.valueOf(eventToExclusive));
+        }, eventId, Timestamp.valueOf(from), Timestamp.valueOf(toExclusive), Timestamp.valueOf(eventFrom), Timestamp.valueOf(eventToExclusive), Timestamp.valueOf(eventToExclusive), leader, eventId, userId, userId);
 
         Map<Long, List<CalendarAttendeeDTO>> attendeesByCalendarId = loadAttendees(eventId, monthItems.stream()
                 .map(CalendarEventDTO::getId)
@@ -221,14 +235,18 @@ public class EventUtilityService {
         return getCalendarItem(eventId, calendarItemId);
     }
 
-    public List<EventDocumentDTO> getEventDocuments(Long eventId) {
+    public List<EventDocumentDTO> getEventDocuments(Long eventId, Long userId, boolean leader) {
         return jdbcTemplate.query("""
-                SELECT ta.id, ta.task_id, ta.original_name, ta.content_type, ta.size_bytes, ta.created_at,
+                SELECT ta.id, ta.task_id, ta.original_name, ta.content_type, ta.size_bytes,
+                       ta.storage_provider, ta.storage_path, ta.created_at,
+                       COALESCE(ta.visibility, 'TASK_ONLY') AS visibility,
                        t.title AS task_title,
+                       t.assignee_id,
                        t.parent_id AS parent_task_id,
                        pt.title AS parent_task_title,
                        d.id AS department_id,
                        COALESCE(d.name, 'Chưa gán ban') AS department_name,
+                       ta.uploader_id,
                        u.name AS uploader_name
                 FROM task_attachments ta
                 JOIN tasks t ON t.id = ta.task_id
@@ -236,6 +254,21 @@ public class EventUtilityService {
                 LEFT JOIN departments d ON d.id = t.department_id
                 JOIN users u ON u.id = ta.uploader_id
                 WHERE t.event_id = ?
+                  AND (
+                    ? = TRUE
+                    OR ta.uploader_id = ?
+                    OR (COALESCE(ta.visibility, 'TASK_ONLY') = 'TASK_ONLY' AND t.assignee_id = ?)
+                    OR (
+                        COALESCE(ta.visibility, 'TASK_ONLY') = 'DEPARTMENT'
+                        AND t.department_id IS NOT NULL
+                        AND t.department_id = (
+                            SELECT em.department_id
+                            FROM event_members em
+                            WHERE em.event_id = ? AND em.user_id = ?
+                        )
+                    )
+                    OR COALESCE(ta.visibility, 'TASK_ONLY') = 'EVENT_PUBLIC'
+                  )
                 ORDER BY d.name ASC NULLS LAST,
                          COALESCE(pt.title, t.title) ASC,
                          CASE WHEN t.parent_id IS NULL THEN 0 ELSE 1 END ASC,
@@ -255,12 +288,20 @@ public class EventUtilityService {
                 .originalName(rs.getString("original_name"))
                 .contentType(rs.getString("content_type"))
                 .sizeBytes(rs.getLong("size_bytes"))
-                .downloadUrl("/api/task-attachments/" + rs.getLong("id") + "/download")
+                .downloadUrl("LINK".equalsIgnoreCase(rs.getString("storage_provider"))
+                        ? null
+                        : "/api/task-attachments/" + rs.getLong("id") + "/download")
+                .externalUrl("LINK".equalsIgnoreCase(rs.getString("storage_provider")) ? rs.getString("storage_path") : null)
+                .attachmentType("LINK".equalsIgnoreCase(rs.getString("storage_provider")) ? "LINK" : "FILE")
+                .visibility(rs.getString("visibility"))
+                .canEdit(leader || userId.equals(rs.getLong("uploader_id")))
+                .canDelete(leader || userId.equals(rs.getLong("uploader_id")))
+                .canOpenTask(leader || (rs.getObject("assignee_id") != null && userId.equals(rs.getLong("assignee_id"))))
                 .createdAt(rs.getTimestamp("created_at").toLocalDateTime())
-                .build(), eventId);
+                .build(), eventId, leader, userId, userId, eventId, userId);
     }
 
-    public EventReportsResponse getEventReports(Long eventId, LocalDate fromDate, LocalDate toDate) {
+    public EventReportsResponse getEventReports(Long eventId, LocalDate fromDate, LocalDate toDate, Long userId, boolean leader) {
         LocalDate[] range = resolveRange(fromDate, toDate);
         LocalDateTime from = range[0].atStartOfDay();
         LocalDateTime toExclusive = range[1].plusDays(1).atStartOfDay();
@@ -273,12 +314,13 @@ public class EventUtilityService {
                 FROM task_reports tr
                 JOIN tasks t ON t.id = tr.task_id
                 WHERE t.event_id = ? AND tr.created_at >= ? AND tr.created_at < ?
+                  AND (? = TRUE OR t.assignee_id = ? OR tr.reporter_id = ?)
                 """, (rs, rowNum) -> EventReportSummaryDTO.builder()
                 .totalReports(rs.getLong("total_reports"))
                 .reportsWithImages(rs.getLong("reports_with_images"))
                 .reportedTasks(rs.getLong("reported_tasks"))
                 .averageReportedProgress(rs.getDouble("average_reported_progress"))
-                .build(), eventId, Timestamp.valueOf(from), Timestamp.valueOf(toExclusive));
+                .build(), eventId, Timestamp.valueOf(from), Timestamp.valueOf(toExclusive), leader, userId, userId);
 
         List<EventReportItemDTO> reports = jdbcTemplate.query("""
                 SELECT tr.id, tr.task_id, tr.progress_percentage, tr.description, tr.image_storage_path,
@@ -291,6 +333,7 @@ public class EventUtilityService {
                 LEFT JOIN departments d ON d.id = t.department_id
                 JOIN users u ON u.id = tr.reporter_id
                 WHERE t.event_id = ? AND tr.created_at >= ? AND tr.created_at < ?
+                  AND (? = TRUE OR t.assignee_id = ? OR tr.reporter_id = ?)
                 ORDER BY tr.created_at DESC, tr.id DESC
                 """, (rs, rowNum) -> {
             Long reportId = rs.getLong("id");
@@ -310,7 +353,7 @@ public class EventUtilityService {
                     .createdAt(rs.getTimestamp("created_at").toLocalDateTime())
                     .updatedAt(rs.getTimestamp("updated_at").toLocalDateTime())
                     .build();
-        }, eventId, Timestamp.valueOf(from), Timestamp.valueOf(toExclusive));
+        }, eventId, Timestamp.valueOf(from), Timestamp.valueOf(toExclusive), leader, userId, userId);
 
         return EventReportsResponse.builder()
                 .fromDate(range[0])

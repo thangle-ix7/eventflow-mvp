@@ -43,7 +43,9 @@ public class EventUtilityController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
-        return ResponseEntity.ok(eventUtilityService.getCalendarMonth(eventId, year, month));
+        Long userId = currentUserId(authentication);
+        boolean leader = eventSecurityService.isLeaderOfEvent(eventId, userId);
+        return ResponseEntity.ok(eventUtilityService.getCalendarMonth(eventId, year, month, userId, leader));
     }
 
     @PostMapping("/events/{eventId}/calendar")
@@ -82,7 +84,9 @@ public class EventUtilityController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
-        return ResponseEntity.ok(eventUtilityService.getEventDocuments(eventId));
+        Long userId = currentUserId(authentication);
+        boolean leader = eventSecurityService.isLeaderOfEvent(eventId, userId);
+        return ResponseEntity.ok(eventUtilityService.getEventDocuments(eventId, userId, leader));
     }
 
     @GetMapping("/events/{eventId}/reports")
@@ -96,7 +100,9 @@ public class EventUtilityController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
-        return ResponseEntity.ok(eventUtilityService.getEventReports(eventId, fromDate, toDate));
+        Long userId = currentUserId(authentication);
+        boolean leader = eventSecurityService.isLeaderOfEvent(eventId, userId);
+        return ResponseEntity.ok(eventUtilityService.getEventReports(eventId, fromDate, toDate, userId, leader));
     }
 
     @GetMapping("/events/{eventId}/dashboard/comparison")
