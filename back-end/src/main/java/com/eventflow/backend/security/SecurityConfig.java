@@ -2,6 +2,7 @@ package com.eventflow.backend.security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -16,6 +17,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.Arrays;
 import java.util.List;
 
 @Configuration
@@ -25,6 +27,12 @@ public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
     private final ApiSecurityResponseWriter responseWriter;
+
+    @Value("${eventflow.security.cors.allowed-origins:http://localhost,http://127.0.0.1,http://localhost:5173,http://127.0.0.1:5173}")
+    private String allowedOrigins;
+
+    @Value("${eventflow.security.cors.allowed-origin-patterns:https://*.ngrok-free.app,https://*.ngrok.app}")
+    private String allowedOriginPatterns;
 
     public SecurityConfig(JwtAuthFilter jwtAuthFilter, ApiSecurityResponseWriter responseWriter) {
         this.jwtAuthFilter = jwtAuthFilter;
@@ -64,14 +72,8 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        configuration.setAllowedOrigins(List.of(
-                "http://localhost",
-                "http://127.0.0.1",
-                "http://localhost:5173",
-                "http://127.0.0.1:5173"));
-        configuration.setAllowedOriginPatterns(List.of(
-                "https://*.ngrok-free.app",
-                "https://*.ngrok.app"));
+        configuration.setAllowedOrigins(parseCsv(allowedOrigins));
+        configuration.setAllowedOriginPatterns(parseCsv(allowedOriginPatterns));
 
         configuration.setAllowedMethods(List.of(
                 "GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
@@ -90,5 +92,15 @@ public class SecurityConfig {
         source.registerCorsConfiguration("/**", configuration);
 
         return source;
+    }
+
+    private List<String> parseCsv(String value) {
+        if (value == null || value.isBlank()) {
+            return List.of();
+        }
+        return Arrays.stream(value.split(","))
+                .map(String::trim)
+                .filter(item -> !item.isBlank())
+                .toList();
     }
 }

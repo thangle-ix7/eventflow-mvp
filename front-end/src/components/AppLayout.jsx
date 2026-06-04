@@ -261,7 +261,7 @@ const AppLayoutFrame = ({
                 E
               </span>
               <span>
-                <span className="block text-xl font-extrabold leading-tight tracking-tight">EventFlow</span>
+                <span className="block text-xl font-extrabold leading-tight tracking-tight">Event Flow</span>
                 <span className="block text-xs text-slate-400 lg:hidden">Nhóm EXE • FPTU</span>
               </span>
             </Link>
@@ -275,7 +275,7 @@ const AppLayoutFrame = ({
                 type="search"
                 id="global-search"
                 name="globalSearch"
-                aria-label="Tìm kiếm trong EventFlow"
+                aria-label="Tìm kiếm trong Event Flow"
                 placeholder="Tìm kiếm sự kiện, công việc, ban..."
                 value={globalSearch}
                 onChange={(event) => setGlobalSearch(event.target.value)}
@@ -447,7 +447,7 @@ const AppLayoutFrame = ({
         <footer className="border-t border-slate-200 bg-white">
           <div className="mx-auto grid max-w-7xl gap-6 px-5 py-8 text-sm text-slate-500 md:grid-cols-[1.35fr_0.95fr_0.85fr] lg:px-8">
             <div>
-              <p className="text-base font-extrabold text-slate-900">EventFlow</p>
+              <p className="text-base font-extrabold text-slate-900">Event Flow</p>
               <p className="mt-2 leading-6">
                 Dự án EXE201 của nhóm sinh viên Trường Đại học FPT Hà Nội, cung cấp dịch vụ hỗ trợ tổ chức,
                 điều phối và quản lý sự kiện trên nền tảng số cho câu lạc bộ, đội nhóm, doanh nghiệp nhỏ và
@@ -466,7 +466,7 @@ const AppLayoutFrame = ({
             <div>
               <p className="font-bold text-slate-800">Thông tin dự án</p>
               <div className="mt-2 space-y-1.5">
-                <p>Nhóm dự án: EventFlow EXE201 Team</p>
+                <p>Nhóm dự án: Event Flow EXE201 Team</p>
                 <p>Đơn vị học thuật: Trường Đại học FPT Hà Nội</p>
                 <p>Trường Đại học FPT Hà Nội</p>
                 <p>Khu Công nghệ cao Hòa Lạc, Hà Nội</p>
@@ -495,7 +495,7 @@ const AppLayoutFrame = ({
                   GitHub
                 </a>
               </div>
-              <p className="mt-4 text-xs text-slate-400">© 2026 EventFlow EXE201 Team. All rights reserved.</p>
+              <p className="mt-4 text-xs text-slate-400">© 2026 Event Flow EXE201 Team. All rights reserved.</p>
             </div>
           </div>
         </footer>

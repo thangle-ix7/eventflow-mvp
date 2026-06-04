@@ -296,7 +296,7 @@ const LazyPageFallback = ({ children }) => (
 
 const ErrorRoutePage = ({ homePath, state }) => {
   const title = state?.title || resolveErrorTitle(state?.status);
-  const message = state?.message || 'EventFlow chưa thể tải nội dung này. Vui lòng thử lại hoặc quay về trang trước.';
+  const message = state?.message || 'Event Flow chưa thể tải nội dung này. Vui lòng thử lại hoặc quay về trang trước.';
 
   return (
     <ErrorPage

@@ -144,7 +144,7 @@ const LoginPage = ({ onLoginSuccess }) => {
     }
   };
 
-  const title = mode === 'reset' ? 'Đặt lại mật khẩu' : 'EventFlow';
+  const title = mode === 'reset' ? 'Đặt lại mật khẩu' : 'Event Flow';
   const submitLabel =
     mode === 'login'
       ? 'Đăng nhập'
@@ -169,7 +169,7 @@ const LoginPage = ({ onLoginSuccess }) => {
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-7xl flex-col gap-2 px-5 py-4 sm:flex-row sm:items-center sm:justify-between lg:px-8">
           <div>
-            <p className="text-xl font-extrabold text-slate-950">EventFlow</p>
+            <p className="text-xl font-extrabold text-slate-950">Event Flow</p>
             <p className="text-sm text-slate-500">
               Nhóm EXE • Dự án hỗ trợ sự kiện FPTU
             </p>
@@ -210,7 +210,7 @@ const LoginPage = ({ onLoginSuccess }) => {
         <div className="mx-auto w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
           <div className="mb-8">
             <p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">
-              EventFlow
+              Event Flow
             </p>
             <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-950">
               {title}
@@ -370,7 +370,7 @@ const LoginPage = ({ onLoginSuccess }) => {
 
       <footer className="border-t border-slate-200 bg-white">
         <div className="mx-auto flex max-w-7xl flex-col gap-1 px-5 py-4 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between lg:px-8">
-          <span>© EventFlow - Nhóm EXE, dự án hỗ trợ sự kiện FPTU.</span>
+          <span>© Event Flow - Nhóm EXE, dự án hỗ trợ sự kiện FPTU.</span>
           <a
             href="mailto:event.flow.corp.vn@gmail.com"
             className="font-semibold text-slate-700 hover:text-indigo-600"
