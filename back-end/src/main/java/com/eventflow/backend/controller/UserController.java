@@ -18,6 +18,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -166,6 +167,20 @@ public class UserController {
         }
 
         return ResponseEntity.ok(telegramBotService.createLinkToken(userId));
+    }
+
+    @DeleteMapping("/{userId}/telegram-connection")
+    public ResponseEntity<Void> disconnectTelegram(
+            @PathVariable Long userId,
+            Authentication authentication) {
+
+        Long authenticatedUserId = (Long) authentication.getPrincipal();
+        if (!authenticatedUserId.equals(userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        telegramBotService.disconnectTelegramAccount(userId);
+        return ResponseEntity.noContent().build();
     }
 
     private List<NotificationResponse> loadRecentNotifications(Long userId) {

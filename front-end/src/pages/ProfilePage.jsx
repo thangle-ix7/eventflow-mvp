@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Camera, Loader2, Mail, Send, User } from 'lucide-react';
+import { Camera, Loader2, Mail, Send, Unlink, User } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import userApi from '../api/userApi';
 
@@ -35,6 +35,16 @@ const ProfilePage = ({ user, onLogout, onUserUpdate }) => {
     },
   });
 
+  const disconnectTelegramMutation = useMutation({
+    mutationFn: () => userApi.disconnectTelegram(user.userId),
+    onSuccess: () => {
+      const nextProfile = { ...profile, telegramChatId: null, telegram_chat_id: null };
+      queryClient.setQueryData(['profile', user.userId], nextProfile);
+      queryClient.invalidateQueries({ queryKey: ['userProfile', user.userId] });
+      onUserUpdate?.({ ...user, telegramChatId: null, telegram_chat_id: null });
+    },
+  });
+
   const handleFileChange = (event) => {
     const file = event.target.files?.[0];
     if (!file) {
@@ -43,6 +53,13 @@ const ProfilePage = ({ user, onLogout, onUserUpdate }) => {
 
     setSelectedFileName(file.name);
     uploadMutation.mutate({ userId: user.userId, file });
+  };
+
+  const handleDisconnectTelegram = () => {
+    const confirmed = window.confirm('Ngắt kết nối Telegram khỏi tài khoản EventFlow này?');
+    if (confirmed) {
+      disconnectTelegramMutation.mutate();
+    }
   };
 
   const profile = profileQuery.data || user;
@@ -110,11 +127,12 @@ const ProfilePage = ({ user, onLogout, onUserUpdate }) => {
             </div>
           )}
 
-          {(profileQuery.error || uploadMutation.error || avatarQuery.error) && (
+          {(profileQuery.error || uploadMutation.error || avatarQuery.error || disconnectTelegramMutation.error) && (
             <div className="mt-5 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
               {profileQuery.error?.userMessage ||
                 uploadMutation.error?.userMessage ||
                 avatarQuery.error?.userMessage ||
+                disconnectTelegramMutation.error?.userMessage ||
                 'Không xử lý được profile'}
             </div>
           )}
@@ -125,10 +143,10 @@ const ProfilePage = ({ user, onLogout, onUserUpdate }) => {
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <InfoItem icon={<User size={18} />} label="Họ tên" value={profile.name} />
             <InfoItem icon={<Mail size={18} />} label="Email" value={profile.email} />
-            <InfoItem
-              icon={<Send size={18} />}
-              label="Telegram"
-              value={profile.telegramChatId ? 'Đã kết nối' : 'Chưa kết nối'}
+            <TelegramInfoItem
+              connected={Boolean(profile.telegramChatId || profile.telegram_chat_id)}
+              isDisconnecting={disconnectTelegramMutation.isPending}
+              onDisconnect={handleDisconnectTelegram}
             />
             <InfoItem label="User ID" value={profile.userId} />
           </div>
@@ -145,6 +163,35 @@ const InfoItem = ({ icon, label, value }) => (
       {label}
     </div>
     <p className="mt-1 break-words text-sm text-gray-900">{value || 'N/A'}</p>
+  </div>
+);
+
+const TelegramInfoItem = ({ connected, isDisconnecting, onDisconnect }) => (
+  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+    <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+      <Send size={18} />
+      Telegram
+    </div>
+    <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <p className={`text-sm font-semibold ${connected ? 'text-emerald-700' : 'text-gray-600'}`}>
+        {connected ? 'Đã kết nối' : 'Chưa kết nối'}
+      </p>
+      {connected && (
+        <button
+          type="button"
+          onClick={onDisconnect}
+          disabled={isDisconnecting}
+          className="inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {isDisconnecting ? (
+            <Loader2 size={14} className="animate-spin" />
+          ) : (
+            <Unlink size={14} />
+          )}
+          Ngắt kết nối
+        </button>
+      )}
+    </div>
   </div>
 );
 

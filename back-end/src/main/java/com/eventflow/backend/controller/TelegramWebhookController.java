@@ -18,7 +18,16 @@ public class TelegramWebhookController {
     @PostMapping("/telegram")
     public ResponseEntity<Void> handleTelegramUpdate(@RequestBody(required = false) TelegramUpdate update) {
 
-        if (update == null || update.getMessage() == null) {
+        if (update == null) {
+            return ResponseEntity.ok().build();
+        }
+
+        if (update.getCallbackQuery() != null) {
+            handleCallback(update.getCallbackQuery());
+            return ResponseEntity.ok().build();
+        }
+
+        if (update.getMessage() == null) {
             return ResponseEntity.ok().build();
         }
 
@@ -45,12 +54,25 @@ public class TelegramWebhookController {
         }
 
         try {
-            telegramBotService.linkTelegramAccount(parts[1], chatId.toString());
+            telegramBotService.requestTelegramLinkConfirmation(parts[1], chatId.toString());
         } catch (Exception e) {
             telegramBotService.sendErrorMessage(chatId.toString());
         }
 
         return ResponseEntity.ok().build();
+    }
+
+    private void handleCallback(TelegramUpdate.CallbackQuery callbackQuery) {
+        if (callbackQuery.getMessage() == null || callbackQuery.getMessage().getChat() == null) {
+            return;
+        }
+
+        Long chatId = callbackQuery.getMessage().getChat().getId();
+        try {
+            telegramBotService.handleCallback(callbackQuery.getId(), callbackQuery.getData(), chatId.toString());
+        } catch (Exception e) {
+            telegramBotService.sendErrorMessage(chatId.toString());
+        }
     }
 
 }

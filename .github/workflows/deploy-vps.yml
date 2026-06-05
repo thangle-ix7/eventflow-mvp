@@ -3,10 +3,19 @@ name: Deploy VPS
 on:
   workflow_dispatch:
     inputs:
+      git_ref:
+        description: Git ref to deploy
+        required: true
+        default: main
       healthcheck_url:
         description: Public URL to smoke check after deploy
         required: true
-        default: https://event-flow.example.com
+        default: https://eventflow.vn
+      enable_maintenance:
+        description: Show maintenance page while deploying
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -24,9 +33,12 @@ jobs:
     name: Deploy to VPS
     runs-on: ubuntu-latest
     needs: verify
+    environment: production
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.git_ref }}
 
       - name: Configure SSH
         run: |
@@ -46,8 +58,11 @@ jobs:
             set -eu
             cd '$VPS_APP_DIR'
             git fetch --prune origin
-            git checkout main
-            git pull --ff-only origin main
+            git checkout '${{ inputs.git_ref }}'
+            git pull --ff-only origin '${{ inputs.git_ref }}'
+            if [ '${{ inputs.enable_maintenance }}' = 'true' ]; then
+              sh deploy/scripts/maintenance.sh on
+            fi
             sh deploy/scripts/deploy.sh
           "
 
@@ -63,4 +78,18 @@ jobs:
             set -eu
             cd '$VPS_APP_DIR'
             sh deploy/scripts/healthcheck.sh '$HEALTHCHECK_URL'
+          "
+
+      - name: Disable maintenance mode
+        if: always() && inputs.enable_maintenance
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PORT: ${{ secrets.VPS_PORT || '22' }}
+          VPS_APP_DIR: ${{ secrets.VPS_APP_DIR || '/opt/eventflow' }}
+        run: |
+          ssh -i ~/.ssh/eventflow_deploy_key -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "
+            set -eu
+            cd '$VPS_APP_DIR'
+            sh deploy/scripts/maintenance.sh off
           "
