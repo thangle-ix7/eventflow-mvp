@@ -19,7 +19,10 @@ import java.security.Principal;
 import java.util.UUID;
 
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -94,6 +97,24 @@ class UserControllerTest {
                 .andExpect(jsonPath("$[0].eventId").value(20))
                 .andExpect(jsonPath("$[0].eventName").value("Launch Day"))
                 .andExpect(jsonPath("$[0].calendarStartTime").value("2026-06-05T09:30:00"));
+    }
+
+    @Test
+    void disconnectTelegramAllowsAuthenticatedOwner() throws Exception {
+        mockMvc.perform(delete("/api/v1/users/42/telegram-connection")
+                        .principal(authenticatedUser(42L)))
+                .andExpect(status().isNoContent());
+
+        verify(telegramBotService).disconnectTelegramAccount(42L);
+    }
+
+    @Test
+    void disconnectTelegramRejectsDifferentUser() throws Exception {
+        mockMvc.perform(delete("/api/v1/users/42/telegram-connection")
+                        .principal(authenticatedUser(99L)))
+                .andExpect(status().isForbidden());
+
+        verify(telegramBotService, never()).disconnectTelegramAccount(42L);
     }
 
     private void createNotificationSchema() {

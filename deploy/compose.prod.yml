@@ -13,6 +13,8 @@ services:
       - "443:443/udp"
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./caddy:/srv/caddy:ro
+      - ./maintenance:/srv/maintenance:ro
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
@@ -102,7 +104,7 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_API_BASE_URL: /api/v1
-        VITE_TELEGRAM_BOT_USERNAME: eventflow_mvp_bot
+        VITE_TELEGRAM_BOT_USERNAME: ${PROD_TELEGRAM_BOT_USERNAME:-eventflow_mvp_bot}
     container_name: eventflow-frontend-prod
     restart: unless-stopped
     depends_on:
@@ -119,7 +121,7 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_API_BASE_URL: /api/v1
-        VITE_TELEGRAM_BOT_USERNAME: eventflow_mvp_bot
+        VITE_TELEGRAM_BOT_USERNAME: ${STAGING_TELEGRAM_BOT_USERNAME:-Eventflow_vn_bot}
     container_name: eventflow-frontend-staging
     restart: unless-stopped
     depends_on:

@@ -1,0 +1,35 @@
+{
+	email {$ACME_EMAIL}
+}
+
+{$PROD_DOMAIN} {
+	encode zstd gzip
+
+	header {
+		Cache-Control "no-store"
+	}
+
+	handle /api/webhooks/* {
+		reverse_proxy backend-prod:8080
+	}
+
+	handle {
+		root * /srv/maintenance
+		rewrite * /maintenance.html
+		file_server
+	}
+}
+
+{$STAGING_DOMAIN} {
+	encode zstd gzip
+
+	handle /api/webhooks/* {
+		reverse_proxy backend-staging:8080
+	}
+
+	handle {
+		root * /srv/maintenance
+		rewrite * /maintenance.html
+		file_server
+	}
+}

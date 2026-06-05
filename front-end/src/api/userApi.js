@@ -35,6 +35,14 @@ const userApi = {
     return response.data;
   },
 
+  disconnectTelegram: async (userId) => {
+    if (!userId) {
+      throw new Error('userId không hợp lệ');
+    }
+
+    await apiClient.delete(`/users/${userId}/telegram-connection`);
+  },
+
   getPendingNotificationCount: async (userId) => {
     if (!userId) {
       throw new Error('userId không hợp lệ');

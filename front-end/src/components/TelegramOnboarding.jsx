@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { MessageCircle, X } from 'lucide-react';
+import { Check, Copy, ExternalLink, MessageCircle, X } from 'lucide-react';
 import userApi from '../api/userApi';
 import { appConfig } from '../config/appConfig';
 
@@ -9,6 +9,7 @@ const TelegramOnboarding = ({ userId }) => {
     return sessionStorage.getItem('telegram_dismissed_session') === 'true';
   });
   const [linkToken, setLinkToken] = useState(null);
+  const [copiedCommand, setCopiedCommand] = useState(false);
 
   const { data: user, refetch, isLoading, error, isFetching } = useQuery({
     queryKey: ['userProfile', userId],
@@ -35,6 +36,8 @@ const TelegramOnboarding = ({ userId }) => {
         : null,
     [linkToken]
   );
+
+  const startCommand = linkToken?.token ? `/start ${linkToken.token}` : '';
 
   useEffect(() => {
     if (dismissed) return;
@@ -69,6 +72,18 @@ const TelegramOnboarding = ({ userId }) => {
     }
   };
 
+  const handleCopyCommand = async () => {
+    try {
+      const tokenResponse =
+        linkToken || (await createTokenMutation.mutateAsync());
+      await navigator.clipboard.writeText(`/start ${tokenResponse.token}`);
+      setCopiedCommand(true);
+      window.setTimeout(() => setCopiedCommand(false), 2500);
+    } catch {
+      // Mutation/clipboard error is rendered below when available.
+    }
+  };
+
   if (isLoading || isTelegramConnected || dismissed) return null;
 
   return (
@@ -81,7 +96,7 @@ const TelegramOnboarding = ({ userId }) => {
           <div className="min-w-0">
             <h2 className="font-bold text-slate-950">Kết nối Telegram</h2>
             <p className="mt-1 text-sm leading-5 text-slate-600">
-              Nhận nhắc nhở deadline tự động. Bạn có thể bỏ qua và tiếp tục dùng dashboard.
+              Nhận nhắc nhở deadline tự động. Mở bot rồi xác nhận tài khoản trong Telegram.
             </p>
           </div>
         </div>
@@ -94,21 +109,36 @@ const TelegramOnboarding = ({ userId }) => {
           </div>
         )}
 
-        <div className="grid shrink-0 grid-cols-[1fr_auto] gap-2 sm:grid-cols-[1fr_1fr_auto] lg:min-w-[390px]">
+        <div className="grid shrink-0 grid-cols-[1fr_auto] gap-2 sm:grid-cols-[1fr_1fr_1fr_auto] lg:min-w-[520px]">
           <button
             type="button"
             onClick={handleOpenTelegram}
             disabled={createTokenMutation.isPending}
-            className="min-h-10 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-70"
+            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-70"
           >
+            <ExternalLink className="h-4 w-4" strokeWidth={1.8} />
             {createTokenMutation.isPending ? 'Đang tạo link...' : 'Mở Telegram'}
+          </button>
+
+          <button
+            type="button"
+            onClick={handleCopyCommand}
+            disabled={createTokenMutation.isPending}
+            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60 max-sm:col-span-2 max-sm:row-start-2"
+          >
+            {copiedCommand ? (
+              <Check className="h-4 w-4 text-emerald-600" strokeWidth={1.8} />
+            ) : (
+              <Copy className="h-4 w-4" strokeWidth={1.8} />
+            )}
+            {copiedCommand ? 'Đã copy' : 'Copy lệnh'}
           </button>
 
           <button
             type="button"
             onClick={() => refetch()}
             disabled={isFetching}
-            className="min-h-10 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60 max-sm:col-span-2 max-sm:row-start-2"
+            className="min-h-10 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60 max-sm:col-span-2"
           >
             {isFetching ? 'Đang kiểm tra...' : 'Kiểm tra kết nối'}
           </button>
@@ -124,10 +154,14 @@ const TelegramOnboarding = ({ userId }) => {
         </div>
       </div>
       {telegramConnectUrl && (
-        <p className="mt-3 break-all text-xs text-slate-400">
-          Hoặc mở Telegram và gõ:{' '}
-          <span className="font-mono font-semibold">/start {linkToken.token}</span>
-        </p>
+        <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-500">
+          <p>
+            Nếu trình duyệt không mở được Telegram, tìm bot{' '}
+            <span className="font-semibold text-slate-700">@{appConfig.telegramBotUsername}</span>{' '}
+            trên Telegram Web/điện thoại rồi gửi:
+          </p>
+          <p className="mt-1 break-all font-mono font-semibold text-slate-800">{startCommand}</p>
+        </div>
       )}
     </div>
   );
