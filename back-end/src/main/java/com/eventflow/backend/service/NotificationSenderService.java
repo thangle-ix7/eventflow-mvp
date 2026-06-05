@@ -18,6 +18,7 @@ import org.springframework.web.util.HtmlUtils;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import jakarta.mail.internet.MimeMessage;
+import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
@@ -114,7 +115,7 @@ public class NotificationSenderService {
 
     private String buildMessage(Notification notification, User user, Task task) {
         if (notification.getMessage() != null && !notification.getMessage().isBlank()) {
-            return notification.getMessage();
+            return decodeLegacyUrlEncodedMessage(notification.getMessage());
         }
 
         String userName = user != null ? user.getName() : "Người dùng";
@@ -135,6 +136,19 @@ public class NotificationSenderService {
                     CALENDAR_INVITE, CALENDAR_UPDATED, CALENDAR_REMINDER_TOMORROW, CALENDAR_REMINDER_SOON ->
                     notification.getTitle() != null ? notification.getTitle() : "Bạn có thông báo mới từ EventFlow.";
         };
+    }
+
+    private String decodeLegacyUrlEncodedMessage(String message) {
+        if (message == null || !message.contains("%")) {
+            return message;
+        }
+
+        try {
+            String decoded = URLDecoder.decode(message, StandardCharsets.UTF_8);
+            return decoded.isBlank() ? message : decoded;
+        } catch (IllegalArgumentException e) {
+            return message;
+        }
     }
 
     private String resolveEmailSubject(Notification notification) {

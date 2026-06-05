@@ -30,13 +30,14 @@ const TelegramOnboarding = ({ userId }) => {
     onSuccess: (tokenResponse) => setLinkToken(tokenResponse),
   });
 
-  const telegramConnectUrl = useMemo(
+  const telegramAppUrl = useMemo(
     () =>
       linkToken?.token
         ? `https://t.me/${appConfig.telegramBotUsername}?start=${linkToken.token}`
         : null,
     [linkToken]
   );
+  const telegramWebUrl = `https://web.telegram.org/a/#@${appConfig.telegramBotUsername}`;
 
   const startCommand = linkToken?.token ? `/start ${linkToken.token}` : '';
 
@@ -58,7 +59,27 @@ const TelegramOnboarding = ({ userId }) => {
     setDismissed(true);
   };
 
-  const handleOpenTelegram = async () => {
+  const copyStartCommand = async (token) => {
+    await navigator.clipboard.writeText(`/start ${token}`);
+  };
+
+  const handleOpenTelegramWeb = async () => {
+    try {
+      const tokenResponse =
+        linkToken || (await createTokenMutation.mutateAsync());
+
+      await copyStartCommand(tokenResponse.token);
+      window.open(telegramWebUrl, '_blank', 'noopener,noreferrer');
+      setConnectionStatus({
+        type: 'info',
+        message: 'Đã copy lệnh và mở Telegram Web. Dán lệnh vào chat bot, bấm Xác nhận, rồi kiểm tra lại.',
+      });
+    } catch {
+      // Mutation error is rendered below.
+    }
+  };
+
+  const handleOpenTelegramApp = async () => {
     try {
       const tokenResponse =
         linkToken || (await createTokenMutation.mutateAsync());
@@ -70,7 +91,7 @@ const TelegramOnboarding = ({ userId }) => {
       );
       setConnectionStatus({
         type: 'info',
-        message: 'Đã mở Telegram. Hãy bấm START hoặc gửi lệnh /start, rồi bấm Xác nhận trong bot.',
+        message: 'Đã mở Telegram. Nếu trình duyệt không vào được chat bot, dùng nút Copy lệnh hoặc Telegram Web.',
       });
     } catch {
       // Mutation error is rendered below.
@@ -81,7 +102,7 @@ const TelegramOnboarding = ({ userId }) => {
     try {
       const tokenResponse =
         linkToken || (await createTokenMutation.mutateAsync());
-      await navigator.clipboard.writeText(`/start ${tokenResponse.token}`);
+      await copyStartCommand(tokenResponse.token);
       setCopiedCommand(true);
       setConnectionStatus({
         type: 'info',
@@ -140,15 +161,15 @@ const TelegramOnboarding = ({ userId }) => {
           </div>
         )}
 
-        <div className="grid shrink-0 grid-cols-[1fr_auto] gap-2 sm:grid-cols-[1fr_1fr_1fr_auto] lg:min-w-[520px]">
+        <div className="grid shrink-0 grid-cols-[1fr_auto] gap-2 sm:grid-cols-[1fr_1fr] lg:min-w-[680px] lg:grid-cols-[1fr_1fr_1fr_1fr_auto]">
           <button
             type="button"
-            onClick={handleOpenTelegram}
+            onClick={handleOpenTelegramWeb}
             disabled={createTokenMutation.isPending}
             className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-70"
           >
             <ExternalLink className="h-4 w-4" strokeWidth={1.8} />
-            {createTokenMutation.isPending ? 'Đang tạo link...' : 'Mở Telegram'}
+            {createTokenMutation.isPending ? 'Đang tạo link...' : 'Mở Telegram Web'}
           </button>
 
           <button
@@ -176,6 +197,15 @@ const TelegramOnboarding = ({ userId }) => {
 
           <button
             type="button"
+            onClick={handleOpenTelegramApp}
+            disabled={createTokenMutation.isPending}
+            className="min-h-10 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60 max-sm:col-span-2"
+          >
+            Mở app
+          </button>
+
+          <button
+            type="button"
             onClick={handleDismiss}
             className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"
             aria-label="Bỏ qua kết nối Telegram"
@@ -197,12 +227,12 @@ const TelegramOnboarding = ({ userId }) => {
           {connectionStatus.message}
         </div>
       )}
-      {telegramConnectUrl && (
+      {telegramAppUrl && (
         <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-500">
           <p>
-            Nếu trình duyệt không mở được Telegram, tìm bot{' '}
+            Telegram Web sẽ mở chat bot và lệnh đã được copy sẵn. Nếu dùng điện thoại, tìm bot{' '}
             <span className="font-semibold text-slate-700">@{appConfig.telegramBotUsername}</span>{' '}
-            trên Telegram Web/điện thoại rồi gửi:
+            rồi gửi:
           </p>
           <p className="mt-1 break-all font-mono font-semibold text-slate-800">{startCommand}</p>
         </div>
