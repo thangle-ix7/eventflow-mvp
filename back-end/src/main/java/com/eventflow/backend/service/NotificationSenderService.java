@@ -65,12 +65,12 @@ public class NotificationSenderService {
 
     private boolean sendTelegram(String chatId, String text) {
         try {
-            String url = UriComponentsBuilder.fromHttpUrl("https://api.telegram.org/bot" + botToken + "/sendMessage")
-                    .queryParam("chat_id", chatId)
-                    .queryParam("text", text)
-                    .toUriString();
+            String url = "https://api.telegram.org/bot" + botToken + "/sendMessage";
+            Map<String, Object> body = new HashMap<>();
+            body.put("chat_id", chatId);
+            body.put("text", text);
 
-            Map<String, Object> response = restTemplate.postForObject(url, null, Map.class);
+            Map<String, Object> response = restTemplate.postForObject(url, body, Map.class);
             return response != null && Boolean.TRUE.equals(response.get("ok"));
         } catch (RestClientException e) {
             log.error("Telegram send failed for chatId={}: {}", chatId, e.getMessage());

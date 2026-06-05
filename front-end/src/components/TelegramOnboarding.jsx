@@ -10,6 +10,7 @@ const TelegramOnboarding = ({ userId }) => {
   });
   const [linkToken, setLinkToken] = useState(null);
   const [copiedCommand, setCopiedCommand] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState(null);
 
   const { data: user, refetch, isLoading, error, isFetching } = useQuery({
     queryKey: ['userProfile', userId],
@@ -67,6 +68,10 @@ const TelegramOnboarding = ({ userId }) => {
         '_blank',
         'noopener,noreferrer'
       );
+      setConnectionStatus({
+        type: 'info',
+        message: 'Đã mở Telegram. Hãy bấm START hoặc gửi lệnh /start, rồi bấm Xác nhận trong bot.',
+      });
     } catch {
       // Mutation error is rendered below.
     }
@@ -78,13 +83,39 @@ const TelegramOnboarding = ({ userId }) => {
         linkToken || (await createTokenMutation.mutateAsync());
       await navigator.clipboard.writeText(`/start ${tokenResponse.token}`);
       setCopiedCommand(true);
+      setConnectionStatus({
+        type: 'info',
+        message: 'Đã copy lệnh. Dán lệnh vào chat với bot Telegram, bấm Xác nhận, rồi kiểm tra lại.',
+      });
       window.setTimeout(() => setCopiedCommand(false), 2500);
     } catch {
       // Mutation/clipboard error is rendered below when available.
     }
   };
 
-  if (isLoading || isTelegramConnected || dismissed) return null;
+  const handleCheckConnection = async () => {
+    setConnectionStatus({
+      type: 'info',
+      message: 'Đang kiểm tra kết nối Telegram...',
+    });
+
+    const result = await refetch();
+    const chatId = result.data?.telegramChatId || result.data?.telegram_chat_id;
+    setConnectionStatus(
+      chatId
+        ? {
+            type: 'success',
+            message: 'Kết nối Telegram thành công. Bạn sẽ nhận nhắc việc tự động qua bot.',
+          }
+        : {
+            type: 'warning',
+            message: 'Chưa thấy kết nối. Hãy gửi lệnh /start trong Telegram và bấm Xác nhận trong bot.',
+          }
+    );
+  };
+
+  if (isLoading || dismissed) return null;
+  if (isTelegramConnected && connectionStatus?.type !== 'success') return null;
 
   return (
     <div className="fixed bottom-3 left-3 right-3 z-50 mx-auto max-h-[calc(100vh-1.5rem)] max-w-4xl overflow-y-auto rounded-xl border border-indigo-200 bg-white p-3 shadow-xl shadow-slate-950/10 sm:bottom-4 sm:left-4 sm:right-4 sm:p-4">
@@ -136,7 +167,7 @@ const TelegramOnboarding = ({ userId }) => {
 
           <button
             type="button"
-            onClick={() => refetch()}
+            onClick={handleCheckConnection}
             disabled={isFetching}
             className="min-h-10 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60 max-sm:col-span-2"
           >
@@ -153,6 +184,19 @@ const TelegramOnboarding = ({ userId }) => {
           </button>
         </div>
       </div>
+      {connectionStatus && (
+        <div
+          className={`mt-3 rounded-lg border px-3 py-2 text-sm leading-5 ${
+            connectionStatus.type === 'success'
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+              : connectionStatus.type === 'warning'
+                ? 'border-amber-200 bg-amber-50 text-amber-700'
+                : 'border-indigo-200 bg-indigo-50 text-indigo-700'
+          }`}
+        >
+          {connectionStatus.message}
+        </div>
+      )}
       {telegramConnectUrl && (
         <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-500">
           <p>

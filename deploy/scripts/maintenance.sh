@@ -18,5 +18,5 @@ else
   CONFIG="/etc/caddy/Caddyfile"
 fi
 
-$COMPOSE exec -T proxy caddy reload --config "$CONFIG"
+$COMPOSE exec -T proxy caddy reload --config "$CONFIG" --adapter caddyfile
 echo "Maintenance mode: $MODE"
