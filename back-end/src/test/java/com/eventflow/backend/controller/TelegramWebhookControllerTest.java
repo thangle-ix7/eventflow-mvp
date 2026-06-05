@@ -44,6 +44,24 @@ class TelegramWebhookControllerTest {
     }
 
     @Test
+    void rawTokenMessageRequestsAccountConfirmation() throws Exception {
+        mockMvc.perform(post("/api/webhooks/telegram")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "message": {
+                                    "chat": { "id": 123456 },
+                                    "text": "xSURK6TrlETejOUeUTDfb5iDwAXR86QIOTS5MdOfXB0"
+                                  }
+                                }
+                                """))
+                .andExpect(status().isOk());
+
+        verify(telegramBotService)
+                .requestTelegramLinkConfirmation(eq("xSURK6TrlETejOUeUTDfb5iDwAXR86QIOTS5MdOfXB0"), eq("123456"));
+    }
+
+    @Test
     void callbackQueryIsMappedFromTelegramSnakeCasePayload() throws Exception {
         mockMvc.perform(post("/api/webhooks/telegram")
                         .contentType(MediaType.APPLICATION_JSON)

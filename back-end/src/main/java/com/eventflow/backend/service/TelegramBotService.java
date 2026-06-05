@@ -7,6 +7,9 @@ import com.eventflow.backend.util.SecureTokenUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
@@ -124,7 +127,7 @@ public class TelegramBotService {
     }
 
     public void sendErrorMessage(String chatId) {
-        sendMessage(chatId, "Link kết nối không hợp lệ hoặc đã hết hạn. Vui lòng tạo lại link trong ứng dụng EventFlow.");
+        sendMessage(chatId, "Link kết nối không hợp lệ hoặc đã hết hạn. Vui lòng quay lại EventFlow, bấm Copy lệnh hoặc Mở Telegram Web để tạo lệnh mới.");
     }
 
     public void sendMessage(String chatId, String text) {
@@ -142,7 +145,7 @@ public class TelegramBotService {
         }
 
         try {
-            restTemplate.postForEntity(url, params, String.class);
+            restTemplate.postForEntity(url, jsonEntity(params), String.class);
         } catch (Exception e) {
             log.error("Error sending Telegram message to {}: {}", chatId, e.getMessage());
         }
@@ -180,10 +183,16 @@ public class TelegramBotService {
         params.put("text", text);
 
         try {
-            restTemplate.postForEntity(url, params, String.class);
+            restTemplate.postForEntity(url, jsonEntity(params), String.class);
         } catch (Exception e) {
             log.error("Error answering Telegram callback {}: {}", callbackQueryId, e.getMessage());
         }
+    }
+
+    private HttpEntity<Map<String, Object>> jsonEntity(Map<String, Object> body) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        return new HttpEntity<>(body, headers);
     }
 
 }

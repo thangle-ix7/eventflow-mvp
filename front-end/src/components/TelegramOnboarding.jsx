@@ -37,7 +37,7 @@ const TelegramOnboarding = ({ userId }) => {
         : null,
     [linkToken]
   );
-  const telegramWebUrl = `https://web.telegram.org/a/#@${appConfig.telegramBotUsername}`;
+  const telegramWebUrl = `https://web.telegram.org/k/#@${appConfig.telegramBotUsername}`;
 
   const startCommand = linkToken?.token ? `/start ${linkToken.token}` : '';
 
@@ -60,7 +60,12 @@ const TelegramOnboarding = ({ userId }) => {
   };
 
   const copyStartCommand = async (token) => {
-    await navigator.clipboard.writeText(`/start ${token}`);
+    try {
+      await navigator.clipboard.writeText(`/start ${token}`);
+      return true;
+    } catch {
+      return false;
+    }
   };
 
   const handleOpenTelegramWeb = async () => {
@@ -68,11 +73,13 @@ const TelegramOnboarding = ({ userId }) => {
       const tokenResponse =
         linkToken || (await createTokenMutation.mutateAsync());
 
-      await copyStartCommand(tokenResponse.token);
+      const copied = await copyStartCommand(tokenResponse.token);
       window.open(telegramWebUrl, '_blank', 'noopener,noreferrer');
       setConnectionStatus({
         type: 'info',
-        message: 'Đã copy lệnh và mở Telegram Web. Dán lệnh vào chat bot, bấm Xác nhận, rồi kiểm tra lại.',
+        message: copied
+          ? 'Đã copy lệnh và mở Telegram Web. Dán lệnh vào chat bot, bấm Xác nhận, rồi kiểm tra lại.'
+          : 'Đã mở Telegram Web. Copy lệnh bên dưới, dán vào chat bot, bấm Xác nhận, rồi kiểm tra lại.',
       });
     } catch {
       // Mutation error is rendered below.
@@ -102,11 +109,13 @@ const TelegramOnboarding = ({ userId }) => {
     try {
       const tokenResponse =
         linkToken || (await createTokenMutation.mutateAsync());
-      await copyStartCommand(tokenResponse.token);
-      setCopiedCommand(true);
+      const copied = await copyStartCommand(tokenResponse.token);
+      setCopiedCommand(copied);
       setConnectionStatus({
-        type: 'info',
-        message: 'Đã copy lệnh. Dán lệnh vào chat với bot Telegram, bấm Xác nhận, rồi kiểm tra lại.',
+        type: copied ? 'info' : 'warning',
+        message: copied
+          ? 'Đã copy lệnh. Dán lệnh vào chat với bot Telegram, bấm Xác nhận, rồi kiểm tra lại.'
+          : 'Trình duyệt không cho copy tự động. Hãy copy thủ công lệnh bên dưới rồi gửi cho bot.',
       });
       window.setTimeout(() => setCopiedCommand(false), 2500);
     } catch {

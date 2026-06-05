@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.*;
 public class TelegramWebhookController {
 
     private final TelegramBotService telegramBotService;
+    private static final java.util.regex.Pattern LINK_TOKEN_PATTERN =
+            java.util.regex.Pattern.compile("^[A-Za-z0-9_-]{20,120}$");
 
     @PostMapping("/telegram")
     public ResponseEntity<Void> handleTelegramUpdate(@RequestBody(required = false) TelegramUpdate update) {
@@ -40,21 +42,15 @@ public class TelegramWebhookController {
         String text = msg.getText();
         Long chatId = msg.getChat().getId();
 
-        if (!text.startsWith("/start")) {
+        String rawToken = extractLinkToken(text);
+        if (rawToken == null) {
             return ResponseEntity.ok().build();
         }
 
-        log.info("Telegram start command received for chatId={}", chatId);
-
-        String[] parts = text.split("\\s+");
-
-        if (parts.length < 2) {
-            telegramBotService.sendErrorMessage(chatId.toString());
-            return ResponseEntity.ok().build();
-        }
+        log.info("Telegram link command received for chatId={}", chatId);
 
         try {
-            telegramBotService.requestTelegramLinkConfirmation(parts[1], chatId.toString());
+            telegramBotService.requestTelegramLinkConfirmation(rawToken, chatId.toString());
         } catch (Exception e) {
             telegramBotService.sendErrorMessage(chatId.toString());
         }
@@ -73,6 +69,16 @@ public class TelegramWebhookController {
         } catch (Exception e) {
             telegramBotService.sendErrorMessage(chatId.toString());
         }
+    }
+
+    private String extractLinkToken(String text) {
+        String trimmed = text == null ? "" : text.trim();
+        if (trimmed.startsWith("/start")) {
+            String[] parts = trimmed.split("\\s+", 2);
+            return parts.length == 2 && !parts[1].isBlank() ? parts[1].trim() : null;
+        }
+
+        return LINK_TOKEN_PATTERN.matcher(trimmed).matches() ? trimmed : null;
     }
 
 }

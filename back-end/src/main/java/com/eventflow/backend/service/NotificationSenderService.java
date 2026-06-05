@@ -9,6 +9,9 @@ import com.eventflow.backend.repository.NotificationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
@@ -22,11 +25,13 @@ import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class NotificationSenderService {
+    private static final Pattern URL_ENCODED_SEQUENCE = Pattern.compile("%[0-9A-Fa-f]{2}");
 
     private final NotificationRepository notificationRepository;
     private final RestTemplate restTemplate = new RestTemplate();
@@ -71,7 +76,7 @@ public class NotificationSenderService {
             body.put("chat_id", chatId);
             body.put("text", text);
 
-            Map<String, Object> response = restTemplate.postForObject(url, body, Map.class);
+            Map<String, Object> response = restTemplate.postForObject(url, jsonEntity(body), Map.class);
             return response != null && Boolean.TRUE.equals(response.get("ok"));
         } catch (RestClientException e) {
             log.error("Telegram send failed for chatId={}: {}", chatId, e.getMessage());
@@ -139,13 +144,20 @@ public class NotificationSenderService {
     }
 
     private String decodeLegacyUrlEncodedMessage(String message) {
-        if (message == null || !message.contains("%")) {
+        if (message == null || !URL_ENCODED_SEQUENCE.matcher(message).find()) {
             return message;
         }
 
+        String current = message;
         try {
-            String decoded = URLDecoder.decode(message, StandardCharsets.UTF_8);
-            return decoded.isBlank() ? message : decoded;
+            for (int i = 0; i < 3 && URL_ENCODED_SEQUENCE.matcher(current).find(); i++) {
+                String decoded = URLDecoder.decode(current, StandardCharsets.UTF_8);
+                if (decoded.equals(current) || decoded.isBlank()) {
+                    break;
+                }
+                current = decoded;
+            }
+            return current.isBlank() ? message : current;
         } catch (IllegalArgumentException e) {
             return message;
         }
@@ -264,5 +276,11 @@ public class NotificationSenderService {
     private String normalizedFrontendUrl() {
         String value = frontendUrl == null || frontendUrl.isBlank() ? "http://localhost:5173" : frontendUrl.trim();
         return value.endsWith("/") ? value.substring(0, value.length() - 1) : value;
+    }
+
+    private HttpEntity<Map<String, Object>> jsonEntity(Map<String, Object> body) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        return new HttpEntity<>(body, headers);
     }
 }
