@@ -34,10 +34,11 @@ public class AuthEmailService {
     private boolean requireEmailDelivery;
 
     public void sendVerificationEmail(String toEmail, String token) {
-        String link = UriComponentsBuilder.fromHttpUrl(normalizedFrontendUrl())
-                .path("/verify-email")
-                .queryParam("token", token)
-                .toUriString();
+        String link = buildFrontendActionUrl(toEmail, "/verify-email", token);
+        if (link == null) {
+            return;
+        }
+
         sendAuthEmail(
                 toEmail,
                 "Event Flow - Xác thực email",
@@ -54,10 +55,11 @@ public class AuthEmailService {
     }
 
     public void sendPasswordResetEmail(String toEmail, String token) {
-        String link = UriComponentsBuilder.fromHttpUrl(normalizedFrontendUrl())
-                .path("/reset-password")
-                .queryParam("token", token)
-                .toUriString();
+        String link = buildFrontendActionUrl(toEmail, "/reset-password", token);
+        if (link == null) {
+            return;
+        }
+
         sendAuthEmail(
                 toEmail,
                 "Event Flow - Đặt lại mật khẩu",
@@ -157,7 +159,28 @@ public class AuthEmailService {
 
     private String normalizedFrontendUrl() {
         String value = isBlank(frontendUrl) ? "http://localhost:5173" : frontendUrl.trim();
+        if (!value.matches("(?i)^https?://.*")) {
+            String lowerValue = value.toLowerCase();
+            String scheme = lowerValue.startsWith("localhost")
+                    || lowerValue.startsWith("127.0.0.1")
+                    || lowerValue.startsWith("[::1]")
+                    ? "http://"
+                    : "https://";
+            value = scheme + value;
+        }
         return value.endsWith("/") ? value.substring(0, value.length() - 1) : value;
+    }
+
+    private String buildFrontendActionUrl(String toEmail, String path, String token) {
+        try {
+            return UriComponentsBuilder.fromHttpUrl(normalizedFrontendUrl())
+                    .path(path)
+                    .queryParam("token", token)
+                    .toUriString();
+        } catch (Exception e) {
+            handleEmailFailure("Không tạo được auth email link tới " + toEmail, e);
+            return null;
+        }
     }
 
     private void handleEmailFailure(String message, Exception e) {
