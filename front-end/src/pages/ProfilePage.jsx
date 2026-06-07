@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Camera, Loader2, Mail, Send, Unlink, User } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
+import { TELEGRAM_REOPEN_EVENT } from '../components/TelegramOnboarding';
 import userApi from '../api/userApi';
 
 const ProfilePage = ({ user, onLogout, onUserUpdate }) => {
@@ -60,6 +61,10 @@ const ProfilePage = ({ user, onLogout, onUserUpdate }) => {
     if (confirmed) {
       disconnectTelegramMutation.mutate();
     }
+  };
+
+  const handleConnectTelegram = () => {
+    window.dispatchEvent(new Event(TELEGRAM_REOPEN_EVENT));
   };
 
   const profile = profileQuery.data || user;
@@ -146,6 +151,7 @@ const ProfilePage = ({ user, onLogout, onUserUpdate }) => {
             <TelegramInfoItem
               connected={Boolean(profile.telegramChatId || profile.telegram_chat_id)}
               isDisconnecting={disconnectTelegramMutation.isPending}
+              onConnect={handleConnectTelegram}
               onDisconnect={handleDisconnectTelegram}
             />
             <InfoItem label="User ID" value={profile.userId} />
@@ -166,7 +172,7 @@ const InfoItem = ({ icon, label, value }) => (
   </div>
 );
 
-const TelegramInfoItem = ({ connected, isDisconnecting, onDisconnect }) => (
+const TelegramInfoItem = ({ connected, isDisconnecting, onConnect, onDisconnect }) => (
   <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
     <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
       <Send size={18} />
@@ -176,7 +182,7 @@ const TelegramInfoItem = ({ connected, isDisconnecting, onDisconnect }) => (
       <p className={`text-sm font-semibold ${connected ? 'text-emerald-700' : 'text-gray-600'}`}>
         {connected ? 'Đã kết nối' : 'Chưa kết nối'}
       </p>
-      {connected && (
+      {connected ? (
         <button
           type="button"
           onClick={onDisconnect}
@@ -189,6 +195,15 @@ const TelegramInfoItem = ({ connected, isDisconnecting, onDisconnect }) => (
             <Unlink size={14} />
           )}
           Ngắt kết nối
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={onConnect}
+          className="inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"
+        >
+          <Send size={14} />
+          Kết nối ngay
         </button>
       )}
     </div>

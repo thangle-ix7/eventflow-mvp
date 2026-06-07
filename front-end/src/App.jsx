@@ -259,7 +259,7 @@ const RootAppLayout = ({ user, onLogout }) => {
   });
   const events = eventsQuery.data || [];
   const selectedEvent = selectedEventQuery.data || events.find((event) => String(event.id) === String(eventId)) || null;
-  const showTelegramOnboarding = !['/profile', '/events/new'].includes(location.pathname);
+  const showTelegramOnboarding = location.pathname === '/profile';
 
   return (
     <AppLayout
