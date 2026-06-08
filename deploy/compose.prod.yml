@@ -105,6 +105,7 @@ services:
       args:
         VITE_API_BASE_URL: /api/v1
         VITE_TELEGRAM_BOT_USERNAME: ${PROD_TELEGRAM_BOT_USERNAME:-eventflow_mvp_bot}
+        VITE_MIXPANEL_TOKEN: ${VITE_MIXPANEL_TOKEN:-}
     container_name: eventflow-frontend-prod
     restart: unless-stopped
     depends_on:
@@ -122,6 +123,7 @@ services:
       args:
         VITE_API_BASE_URL: /api/v1
         VITE_TELEGRAM_BOT_USERNAME: ${STAGING_TELEGRAM_BOT_USERNAME:-Eventflow_vn_bot}
+        VITE_MIXPANEL_TOKEN: ${VITE_MIXPANEL_TOKEN:-}
     container_name: eventflow-frontend-staging
     restart: unless-stopped
     depends_on:

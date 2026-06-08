@@ -28,6 +28,7 @@ import TaskReviewsPage from './pages/TaskReviewsPage';
 import TaskUpdatePage from './pages/TaskUpdatePage';
 import eventApi from './api/eventApi';
 import userApi from './api/userApi';
+import { identifyUser, resetAnalytics, trackEvent, trackPageView } from './lib/analytics';
 
 const EventDashboardPage = lazy(() => import('./pages/EventDashboardPage'));
 const DepartmentDashboardPage = lazy(() => import('./pages/DepartmentDashboardPage'));
@@ -48,13 +49,17 @@ function App() {
     localStorage.setItem('token', userData.token);
     localStorage.setItem('user', JSON.stringify(userData));
     setUser(userData);
+    identifyUser(userData);
+    trackEvent('User Logged In', { user_id: String(userData.userId) });
     navigate(redirectTo, { replace: true });
   };
 
   const handleLogout = () => {
+    trackEvent('User Logged Out', { user_id: user?.userId ? String(user.userId) : undefined });
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setUser(null);
+    resetAnalytics();
     navigate('/', { replace: true });
   };
 
@@ -62,6 +67,23 @@ function App() {
     localStorage.setItem('user', JSON.stringify(nextUser));
     setUser(nextUser);
   };
+
+  useEffect(() => {
+    if (!user?.userId) {
+      return;
+    }
+
+    identifyUser(user);
+  }, [user]);
+
+  useEffect(() => {
+    trackPageView({
+      pathname: location.pathname,
+      search: location.search,
+      userId: user?.userId,
+      ...resolveRouteAnalyticsProperties(location.pathname),
+    });
+  }, [location.pathname, location.search, user?.userId]);
 
   useEffect(() => {
     if (!user?.userId) {
@@ -280,6 +302,23 @@ const resolveEventIdFromPath = (pathname) => {
     return null;
   }
   return match[1];
+};
+
+const resolveRouteAnalyticsProperties = (pathname) => {
+  const segments = pathname.split('/').filter(Boolean);
+  const properties = {};
+
+  if (segments[0] === 'events' && segments[1] && segments[1] !== 'new') {
+    properties.event_id = segments[1];
+  }
+  if (segments[2] === 'departments' && segments[3] && segments[3] !== 'new') {
+    properties.department_id = segments[3];
+  }
+  if (segments[2] === 'tasks' && segments[3] && segments[3] !== 'new') {
+    properties.task_id = segments[3];
+  }
+
+  return properties;
 };
 
 const LazyPageFallback = ({ children }) => (
