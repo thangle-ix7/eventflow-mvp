@@ -160,7 +160,6 @@ const DepartmentListPage = ({ user, onLogout }) => {
         <PageHeader
           eyebrow={event?.name || 'Sự kiện'}
           title="Ban tổ chức"
-          description="Quản lý thông tin cơ bản của từng ban: phạm vi phụ trách, trưởng ban và ghi chú vận hành."
           actions={isLeader && (
             <Button as={Link} to={`/events/${eventId}/departments/new`}>
               <Plus size={18} />
@@ -187,7 +186,7 @@ const DepartmentListPage = ({ user, onLogout }) => {
           )}
           {!departmentsQuery.isLoading && departments.length === 0 && (
             <div className="p-4">
-              <EmptyState icon={Building2} title="Chưa có ban tổ chức" description="Tạo ban đầu tiên để chia công việc theo nhóm phụ trách." />
+              <EmptyState icon={Building2} title="Chưa có ban tổ chức" />
             </div>
           )}
           {!departmentsQuery.isLoading && departments.length > 0 && (
@@ -250,15 +249,12 @@ const DepartmentAiSuggestionPanel = ({
             <Sparkles size={16} />
             AI gợi ý ban tổ chức
           </div>
-          <p className="mt-1 text-sm text-slate-500">
-            Sinh nhiều ban theo bối cảnh sự kiện, chọn các mục phù hợp rồi lưu vào hệ thống.
-          </p>
         </div>
         <div className="flex w-full flex-col gap-2 lg:max-w-xl sm:flex-row">
           <input
             value={instruction}
             onChange={(event) => setInstruction(event.target.value)}
-            placeholder="VD: Gợi ý ban cho hội thảo 200 sinh viên, có check-in và truyền thông"
+            placeholder="Context cho AI"
             className="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
           />
           <Button type="button" variant="secondary" onClick={() => suggestMutation.mutate()} disabled={suggestMutation.isPending}>
@@ -291,17 +287,17 @@ const DepartmentAiSuggestionPanel = ({
                   {department.selected ? <CheckCircle2 size={18} className="mt-0.5 shrink-0 text-indigo-600" /> : <Circle size={18} className="mt-0.5 shrink-0 text-slate-300" />}
                   <div className="min-w-0">
                     <p className="font-bold text-slate-950">{department.name}</p>
-                    <p className="mt-1 line-clamp-3 text-sm text-slate-600">{department.description || 'Chưa có mô tả.'}</p>
+                    {department.description && <p className="mt-1 line-clamp-3 text-sm text-slate-600">{department.description}</p>}
                   </div>
                 </div>
               </button>
             ))}
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
-            <p className="text-sm font-semibold text-slate-500">{selectedCount}/{suggestions.length} gợi ý đang được chọn</p>
+            <p className="text-sm font-semibold text-slate-500">Đã chọn {selectedCount}/{suggestions.length}</p>
             <Button type="button" onClick={() => saveMutation.mutate(suggestions)} disabled={selectedCount === 0 || saveMutation.isPending}>
               {saveMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-              Lưu các ban đã chọn
+              Lưu đã chọn
             </Button>
           </div>
         </div>

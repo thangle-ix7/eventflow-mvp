@@ -60,7 +60,6 @@ const DepartmentCreatePage = ({ user, onLogout }) => {
         <PageHeader
           eyebrow={eventQuery.data?.name || 'Sự kiện'}
           title="Tạo ban tổ chức"
-          description="Khai báo thông tin vận hành cơ bản để ban có người phụ trách và phạm vi công việc rõ ràng."
         />
 
         <Panel>
@@ -73,7 +72,7 @@ const DepartmentCreatePage = ({ user, onLogout }) => {
                 onChange={handleChange}
                 required
                 maxLength={100}
-                placeholder="Ví dụ: Hậu cần, Truyền thông, Kỹ thuật"
+                placeholder="Tên ban"
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
               />
             </Field>
@@ -84,7 +83,7 @@ const DepartmentCreatePage = ({ user, onLogout }) => {
                 onChange={handleChange}
                 maxLength={1000}
                 rows={4}
-                placeholder="Mô tả phạm vi công việc, trách nhiệm chính, đầu mối phối hợp của ban..."
+                placeholder="Mô tả"
                 className="w-full resize-y rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
               />
             </Field>
@@ -103,7 +102,7 @@ const DepartmentCreatePage = ({ user, onLogout }) => {
               </select>
               <p className="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
                 <Users size={14} />
-                Trưởng ban sẽ tự được gán vào ban này nếu chưa thuộc ban.
+                Tự gán trưởng ban vào ban.
               </p>
             </Field>
             <Button type="submit" disabled={mutation.isPending} className="w-full">

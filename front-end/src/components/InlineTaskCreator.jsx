@@ -265,7 +265,7 @@ const InlineTaskCreator = ({
           onChange={(event) => setSuggestionInstruction(event.target.value)}
           disabled={suggestionMutation.isPending || mutation.isPending}
           className="min-w-0 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-500"
-          placeholder={parentTaskId ? 'Nhập yêu cầu để AI chia subtask...' : 'Nhập yêu cầu để AI gợi ý task...'}
+          placeholder="Context cho AI"
         />
         <button
           type="button"

@@ -120,7 +120,6 @@ const TaskCreatePage = ({ user, onLogout }) => {
         <form onSubmit={handleSubmit} className="space-y-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
           <div>
             <h2 className="text-2xl font-bold text-gray-900">Tạo task</h2>
-            <p className="mt-1 text-sm text-gray-500">Chỉ cần tên task và deadline. Department hoặc assignee có thể gán sau.</p>
           </div>
           <div className="rounded-lg border border-indigo-100 bg-indigo-50/40 p-3">
             <div className="flex flex-col gap-2 sm:flex-row">
@@ -128,7 +127,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
                 value={suggestionInstruction}
                 onChange={(event) => setSuggestionInstruction(event.target.value)}
                 className="min-w-0 flex-1 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-500"
-                placeholder="Nhập yêu cầu để AI gợi ý task, ví dụ: chuẩn bị truyền thông, hậu cần..."
+                placeholder="Context cho AI"
               />
               <button
                 type="button"
@@ -178,7 +177,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
               maxLength={2000}
               rows={4}
               className="w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
-              placeholder="Mục tiêu, phạm vi, yêu cầu đầu ra của task..."
+              placeholder="Mô tả"
             />
           </Field>
           <Field label="Department">
@@ -195,7 +194,6 @@ const TaskCreatePage = ({ user, onLogout }) => {
           </Field>
           <Field label="Deadline">
             <input name="deadline" type="datetime-local" value={form.deadline} onChange={handleChange} max={maxDeadline || undefined} required className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500" />
-            {maxDeadline && <p className="mt-1 text-xs text-gray-500">Task chỉ được đặt trước hoặc trong thời gian sự kiện.</p>}
           </Field>
           <Field label="Status">
             <select name="status" value={form.status} onChange={handleChange} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500">
