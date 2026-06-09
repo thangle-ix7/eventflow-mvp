@@ -20,6 +20,7 @@ const EventMembersPage = ({ user, onLogout }) => {
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('');
+  const [inviteSuccess, setInviteSuccess] = useState('');
 
   const eventQuery = useQuery({
     queryKey: ['event', eventId],
@@ -40,8 +41,9 @@ const EventMembersPage = ({ user, onLogout }) => {
 
   const addMemberMutation = useMutation({
     mutationFn: eventMemberApi.addMember,
-    onSuccess: () => {
+    onSuccess: (invitation) => {
       setForm({ email: '', role: 'MEMBER' });
+      setInviteSuccess(`Đã gửi lời mời tới ${invitation.email}`);
       queryClient.invalidateQueries({ queryKey: ['eventMembers', eventId] });
     },
   });
@@ -82,6 +84,7 @@ const EventMembersPage = ({ user, onLogout }) => {
   }, [departmentFilter, members, roleFilter, search]);
   const handleSubmit = (event) => {
     event.preventDefault();
+    setInviteSuccess('');
     addMemberMutation.mutate({ eventId, payload: form });
   };
 
@@ -124,9 +127,15 @@ const EventMembersPage = ({ user, onLogout }) => {
                 className="inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-indigo-600 to-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:from-indigo-700 hover:to-blue-700 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {addMemberMutation.isPending ? <Loader2 size={18} className="animate-spin" /> : <UserPlus size={18} />}
-                Thêm
+                Gửi lời mời
               </button>
             </form>
+          )}
+
+          {inviteSuccess && (
+            <div className="mt-3 rounded-lg bg-emerald-50 p-3 text-sm font-semibold text-emerald-700">
+              {inviteSuccess}
+            </div>
           )}
 
           {addMemberMutation.error && (

@@ -80,6 +80,8 @@ eventflow:
     max-failed-login-attempts: ${AUTH_MAX_FAILED_LOGIN_ATTEMPTS:5}
     lockout-minutes: ${AUTH_LOCKOUT_MINUTES:15}
     require-email-delivery: ${AUTH_REQUIRE_EMAIL_DELIVERY:false}
+  invitation:
+    token-ttl-minutes: ${EVENT_INVITATION_TOKEN_TTL_MINUTES:10080}
   upload:
     task-report-dir: ${TASK_REPORT_UPLOAD_DIR:uploads/task-reports}
   storage:

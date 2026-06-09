@@ -74,6 +74,30 @@ public class AuthEmailService {
                         + "Link sẽ hết hạn trong thời gian ngắn. Nếu bạn không yêu cầu đặt lại mật khẩu, hãy bỏ qua email này.");
     }
 
+    public void sendEventInvitationEmail(String toEmail, String token, String eventName, String inviterName) {
+        String link = buildFrontendActionUrl(toEmail, "/invitations/confirm", token);
+        if (link == null) {
+            return;
+        }
+
+        String safeEventName = eventName == null || eventName.isBlank() ? "sự kiện" : eventName;
+        String safeInviterName = inviterName == null || inviterName.isBlank() ? "Leader" : inviterName;
+
+        sendAuthEmail(
+                toEmail,
+                "Event Flow - Lời mời tham gia sự kiện",
+                "Lời mời sự kiện",
+                "Xác nhận tham gia " + safeEventName,
+                safeInviterName + " đã mời bạn tham gia sự kiện trên Event Flow.",
+                "Xác nhận tham gia",
+                link,
+                "Chào bạn,\n\n"
+                        + safeInviterName + " đã mời bạn tham gia sự kiện \"" + safeEventName + "\" trên Event Flow.\n"
+                        + "Xác nhận lời mời bằng link sau:\n"
+                        + link + "\n\n"
+                        + "Nếu bạn không muốn tham gia, hãy bỏ qua email này.");
+    }
+
     private void sendAuthEmail(
             String toEmail,
             String subject,

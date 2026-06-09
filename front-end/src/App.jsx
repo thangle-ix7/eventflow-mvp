@@ -16,6 +16,7 @@ import EventListPage from './pages/EventListPage';
 import EventMembersPage from './pages/EventMembersPage';
 import EventUtilityPage from './pages/EventUtilityPage';
 import ErrorPage from './pages/ErrorPage';
+import InvitationConfirmPage from './pages/InvitationConfirmPage';
 import MemberDetailPage from './pages/MemberDetailPage';
 import ProfilePage from './pages/ProfilePage';
 import TaskCreatePage from './pages/TaskCreatePage';
@@ -155,6 +156,10 @@ function App() {
       <Route
         path="/reset-password"
         element={<LoginPage onLoginSuccess={handleLoginSuccess} />}
+      />
+      <Route
+        path="/invitations/confirm"
+        element={<InvitationConfirmPage />}
       />
       <Route element={<ProtectedRoute user={user} />}>
         <Route element={<RootAppLayout {...protectedProps} />}>

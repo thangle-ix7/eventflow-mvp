@@ -3,6 +3,7 @@ package com.eventflow.backend.controller;
 import com.eventflow.backend.dto.EventMemberRequestDTO;
 import com.eventflow.backend.dto.EventMemberResponseDTO;
 import com.eventflow.backend.dto.EventMemberRoleUpdateRequest;
+import com.eventflow.backend.dto.EventInvitationResponseDTO;
 import com.eventflow.backend.security.EventSecurityService;
 import com.eventflow.backend.service.EventMemberService;
 import jakarta.validation.Valid;
@@ -63,16 +64,17 @@ public class EventMemberController {
     }
 
     @PostMapping
-    public ResponseEntity<EventMemberResponseDTO> addMember(
+    public ResponseEntity<EventInvitationResponseDTO> addMember(
             @PathVariable Long eventId,
             @Valid @RequestBody EventMemberRequestDTO request,
             Authentication authentication) {
 
-        if (!eventSecurityService.isLeaderOfEvent(eventId, currentUserId(authentication))) {
+        Long currentUserId = currentUserId(authentication);
+        if (!eventSecurityService.isLeaderOfEvent(eventId, currentUserId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(eventMemberService.addMember(eventId, request));
+        return ResponseEntity.status(HttpStatus.CREATED).body(eventMemberService.addMember(eventId, request, currentUserId));
     }
 
     @PatchMapping("/{userId}/role")

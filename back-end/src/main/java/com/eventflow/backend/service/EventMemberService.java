@@ -3,19 +3,27 @@ package com.eventflow.backend.service;
 import com.eventflow.backend.dto.EventMemberRequestDTO;
 import com.eventflow.backend.dto.EventMemberResponseDTO;
 import com.eventflow.backend.dto.EventMemberRoleUpdateRequest;
+import com.eventflow.backend.dto.EventInvitationConfirmResponse;
+import com.eventflow.backend.dto.EventInvitationResponseDTO;
 import com.eventflow.backend.entity.Event;
+import com.eventflow.backend.entity.EventInvitation;
+import com.eventflow.backend.entity.EventInvitationStatus;
 import com.eventflow.backend.entity.EventMember;
 import com.eventflow.backend.entity.User;
 import com.eventflow.backend.entity.UserRole;
+import com.eventflow.backend.repository.EventInvitationRepository;
 import com.eventflow.backend.repository.EventMemberRepository;
 import com.eventflow.backend.repository.EventRepository;
 import com.eventflow.backend.repository.UserRepository;
+import com.eventflow.backend.util.SecureTokenUtil;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -23,9 +31,14 @@ import java.util.List;
 public class EventMemberService {
 
     private final EventMemberRepository eventMemberRepository;
+    private final EventInvitationRepository eventInvitationRepository;
     private final EventRepository eventRepository;
     private final UserRepository userRepository;
     private final UserProfileService userProfileService;
+    private final AuthEmailService authEmailService;
+
+    @Value("${eventflow.invitation.token-ttl-minutes:10080}")
+    private long invitationTokenTtlMinutes;
 
     @Transactional(readOnly = true)
     public List<EventMemberResponseDTO> getMembers(Long eventId) {
@@ -71,24 +84,70 @@ public class EventMemberService {
     }
 
     @Transactional
-    public EventMemberResponseDTO addMember(Long eventId, EventMemberRequestDTO request) {
+    public EventInvitationResponseDTO addMember(Long eventId, EventMemberRequestDTO request, Long invitedByUserId) {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy sự kiện"));
 
         User user = userRepository.findByEmail(normalizeEmail(request.getEmail()))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email này chưa có tài khoản EventFlow"));
+        User invitedBy = userRepository.findById(invitedByUserId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy người gửi lời mời"));
 
         if (eventMemberRepository.existsByEventIdAndUserId(eventId, user.getId())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Người dùng đã là thành viên của sự kiện");
         }
 
-        EventMember member = eventMemberRepository.save(EventMember.builder()
+        LocalDateTime now = LocalDateTime.now();
+        eventInvitationRepository.findByEventIdAndInviteeIdAndStatus(eventId, user.getId(), EventInvitationStatus.PENDING)
+                .ifPresent(invitation -> {
+                    if (invitation.getExpiresAt().isAfter(now)) {
+                        throw new ResponseStatusException(HttpStatus.CONFLICT, "Lời mời đang chờ xác nhận");
+                    }
+                    invitation.setStatus(EventInvitationStatus.CANCELLED);
+                    eventInvitationRepository.save(invitation);
+                });
+
+        String token = SecureTokenUtil.generateToken();
+        EventInvitation invitation = eventInvitationRepository.save(EventInvitation.builder()
                 .event(event)
-                .user(user)
+                .invitee(user)
+                .invitedBy(invitedBy)
+                .email(user.getEmail())
                 .role(parseRoleOrDefault(request.getRole(), UserRole.MEMBER))
+                .status(EventInvitationStatus.PENDING)
+                .tokenHash(SecureTokenUtil.sha256Hex(token))
+                .expiresAt(now.plusMinutes(invitationTokenTtlMinutes))
                 .build());
 
-        return mapToResponse(member);
+        authEmailService.sendEventInvitationEmail(user.getEmail(), token, event.getName(), invitedBy.getName());
+
+        return mapInvitationToResponse(invitation);
+    }
+
+    @Transactional
+    public EventInvitationConfirmResponse confirmInvitation(String token) {
+        EventInvitation invitation = eventInvitationRepository.findActiveByTokenHash(
+                        SecureTokenUtil.sha256Hex(token),
+                        EventInvitationStatus.PENDING,
+                        LocalDateTime.now())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lời mời không hợp lệ hoặc đã hết hạn"));
+
+        Event event = invitation.getEvent();
+        User user = invitation.getInvitee();
+
+        if (!eventMemberRepository.existsByEventIdAndUserId(event.getId(), user.getId())) {
+            eventMemberRepository.save(EventMember.builder()
+                    .event(event)
+                    .user(user)
+                    .role(invitation.getRole())
+                    .build());
+        }
+
+        invitation.setStatus(EventInvitationStatus.ACCEPTED);
+        invitation.setAcceptedAt(LocalDateTime.now());
+        eventInvitationRepository.save(invitation);
+
+        return new EventInvitationConfirmResponse("Đã xác nhận tham gia sự kiện", event.getId(), event.getName());
     }
 
     @Transactional
@@ -130,6 +189,19 @@ public class EventMemberService {
                 .role(member.getRole().name())
                 .joinedAt(member.getJoinedAt())
                 .accountCreatedAt(user.getCreatedAt())
+                .build();
+    }
+
+    private EventInvitationResponseDTO mapInvitationToResponse(EventInvitation invitation) {
+        return EventInvitationResponseDTO.builder()
+                .id(invitation.getId())
+                .eventId(invitation.getEvent().getId())
+                .eventName(invitation.getEvent().getName())
+                .inviteeUserId(invitation.getInvitee().getId())
+                .email(invitation.getEmail())
+                .role(invitation.getRole().name())
+                .status(invitation.getStatus().name())
+                .expiresAt(invitation.getExpiresAt())
                 .build();
     }
 

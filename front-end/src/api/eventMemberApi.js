@@ -28,6 +28,15 @@ const eventMemberApi = {
     return response.data;
   },
 
+  confirmInvitation: async (token) => {
+    if (!token) {
+      throw new Error('Token lời mời không hợp lệ');
+    }
+
+    const response = await apiClient.post('/event-invitations/confirm', { token });
+    return response.data;
+  },
+
   updateRole: async ({ eventId, userId, role }) => {
     if (!eventId || !userId) {
       throw new Error('eventId/userId không hợp lệ');
