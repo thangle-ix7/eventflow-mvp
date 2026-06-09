@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Building2, Edit3, Loader2, Plus, Save, Trash2, UserRound, X } from 'lucide-react';
+import { Building2, CheckCircle2, Circle, Edit3, Loader2, Plus, Save, Sparkles, Trash2, UserRound, X } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import { Button, EmptyState, ErrorState, LoadingState, PageHeader, Panel } from '../components/ui';
+import aiSuggestionApi from '../api/aiSuggestionApi';
 import departmentApi from '../api/departmentApi';
 import eventApi from '../api/eventApi';
 import eventMemberApi from '../api/eventMemberApi';
@@ -16,6 +17,8 @@ const DepartmentListPage = ({ user, onLogout }) => {
   const queryClient = useQueryClient();
   const [editingDepartmentId, setEditingDepartmentId] = useState(null);
   const [editingForm, setEditingForm] = useState({ name: '', description: '', leaderUserId: '' });
+  const [aiInstruction, setAiInstruction] = useState('');
+  const [aiSuggestions, setAiSuggestions] = useState([]);
   const eventQuery = useQuery({ queryKey: ['event', eventId], queryFn: () => eventApi.getEvent(eventId), enabled: Boolean(eventId) });
   const event = eventQuery.data;
   const permissions = getEventPermissions(event);
@@ -40,6 +43,46 @@ const DepartmentListPage = ({ user, onLogout }) => {
     mutationFn: departmentApi.deleteDepartment,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['eventDepartments', eventId] });
+    },
+  });
+  const aiSuggestionMutation = useMutation({
+    mutationFn: () => aiSuggestionApi.suggestDepartments({
+      eventId,
+      instruction: aiInstruction,
+      count: 8,
+    }),
+    onSuccess: (data) => {
+      const existingNames = new Set(departments.map((department) => normalizeName(department.name)));
+      const suggestions = (data?.departments || [])
+        .filter((department) => department.name && !existingNames.has(normalizeName(department.name)))
+        .map((department, index) => ({
+          ...department,
+          key: `${Date.now()}-${index}`,
+          selected: true,
+        }));
+      setAiSuggestions(suggestions);
+    },
+  });
+  const saveAiDepartmentsMutation = useMutation({
+    mutationFn: async (suggestions) => {
+      const selectedSuggestions = suggestions.filter((department) => department.selected);
+      const savedDepartments = [];
+      for (const department of selectedSuggestions) {
+        savedDepartments.push(await departmentApi.createDepartment({
+          eventId,
+          payload: {
+            name: department.name,
+            description: department.description,
+            leaderUserId: department.leaderUserId ? Number(department.leaderUserId) : null,
+          },
+        }));
+      }
+      return savedDepartments;
+    },
+    onSuccess: () => {
+      setAiSuggestions([]);
+      queryClient.invalidateQueries({ queryKey: ['eventDepartments', eventId] });
+      queryClient.invalidateQueries({ queryKey: ['eventMembers', eventId] });
     },
   });
 
@@ -87,6 +130,12 @@ const DepartmentListPage = ({ user, onLogout }) => {
     navigate(`/events/${eventId}/departments/${departmentId}`);
   };
 
+  const toggleAiSuggestion = (key) => {
+    setAiSuggestions((old) => old.map((department) => (
+      department.key === key ? { ...department, selected: !department.selected } : department
+    )));
+  };
+
   useEffect(() => {
     if (!event || isLeader || !departmentHomePath) {
       return;
@@ -111,13 +160,20 @@ const DepartmentListPage = ({ user, onLogout }) => {
         <PageHeader
           eyebrow={event?.name || 'Sự kiện'}
           title="Ban tổ chức"
-          description="Quản lý thông tin cơ bản của từng ban: phạm vi phụ trách, trưởng ban và ghi chú vận hành."
           actions={isLeader && (
             <Button as={Link} to={`/events/${eventId}/departments/new`}>
               <Plus size={18} />
               Tạo ban
             </Button>
           )}
+        />
+        <DepartmentAiSuggestionPanel
+          instruction={aiInstruction}
+          setInstruction={setAiInstruction}
+          suggestions={aiSuggestions}
+          toggleSuggestion={toggleAiSuggestion}
+          suggestMutation={aiSuggestionMutation}
+          saveMutation={saveAiDepartmentsMutation}
         />
         <Panel>
           {departmentsQuery.isLoading && <LoadingState message="Đang tải danh sách ban..." />}
@@ -130,7 +186,7 @@ const DepartmentListPage = ({ user, onLogout }) => {
           )}
           {!departmentsQuery.isLoading && departments.length === 0 && (
             <div className="p-4">
-              <EmptyState icon={Building2} title="Chưa có ban tổ chức" description="Tạo ban đầu tiên để chia công việc theo nhóm phụ trách." />
+              <EmptyState icon={Building2} title="Chưa có ban tổ chức" />
             </div>
           )}
           {!departmentsQuery.isLoading && departments.length > 0 && (
@@ -172,6 +228,81 @@ const DepartmentListPage = ({ user, onLogout }) => {
         )}
       </div>
     </AppLayout>
+  );
+};
+
+const DepartmentAiSuggestionPanel = ({
+  instruction,
+  setInstruction,
+  suggestions,
+  toggleSuggestion,
+  suggestMutation,
+  saveMutation,
+}) => {
+  const selectedCount = suggestions.filter((department) => department.selected).length;
+
+  return (
+    <Panel className="p-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <div className="flex items-center gap-2 text-sm font-bold text-indigo-700">
+            <Sparkles size={16} />
+            AI gợi ý ban tổ chức
+          </div>
+        </div>
+        <div className="flex w-full flex-col gap-2 lg:max-w-xl sm:flex-row">
+          <input
+            value={instruction}
+            onChange={(event) => setInstruction(event.target.value)}
+            placeholder="Context cho AI"
+            className="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+          />
+          <Button type="button" variant="secondary" onClick={() => suggestMutation.mutate()} disabled={suggestMutation.isPending}>
+            {suggestMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+            Gợi ý
+          </Button>
+        </div>
+      </div>
+
+      {(suggestMutation.error || saveMutation.error) && (
+        <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          {(suggestMutation.error || saveMutation.error).userMessage || (suggestMutation.error || saveMutation.error).message}
+        </div>
+      )}
+
+      {suggestions.length > 0 && (
+        <div className="mt-4 space-y-3">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {suggestions.map((department) => (
+              <button
+                key={department.key}
+                type="button"
+                onClick={() => toggleSuggestion(department.key)}
+                className={[
+                  'rounded-lg border p-3 text-left transition',
+                  department.selected ? 'border-indigo-200 bg-indigo-50/70' : 'border-slate-200 bg-white hover:bg-slate-50',
+                ].join(' ')}
+              >
+                <div className="flex items-start gap-2">
+                  {department.selected ? <CheckCircle2 size={18} className="mt-0.5 shrink-0 text-indigo-600" /> : <Circle size={18} className="mt-0.5 shrink-0 text-slate-300" />}
+                  <div className="min-w-0">
+                    <p className="font-bold text-slate-950">{department.name}</p>
+                    {department.description && <p className="mt-1 line-clamp-3 text-sm text-slate-600">{department.description}</p>}
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
+            <p className="text-sm font-semibold text-slate-500">Đã chọn {selectedCount}/{suggestions.length}</p>
+            <Button type="button" onClick={() => saveMutation.mutate(suggestions)} disabled={selectedCount === 0 || saveMutation.isPending}>
+              {saveMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+              Lưu đã chọn
+            </Button>
+          </div>
+        </div>
+      )}
+    </Panel>
   );
 };
 
@@ -327,3 +458,5 @@ const DepartmentRow = ({
 };
 
 export default DepartmentListPage;
+
+const normalizeName = (value) => String(value || '').trim().toLowerCase();

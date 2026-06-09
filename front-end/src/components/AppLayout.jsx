@@ -2,7 +2,6 @@ import TelegramOnboarding from './TelegramOnboarding';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import AiChatBox from './AiChatBox';
 import userApi from '../api/userApi';
 import { getDepartmentHomePath, getEventPermissions } from '../utils/permissionUtils';
 import {
@@ -502,8 +501,6 @@ const AppLayoutFrame = ({
           </div>
         </footer>
       )}
-
-      <AiChatBox />
     </div>
     </AppLayoutContext.Provider>
   );

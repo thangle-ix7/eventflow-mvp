@@ -3,15 +3,20 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import {
   CalendarDays,
+  CheckCircle2,
+  Circle,
   ClipboardList,
   Download,
   ExternalLink,
   FileJson,
   FileSpreadsheet,
   FileText,
+  Loader2,
   Pencil,
   Printer,
+  Save,
   Settings,
+  Sparkles,
   TrendingUp,
   Users,
   X,
@@ -40,11 +45,12 @@ import {
   exportDashboardJson,
   openPrintableDashboardReport,
 } from '../utils/reportExport';
+import aiSuggestionApi from '../api/aiSuggestionApi';
 
 const PAGE_CONFIG = {
   calendar: {
     title: 'Lịch',
-    description: 'Quản lý lịch họp, rehearsal, setup và các mốc vận hành riêng của sự kiện.',
+    description: '',
     meta: 'Lịch họp, rehearsal và các mốc vận hành',
     icon: CalendarDays,
   },
@@ -281,6 +287,8 @@ const CalendarContent = ({ eventId, event, departments, members, calendar, calen
   const [editingCalendarItem, setEditingCalendarItem] = useState(null);
   const [isCreatePopupOpen, setIsCreatePopupOpen] = useState(false);
   const [form, setForm] = useState(() => buildEmptyCalendarForm());
+  const [aiInstruction, setAiInstruction] = useState('');
+  const [aiCalendarSuggestions, setAiCalendarSuggestions] = useState([]);
   const calendarEventIdParam = searchParams.get('calendarEventId');
   const selectableMembers = members;
   const createCalendarItemMutation = useMutation({
@@ -297,6 +305,43 @@ const CalendarContent = ({ eventId, event, departments, members, calendar, calen
     onSuccess: (updatedItem) => {
       setEditingCalendarItem(null);
       setSelectedCalendarItem(updatedItem);
+      queryClient.invalidateQueries({ queryKey: ['eventCalendar', eventId] });
+    },
+  });
+  const aiCalendarSuggestionMutation = useMutation({
+    mutationFn: () => aiSuggestionApi.suggestCalendarItems({
+      eventId,
+      count: 8,
+      instruction: aiInstruction,
+    }),
+    onSuccess: (data) => {
+      const existingItems = new Set((calendar?.days || [])
+        .flatMap((day) => day.items || [])
+        .map(calendarSignature));
+      const suggestions = (data?.calendarItems || [])
+        .filter((item) => !existingItems.has(calendarSignature(item)))
+        .map((item, index) => ({
+          ...item,
+          key: `${Date.now()}-${index}`,
+          selected: true,
+        }));
+      setAiCalendarSuggestions(suggestions);
+    },
+  });
+  const saveAiCalendarItemsMutation = useMutation({
+    mutationFn: async (suggestions) => {
+      const selectedSuggestions = suggestions.filter((item) => item.selected);
+      const savedItems = [];
+      for (const item of selectedSuggestions) {
+        savedItems.push(await eventUtilityApi.createCalendarItem({
+          eventId,
+          payload: calendarSuggestionToPayload(item, departments, members),
+        }));
+      }
+      return savedItems;
+    },
+    onSuccess: () => {
+      setAiCalendarSuggestions([]);
       queryClient.invalidateQueries({ queryKey: ['eventCalendar', eventId] });
     },
   });
@@ -369,9 +414,25 @@ const CalendarContent = ({ eventId, event, departments, members, calendar, calen
       return { ...old, attendeeIds };
     });
   };
+  const toggleAiCalendarSuggestion = (key) => {
+    setAiCalendarSuggestions((old) => old.map((item) => (
+      item.key === key ? { ...item, selected: !item.selected } : item
+    )));
+  };
 
   return (
     <div className="space-y-4">
+    {isLeader && (
+      <CalendarAiSuggestionPanel
+        instruction={aiInstruction}
+        setInstruction={setAiInstruction}
+        suggestions={aiCalendarSuggestions}
+        departments={departments}
+        toggleSuggestion={toggleAiCalendarSuggestion}
+        suggestMutation={aiCalendarSuggestionMutation}
+        saveMutation={saveAiCalendarItemsMutation}
+      />
+    )}
     <Panel>
       <div className="flex flex-col gap-4 border-b border-slate-200 p-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0">
@@ -414,7 +475,6 @@ const CalendarContent = ({ eventId, event, departments, members, calendar, calen
           <EmptyState
             icon={CalendarDays}
             title="Chưa có lịch trong tháng này"
-            description="Leader có thể thêm lịch họp, rehearsal, setup hoặc các mốc riêng của sự kiện."
           />
         </div>
       )}
@@ -445,10 +505,9 @@ const CalendarContent = ({ eventId, event, departments, members, calendar, calen
         <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-slate-900/10">
           <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-gradient-to-r from-indigo-50 to-white px-5 py-4">
             <div className="min-w-0">
-              <p className="text-xs font-bold uppercase tracking-wide text-indigo-600">Calendar event</p>
               <h3 className="mt-1 text-xl font-extrabold text-slate-950">Thêm lịch mới</h3>
               <p className="mt-1 text-sm text-slate-500">
-                Ngày đã chọn: <span className="font-bold text-slate-900">{selectedDateKey ? formatCalendarDateKey(selectedDateKey) : 'Chưa chọn'}</span>
+                <span className="font-bold text-slate-900">{selectedDateKey ? formatCalendarDateKey(selectedDateKey) : 'Chưa chọn ngày'}</span>
               </p>
             </div>
             <button
@@ -470,7 +529,6 @@ const CalendarContent = ({ eventId, event, departments, members, calendar, calen
                   onChange={(event) => updateForm('title', event.target.value)}
                   required
                   maxLength={255}
-                  placeholder="Họp BTC, rehearsal, setup sân khấu..."
                   className="w-full rounded-xl border border-slate-200 px-4 py-3 text-base font-semibold text-slate-950 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
                 />
               </label>
@@ -538,7 +596,6 @@ const CalendarContent = ({ eventId, event, departments, members, calendar, calen
                   value={form.location}
                   onChange={(event) => updateForm('location', event.target.value)}
                   maxLength={255}
-                  placeholder="Phòng họp, hội trường..."
                   className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
                 />
               </label>
@@ -548,16 +605,12 @@ const CalendarContent = ({ eventId, event, departments, members, calendar, calen
                 <input
                   value={form.meetingUrl}
                   onChange={(event) => updateForm('meetingUrl', event.target.value)}
-                  placeholder="Google Meet, Zoom..."
                   className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
                 />
               </label>
 
               <label className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 md:col-span-2">
-                <span>
-                  <span className="block text-sm font-bold text-slate-800">Cả ngày</span>
-                  <span className="text-xs text-slate-500">Dùng cho lịch không cần giờ cụ thể.</span>
-                </span>
+                <span className="block text-sm font-bold text-slate-800">Cả ngày</span>
                 <input
                   type="checkbox"
                   checked={form.allDay}
@@ -573,7 +626,6 @@ const CalendarContent = ({ eventId, event, departments, members, calendar, calen
                   onChange={(event) => updateForm('description', event.target.value)}
                   maxLength={2000}
                   rows={3}
-                  placeholder="Nội dung họp, việc cần chuẩn bị, ghi chú cho người tham gia..."
                   className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
                 />
               </label>
@@ -587,7 +639,7 @@ const CalendarContent = ({ eventId, event, departments, members, calendar, calen
                 </div>
                 <div className="max-h-36 overflow-y-auto p-3">
                   {selectableMembers.length === 0 ? (
-                    <p className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-500">Chưa có thành viên để tag.</p>
+                    <p className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-500">Chưa có thành viên.</p>
                   ) : (
                     <div className="grid gap-2 sm:grid-cols-2">
                       {selectableMembers.map((member) => {
@@ -641,6 +693,91 @@ const CalendarContent = ({ eventId, event, departments, members, calendar, calen
 };
 
 const WEEKDAY_LABELS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+
+const CalendarAiSuggestionPanel = ({
+  instruction,
+  setInstruction,
+  suggestions,
+  departments,
+  toggleSuggestion,
+  suggestMutation,
+  saveMutation,
+}) => {
+  const selectedCount = suggestions.filter((item) => item.selected).length;
+
+  return (
+    <Panel className="p-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <div className="flex items-center gap-2 text-sm font-bold text-indigo-700">
+            <Sparkles size={16} />
+            AI gợi ý lịch vận hành
+          </div>
+        </div>
+        <div className="flex w-full flex-col gap-2 lg:max-w-xl sm:flex-row">
+          <input
+            value={instruction}
+            onChange={(event) => setInstruction(event.target.value)}
+            placeholder="Context cho AI"
+            className="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+          />
+          <Button type="button" variant="secondary" onClick={() => suggestMutation.mutate()} disabled={suggestMutation.isPending}>
+            {suggestMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+            Gợi ý
+          </Button>
+        </div>
+      </div>
+
+      {(suggestMutation.error || saveMutation.error) && (
+        <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          {(suggestMutation.error || saveMutation.error).userMessage || (suggestMutation.error || saveMutation.error).message}
+        </div>
+      )}
+
+      {suggestions.length > 0 && (
+        <div className="mt-4 space-y-3">
+          <div className="grid gap-3 lg:grid-cols-2">
+            {suggestions.map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                onClick={() => toggleSuggestion(item.key)}
+                className={[
+                  'rounded-lg border p-3 text-left transition',
+                  item.selected ? 'border-indigo-200 bg-indigo-50/70' : 'border-slate-200 bg-white hover:bg-slate-50',
+                ].join(' ')}
+              >
+                <div className="flex items-start gap-2">
+                  {item.selected ? <CheckCircle2 size={18} className="mt-0.5 shrink-0 text-indigo-600" /> : <Circle size={18} className="mt-0.5 shrink-0 text-slate-300" />}
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-bold text-slate-950">{item.title}</p>
+                      <StatusBadge status={CALENDAR_TYPE_LABELS[item.type] || item.type || 'Lịch'} />
+                    </div>
+                    <p className="mt-1 text-sm font-semibold text-slate-500">
+                      {formatDate(item.startTime)} - {formatDate(item.endTime)}
+                    </p>
+                    {item.description && <p className="mt-1 line-clamp-2 text-sm text-slate-600">{item.description}</p>}
+                    <p className="mt-2 text-xs font-semibold text-slate-400">
+                      {departmentNameById(departments, item.departmentId) || 'Ban tổ chức (BTC)'}{item.location ? ` • ${item.location}` : ''}
+                    </p>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
+            <p className="text-sm font-semibold text-slate-500">Đã chọn {selectedCount}/{suggestions.length}</p>
+            <Button type="button" onClick={() => saveMutation.mutate(suggestions)} disabled={selectedCount === 0 || saveMutation.isPending}>
+              {saveMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+              Lưu đã chọn
+            </Button>
+          </div>
+        </div>
+      )}
+    </Panel>
+  );
+};
 
 const toDateKey = (date) => {
   const year = date.getFullYear();
@@ -729,6 +866,29 @@ const calendarItemToForm = (item) => ({
   attendeeIds: (item?.attendees || []).map((attendee) => String(attendee.userId)),
 });
 
+const suggestedCalendarItemToForm = (item, currentForm, departments, members) => {
+  const departmentIds = new Set((departments || []).map((department) => String(department.id)));
+  const memberIds = new Set((members || []).map((member) => String(member.userId)));
+  const attendeeIds = (item?.attendeeIds || [])
+    .map((attendeeId) => String(attendeeId))
+    .filter((attendeeId) => memberIds.has(attendeeId));
+
+  return {
+    ...currentForm,
+    title: item?.title || currentForm.title,
+    type: item?.type || currentForm.type,
+    departmentId: item?.departmentId && departmentIds.has(String(item.departmentId)) ? String(item.departmentId) : '',
+    startTime: toDateTimeLocalValue(item?.startTime) || currentForm.startTime,
+    endTime: toDateTimeLocalValue(item?.endTime) || currentForm.endTime,
+    allDay: Boolean(item?.allDay),
+    status: item?.status || currentForm.status || 'SCHEDULED',
+    location: item?.location || currentForm.location,
+    meetingUrl: item?.meetingUrl || '',
+    description: item?.description || currentForm.description,
+    attendeeIds,
+  };
+};
+
 const buildCalendarPayload = (form) => ({
   title: form.title,
   type: form.type,
@@ -742,6 +902,16 @@ const buildCalendarPayload = (form) => ({
   description: form.description,
   attendeeIds: form.attendeeIds.map((attendeeId) => Number(attendeeId)),
 });
+
+const calendarSuggestionToPayload = (item, departments, members) => buildCalendarPayload(
+  suggestedCalendarItemToForm(item, buildEmptyCalendarForm(), departments, members)
+);
+
+const calendarSignature = (item) => `${String(item?.title || '').trim().toLowerCase()}|${item?.startTime || ''}|${item?.endTime || ''}`;
+
+const departmentNameById = (departments, departmentId) => (
+  departments.find((department) => String(department.id) === String(departmentId))?.name
+);
 
 const getCalendarScopeLabel = (item) => item?.departmentName || 'Ban tổ chức (BTC)';
 
@@ -987,9 +1157,7 @@ const CalendarEditModal = ({ eventId, item, departments, members, eventStartInpu
       <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-slate-900/10">
         <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-gradient-to-r from-indigo-50 to-white px-5 py-4">
           <div className="min-w-0">
-            <p className="text-xs font-bold uppercase tracking-wide text-indigo-600">Calendar event</p>
             <h3 className="mt-1 text-xl font-extrabold text-slate-950">Sửa lịch BTC</h3>
-            <p className="mt-1 text-sm text-slate-500">Cập nhật lịch điều phối nội bộ của Ban tổ chức.</p>
           </div>
           <button
             type="button"
@@ -1091,10 +1259,7 @@ const CalendarEditModal = ({ eventId, item, departments, members, eventStartInpu
             </label>
 
             <label className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 md:col-span-2">
-              <span>
-                <span className="block text-sm font-bold text-slate-800">Cả ngày</span>
-                <span className="text-xs text-slate-500">Dùng cho lịch không cần giờ cụ thể.</span>
-              </span>
+              <span className="block text-sm font-bold text-slate-800">Cả ngày</span>
               <input
                 type="checkbox"
                 checked={form.allDay}
@@ -1123,7 +1288,7 @@ const CalendarEditModal = ({ eventId, item, departments, members, eventStartInpu
               </div>
               <div className="max-h-36 overflow-y-auto p-3">
                 {members.length === 0 ? (
-                  <p className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-500">Chưa có thành viên để tag.</p>
+                  <p className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-500">Chưa có thành viên.</p>
                 ) : (
                   <div className="grid gap-2 sm:grid-cols-2">
                     {members.map((member) => {
