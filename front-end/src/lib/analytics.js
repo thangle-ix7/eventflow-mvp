@@ -1,4 +1,4 @@
-import mixpanel from 'mixpanel-browser/src/loaders/loader-module-core';
+import mixpanel from 'mixpanel-browser';
 
 const MIXPANEL_TOKEN = import.meta.env.VITE_MIXPANEL_TOKEN;
 const isBrowser = typeof window !== 'undefined';

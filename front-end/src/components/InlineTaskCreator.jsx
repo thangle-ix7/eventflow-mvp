@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Plus, Save, X } from 'lucide-react';
+import { Loader2, Plus, Save, Sparkles, X } from 'lucide-react';
+import aiSuggestionApi from '../api/aiSuggestionApi';
 import eventMemberApi from '../api/eventMemberApi';
 import taskApi from '../api/taskApi';
 import { ErrorState } from './ui';
@@ -32,6 +33,8 @@ const createEmptyRow = (departmentId = '', assigneeId = '') => ({
   priority: 'MEDIUM',
 });
 
+const normalizeSuggestedDeadline = (value) => (value ? toDateTimeLocalValue(value) || String(value).slice(0, 16) : '');
+
 const InlineTaskCreator = ({
   eventId,
   parentTaskId,
@@ -58,6 +61,7 @@ const InlineTaskCreator = ({
   const [rows, setRows] = useState([createEmptyRow(departmentId, assigneeId)]);
   const [localError, setLocalError] = useState('');
   const [isOpen, setIsOpen] = useState(false);
+  const [suggestionInstruction, setSuggestionInstruction] = useState('');
   const addButtonLabel = openLabel || (parentTaskId ? 'Thêm subtask' : 'Thêm task');
   const membersQuery = useQuery({
     queryKey: ['eventMembers', eventId],
@@ -84,6 +88,29 @@ const InlineTaskCreator = ({
         queryClient.invalidateQueries({ queryKey: ['subtasks', String(parentTaskId)] });
       }
       invalidateDashboardQueries(queryClient, eventId);
+    },
+  });
+
+  const suggestionMutation = useMutation({
+    mutationFn: parentTaskId ? aiSuggestionApi.suggestSubtasks : aiSuggestionApi.suggestTasks,
+    onSuccess: (data) => {
+      const suggestedItems = parentTaskId ? data?.subtasks : data?.tasks;
+      if (!suggestedItems?.length) {
+        setLocalError('AI chưa trả về gợi ý phù hợp.');
+        return;
+      }
+
+      setLocalError('');
+      setRows(suggestedItems.map((task) => ({
+        id: crypto.randomUUID(),
+        title: task.title || '',
+        description: task.description || '',
+        departmentId: task.departmentId ? String(task.departmentId) : String(departmentId || ''),
+        assigneeId: task.assigneeId ? String(task.assigneeId) : String(assigneeId || ''),
+        deadline: normalizeSuggestedDeadline(task.deadline),
+        status: task.status || 'TODO',
+        priority: task.priority || 'MEDIUM',
+      })));
     },
   });
 
@@ -165,6 +192,24 @@ const InlineTaskCreator = ({
     }));
   };
 
+  const handleSuggestTasks = () => {
+    setLocalError('');
+    if (parentTaskId) {
+      suggestionMutation.mutate({
+        taskId: parentTaskId,
+        instruction: suggestionInstruction,
+        count: 5,
+      });
+      return;
+    }
+
+    suggestionMutation.mutate({
+      eventId,
+      instruction: suggestionInstruction,
+      count: 5,
+    });
+  };
+
   if (!isOpen) {
     return (
       <div className="border-b border-slate-100 bg-white px-4 py-3">
@@ -213,6 +258,24 @@ const InlineTaskCreator = ({
             <X size={16} />
           </button>
         </div>
+      </div>
+      <div className="grid gap-2 border-b border-indigo-100 px-4 py-3 sm:grid-cols-[1fr_auto]">
+        <input
+          value={suggestionInstruction}
+          onChange={(event) => setSuggestionInstruction(event.target.value)}
+          disabled={suggestionMutation.isPending || mutation.isPending}
+          className="min-w-0 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-500"
+          placeholder={parentTaskId ? 'Nhập yêu cầu để AI chia subtask...' : 'Nhập yêu cầu để AI gợi ý task...'}
+        />
+        <button
+          type="button"
+          onClick={handleSuggestTasks}
+          disabled={suggestionMutation.isPending || mutation.isPending}
+          className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-50 disabled:opacity-60"
+        >
+          {suggestionMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+          AI gợi ý
+        </button>
       </div>
       <div className="overflow-x-auto">
         <div className="min-w-[980px]">

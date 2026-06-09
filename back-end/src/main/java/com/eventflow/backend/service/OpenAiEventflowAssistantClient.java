@@ -74,6 +74,42 @@ public class OpenAiEventflowAssistantClient {
         }
     }
 
+    public Optional<JsonNode> generateJson(String systemInstructions, Map<String, Object> input) {
+        if (!enabled || apiKey == null || apiKey.isBlank()) {
+            return Optional.empty();
+        }
+
+        try {
+            RestClient restClient = RestClient.builder()
+                    .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
+                    .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                    .build();
+
+            JsonNode response = restClient.post()
+                    .uri(apiUrl)
+                    .body(Map.of(
+                            "model", model,
+                            "messages", List.of(
+                                    Map.of("role", "system", "content", systemInstructions),
+                                    Map.of("role", "user", "content", objectMapper.writeValueAsString(input))),
+                            "response_format", Map.of("type", "json_object")))
+                    .retrieve()
+                    .body(JsonNode.class);
+
+            String outputText = extractOutputText(response);
+            if (outputText == null || outputText.isBlank()) {
+                return Optional.empty();
+            }
+            return Optional.of(objectMapper.readTree(outputText));
+        } catch (RuntimeException e) {
+            log.warn("OpenAI suggestion unavailable, using local fallback: {}", e.getMessage());
+            return Optional.empty();
+        } catch (Exception e) {
+            log.warn("OpenAI suggestion returned invalid JSON, using local fallback: {}", e.getMessage());
+            return Optional.empty();
+        }
+    }
+
     private Map<String, Object> buildRequest(AiChatRequest request) {
         return Map.of(
                 "model", model,
