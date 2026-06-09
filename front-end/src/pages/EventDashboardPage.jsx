@@ -146,7 +146,7 @@ const EventDashboardPage = ({ user, onLogout }) => {
         state={{
           status: 403,
           title: 'Không có quyền truy cập dashboard',
-          message: 'Dashboard sự kiện chỉ dành cho leader. Bạn vẫn có thể xem các công việc, thành viên và thông tin sự kiện được phân quyền cho tài khoản của mình.',
+          message: 'Bạn không có quyền xem dashboard này.',
           requestUrl: location.pathname,
         }}
       />
@@ -160,7 +160,6 @@ const EventDashboardPage = ({ user, onLogout }) => {
           <PageHeader
             eyebrow={`${event?.name || 'Sự kiện'} / ${selectedDepartment?.name || 'Toàn bộ ban'}`}
             title="Dashboard sự kiện"
-            description="Tổng quan ngắn gọn về công việc hiện tại và những việc cần xử lý trong khoảng thời gian đang chọn."
           />
           <Panel className="p-4">
             <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-end">
@@ -199,13 +198,13 @@ const EventDashboardPage = ({ user, onLogout }) => {
             </section>
 
             <section className="grid gap-4">
-              <ChartPanel icon={<TrendingUp size={18} />} title="Line chart task theo ngày" description="Số lượng task theo deadline từng ngày, tách theo trạng thái hiện tại.">
+              <ChartPanel icon={<TrendingUp size={18} />} title="Line chart task theo ngày">
                 <StatusLineChart
                   data={trendQuery.data || []}
                   onPointClick={({ status, date }) => openFilteredTasks({ status, fromDate: date, toDate: date })}
                 />
               </ChartPanel>
-              <ChartPanel icon={<BarChart3 size={18} />} title="Trạng thái công việc" description="Bấm vào từng cột để xem danh sách task tương ứng.">
+              <ChartPanel icon={<BarChart3 size={18} />} title="Trạng thái công việc">
                 <StatusColumnChart
                   data={statusData}
                   onColumnClick={(status) => openFilteredTasks({ status, fromDate: weekRange.fromDate, toDate: weekRange.toDate })}
@@ -243,13 +242,12 @@ const WeekControl = ({ weekIndex, setWeekIndex }) => (
   </div>
 );
 
-const ChartPanel = ({ icon, title, description, children }) => (
+const ChartPanel = ({ icon, title, children }) => (
   <Panel className="min-w-0 overflow-hidden p-4">
     <div className="mb-4 flex items-start gap-3">
       <div className="rounded-lg bg-indigo-50 p-2 text-indigo-600">{icon}</div>
       <div className="min-w-0">
         <h3 className="font-semibold text-slate-950">{title}</h3>
-        <p className="text-sm text-slate-500">{description}</p>
       </div>
     </div>
     {children}
@@ -427,7 +425,7 @@ const TaskListSection = ({ tasks, page, setPage, pageData, eventId }) => (
     </div>
     {tasks.length === 0 && (
       <div className="p-4">
-        <EmptyState title="Chưa có công việc trong tuần này" description="Đổi tuần hoặc bộ lọc ban để xem thêm công việc." />
+        <EmptyState title="Chưa có công việc trong tuần này" />
       </div>
     )}
     {tasks.length > 0 && (

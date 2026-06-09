@@ -108,7 +108,6 @@ const TaskListPage = ({ user, onLogout, onUserUpdate }) => {
           <PageHeader
             eyebrow={event?.name || 'Sự kiện'}
             title="Danh sách công việc"
-            description="Theo dõi deadline, người phụ trách, tiến độ và trạng thái của mọi task trong sự kiện. Leader có thể nhập task mới ngay trong dòng đầu danh sách."
           />
 
           <form onSubmit={handleSearchSubmit} className="mt-4 grid gap-3 md:grid-cols-[1fr_150px_150px_190px_150px_150px_auto]">
@@ -180,7 +179,7 @@ const TaskListPage = ({ user, onLogout, onUserUpdate }) => {
           )}
           {!tasksQuery.isLoading && !tasksQuery.error && tasks.length === 0 && (
             <div className="p-4">
-              <EmptyState title="Chưa có công việc phù hợp" description="Thử đổi bộ lọc hoặc tạo công việc mới nếu bạn là leader." />
+              <EmptyState title="Chưa có công việc phù hợp" />
             </div>
           )}
           {tasks.length > 0 && (

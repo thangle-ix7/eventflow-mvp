@@ -122,7 +122,6 @@ const TaskAttachmentsPage = ({ user, onLogout }) => {
           <div className="flex items-center justify-between gap-3">
             <div>
               <h2 className="text-2xl font-bold text-gray-900">Attachment</h2>
-              <p className="mt-1 text-sm text-gray-500">{task?.title || 'Task'} - file liên quan đến task.</p>
             </div>
             <Paperclip className="text-blue-600" size={24} />
           </div>
@@ -138,9 +137,6 @@ const TaskAttachmentsPage = ({ user, onLogout }) => {
                     onChange={handleAttachmentFilesChange}
                     className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
                   />
-                  <p className="mt-1 text-xs text-gray-500">
-                    Chỉ nhận JPG, PNG, WebP tối đa 5 MB/file và ZIP tối đa 50 MB/file. Tối đa 10 file/lần, 100 MB/task.
-                  </p>
                 </div>
                 <button
                   type="submit"

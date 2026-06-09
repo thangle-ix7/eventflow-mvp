@@ -54,9 +54,6 @@ const TaskReviewsPage = ({ user, onLogout }) => {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h2 className="text-2xl font-bold text-gray-900">Review task</h2>
-              <p className="mt-1 text-sm text-gray-500">
-                {task?.title || 'Task'} - leader feedback khi task đang IN_REVIEW và chọn trạng thái tiếp theo.
-              </p>
             </div>
             <div className="flex items-center gap-2">
               {task && <span className="w-fit rounded-full bg-gray-100 px-3 py-1 text-xs font-bold text-gray-700">{task.status}</span>}
@@ -101,7 +98,7 @@ const TaskReviewsPage = ({ user, onLogout }) => {
             </form>
           ) : (
             <div className="mt-4 rounded-lg bg-gray-50 p-3 text-sm text-gray-600">
-              Chỉ leader review được task đang IN_REVIEW.
+              Bạn không có quyền review task này.
             </div>
           )}
         </section>

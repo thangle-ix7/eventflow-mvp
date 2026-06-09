@@ -50,7 +50,7 @@ const TaskDetailPage = ({ user, onLogout }) => {
               </div>
               <PageHeader
                 title={task.title}
-                description={task.description || 'Chưa có mô tả công việc.'}
+                description={task.description || ''}
                 meta={
                   <>
                     <span className="inline-flex items-center gap-2"><UserRound size={16} />{task.assigneeName || 'Chưa phân công'}</span>
@@ -81,11 +81,6 @@ const TaskDetailPage = ({ user, onLogout }) => {
                     <span className="font-bold text-indigo-600">{task.progressPercentage ?? 0}%</span>
                   </div>
                   <ProgressBar value={task.progressPercentage ?? 0} />
-                  {hasSubtasks && (
-                    <p className="mt-2 text-xs font-medium text-slate-500">
-                      Tiến độ task lớn được tính theo tỷ lệ subtask DONE.
-                    </p>
-                  )}
                 </div>
               )}
             </Panel>
@@ -94,7 +89,6 @@ const TaskDetailPage = ({ user, onLogout }) => {
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-3">
                 <div>
                   <h2 className="text-base font-bold text-slate-950">Subtasks</h2>
-                  <p className="text-sm text-slate-500">Các task nhỏ được tách ra từ task này.</p>
                 </div>
                 {subtasksQuery.isFetching && <span className="text-xs font-semibold text-slate-400">Đang cập nhật...</span>}
               </div>
@@ -182,21 +176,18 @@ const TaskDetailPage = ({ user, onLogout }) => {
                   to={`/events/${eventId}/tasks/${taskId}/reports`}
                   icon={<FileText size={22} />}
                   title="Report tiến độ"
-                  description="Nộp report, xem lịch sử report và cập nhật tiến độ task."
                 />
               )}
               <TaskActionLink
                 to={`/events/${eventId}/tasks/${taskId}/attachments`}
                 icon={<Paperclip size={22} />}
                 title="Attachment"
-                description="Upload và tải xuống file liên quan đến task."
               />
               {!hasSubtasks && (
                 <TaskActionLink
                   to={`/events/${eventId}/tasks/${taskId}/reviews`}
                   icon={<ClipboardCheck size={22} />}
                   title="Review"
-                  description="Leader feedback task IN_REVIEW và đổi trạng thái."
                 />
               )}
             </section>
@@ -207,11 +198,10 @@ const TaskDetailPage = ({ user, onLogout }) => {
   );
 };
 
-const TaskActionLink = ({ to, icon, title, description }) => (
+const TaskActionLink = ({ to, icon, title }) => (
   <Link to={to} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-indigo-200 hover:bg-indigo-50/60">
     <div className="text-indigo-600">{icon}</div>
     <h3 className="mt-3 font-semibold text-slate-950">{title}</h3>
-    <p className="mt-1 text-sm text-slate-500">{description}</p>
   </Link>
 );
 

@@ -56,19 +56,19 @@ const PAGE_CONFIG = {
   },
   documents: {
     title: 'Tài liệu',
-    description: 'Tổng hợp attachment của các công việc trong phạm vi bạn được cấp quyền.',
+    description: '',
     meta: 'Tài liệu và file đính kèm',
     icon: FileText,
   },
   reports: {
     title: 'Báo cáo',
-    description: 'Tổng hợp report tiến độ thật từ các công việc.',
+    description: '',
     meta: 'Tiến độ, report và dữ liệu vận hành',
     icon: TrendingUp,
   },
   settings: {
     title: 'Cài đặt',
-    description: 'Thông tin cấu hình sự kiện và các giới hạn hiện có ở frontend.',
+    description: '',
     meta: 'Thông tin và thiết lập sự kiện',
     icon: Settings,
   },
@@ -79,24 +79,7 @@ const EVENT_STATUS_LABELS = {
   CANCELLED: 'Đã hủy',
 };
 
-const getUtilityDescription = (type, event, fallback) => {
-  if (event?.role === 'LEADER') {
-    return fallback;
-  }
-
-  if (type === 'calendar') {
-    return 'Các mốc chung của sự kiện, lịch thuộc ban của bạn hoặc lịch có bạn trong danh sách tham dự.';
-  }
-  if (type === 'documents') {
-    return 'Tài liệu bạn được cấp quyền xem: task của bạn, tài liệu ban của bạn, hoặc tài liệu được leader chia sẻ toàn sự kiện.';
-  }
-  if (type === 'reports') {
-    return 'Báo cáo từ task bạn phụ trách hoặc report do bạn tạo trong phạm vi sự kiện.';
-  }
-  if (type === 'settings') {
-    return 'Thông tin sự kiện ở chế độ xem, không bao gồm cấu hình quản trị.';
-  }
-
+const getUtilityDescription = (fallback) => {
   return fallback;
 };
 
@@ -203,7 +186,7 @@ const EventUtilityPage = ({ user, onLogout, type }) => {
         <PageHeader
           eyebrow={event?.name || 'Sự kiện'}
           title={type === 'settings' && event?.role !== 'LEADER' ? 'Thông tin' : config.title}
-          description={getUtilityDescription(type, event, config.description)}
+          description={getUtilityDescription(config.description)}
           meta={
             <span className="inline-flex items-center gap-2">
               <Icon size={16} />
@@ -1460,11 +1443,6 @@ const DocumentsContent = ({ eventId, event, documents }) => {
     <div className="flex flex-col gap-3 border-b border-slate-100 p-4 lg:flex-row lg:items-start lg:justify-between">
       <div>
         <h3 className="font-bold text-slate-950">{isLeader ? 'Tài liệu toàn sự kiện' : 'Tài liệu được chia sẻ với bạn'}</h3>
-        <p className="mt-1 text-sm text-slate-500">
-          {isLeader
-            ? 'Attachment được nhóm theo ban, task lớn và subtask để dễ tìm đúng ngữ cảnh.'
-            : 'Chỉ hiển thị tài liệu thuộc task của bạn, ban của bạn hoặc tài liệu được chia sẻ toàn sự kiện.'}
-        </p>
         <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-slate-600">
           <span className="rounded-full bg-slate-100 px-2.5 py-1">{documentTree.length} ban</span>
           <span className="rounded-full bg-slate-100 px-2.5 py-1">{totalTasks} task</span>
@@ -1481,11 +1459,11 @@ const DocumentsContent = ({ eventId, event, documents }) => {
     </div>
     {documents.length === 0 ? (
       <div className="p-4">
-        <EmptyState icon={FileText} title="Chưa có tài liệu" description="Attachment upload ở task sẽ xuất hiện tại đây." />
+        <EmptyState icon={FileText} title="Chưa có tài liệu" />
       </div>
     ) : filteredDocuments.length === 0 ? (
       <div className="p-4">
-        <EmptyState icon={FileText} title="Không tìm thấy tài liệu" description="Thử tìm bằng tên file, tên task, ban hoặc người upload khác." />
+        <EmptyState icon={FileText} title="Không tìm thấy tài liệu" />
       </div>
     ) : (
       <div className="divide-y divide-slate-100">
@@ -1764,7 +1742,7 @@ const ReportsContent = ({ event, stats, departments, members, tasks, reportsData
         </div>
         {reports.length === 0 ? (
           <div className="p-4">
-            <EmptyState icon={TrendingUp} title="Chưa có report trong kỳ" description="Khi thành viên cập nhật tiến độ task, report sẽ xuất hiện tại đây." />
+            <EmptyState icon={TrendingUp} title="Chưa có report trong kỳ" />
           </div>
         ) : (
           <div className="divide-y divide-slate-100">
@@ -1825,12 +1803,7 @@ const SettingsContent = ({ event, departments, members }) => {
         </dl>
       </Panel>
       <Panel className="p-5">
-        <h3 className="font-bold text-slate-950">{isLeader ? 'Cấu hình khả dụng' : 'Phạm vi hiển thị'}</h3>
-        <p className="mt-2 text-sm leading-6 text-slate-600">
-          {isLeader
-            ? 'Trang này là khung cài đặt frontend. Các thao tác cấu hình nâng cao cần API backend riêng.'
-            : 'Các số liệu bên dưới chỉ phản ánh dữ liệu bạn được phân quyền xem trong sự kiện này.'}
-        </p>
+        <h3 className="font-bold text-slate-950">Tổng quan</h3>
         <div className="mt-4 space-y-3">
           <SummaryPill label="Ban tổ chức" value={departments.length} />
           <SummaryPill label="Thành viên" value={members.length} />

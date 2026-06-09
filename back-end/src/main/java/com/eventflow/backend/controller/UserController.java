@@ -4,6 +4,7 @@ import com.eventflow.backend.dto.NotificationCountResponse;
 import com.eventflow.backend.dto.NotificationResponse;
 import com.eventflow.backend.dto.TelegramLinkTokenResponse;
 import com.eventflow.backend.dto.UserProfileDTO;
+import com.eventflow.backend.dto.UserProfileUpdateRequest;
 import com.eventflow.backend.dto.UserPreferencesRequest;
 import jakarta.validation.Valid;
 import com.eventflow.backend.repository.NotificationRepository;
@@ -56,6 +57,20 @@ public class UserController {
         }
 
         return ResponseEntity.ok(userProfileService.getProfile(userId));
+    }
+
+    @PatchMapping("/{userId}")
+    public ResponseEntity<UserProfileDTO> updateProfile(
+            @PathVariable Long userId,
+            @Valid @RequestBody UserProfileUpdateRequest request,
+            Authentication authentication) {
+
+        Long authenticatedUserId = (Long) authentication.getPrincipal();
+        if (!authenticatedUserId.equals(userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        return ResponseEntity.ok(userProfileService.updateProfile(userId, request));
     }
 
     @PatchMapping("/{userId}/preferences")

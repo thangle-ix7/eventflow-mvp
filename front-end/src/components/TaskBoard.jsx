@@ -184,9 +184,6 @@ const TaskBoard = ({ eventId, canManage = false }) => {
             className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
           >
             <h3 className="font-bold text-slate-950">Tạo công việc</h3>
-            <p className="mt-1 text-sm text-slate-500">
-              Công việc mới sẽ ở trạng thái cần làm và có thể phân công sau.
-            </p>
             {createTaskMutation.error && (
               <div className="mt-3"><ErrorState error={createTaskMutation.error} title="Không tạo được công việc" /></div>
             )}
@@ -258,9 +255,6 @@ const TaskBoard = ({ eventId, canManage = false }) => {
       {(!departments || departments.length === 0) && (
         <EmptyState
           title={canManage ? 'Chưa có công việc nào' : 'Chưa có dữ liệu công việc'}
-          description={canManage
-            ? 'Bạn có thể tạo công việc trước rồi gán ban hoặc người phụ trách sau.'
-            : 'Sự kiện này chưa có dữ liệu công việc để hiển thị.'}
         />
       )}
 

@@ -84,7 +84,7 @@ const EventDetailPage = ({ user, onLogout }) => {
               </div>
               <PageHeader
                 title={event.name}
-                description={event.description || 'Chưa có mô tả cho sự kiện này.'}
+                description={event.description || ''}
                 actions={isLeader && (
                   <Button as={Link} to={`/events/${eventId}/edit`} variant="secondary">
                     <Edit size={16} />
@@ -118,7 +118,6 @@ const EventDetailPage = ({ user, onLogout }) => {
               <div className="flex flex-col gap-2 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h3 className="text-lg font-bold text-slate-950">Thành viên sự kiện</h3>
-                  <p className="text-sm text-slate-500">Những tài khoản đang tham gia và có thể được phân công trong sự kiện.</p>
                 </div>
                 <Link
                   to={`/events/${eventId}/members`}
@@ -139,7 +138,6 @@ const EventDetailPage = ({ user, onLogout }) => {
                   <EmptyState
                     icon={Users}
                     title="Chưa có thành viên"
-                    description="Khi thêm thành viên vào sự kiện, danh sách sẽ hiển thị tại đây."
                   />
                 </div>
               )}
@@ -197,9 +195,6 @@ const EventDetailPage = ({ user, onLogout }) => {
               <div className="flex flex-col gap-2 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h3 className="text-lg font-bold text-slate-950">Ban tổ chức</h3>
-                  <p className="text-sm text-slate-500">
-                    {isLeader ? 'Chỉ hiển thị trưởng ban để người xem biết đầu mối liên hệ.' : 'Ban mà bạn đang tham gia trong sự kiện này.'}
-                  </p>
                 </div>
                 {departmentHomePath && (
                   <Link
@@ -222,7 +217,6 @@ const EventDetailPage = ({ user, onLogout }) => {
                   <EmptyState
                     icon={Building2}
                     title="Chưa có ban tổ chức"
-                    description="Tạo ban để chia đầu mối phụ trách rõ hơn cho sự kiện."
                   />
                 </div>
               )}
@@ -261,14 +255,12 @@ const EventDetailPage = ({ user, onLogout }) => {
                 to={`/events/${eventId}/tasks`}
                 icon={<ClipboardList size={18} />}
                 title="Task của sự kiện"
-                description="Đi tới danh sách công việc và phân công."
               />
               {permissions.canViewEventDashboard && (
                 <OverviewAction
                   to={`/events/${eventId}/dashboard`}
                   icon={<BarChart3 size={18} />}
                   title="Dashboard sự kiện"
-                  description="Xem tiến độ tổng quan khi cần theo dõi sâu hơn."
                 />
               )}
             </section>
@@ -288,7 +280,7 @@ const formatEventRange = (event) => {
   return `${formatDate(start)} - ${formatDate(end)}`;
 };
 
-const OverviewAction = ({ to, icon, title, description }) => (
+const OverviewAction = ({ to, icon, title }) => (
   <Link
     to={to}
     className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-indigo-200 hover:bg-indigo-50/50"
@@ -299,7 +291,6 @@ const OverviewAction = ({ to, icon, title, description }) => (
       </span>
       <span className="min-w-0">
         <span className="block font-bold text-slate-950">{title}</span>
-        <span className="mt-1 block text-sm text-slate-500">{description}</span>
       </span>
     </div>
   </Link>

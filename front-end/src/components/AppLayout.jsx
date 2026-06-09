@@ -105,32 +105,32 @@ const AppLayoutFrame = ({
     { to: '/', label: 'Sự kiện của bạn', icon: CalendarDays },
   ];
   const searchSuggestionBase = [
-    { label: 'Sự kiện của bạn', description: 'Danh sách sự kiện', to: '/' },
-    { label: 'Tạo sự kiện', description: 'Bắt đầu workspace mới', to: '/events/new' },
-    { label: 'Hồ sơ cá nhân', description: 'Thông tin tài khoản', to: '/profile' },
+    { label: 'Sự kiện của bạn', description: '', to: '/' },
+    { label: 'Tạo sự kiện', description: '', to: '/events/new' },
+    { label: 'Hồ sơ cá nhân', description: '', to: '/profile' },
     ...events.map((event) => ({
       label: event.name,
-      description: event.role === 'LEADER' ? 'Sự kiện bạn quản lý' : 'Sự kiện bạn tham gia',
+      description: '',
       to: `/events/${event.id}`,
     })),
   ];
 
   if (selectedEvent?.id) {
     searchSuggestionBase.push(
-      { label: 'Công việc', description: 'Danh sách task và tiến độ', to: `/events/${selectedEvent.id}/tasks` },
-      { label: 'Thành viên', description: 'Danh sách thành viên', to: `/events/${selectedEvent.id}/members` },
-      { label: 'Lịch', description: 'Mốc sự kiện và deadline', to: `/events/${selectedEvent.id}/calendar` },
-      { label: 'Tài liệu', description: 'Lối vào attachment theo task', to: `/events/${selectedEvent.id}/documents` },
-      { label: 'Báo cáo', description: 'Tổng hợp tiến độ từ dữ liệu hiện có', to: `/events/${selectedEvent.id}/reports` },
-      { label: permissions.canManageEvent ? 'Cài đặt' : 'Thông tin', description: permissions.canManageEvent ? 'Thông tin và giới hạn cấu hình sự kiện' : 'Thông tin sự kiện bạn được xem', to: `/events/${selectedEvent.id}/settings` },
+      { label: 'Công việc', description: '', to: `/events/${selectedEvent.id}/tasks` },
+      { label: 'Thành viên', description: '', to: `/events/${selectedEvent.id}/members` },
+      { label: 'Lịch', description: '', to: `/events/${selectedEvent.id}/calendar` },
+      { label: 'Tài liệu', description: '', to: `/events/${selectedEvent.id}/documents` },
+      { label: 'Báo cáo', description: '', to: `/events/${selectedEvent.id}/reports` },
+      { label: permissions.canManageEvent ? 'Cài đặt' : 'Thông tin', description: '', to: `/events/${selectedEvent.id}/settings` },
     );
 
     if (departmentHomePath) {
-      searchSuggestionBase.push({ label: 'Ban tổ chức', description: permissions.canManageDepartments ? 'Các nhóm phụ trách' : selectedEvent.departmentName, to: departmentHomePath });
+      searchSuggestionBase.push({ label: 'Ban tổ chức', description: '', to: departmentHomePath });
     }
 
     if (permissions.canViewEventDashboard) {
-      searchSuggestionBase.push({ label: 'Dashboard sự kiện', description: selectedEvent.name, to: `/events/${selectedEvent.id}/dashboard` });
+      searchSuggestionBase.push({ label: 'Dashboard sự kiện', description: '', to: `/events/${selectedEvent.id}/dashboard` });
     }
   }
 
@@ -296,7 +296,6 @@ const AppLayoutFrame = ({
                         className="block w-full px-4 py-3 text-left hover:bg-indigo-50"
                       >
                         <span className="block text-sm font-semibold text-slate-950">{item.label}</span>
-                        <span className="block text-xs text-slate-500">{item.description}</span>
                       </button>
                     ))
                   )}
@@ -405,19 +404,11 @@ const AppLayoutFrame = ({
                 )}
               </div>
             </div>
-            <div className="hidden min-w-0 text-right text-sm text-slate-300 sm:block">
+            <Link to="/profile" className="hidden min-w-0 rounded-lg px-2 py-1 text-right text-sm text-slate-300 transition hover:bg-white/10 hover:text-white sm:block">
               <span className="block max-w-[7.5rem] truncate font-semibold text-white sm:max-w-[10rem] lg:max-w-[14rem]">{user.name}</span>
               <span className="hidden text-xs sm:block">
                 {selectedEvent?.role ? (selectedEvent.role === 'LEADER' ? 'Trưởng nhóm' : 'Thành viên') : 'Tài khoản'}
               </span>
-            </div>
-            <Link
-              to="/profile"
-              className="inline-flex h-10 w-10 shrink-0 items-center justify-center gap-2 rounded-lg border border-white/15 text-sm font-medium text-slate-100 transition-colors hover:bg-white/10 active:translate-y-px sm:w-auto sm:px-3"
-              aria-label="Mở hồ sơ cá nhân"
-            >
-              <UserRound className="h-4 w-4" strokeWidth={1.8} />
-              <span className="hidden sm:inline">Profile</span>
             </Link>
             <button
               type="button"
@@ -454,11 +445,6 @@ const AppLayoutFrame = ({
                 điều phối và quản lý sự kiện trên nền tảng số cho câu lạc bộ, đội nhóm, doanh nghiệp nhỏ và
                 các đơn vị tổ chức sự kiện.
               </p>
-              <div className="mt-4 grid gap-2 sm:grid-cols-3">
-                <TrustPoint title="Minh bạch" description="Quản lý task, report và tài liệu theo từng sự kiện." />
-                <TrustPoint title="Đồng hành" description="Hỗ trợ đội tổ chức theo quy trình rõ ràng." />
-                <TrustPoint title="Bảo mật" description="Tài khoản, phân quyền và lưu trữ file có kiểm soát." />
-              </div>
               <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
                 EXE201 • FPT University Hanoi • Event Support Service
               </p>
@@ -505,13 +491,6 @@ const AppLayoutFrame = ({
     </AppLayoutContext.Provider>
   );
 };
-
-const TrustPoint = ({ title, description }) => (
-  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-    <p className="font-bold text-slate-800">{title}</p>
-    <p className="mt-1 text-xs leading-5 text-slate-500">{description}</p>
-  </div>
-);
 
 const formatNotificationTime = (value) => {
   if (!value) {

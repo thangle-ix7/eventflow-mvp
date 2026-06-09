@@ -61,9 +61,6 @@ const EventMembersPage = ({ user, onLogout }) => {
   const members = membersQuery.data || EMPTY_MEMBERS;
   const departments = departmentsQuery.data || EMPTY_DEPARTMENTS;
   const memberPageTitle = isLeader ? 'Thành viên sự kiện' : 'Thành viên trong phạm vi của bạn';
-  const memberPageDescription = isLeader
-    ? 'Quản lý vai trò, ban phụ trách và trạng thái kết nối của từng tài khoản.'
-    : 'Xem những thành viên cùng ban hoặc những tài khoản được phân quyền hiển thị với bạn.';
   const filteredMembers = useMemo(() => {
     const keyword = search.trim().toLowerCase();
 
@@ -101,7 +98,6 @@ const EventMembersPage = ({ user, onLogout }) => {
           <PageHeader
             eyebrow={event?.name || 'Sự kiện'}
             title={memberPageTitle}
-            description={memberPageDescription}
           />
 
           {isLeader && (
@@ -144,11 +140,6 @@ const EventMembersPage = ({ user, onLogout }) => {
           <div className="flex flex-col gap-3 border-b border-slate-100 p-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <h2 className="text-lg font-bold text-slate-950">Danh sách thành viên</h2>
-              <p className="text-sm text-slate-500">
-                {isLeader
-                  ? 'Hiển thị theo cột để dễ kiểm tra thông tin từng thành viên.'
-                  : 'Danh sách đã được lọc theo quyền truy cập của tài khoản hiện tại.'}
-              </p>
             </div>
             <div className={`grid w-full gap-2 ${isLeader ? 'lg:max-w-3xl lg:grid-cols-[minmax(220px,1fr)_150px_190px]' : 'lg:max-w-sm'}`}>
               <TextInput
@@ -194,13 +185,12 @@ const EventMembersPage = ({ user, onLogout }) => {
               <EmptyState
                 icon={Users}
                 title="Chưa có thành viên"
-                description={isLeader ? 'Thêm thành viên bằng email tài khoản đã đăng ký EventFlow.' : 'Bạn chưa được phân quyền xem thành viên nào khác trong sự kiện này.'}
               />
             </div>
           )}
           {!membersQuery.isLoading && !membersQuery.error && members.length > 0 && filteredMembers.length === 0 && (
             <div className="p-4">
-              <EmptyState icon={Search} title="Không tìm thấy thành viên" description="Thử đổi từ khóa tìm kiếm." />
+              <EmptyState icon={Search} title="Không tìm thấy thành viên" />
             </div>
           )}
           {!membersQuery.isLoading && !membersQuery.error && filteredMembers.length > 0 && (

@@ -79,7 +79,7 @@ const DepartmentDetailPage = ({ user, onLogout }) => {
               <PageHeader
                 eyebrow={event?.name || 'Sự kiện'}
                 title={department.name || 'Ban tổ chức'}
-                description={department.description || 'Chưa có mô tả nhiệm vụ cho ban này.'}
+                description={department.description || ''}
                 actions={isLeader && (
                   <Button as={Link} to={`/events/${eventId}/tasks/new?departmentId=${departmentId}`}>
                     <Plus size={16} />
@@ -109,7 +109,6 @@ const DepartmentDetailPage = ({ user, onLogout }) => {
               <div className="flex flex-col gap-2 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h3 className="text-lg font-bold text-slate-950">Thành viên trong ban</h3>
-                  <p className="text-sm text-slate-500">Danh sách người đang trực tiếp phụ trách công việc của ban.</p>
                 </div>
                 <Link
                   to={`/events/${eventId}/departments/${departmentId}/members`}
@@ -130,7 +129,6 @@ const DepartmentDetailPage = ({ user, onLogout }) => {
                   <EmptyState
                     icon={Users}
                     title="Chưa có thành viên trong ban"
-                    description={isLeader ? 'Khi gán người vào ban, họ sẽ xuất hiện tại đây để leader theo dõi nhanh.' : 'Khi có thành viên được gán vào ban, họ sẽ xuất hiện tại đây.'}
                   />
                 </div>
               )}
@@ -185,14 +183,12 @@ const DepartmentDetailPage = ({ user, onLogout }) => {
                   to={`/events/${eventId}/departments/${departmentId}/dashboard`}
                   icon={<BarChart3 size={18} />}
                   title="Dashboard của ban"
-                  description="Xem tiến độ và trạng thái công việc theo ban."
                 />
               )}
               <OverviewAction
                 to={`/events/${eventId}/departments/${departmentId}/tasks`}
                 icon={<ClipboardList size={18} />}
                 title="Task của ban"
-                description="Đi tới danh sách task đang giao cho ban này."
               />
             </section>
           </>

@@ -50,14 +50,12 @@ const TaskUpdatePage = ({ user, onLogout }) => {
                   to={`/events/${eventId}/tasks/${taskId}/reports`}
                   icon={<FileText size={22} />}
                   title="Report tiến độ"
-                  description="Nộp report kèm mô tả và ảnh minh chứng."
                 />
               )}
               <TaskUpdateLink
                 to={`/events/${eventId}/tasks/${taskId}/attachments`}
                 icon={<Paperclip size={22} />}
                 title="Attachment"
-                description="Upload file liên quan đến task."
               />
             </section>
           </>
@@ -96,11 +94,8 @@ const TaskWorkUpdateForm = ({ task, taskId, canUpdate, mutation }) => {
     <form onSubmit={handleSubmit} className="space-y-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
       <div>
         <h2 className="text-2xl font-bold text-gray-900">Update task</h2>
-        <p className="mt-1 text-sm text-gray-500">
-          {isSubtask ? 'Subtask chỉ cần cập nhật trạng thái.' : 'Dành cho người được assign cập nhật trạng thái và tiến độ công việc.'}
-        </p>
       </div>
-      {!canUpdate && <div className="rounded-lg bg-gray-50 p-3 text-sm text-gray-600">Chỉ người được assign task mới update phần này.</div>}
+      {!canUpdate && <div className="rounded-lg bg-gray-50 p-3 text-sm text-gray-600">Bạn không có quyền cập nhật task này.</div>}
       {mutation.error && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{mutation.error.userMessage || mutation.error.message}</div>}
       <div className={`grid gap-3 ${isSubtask ? '' : 'md:grid-cols-2'}`}>
         <Field label="Status">
@@ -135,11 +130,10 @@ const TaskWorkUpdateForm = ({ task, taskId, canUpdate, mutation }) => {
   );
 };
 
-const TaskUpdateLink = ({ to, icon, title, description }) => (
+const TaskUpdateLink = ({ to, icon, title }) => (
   <Link to={to} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition hover:border-blue-200 hover:bg-blue-50">
     <div className="text-blue-600">{icon}</div>
     <h3 className="mt-3 font-semibold text-gray-900">{title}</h3>
-    <p className="mt-1 text-sm text-gray-500">{description}</p>
   </Link>
 );
 

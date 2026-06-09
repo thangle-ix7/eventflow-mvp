@@ -1,6 +1,7 @@
 package com.eventflow.backend.service;
 
 import com.eventflow.backend.dto.UserProfileDTO;
+import com.eventflow.backend.dto.UserProfileUpdateRequest;
 import com.eventflow.backend.dto.UserPreferencesRequest;
 import com.eventflow.backend.entity.User;
 import com.eventflow.backend.repository.UserRepository;
@@ -29,6 +30,16 @@ public class UserProfileService {
     @Transactional(readOnly = true)
     public UserProfileDTO getProfile(Long userId) {
         return mapToProfile(findUser(userId));
+    }
+
+    @Transactional
+    public UserProfileDTO updateProfile(Long userId, UserProfileUpdateRequest request) {
+        User user = findUser(userId);
+        user.setName(request.getName().trim());
+        String phoneNumber = request.getPhoneNumber();
+        user.setPhoneNumber(phoneNumber != null && !phoneNumber.isBlank() ? phoneNumber.trim() : null);
+
+        return mapToProfile(userRepository.save(user));
     }
 
     @Transactional
@@ -115,9 +126,12 @@ public class UserProfileService {
                 user.getId(),
                 user.getName(),
                 user.getEmail(),
+                user.getPhoneNumber(),
+                user.isEmailVerified(),
                 user.getTelegramChatId(),
                 avatarUrl(user.getId(), user.getAvatarStoragePath()),
-                user.getTaskPageSize() != null ? user.getTaskPageSize() : 10);
+                user.getTaskPageSize() != null ? user.getTaskPageSize() : 10,
+                user.getCreatedAt());
     }
 
     public record AvatarDownload(

@@ -26,6 +26,15 @@ const userApi = {
     return response.data;
   },
 
+  updateProfile: async ({ userId, payload }) => {
+    if (!userId) {
+      throw new Error('userId không hợp lệ');
+    }
+
+    const response = await apiClient.patch(`/users/${userId}`, payload);
+    return response.data;
+  },
+
   createTelegramLinkToken: async (userId) => {
     if (!userId) {
       throw new Error('userId không hợp lệ');

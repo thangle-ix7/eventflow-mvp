@@ -91,7 +91,6 @@ const DepartmentTasksPage = ({ user, onLogout, onUserUpdate }) => {
                 <ClipboardList size={22} />
                 Task của {department?.name || 'department'}
               </h2>
-              <p className="mt-1 text-sm text-gray-500">Danh sách task thuộc riêng department này. Leader nhập task mới ngay trong dòng đầu danh sách.</p>
             </div>
           </div>
 

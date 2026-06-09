@@ -286,7 +286,6 @@ const EventListEmpty = ({ hasFilters, onClearFilters }) => (
   <EmptyState
     icon={CalendarDays}
     title={hasFilters ? 'Không tìm thấy sự kiện' : 'Bạn chưa có sự kiện nào'}
-    description={hasFilters ? 'Thử đổi từ khóa hoặc trạng thái.' : 'Tạo sự kiện đầu tiên để bắt đầu quản lý công việc.'}
     actions={
       <>
       {hasFilters && (

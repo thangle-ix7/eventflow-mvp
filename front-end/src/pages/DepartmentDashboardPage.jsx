@@ -89,7 +89,7 @@ const DepartmentDashboardPage = ({ user, onLogout }) => {
         state={{
           status: 403,
           title: 'Không có quyền truy cập dashboard ban',
-          message: 'Dashboard ban chỉ dành cho leader của sự kiện. Bạn vẫn có thể xem các màn hình được phân quyền cho tài khoản hiện tại.',
+          message: 'Bạn không có quyền xem dashboard này.',
           requestUrl: location.pathname,
         }}
       />
@@ -126,13 +126,13 @@ const DepartmentDashboardPage = ({ user, onLogout }) => {
         {canViewDashboard && summary && !error && (
           <>
             <section className="grid gap-4">
-              <ChartPanel icon={<TrendingUp size={18} />} title="Line chart task theo ngày" description="Số lượng task theo deadline từng ngày trong department, tách theo trạng thái hiện tại.">
+              <ChartPanel icon={<TrendingUp size={18} />} title="Line chart task theo ngày">
                 <StatusLineChart
                   data={trendQuery.data || []}
                   onPointClick={({ status, date }) => openFilteredTasks({ status, fromDate: date, toDate: date })}
                 />
               </ChartPanel>
-              <ChartPanel icon={<BarChart3 size={18} />} title="Column chart task theo status" description="Số lượng task hiện tại theo từng trạng thái trong department.">
+              <ChartPanel icon={<BarChart3 size={18} />} title="Column chart task theo status">
                 <StatusColumnChart
                   data={statusData}
                   onColumnClick={(status) => openFilteredTasks({ status, fromDate: weekRange.fromDate, toDate: weekRange.toDate })}
@@ -173,13 +173,12 @@ const WeekControl = ({ weekIndex, setWeekIndex, weekRange }) => (
   </div>
 );
 
-const ChartPanel = ({ icon, title, description, children }) => (
+const ChartPanel = ({ icon, title, children }) => (
   <section className="min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
     <div className="mb-4 flex items-start gap-3">
       <div className="rounded-lg bg-blue-50 p-2 text-blue-600">{icon}</div>
       <div className="min-w-0">
         <h3 className="font-semibold text-gray-900">{title}</h3>
-        <p className="text-sm text-gray-500">{description}</p>
       </div>
     </div>
     {children}

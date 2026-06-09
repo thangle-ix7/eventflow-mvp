@@ -96,9 +96,6 @@ const DepartmentMembersPage = ({ user, onLogout }) => {
           <PageHeader
             eyebrow={event?.name || 'Sự kiện'}
             title={pageTitle}
-            description={isLeader
-              ? 'Quản lý thành viên thuộc ban, trạng thái kết nối và thao tác gỡ khỏi ban.'
-              : 'Xem thông tin thành viên thuộc ban và trạng thái kết nối. Tài khoản member không có quyền gán hoặc gỡ người khỏi ban.'}
           />
 
           {isLeader && (
@@ -134,7 +131,6 @@ const DepartmentMembersPage = ({ user, onLogout }) => {
           <div className="flex flex-col gap-3 border-b border-slate-100 p-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <h2 className="text-lg font-bold text-slate-950">Danh sách thành viên</h2>
-              <p className="text-sm text-slate-500">Các thành viên hiện đang thuộc ban này.</p>
             </div>
             <div className={`grid w-full gap-2 ${isLeader ? 'lg:max-w-xl lg:grid-cols-[minmax(220px,1fr)_150px]' : 'lg:max-w-sm'}`}>
               <TextInput
@@ -169,13 +165,12 @@ const DepartmentMembersPage = ({ user, onLogout }) => {
               <EmptyState
                 icon={Users}
                 title="Chưa có thành viên trong ban"
-                description={isLeader ? 'Gán thành viên từ danh sách sự kiện vào ban này.' : 'Ban này chưa có thành viên được gán.'}
               />
             </div>
           )}
           {!departmentMembersQuery.isLoading && !departmentMembersQuery.error && departmentMembers.length > 0 && filteredMembers.length === 0 && (
             <div className="p-4">
-              <EmptyState icon={Search} title="Không tìm thấy thành viên" description="Thử đổi từ khóa tìm kiếm." />
+              <EmptyState icon={Search} title="Không tìm thấy thành viên" />
             </div>
           )}
           {!departmentMembersQuery.isLoading && !departmentMembersQuery.error && filteredMembers.length > 0 && (

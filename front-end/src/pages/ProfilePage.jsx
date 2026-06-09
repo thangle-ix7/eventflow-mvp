@@ -1,19 +1,38 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Camera, Loader2, Mail, Send, Unlink, User } from 'lucide-react';
+import {
+  CalendarDays,
+  Camera,
+  Edit3,
+  Loader2,
+  Mail,
+  Phone,
+  Save,
+  Send,
+  ShieldCheck,
+  Unlink,
+  User,
+  X,
+} from 'lucide-react';
 import AppLayout from '../components/AppLayout';
+import { Button } from '../components/ui';
 import { TELEGRAM_REOPEN_EVENT } from '../components/TelegramOnboarding';
 import userApi from '../api/userApi';
+import { formatDate } from '../utils/dateUtils';
 
 const ProfilePage = ({ user, onLogout, onUserUpdate }) => {
   const queryClient = useQueryClient();
   const [selectedFileName, setSelectedFileName] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
+  const [form, setForm] = useState({ name: '', phoneNumber: '' });
 
   const profileQuery = useQuery({
     queryKey: ['profile', user.userId],
     queryFn: () => userApi.getProfile(user.userId, { preferCache: false }),
     enabled: Boolean(user?.userId),
   });
+
+  const profile = profileQuery.data || user;
 
   const avatarQuery = useQuery({
     queryKey: ['profileAvatar', user.userId, profileQuery.data?.avatarUrl],
@@ -26,12 +45,29 @@ const ProfilePage = ({ user, onLogout, onUserUpdate }) => {
     [avatarQuery.data]
   );
 
+  const updateProfileMutation = useMutation({
+    mutationFn: () => userApi.updateProfile({
+      userId: user.userId,
+      payload: {
+        name: form.name.trim(),
+        phoneNumber: form.phoneNumber.trim() || null,
+      },
+    }),
+    onSuccess: (nextProfile) => {
+      queryClient.setQueryData(['profile', user.userId], nextProfile);
+      queryClient.invalidateQueries({ queryKey: ['userProfile', user.userId] });
+      onUserUpdate?.({ ...user, ...nextProfile });
+      setIsEditing(false);
+    },
+  });
+
   const uploadMutation = useMutation({
     mutationFn: userApi.uploadAvatar,
-    onSuccess: (profile) => {
-      queryClient.setQueryData(['profile', user.userId], profile);
+    onSuccess: (nextProfile) => {
+      queryClient.setQueryData(['profile', user.userId], nextProfile);
       queryClient.invalidateQueries({ queryKey: ['profileAvatar', user.userId] });
-      onUserUpdate?.({ ...user, avatarUrl: profile.avatarUrl });
+      queryClient.invalidateQueries({ queryKey: ['userProfile', user.userId] });
+      onUserUpdate?.({ ...user, ...nextProfile });
       setSelectedFileName('');
     },
   });
@@ -67,7 +103,36 @@ const ProfilePage = ({ user, onLogout, onUserUpdate }) => {
     window.dispatchEvent(new Event(TELEGRAM_REOPEN_EVENT));
   };
 
-  const profile = profileQuery.data || user;
+  const handleStartEdit = () => {
+    setForm({
+      name: profile?.name || '',
+      phoneNumber: profile?.phoneNumber || '',
+    });
+    setIsEditing(true);
+  };
+
+  const handleCancelEdit = () => {
+    setForm({
+      name: profile?.name || '',
+      phoneNumber: profile?.phoneNumber || '',
+    });
+    setIsEditing(false);
+  };
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    if (!form.name.trim()) {
+      return;
+    }
+    updateProfileMutation.mutate();
+  };
+
+  const connectedTelegram = Boolean(profile.telegramChatId || profile.telegram_chat_id);
+  const error = profileQuery.error ||
+    updateProfileMutation.error ||
+    uploadMutation.error ||
+    avatarQuery.error ||
+    disconnectTelegramMutation.error;
 
   return (
     <AppLayout
@@ -76,37 +141,49 @@ const ProfilePage = ({ user, onLogout, onUserUpdate }) => {
       onLogout={onLogout}
       showTelegramOnboarding={false}
     >
-      <div className="mx-auto max-w-3xl space-y-6">
-        <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-            <div className="relative h-28 w-28 shrink-0">
-              <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-full border border-gray-200 bg-blue-50 text-blue-600">
-                {avatarPreviewUrl ? (
-                  <img
-                    src={avatarPreviewUrl}
-                    alt={profile.name}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <User size={44} />
+      <div className="mx-auto max-w-5xl space-y-5">
+        <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+            <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center">
+              <div className="relative h-24 w-24 shrink-0">
+                <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-indigo-50 text-indigo-600">
+                  {avatarPreviewUrl ? (
+                    <img
+                      src={avatarPreviewUrl}
+                      alt={profile.name}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <User size={40} />
+                  )}
+                </div>
+                {uploadMutation.isPending && (
+                  <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-white/70">
+                    <Loader2 size={24} className="animate-spin text-indigo-600" />
+                  </div>
                 )}
               </div>
-              {uploadMutation.isPending && (
-                <div className="absolute inset-0 flex items-center justify-center rounded-full bg-white/70">
-                  <Loader2 size={24} className="animate-spin text-blue-600" />
+
+              <div className="min-w-0">
+                <h1 className="truncate text-3xl font-extrabold tracking-tight text-slate-950">
+                  {profile.name}
+                </h1>
+                <p className="mt-1 break-words text-sm font-medium text-slate-500">{profile.email}</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <ProfilePill tone={profile.emailVerified ? 'emerald' : 'amber'}>
+                    {profile.emailVerified ? 'Email đã xác thực' : 'Email chưa xác thực'}
+                  </ProfilePill>
+                  <ProfilePill tone={connectedTelegram ? 'indigo' : 'slate'}>
+                    {connectedTelegram ? 'Đã kết nối Telegram' : 'Chưa kết nối Telegram'}
+                  </ProfilePill>
                 </div>
-              )}
+              </div>
             </div>
 
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-blue-600">Profile cá nhân</p>
-              <h2 className="mt-1 text-2xl font-bold text-gray-900">{profile.name}</h2>
-              <p className="mt-1 text-sm text-gray-500">
-                Quản lý thông tin tài khoản và ảnh đại diện EventFlow.
-              </p>
-              <label className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <label className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
                 <Camera size={18} />
-                Upload ảnh profile
+                Đổi ảnh
                 <input
                   type="file"
                   accept="image/png,image/jpeg,image/webp"
@@ -114,72 +191,146 @@ const ProfilePage = ({ user, onLogout, onUserUpdate }) => {
                   className="sr-only"
                 />
               </label>
-              <p className="mt-2 text-xs text-gray-500">
-                Hỗ trợ JPG, PNG, WEBP. Tối đa 2MB. File được lưu qua Supabase Storage khi cấu hình Supabase đang bật.
-              </p>
-              {selectedFileName && (
-                <p className="mt-2 text-xs font-semibold text-gray-600">
-                  Đang upload: {selectedFileName}
-                </p>
+              {!isEditing && (
+                <Button type="button" onClick={handleStartEdit}>
+                  <Edit3 size={18} />
+                  Sửa profile
+                </Button>
               )}
             </div>
           </div>
 
+          {selectedFileName && (
+            <p className="mt-4 text-xs font-semibold text-slate-500">
+              Đang upload: {selectedFileName}
+            </p>
+          )}
+
           {profileQuery.isLoading && (
-            <div className="mt-5 flex items-center gap-2 rounded-lg bg-gray-50 p-3 text-sm text-gray-500">
+            <div className="mt-5 flex items-center gap-2 rounded-lg bg-slate-50 p-3 text-sm font-medium text-slate-500">
               <Loader2 size={18} className="animate-spin" />
               Đang tải profile...
             </div>
           )}
 
-          {(profileQuery.error || uploadMutation.error || avatarQuery.error || disconnectTelegramMutation.error) && (
-            <div className="mt-5 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-              {profileQuery.error?.userMessage ||
-                uploadMutation.error?.userMessage ||
-                avatarQuery.error?.userMessage ||
-                disconnectTelegramMutation.error?.userMessage ||
-                'Không xử lý được profile'}
+          {error && (
+            <div className="mt-5 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-700">
+              {error.userMessage || error.message || 'Không xử lý được profile'}
             </div>
           )}
         </section>
 
-        <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-          <h3 className="text-lg font-semibold text-gray-900">Thông tin tài khoản</h3>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <InfoItem icon={<User size={18} />} label="Họ tên" value={profile.name} />
-            <InfoItem icon={<Mail size={18} />} label="Email" value={profile.email} />
+        <div className="grid gap-5 lg:grid-cols-[1.15fr_0.85fr]">
+          <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-extrabold text-slate-950">Thông tin cá nhân</h2>
+              </div>
+              {isEditing && (
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
+                  className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                  aria-label="Hủy chỉnh sửa"
+                >
+                  <X size={18} />
+                </button>
+              )}
+            </div>
+
+            {isEditing ? (
+              <form onSubmit={handleSubmit} className="mt-5 grid gap-4">
+                <label className="grid gap-1 text-sm font-semibold text-slate-700">
+                  Họ tên
+                  <input
+                    name="name"
+                    value={form.name}
+                    onChange={(event) => setForm((old) => ({ ...old, name: event.target.value }))}
+                    maxLength={100}
+                    required
+                    className="h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                  />
+                </label>
+                <label className="grid gap-1 text-sm font-semibold text-slate-700">
+                  Số điện thoại
+                  <input
+                    name="phoneNumber"
+                    value={form.phoneNumber}
+                    onChange={(event) => setForm((old) => ({ ...old, phoneNumber: event.target.value }))}
+                    maxLength={15}
+                    placeholder="Chưa cập nhật"
+                    className="h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                  />
+                </label>
+                <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                  <Button type="button" variant="secondary" onClick={handleCancelEdit}>
+                    Hủy
+                  </Button>
+                  <Button type="submit" disabled={updateProfileMutation.isPending || !form.name.trim()}>
+                    {updateProfileMutation.isPending ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                    Lưu thay đổi
+                  </Button>
+                </div>
+              </form>
+            ) : (
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                <InfoItem icon={User} label="Họ tên" value={profile.name} />
+                <InfoItem icon={Phone} label="Số điện thoại" value={profile.phoneNumber || 'Chưa cập nhật'} />
+                <InfoItem icon={Mail} label="Email đăng nhập" value={profile.email} />
+                <InfoItem icon={ShieldCheck} label="Trạng thái email" value={profile.emailVerified ? 'Đã xác thực' : 'Chưa xác thực'} />
+                <InfoItem icon={CalendarDays} label="Ngày tạo tài khoản" value={formatDate(profile.createdAt)} />
+              </div>
+            )}
+          </section>
+
+          <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="text-lg font-extrabold text-slate-950">Telegram</h2>
             <TelegramInfoItem
-              connected={Boolean(profile.telegramChatId || profile.telegram_chat_id)}
+              connected={connectedTelegram}
               isDisconnecting={disconnectTelegramMutation.isPending}
               onConnect={handleConnectTelegram}
               onDisconnect={handleDisconnectTelegram}
             />
-            <InfoItem label="User ID" value={profile.userId} />
-          </div>
-        </section>
+          </section>
+        </div>
       </div>
     </AppLayout>
   );
 };
 
-const InfoItem = ({ icon, label, value }) => (
-  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-    <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-      {icon}
+const ProfilePill = ({ tone = 'slate', children }) => {
+  const tones = {
+    emerald: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    amber: 'border-amber-200 bg-amber-50 text-amber-700',
+    indigo: 'border-indigo-200 bg-indigo-50 text-indigo-700',
+    slate: 'border-slate-200 bg-slate-100 text-slate-700',
+  };
+
+  return (
+    <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${tones[tone] || tones.slate}`}>
+      {children}
+    </span>
+  );
+};
+
+const InfoItem = ({ icon: Icon, label, value }) => (
+  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+    <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
+      <Icon size={18} className="text-slate-400" strokeWidth={1.8} />
       {label}
     </div>
-    <p className="mt-1 break-words text-sm text-gray-900">{value || 'N/A'}</p>
+    <p className="mt-1 break-words text-sm font-semibold text-slate-950">{value || 'N/A'}</p>
   </div>
 );
 
 const TelegramInfoItem = ({ connected, isDisconnecting, onConnect, onDisconnect }) => (
-  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-    <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-      <Send size={18} />
+  <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
+    <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
+      <Send size={18} className="text-slate-400" strokeWidth={1.8} />
       Telegram
     </div>
-    <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-      <p className={`text-sm font-semibold ${connected ? 'text-emerald-700' : 'text-gray-600'}`}>
+    <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <p className={`text-sm font-bold ${connected ? 'text-emerald-700' : 'text-slate-600'}`}>
         {connected ? 'Đã kết nối' : 'Chưa kết nối'}
       </p>
       {connected ? (
@@ -187,7 +338,7 @@ const TelegramInfoItem = ({ connected, isDisconnecting, onConnect, onDisconnect 
           type="button"
           onClick={onDisconnect}
           disabled={isDisconnecting}
-          className="inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isDisconnecting ? (
             <Loader2 size={14} className="animate-spin" />
@@ -200,10 +351,10 @@ const TelegramInfoItem = ({ connected, isDisconnecting, onConnect, onDisconnect 
         <button
           type="button"
           onClick={onConnect}
-          className="inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"
+          className="inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-700 hover:bg-indigo-100"
         >
           <Send size={14} />
-          Kết nối ngay
+          Kết nối
         </button>
       )}
     </div>
