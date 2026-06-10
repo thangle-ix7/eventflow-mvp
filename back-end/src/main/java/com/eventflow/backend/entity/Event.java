@@ -30,9 +30,26 @@ public class Event {
     @Column(name = "end_time")
     private LocalDateTime endTime;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    @Builder.Default
+    private EventNature nature = EventNature.NORMAL;
+
     @Column(length = 50)
     @Builder.Default
     private String status = "ACTIVE";
+
+    @Column(name = "context_description", columnDefinition = "TEXT")
+    private String contextDescription;
+
+    @Column(columnDefinition = "TEXT")
+    private String objective;
+
+    @Column(name = "expected_attendees")
+    private Integer expectedAttendees;
+
+    @Column(length = 100)
+    private String scale;
 
     @Column(name = "created_at", updatable = false)
     @Builder.Default
