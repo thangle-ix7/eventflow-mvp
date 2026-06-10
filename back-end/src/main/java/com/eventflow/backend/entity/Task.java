@@ -31,6 +31,14 @@ public class Task {
     @JoinColumn(name = "parent_id")
     private Task parent;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id")
+    private TaskCategory category;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "milestone_id")
+    private Milestone milestone;
+
     @Column(nullable = false)
     private String title;
 
@@ -47,7 +55,7 @@ public class Task {
     @Builder.Default
     private TaskPriority priority = TaskPriority.MEDIUM;
 
-    @Column(nullable = false)
+    @Column
     private LocalDateTime deadline;
 
     @Column(name = "progress_percentage", nullable = false)
