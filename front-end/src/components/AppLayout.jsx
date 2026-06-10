@@ -10,6 +10,7 @@ import {
   CalendarDays,
   ClipboardList,
   FileText,
+  Layers,
   LogOut,
   Menu,
   Search,
@@ -91,6 +92,7 @@ const AppLayoutFrame = ({
     ? [
       { to: `/events/${selectedEvent.id}`, label: 'Tổng quan', icon: Workflow },
       ...(permissions.canViewEventDashboard ? [{ to: `/events/${selectedEvent.id}/dashboard`, label: 'Dashboard', icon: BarChart3 }] : []),
+      { to: `/events/${selectedEvent.id}/plannings`, label: 'Kế hoạch', icon: Layers },
       { to: `/events/${selectedEvent.id}/tasks`, label: 'Công việc', icon: ClipboardList },
       ...(departmentHomePath ? [{ to: departmentHomePath, label: 'Ban tổ chức', icon: Users }] : []),
       { to: `/events/${selectedEvent.id}/members`, label: 'Thành viên', icon: UserRound },
@@ -118,6 +120,7 @@ const AppLayoutFrame = ({
   if (selectedEvent?.id) {
     searchSuggestionBase.push(
       { label: 'Công việc', description: '', to: `/events/${selectedEvent.id}/tasks` },
+      { label: 'Kế hoạch', description: '', to: `/events/${selectedEvent.id}/plannings` },
       { label: 'Thành viên', description: '', to: `/events/${selectedEvent.id}/members` },
       { label: 'Lịch', description: '', to: `/events/${selectedEvent.id}/calendar` },
       { label: 'Tài liệu', description: '', to: `/events/${selectedEvent.id}/documents` },

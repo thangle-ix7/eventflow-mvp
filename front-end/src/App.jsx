@@ -14,6 +14,7 @@ import EventDetailPage from './pages/EventDetailPage';
 import EventEditPage from './pages/EventEditPage';
 import EventListPage from './pages/EventListPage';
 import EventMembersPage from './pages/EventMembersPage';
+import EventPlanningPage from './pages/EventPlanningPage';
 import EventUtilityPage from './pages/EventUtilityPage';
 import ErrorPage from './pages/ErrorPage';
 import InvitationConfirmPage from './pages/InvitationConfirmPage';
@@ -195,6 +196,10 @@ function App() {
         <Route
           path="/events/:eventId/members"
           element={<EventMembersPage {...protectedProps} />}
+        />
+        <Route
+          path="/events/:eventId/plannings"
+          element={<EventPlanningPage {...protectedProps} />}
         />
         <Route
           path="/events/:eventId/members/:userId"

@@ -2,18 +2,25 @@ package com.eventflow.backend.service;
 
 import com.eventflow.backend.dto.AiCalendarSuggestionResponse;
 import com.eventflow.backend.dto.AiDepartmentSuggestionResponse;
+import com.eventflow.backend.dto.AiPlanningSuggestionResponse;
 import com.eventflow.backend.dto.AiSubtaskSuggestionResponse;
 import com.eventflow.backend.dto.AiSuggestionRequest;
 import com.eventflow.backend.dto.AiTaskSuggestionResponse;
 import com.eventflow.backend.dto.DepartmentRequestDTO;
 import com.eventflow.backend.dto.EventCalendarItemRequest;
+import com.eventflow.backend.dto.PlanningPhaseRequestDTO;
+import com.eventflow.backend.dto.PlanningRequestDTO;
 import com.eventflow.backend.dto.TaskRequestDTO;
 import com.eventflow.backend.entity.Department;
 import com.eventflow.backend.entity.Event;
+import com.eventflow.backend.entity.Planning;
+import com.eventflow.backend.entity.PlanningPhase;
 import com.eventflow.backend.entity.Task;
 import com.eventflow.backend.entity.TaskPriority;
 import com.eventflow.backend.repository.DepartmentRepository;
 import com.eventflow.backend.repository.EventRepository;
+import com.eventflow.backend.repository.PlanningPhaseRepository;
+import com.eventflow.backend.repository.PlanningRepository;
 import com.eventflow.backend.repository.TaskRepository;
 import com.eventflow.backend.security.EventSecurityService;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -41,6 +48,8 @@ public class AiSuggestionService {
     private final EventRepository eventRepository;
     private final DepartmentRepository departmentRepository;
     private final TaskRepository taskRepository;
+    private final PlanningRepository planningRepository;
+    private final PlanningPhaseRepository planningPhaseRepository;
     private final EventSecurityService eventSecurityService;
     private final OpenAiEventflowAssistantClient openAiAssistantClient;
     private final JdbcTemplate jdbcTemplate;
@@ -87,6 +96,31 @@ public class AiSuggestionService {
                         .map(json -> parseTasks(json.path("tasks"), event, departments, count))
                         .filter(items -> !items.isEmpty())
                         .orElseGet(() -> fallbackTasks(event, departments, count)))
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public AiPlanningSuggestionResponse suggestPlanning(Long eventId, Long userId, AiSuggestionRequest request) {
+        if (!eventSecurityService.isLeaderOfEvent(eventId, userId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Chỉ leader của sự kiện mới được gợi ý kế hoạch");
+        }
+
+        Event event = getEvent(eventId);
+        List<Department> departments = departmentRepository.findAllByEventIdOrderByNameAsc(eventId);
+        List<Task> existingTasks = taskRepository.findAllByEventIdWithDetails(eventId);
+        int phaseCount = resolveCount(request, 4);
+        Map<String, Object> input = baseInput(event, departments, existingTasks, request);
+        input.put("existingPlannings", loadPlanningInputs(eventId));
+
+        Optional<JsonNode> aiJson = openAiAssistantClient.generateJson(
+                planningInstructions(phaseCount),
+                input);
+
+        return AiPlanningSuggestionResponse.builder()
+                .planning(aiJson
+                        .map(json -> parsePlanning(json.path("planning"), phaseCount))
+                        .filter(planning -> planning.getTitle() != null && !planning.getTitle().isBlank())
+                        .orElseGet(() -> fallbackPlanning(event, phaseCount)))
                 .build();
     }
 
@@ -183,6 +217,10 @@ public class AiSuggestionService {
         data.put("startTime", event.getEventDate());
         data.put("endTime", event.getEndTime());
         data.put("status", event.getStatus());
+        data.put("contextDescription", event.getContextDescription());
+        data.put("objective", event.getObjective());
+        data.put("expectedAttendees", event.getExpectedAttendees());
+        data.put("scale", event.getScale());
         return data;
     }
 
@@ -206,6 +244,27 @@ public class AiSuggestionService {
         data.put("status", task.getStatus());
         data.put("priority", task.getPriority());
         data.put("deadline", task.getDeadline());
+        return data;
+    }
+
+    private Map<String, Object> planningInput(Planning planning) {
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("id", planning.getId());
+        data.put("title", planning.getTitle());
+        data.put("description", planning.getDescription());
+        data.put("phases", planningPhaseRepository.findAllByPlanningIdOrderByOrderIndexAscIdAsc(planning.getId()).stream()
+                .map(this::planningPhaseInput)
+                .toList());
+        return data;
+    }
+
+    private Map<String, Object> planningPhaseInput(PlanningPhase phase) {
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("id", phase.getId());
+        data.put("phaseName", phase.getPhaseName());
+        data.put("description", phase.getDescription());
+        data.put("objective", phase.getObjective());
+        data.put("orderIndex", phase.getOrderIndex());
         return data;
     }
 
@@ -234,6 +293,20 @@ public class AiSuggestionService {
                 {"tasks":[{"title":"...", "description":"...", "departmentId":1, "assigneeId":null, "status":"TODO", "priority":"HIGH", "deadline":"2026-07-09T17:00:00", "progressPercentage":0}]}
                 priority chỉ được là LOW, MEDIUM, HIGH hoặc URGENT.
                 """.formatted(count);
+    }
+
+    private String planningInstructions(int phaseCount) {
+        return """
+                Bạn là AI gợi ý dữ liệu cho EventFlow. Chỉ trả JSON object, không markdown.
+                Dựa trên thông tin event, department hiện có, task hiện có và planning hiện có, hãy gợi ý 1 planning tổng thể.
+                Planning là kế hoạch vận hành/giai đoạn triển khai, không phải milestone.
+                Không tạo milestone, không tạo task, không gán assignee, không dùng trường ngoài API Planning CRUD hiện tại.
+                Gợi ý tối đa %d phase. Nếu event đã có planning, tránh trùng nội dung với existingPlannings.
+                JSON phải có dạng:
+                {"planning":{"title":"...", "description":"...", "phases":[{"phaseName":"...", "description":"...", "objective":"...", "orderIndex":0}]}}
+                title và phaseName tối đa 255 ký tự. description và objective tối đa 2000 ký tự.
+                orderIndex bắt đầu từ 0, tăng dần theo thứ tự thực hiện.
+                """.formatted(phaseCount);
     }
 
     private String subtaskInstructions(int count) {
@@ -280,6 +353,34 @@ public class AiSuggestionService {
                 .filter(item -> item.getName() != null && !item.getName().isBlank())
                 .filter(item -> usedNames.add(normalizeName(item.getName())))
                 .limit(count)
+                .toList();
+    }
+
+    private PlanningRequestDTO parsePlanning(JsonNode planning, int phaseCount) {
+        if (!planning.isObject()) {
+            return null;
+        }
+
+        PlanningRequestDTO request = new PlanningRequestDTO();
+        request.setTitle(limitText(planning.path("title").asText(""), 255));
+        request.setDescription(limitText(planning.path("description").asText(null), 2000));
+        request.setPhases(parsePlanningPhases(planning.path("phases"), phaseCount));
+        return request;
+    }
+
+    private List<PlanningPhaseRequestDTO> parsePlanningPhases(JsonNode phases, int phaseCount) {
+        if (!phases.isArray()) {
+            return List.of();
+        }
+
+        return streamJson(phases)
+                .limit(phaseCount)
+                .map(item -> new PlanningPhaseRequestDTO(
+                        limitText(item.path("phaseName").asText(""), 255),
+                        limitText(item.path("description").asText(null), 2000),
+                        limitText(item.path("objective").asText(null), 2000),
+                        resolveOrderIndex(item.path("orderIndex"))))
+                .filter(item -> item.getPhaseName() != null && !item.getPhaseName().isBlank())
                 .toList();
     }
 
@@ -352,6 +453,13 @@ public class AiSuggestionService {
         } catch (IllegalArgumentException e) {
             return TaskPriority.MEDIUM.name();
         }
+    }
+
+    private Integer resolveOrderIndex(JsonNode orderIndexNode) {
+        if (!orderIndexNode.isNumber()) {
+            return 0;
+        }
+        return Math.max(orderIndexNode.asInt(), 0);
     }
 
     private LocalDateTime resolveDeadline(String value, LocalDateTime latestAllowed) {
@@ -462,6 +570,35 @@ public class AiSuggestionService {
         return suggestions.stream().limit(count).toList();
     }
 
+    private PlanningRequestDTO fallbackPlanning(Event event, int phaseCount) {
+        List<PlanningPhaseRequestDTO> phases = List.of(
+                new PlanningPhaseRequestDTO(
+                        "Giai đoạn khởi động",
+                        "Làm rõ mục tiêu, phạm vi, nhân sự tham gia và cách phối hợp trong event.",
+                        "Đảm bảo team hiểu cùng một mục tiêu và có kế hoạch vận hành ban đầu.",
+                        0),
+                new PlanningPhaseRequestDTO(
+                        "Giai đoạn chuẩn bị",
+                        "Chuẩn bị nội dung, nguồn lực, checklist công việc và các hạng mục cần thiết.",
+                        "Hoàn tất các đầu việc nền tảng trước khi bước vào triển khai chính.",
+                        1),
+                new PlanningPhaseRequestDTO(
+                        "Giai đoạn triển khai",
+                        "Theo dõi tiến độ, điều phối các department và xử lý phát sinh trong quá trình thực hiện.",
+                        "Đảm bảo event vận hành đúng tiến độ và các task quan trọng được kiểm soát.",
+                        2),
+                new PlanningPhaseRequestDTO(
+                        "Giai đoạn tổng kết",
+                        "Tổng hợp kết quả, ghi nhận vấn đề, đánh giá hiệu quả và rút kinh nghiệm.",
+                        "Có dữ liệu tổng kết để cải thiện các event tiếp theo.",
+                        3));
+
+        return new PlanningRequestDTO(
+                "Kế hoạch vận hành " + event.getName(),
+                "Kế hoạch tổng thể giúp điều phối các giai đoạn chính của event từ khởi động đến tổng kết.",
+                phases.stream().limit(phaseCount).toList());
+    }
+
     private List<TaskRequestDTO> fallbackSubtasks(Task parentTask, int count) {
         LocalDateTime deadline = parentTask.getDeadline();
         List<TaskRequestDTO> suggestions = List.of(
@@ -523,6 +660,12 @@ public class AiSuggestionService {
                 ORDER BY start_time ASC
                 LIMIT 100
                 """, eventId);
+    }
+
+    private List<Map<String, Object>> loadPlanningInputs(Long eventId) {
+        return planningRepository.findAllByEventIdOrderByCreatedAtAsc(eventId).stream()
+                .map(this::planningInput)
+                .toList();
     }
 
     private Set<String> existingDepartmentNames(List<Department> departments) {
