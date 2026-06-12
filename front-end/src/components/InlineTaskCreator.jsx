@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Plus, Save, Sparkles, X } from 'lucide-react';
 import aiSuggestionApi from '../api/aiSuggestionApi';
 import eventMemberApi from '../api/eventMemberApi';
 import taskApi from '../api/taskApi';
+import workloadApi from '../api/workloadApi';
 import { ErrorState } from './ui';
 import { invalidateDashboardQueries } from '../utils/dashboardQueryUtils';
 
@@ -35,6 +36,26 @@ const createEmptyRow = (departmentId = '', assigneeId = '') => ({
 
 const normalizeSuggestedDeadline = (value) => (value ? toDateTimeLocalValue(value) || String(value).slice(0, 16) : '');
 
+const workloadText = (workload) => {
+  if (!workload) {
+    return '';
+  }
+
+  return ` - ${workload.assignedTasks} task - ${workload.workloadStatus}`;
+};
+
+const workloadHintClassName = (status) => {
+  if (status === 'OVERLOADED') {
+    return 'text-red-600';
+  }
+
+  if (status === 'HIGH') {
+    return 'text-amber-600';
+  }
+
+  return 'text-slate-500';
+};
+
 const InlineTaskCreator = ({
   eventId,
   parentTaskId,
@@ -63,11 +84,92 @@ const InlineTaskCreator = ({
   const [isOpen, setIsOpen] = useState(false);
   const [suggestionInstruction, setSuggestionInstruction] = useState('');
   const addButtonLabel = openLabel || (parentTaskId ? 'Thêm subtask' : 'Thêm task');
+
   const membersQuery = useQuery({
     queryKey: ['eventMembers', eventId],
     queryFn: () => eventMemberApi.getMembers(eventId),
     enabled: Boolean(eventId),
   });
+
+  const getEffectiveDepartmentId = (row) => (lockedDepartment ? String(departmentId || '') : row.departmentId);
+  const getEffectiveAssigneeId = (row) => (lockedAssignee ? String(assigneeId || '') : row.assigneeId);
+
+  /*
+   * Lấy danh sách departmentId đang được dùng trong các dòng.
+   * Vì mỗi dòng có thể chọn một ban khác nhau, workload phải query theo từng ban.
+   */
+  const selectedDepartmentIds = useMemo(() => {
+    const ids = rows
+      .map((row) => getEffectiveDepartmentId(row))
+      .filter(Boolean);
+
+    return [...new Set(ids)];
+  }, [rows, lockedDepartment, departmentId]);
+
+  /*
+   * Query workload cho từng department đang được chọn.
+   * Không dùng query workload từ TaskListPage vì khi filter là "Tất cả ban",
+   * mỗi dòng vẫn có thể chọn department riêng.
+   */
+  const departmentWorkloadQueries = useQueries({
+    queries: selectedDepartmentIds.map((selectedDepartmentId) => ({
+      queryKey: ['departmentWorkload', eventId, selectedDepartmentId],
+      queryFn: () => workloadApi.getDepartmentWorkload({
+        eventId,
+        departmentId: selectedDepartmentId,
+      }),
+      enabled: Boolean(eventId && selectedDepartmentId),
+    })),
+  });
+
+  /*
+   * Map workload theo departmentId:
+   * {
+   *   "9101": departmentWorkloadResponse
+   * }
+   */
+  const workloadByDepartmentId = useMemo(() => {
+    return selectedDepartmentIds.reduce((map, selectedDepartmentId, index) => {
+      const data = departmentWorkloadQueries[index]?.data;
+      if (data) {
+        map[String(selectedDepartmentId)] = data;
+      }
+      return map;
+    }, {});
+  }, [selectedDepartmentIds, departmentWorkloadQueries]);
+
+  const getDepartmentWorkload = (departmentIdValue) => {
+    if (!departmentIdValue) {
+      return null;
+    }
+
+    return workloadByDepartmentId[String(departmentIdValue)] || null;
+  };
+
+  const getMemberWorkload = (departmentIdValue, memberId) => {
+    const departmentWorkload = getDepartmentWorkload(departmentIdValue);
+    const workloadMembers = departmentWorkload?.members || [];
+
+    return workloadMembers.find((member) => String(member.memberId) === String(memberId)) || null;
+  };
+
+  const isDepartmentWorkloadLoading = (departmentIdValue) => {
+    if (!departmentIdValue) {
+      return false;
+    }
+
+    const index = selectedDepartmentIds.findIndex((id) => String(id) === String(departmentIdValue));
+    return departmentWorkloadQueries[index]?.isLoading || false;
+  };
+
+  const getAssignableMembers = (row) => {
+    const effectiveDepartmentId = getEffectiveDepartmentId(row);
+    if (!effectiveDepartmentId) {
+      return [];
+    }
+
+    return (membersQuery.data || []).filter((member) => String(member.departmentId || '') === effectiveDepartmentId);
+  };
 
   const mutation = useMutation({
     mutationFn: async (payloads) => Promise.all(payloads.map((payload) => (
@@ -84,6 +186,9 @@ const InlineTaskCreator = ({
       });
       queryClient.invalidateQueries({ queryKey: ['eventTaskPage', eventId] });
       queryClient.invalidateQueries({ queryKey: ['eventTasks', eventId] });
+      selectedDepartmentIds.forEach((selectedDepartmentId) => {
+        queryClient.invalidateQueries({ queryKey: ['departmentWorkload', eventId, selectedDepartmentId] });
+      });
       if (parentTaskId) {
         queryClient.invalidateQueries({ queryKey: ['subtasks', String(parentTaskId)] });
       }
@@ -113,18 +218,6 @@ const InlineTaskCreator = ({
       })));
     },
   });
-
-  const getEffectiveDepartmentId = (row) => (lockedDepartment ? String(departmentId || '') : row.departmentId);
-  const getEffectiveAssigneeId = (row) => (lockedAssignee ? String(assigneeId || '') : row.assigneeId);
-
-  const getAssignableMembers = (row) => {
-    const effectiveDepartmentId = getEffectiveDepartmentId(row);
-    if (!effectiveDepartmentId) {
-      return [];
-    }
-
-    return (membersQuery.data || []).filter((member) => String(member.departmentId || '') === effectiveDepartmentId);
-  };
 
   const updateRow = (rowId, name, value) => {
     setLocalError('');
@@ -259,6 +352,7 @@ const InlineTaskCreator = ({
           </button>
         </div>
       </div>
+
       <div className="grid gap-2 border-b border-indigo-100 px-4 py-3 sm:grid-cols-[1fr_auto]">
         <input
           value={suggestionInstruction}
@@ -277,8 +371,9 @@ const InlineTaskCreator = ({
           AI gợi ý
         </button>
       </div>
+
       <div className="overflow-x-auto">
-        <div className="min-w-[980px]">
+        <div className="min-w-[1120px]">
           <div className={taskCreatorGridHeaderClassName}>
             <span>#</span>
             <span>Tên task</span>
@@ -290,10 +385,15 @@ const InlineTaskCreator = ({
             <span>Trạng thái</span>
             <span></span>
           </div>
+
           {rows.map((row, index) => {
             const effectiveDepartmentId = getEffectiveDepartmentId(row);
             const effectiveAssigneeId = getEffectiveAssigneeId(row);
             const assignableMembers = getAssignableMembers(row);
+            const selectedWorkload = effectiveAssigneeId
+              ? getMemberWorkload(effectiveDepartmentId, effectiveAssigneeId)
+              : null;
+            const isWorkloadLoading = isDepartmentWorkloadLoading(effectiveDepartmentId);
 
             return (
               <div
@@ -303,6 +403,7 @@ const InlineTaskCreator = ({
                 <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-indigo-50 text-xs font-extrabold text-indigo-700">
                   {index + 1}
                 </span>
+
                 <input
                   value={row.title}
                   onChange={(event) => updateRow(row.id, 'title', event.target.value)}
@@ -312,6 +413,7 @@ const InlineTaskCreator = ({
                   aria-label="Tên task"
                   className={taskInputClassName}
                 />
+
                 <input
                   value={row.description}
                   onChange={(event) => updateRow(row.id, 'description', event.target.value)}
@@ -321,6 +423,7 @@ const InlineTaskCreator = ({
                   aria-label="Mô tả"
                   className={taskInputClassName}
                 />
+
                 <select
                   value={effectiveDepartmentId}
                   onChange={(event) => updateRow(row.id, 'departmentId', event.target.value)}
@@ -335,20 +438,40 @@ const InlineTaskCreator = ({
                     </option>
                   ))}
                 </select>
-                <select
-                  value={effectiveAssigneeId}
-                  onChange={(event) => updateRow(row.id, 'assigneeId', event.target.value)}
-                  disabled={!effectiveDepartmentId || lockedAssignee || mutation.isPending}
-                  aria-label="Phụ trách"
-                  className={taskInputClassName}
-                >
-                  <option value="">Chưa phân công</option>
-                  {assignableMembers.map((member) => (
-                    <option key={member.userId} value={member.userId}>
-                      {member.name}
-                    </option>
-                  ))}
-                </select>
+
+                <div className="min-w-0">
+                  <select
+                    value={effectiveAssigneeId}
+                    onChange={(event) => updateRow(row.id, 'assigneeId', event.target.value)}
+                    disabled={!effectiveDepartmentId || lockedAssignee || mutation.isPending}
+                    aria-label="Phụ trách"
+                    className={taskInputClassName}
+                  >
+                    <option value="">Chưa phân công</option>
+                    {assignableMembers.map((member) => {
+                      const workload = getMemberWorkload(effectiveDepartmentId, member.userId);
+
+                      return (
+                        <option key={member.userId} value={member.userId}>
+                          {member.name}{workloadText(workload)}
+                        </option>
+                      );
+                    })}
+                  </select>
+
+                  {isWorkloadLoading && (
+                    <p className="mt-1 truncate text-[10px] font-medium text-slate-500">
+                      Đang tải workload...
+                    </p>
+                  )}
+
+                  {selectedWorkload && (
+                    <p className={`mt-1 truncate text-[10px] font-semibold ${workloadHintClassName(selectedWorkload.workloadStatus)}`}>
+                      {selectedWorkload.assignedTasks} task · {selectedWorkload.workloadScore}% · {selectedWorkload.workloadStatus}
+                    </p>
+                  )}
+                </div>
+
                 <input
                   type="datetime-local"
                   value={row.deadline || defaultDeadline}
@@ -358,6 +481,7 @@ const InlineTaskCreator = ({
                   aria-label="Deadline"
                   className={taskInputClassName}
                 />
+
                 <select
                   value={row.priority}
                   onChange={(event) => updateRow(row.id, 'priority', event.target.value)}
@@ -370,6 +494,7 @@ const InlineTaskCreator = ({
                   <option value="HIGH">Cao</option>
                   <option value="URGENT">Khẩn cấp</option>
                 </select>
+
                 <select
                   value={row.status}
                   onChange={(event) => updateRow(row.id, 'status', event.target.value)}
@@ -382,6 +507,7 @@ const InlineTaskCreator = ({
                   <option value="IN_REVIEW">Chờ duyệt</option>
                   <option value="DONE">Hoàn thành</option>
                 </select>
+
                 <button
                   type="button"
                   onClick={() => removeRow(row.id)}
@@ -396,6 +522,7 @@ const InlineTaskCreator = ({
           })}
         </div>
       </div>
+
       {(localError || mutation.error) && (
         <div className="px-4 pb-3 pt-2">
           <ErrorState error={localError || mutation.error} title="Không tạo được công việc" />
@@ -405,9 +532,9 @@ const InlineTaskCreator = ({
   );
 };
 
-const taskCreatorGridColumns = 'grid-cols-[28px_minmax(150px,1.35fr)_minmax(100px,0.8fr)_110px_120px_180px_112px_104px_28px]';
-const taskCreatorGridHeaderClassName = `grid min-w-[980px] ${taskCreatorGridColumns} items-center gap-1 border-b border-indigo-100 px-2 py-2 text-[10px] font-bold uppercase tracking-wide text-slate-500`;
-const taskCreatorGridRowClassName = `grid min-w-[980px] ${taskCreatorGridColumns} items-center gap-1 border-b border-indigo-100/70 px-2 py-3 last:border-b-0`;
+const taskCreatorGridColumns = 'grid-cols-[28px_minmax(150px,1.2fr)_minmax(100px,0.75fr)_120px_210px_180px_112px_104px_28px]';
+const taskCreatorGridHeaderClassName = `grid min-w-[1120px] ${taskCreatorGridColumns} items-center gap-1 border-b border-indigo-100 px-2 py-2 text-[10px] font-bold uppercase tracking-wide text-slate-500`;
+const taskCreatorGridRowClassName = `grid min-w-[1120px] ${taskCreatorGridColumns} items-start gap-1 border-b border-indigo-100/70 px-2 py-3 last:border-b-0`;
 const taskInputClassName = 'h-10 w-full min-w-0 rounded-lg border border-indigo-200 bg-white px-2 text-xs text-slate-800 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50 disabled:text-slate-500';
 
 export default InlineTaskCreator;

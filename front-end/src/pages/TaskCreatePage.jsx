@@ -8,6 +8,7 @@ import departmentApi from '../api/departmentApi';
 import eventApi from '../api/eventApi';
 import eventMemberApi from '../api/eventMemberApi';
 import taskApi from '../api/taskApi';
+import workloadApi from '../api/workloadApi';
 import { invalidateDashboardQueries } from '../utils/dashboardQueryUtils';
 
 const pad = (value) => String(value).padStart(2, '0');
@@ -19,6 +20,11 @@ const toDateTimeLocalValue = (value) => {
 };
 
 const normalizeSuggestedDeadline = (value) => (value ? toDateTimeLocalValue(value) || String(value).slice(0, 16) : '');
+
+const workloadText = (workload) => {
+  if (!workload) return '';
+  return ` - ${workload.assignedTasks} task - ${workload.workloadStatus}`;
+};
 
 const TaskCreatePage = ({ user, onLogout }) => {
   const { eventId } = useParams();
@@ -42,6 +48,13 @@ const TaskCreatePage = ({ user, onLogout }) => {
   const eventQuery = useQuery({ queryKey: ['event', eventId], queryFn: () => eventApi.getEvent(eventId), enabled: Boolean(eventId) });
   const departmentsQuery = useQuery({ queryKey: ['eventDepartments', eventId], queryFn: () => departmentApi.getEventDepartments(eventId), enabled: Boolean(eventId) });
   const membersQuery = useQuery({ queryKey: ['eventMembers', eventId], queryFn: () => eventMemberApi.getMembers(eventId), enabled: Boolean(eventId) });
+
+  const departmentWorkloadQuery = useQuery({
+    queryKey: ['departmentWorkload', eventId, form.departmentId],
+    queryFn: () => workloadApi.getDepartmentWorkload({ eventId, departmentId: form.departmentId }),
+    enabled: Boolean(eventId && form.departmentId),
+  });
+
   const maxDeadline = toDateTimeLocalValue(eventQuery.data?.endTime || eventQuery.data?.startTime || eventQuery.data?.eventDate);
 
   const assignableMembers = useMemo(() => {
@@ -52,10 +65,23 @@ const TaskCreatePage = ({ user, onLogout }) => {
     return (membersQuery.data || []).filter((member) => String(member.departmentId || '') === form.departmentId);
   }, [form.departmentId, membersQuery.data]);
 
+  const workloadByMemberId = useMemo(() => {
+    const members = departmentWorkloadQuery.data?.members || [];
+    return members.reduce((map, member) => {
+      map[String(member.memberId)] = member;
+      return map;
+    }, {});
+  }, [departmentWorkloadQuery.data]);
+
+  const selectedMemberWorkload = form.assigneeId
+    ? workloadByMemberId[String(form.assigneeId)]
+    : null;
+
   const mutation = useMutation({
     mutationFn: taskApi.createTask,
     onSuccess: (task) => {
       queryClient.invalidateQueries({ queryKey: ['eventTaskPage', eventId] });
+      queryClient.invalidateQueries({ queryKey: ['departmentWorkload', eventId, form.departmentId] });
       invalidateDashboardQueries(queryClient, eventId);
       navigate(`/events/${eventId}/tasks/${task.id}`, { replace: true });
     },
@@ -121,6 +147,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
           <div>
             <h2 className="text-2xl font-bold text-gray-900">Tạo task</h2>
           </div>
+
           <div className="rounded-lg border border-indigo-100 bg-indigo-50/40 p-3">
             <div className="flex flex-col gap-2 sm:flex-row">
               <input
@@ -165,10 +192,13 @@ const TaskCreatePage = ({ user, onLogout }) => {
               </div>
             )}
           </div>
+
           {mutation.error && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{mutation.error.userMessage || mutation.error.message}</div>}
+
           <Field label="Tên task">
             <input name="title" value={form.title} onChange={handleChange} required maxLength={255} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500" />
           </Field>
+
           <Field label="Mô tả task">
             <textarea
               name="description"
@@ -180,21 +210,48 @@ const TaskCreatePage = ({ user, onLogout }) => {
               placeholder="Mô tả"
             />
           </Field>
+
           <Field label="Department">
             <select name="departmentId" value={form.departmentId} onChange={handleChange} disabled={isDepartmentLocked} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 disabled:bg-gray-50">
               <option value="">Chưa gán ban</option>
               {departmentsQuery.data?.map((department) => <option key={department.id} value={department.id}>{department.name}</option>)}
             </select>
           </Field>
+
           <Field label="Assignee">
             <select name="assigneeId" value={form.assigneeId} onChange={handleChange} disabled={!form.departmentId} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 disabled:bg-gray-50">
               <option value="">Chưa phân công</option>
-              {assignableMembers.map((member) => <option key={member.userId} value={member.userId}>{member.name} ({member.role})</option>)}
+              {assignableMembers.map((member) => {
+                const workload = workloadByMemberId[String(member.userId)];
+                return (
+                  <option key={member.userId} value={member.userId}>
+                    {member.name} ({member.role}){workloadText(workload)}
+                  </option>
+                );
+              })}
             </select>
+
+            {departmentWorkloadQuery.isLoading && (
+              <p className="mt-1 text-xs text-slate-500">Đang tải workload thành viên...</p>
+            )}
+
+            {selectedMemberWorkload && (
+              <p className={`mt-1 text-xs font-medium ${
+                selectedMemberWorkload.workloadStatus === 'OVERLOADED'
+                  ? 'text-red-600'
+                  : selectedMemberWorkload.workloadStatus === 'HIGH'
+                    ? 'text-amber-600'
+                    : 'text-slate-500'
+              }`}>
+                Workload hiện tại: {selectedMemberWorkload.assignedTasks} task chưa hoàn thành · {selectedMemberWorkload.workloadScore}% · {selectedMemberWorkload.workloadStatus}
+              </p>
+            )}
           </Field>
+
           <Field label="Deadline">
             <input name="deadline" type="datetime-local" value={form.deadline} onChange={handleChange} max={maxDeadline || undefined} required className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500" />
           </Field>
+
           <Field label="Status">
             <select name="status" value={form.status} onChange={handleChange} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500">
               <option value="TODO">TODO</option>
@@ -203,6 +260,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
               <option value="DONE">DONE</option>
             </select>
           </Field>
+
           <Field label="Ưu tiên">
             <select name="priority" value={form.priority} onChange={handleChange} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500">
               <option value="LOW">Thấp</option>
@@ -211,6 +269,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
               <option value="URGENT">Khẩn cấp</option>
             </select>
           </Field>
+
           <Field label="Tiến độ (%)">
             <input
               name="progressPercentage"
@@ -223,6 +282,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
             />
           </Field>
+
           <button type="submit" disabled={mutation.isPending} className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60">
             {mutation.isPending && <Loader2 size={16} className="animate-spin" />}
             Tạo task

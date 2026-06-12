@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -21,12 +21,30 @@ import eventApi from '../api/eventApi';
 import taskApi from '../api/taskApi';
 import departmentApi from '../api/departmentApi';
 import userApi from '../api/userApi';
+import workloadApi from '../api/workloadApi';
 import { formatDate } from '../utils/dateUtils';
 import { normalizeTaskPageSize } from '../utils/paginationUtils';
+
+const getWorkloadClassName = (status) => {
+  if (status === 'OVERLOADED') {
+    return 'text-red-600';
+  }
+
+  if (status === 'HIGH') {
+    return 'text-amber-600';
+  }
+
+  if (status === 'NORMAL') {
+    return 'text-emerald-600';
+  }
+
+  return 'text-slate-500';
+};
 
 const TaskListPage = ({ user, onLogout, onUserUpdate }) => {
   const { eventId } = useParams();
   const [searchParams] = useSearchParams();
+
   const [page, setPage] = useState(0);
   const initialPageSize = normalizeTaskPageSize(user?.taskPageSize);
   const [pageSize, setPageSize] = useState(initialPageSize);
@@ -54,7 +72,18 @@ const TaskListPage = ({ user, onLogout, onUserUpdate }) => {
   });
 
   const tasksQuery = useQuery({
-    queryKey: ['eventTaskPage', eventId, page, pageSize, search, status, priority, departmentId, fromDate, toDate],
+    queryKey: [
+      'eventTaskPage',
+      eventId,
+      page,
+      pageSize,
+      search,
+      status,
+      priority,
+      departmentId,
+      fromDate,
+      toDate,
+    ],
     queryFn: () =>
       taskApi.getEventTaskPage({
         eventId,
@@ -73,6 +102,57 @@ const TaskListPage = ({ user, onLogout, onUserUpdate }) => {
   const event = eventQuery.data;
   const tasks = tasksQuery.data?.content || [];
   const isLeader = event?.role === 'LEADER';
+
+  /*
+   * Query workload toàn event.
+   * Dùng để hiển thị workload ngay trong cột "Phụ trách" của danh sách task.
+   * Chỉ Event Leader mới gọi API này vì backend đang phân quyền như vậy.
+   */
+  const eventWorkloadQuery = useQuery({
+    queryKey: ['eventWorkload', eventId],
+    queryFn: () => workloadApi.getEventWorkload(eventId),
+    enabled: Boolean(eventId && isLeader),
+  });
+
+  /*
+   * Map workload theo memberId để lookup nhanh khi render từng task.
+   *
+   * Ví dụ:
+   * {
+   *   "9201": {
+   *     memberId: 9201,
+   *     assignedTasks: 2,
+   *     workloadStatus: "OVERLOADED"
+   *   }
+   * }
+   */
+  const workloadByMemberId = useMemo(() => {
+    const departments = eventWorkloadQuery.data?.departments || [];
+
+    return departments.reduce((map, department) => {
+      (department.members || []).forEach((member) => {
+        map[String(member.memberId)] = member;
+      });
+
+      return map;
+    }, {});
+  }, [eventWorkloadQuery.data]);
+
+  /*
+   * Query workload theo department filter hiện tại.
+   * Props này truyền xuống InlineTaskCreator để giữ tương thích với phần tạo task nhanh.
+   * Nếu departmentId rỗng thì query này không chạy.
+   */
+  const departmentWorkloadQuery = useQuery({
+    queryKey: ['departmentWorkload', eventId, departmentId],
+    queryFn: () =>
+      workloadApi.getDepartmentWorkload({
+        eventId,
+        departmentId,
+      }),
+    enabled: Boolean(eventId && departmentId),
+  });
+
   const updatePreferencesMutation = useMutation({
     mutationFn: userApi.updatePreferences,
     onSuccess: (profile) => {
@@ -91,8 +171,15 @@ const TaskListPage = ({ user, onLogout, onUserUpdate }) => {
     setPage(0);
     setPageSize(nextPageSize);
     setPageSizeInput(String(nextPageSize));
-    if (nextPageSize !== normalizeTaskPageSize(user?.taskPageSize) && !updatePreferencesMutation.isPending) {
-      updatePreferencesMutation.mutate({ userId: user.userId, taskPageSize: nextPageSize });
+
+    if (
+      nextPageSize !== normalizeTaskPageSize(user?.taskPageSize) &&
+      !updatePreferencesMutation.isPending
+    ) {
+      updatePreferencesMutation.mutate({
+        userId: user.userId,
+        taskPageSize: nextPageSize,
+      });
     }
   };
 
@@ -101,8 +188,19 @@ const TaskListPage = ({ user, onLogout, onUserUpdate }) => {
     applyPageSize();
   };
 
+  const handleDepartmentFilterChange = (event) => {
+    setPage(0);
+    setDepartmentId(event.target.value);
+  };
+
   return (
-    <AppLayout user={user} events={event ? [event] : []} selectedEvent={event} onEventChange={() => {}} onLogout={onLogout}>
+    <AppLayout
+      user={user}
+      events={event ? [event] : []}
+      selectedEvent={event}
+      onEventChange={() => {}}
+      onLogout={onLogout}
+    >
       <div className="space-y-6">
         <Panel className="p-5">
           <PageHeader
@@ -110,7 +208,10 @@ const TaskListPage = ({ user, onLogout, onUserUpdate }) => {
             title="Danh sách công việc"
           />
 
-          <form onSubmit={handleSearchSubmit} className="mt-4 grid gap-3 md:grid-cols-[1fr_150px_150px_190px_150px_150px_auto]">
+          <form
+            onSubmit={handleSearchSubmit}
+            className="mt-4 grid gap-3 md:grid-cols-[1fr_150px_150px_190px_150px_150px_auto]"
+          >
             <TextInput
               id="task-search"
               name="search"
@@ -119,51 +220,93 @@ const TaskListPage = ({ user, onLogout, onUserUpdate }) => {
               onChange={(event) => setSearchInput(event.target.value)}
               placeholder="Tìm theo tên công việc"
             />
-            <SelectControl aria-label="Lọc trạng thái công việc" name="status" value={status} onChange={(event) => { setPage(0); setStatus(event.target.value); }}>
+
+            <SelectControl
+              aria-label="Lọc trạng thái công việc"
+              name="status"
+              value={status}
+              onChange={(event) => {
+                setPage(0);
+                setStatus(event.target.value);
+              }}
+            >
               <option value="">Tất cả trạng thái</option>
               <option value="TODO">Cần làm</option>
               <option value="IN_PROGRESS">Đang làm</option>
               <option value="IN_REVIEW">Chờ duyệt</option>
               <option value="DONE">Hoàn thành</option>
             </SelectControl>
-            <SelectControl aria-label="Lọc ưu tiên công việc" name="priority" value={priority} onChange={(event) => { setPage(0); setPriority(event.target.value); }}>
+
+            <SelectControl
+              aria-label="Lọc ưu tiên công việc"
+              name="priority"
+              value={priority}
+              onChange={(event) => {
+                setPage(0);
+                setPriority(event.target.value);
+              }}
+            >
               <option value="">Tất cả ưu tiên</option>
               <option value="LOW">Thấp</option>
               <option value="MEDIUM">Trung bình</option>
               <option value="HIGH">Cao</option>
               <option value="URGENT">Khẩn cấp</option>
             </SelectControl>
-            <SelectControl aria-label="Lọc theo ban" name="departmentId" value={departmentId} onChange={(event) => { setPage(0); setDepartmentId(event.target.value); }}>
+
+            <SelectControl
+              aria-label="Lọc theo ban"
+              name="departmentId"
+              value={departmentId}
+              onChange={handleDepartmentFilterChange}
+            >
               <option value="">Tất cả ban</option>
               {departmentsQuery.data?.map((department) => (
-                <option key={department.id} value={department.id}>{department.name}</option>
+                <option key={department.id} value={department.id}>
+                  {department.name}
+                </option>
               ))}
             </SelectControl>
+
             <TextInput
               icon={null}
               type="date"
               aria-label="Từ ngày"
               value={fromDate}
-              onChange={(event) => { setPage(0); setFromDate(event.target.value); }}
+              onChange={(event) => {
+                setPage(0);
+                setFromDate(event.target.value);
+              }}
             />
+
             <TextInput
               icon={null}
               type="date"
               aria-label="Đến ngày"
               value={toDate}
-              onChange={(event) => { setPage(0); setToDate(event.target.value); }}
+              onChange={(event) => {
+                setPage(0);
+                setToDate(event.target.value);
+              }}
             />
-            <Button type="submit" variant="secondary">Tìm kiếm</Button>
+
+            <Button type="submit" variant="secondary">
+              Tìm kiếm
+            </Button>
           </form>
         </Panel>
 
         <Panel>
           {tasksQuery.isLoading && <LoadingState message="Đang tải công việc..." />}
+
           {tasksQuery.error && (
             <div className="p-4">
-              <ErrorState error={tasksQuery.error} title="Không tải được danh sách công việc" />
+              <ErrorState
+                error={tasksQuery.error}
+                title="Không tải được danh sách công việc"
+              />
             </div>
           )}
+
           {isLeader && !tasksQuery.isLoading && !tasksQuery.error && (
             <InlineTaskCreator
               eventId={eventId}
@@ -171,17 +314,24 @@ const TaskListPage = ({ user, onLogout, onUserUpdate }) => {
               departments={departmentsQuery.data || []}
               departmentId={departmentId}
               lockedDepartment={Boolean(departmentId)}
+              departmentWorkload={departmentWorkloadQuery.data}
+              departmentWorkloadLoading={departmentWorkloadQuery.isLoading}
+              departmentWorkloadError={departmentWorkloadQuery.error}
               invalidateKeys={[
                 ['eventTaskPage', eventId],
                 ['departmentTaskPage', eventId, departmentId],
+                ['departmentWorkload', eventId, departmentId],
+                ['eventWorkload', eventId],
               ]}
             />
           )}
+
           {!tasksQuery.isLoading && !tasksQuery.error && tasks.length === 0 && (
             <div className="p-4">
               <EmptyState title="Chưa có công việc phù hợp" />
             </div>
           )}
+
           {tasks.length > 0 && (
             <div className="overflow-x-auto">
               <div className="min-w-[980px]">
@@ -194,32 +344,74 @@ const TaskListPage = ({ user, onLogout, onUserUpdate }) => {
                   <span>Trạng thái</span>
                   <span>Tiến độ</span>
                 </div>
-                {tasks.map((task) => (
-                  <Link
-                    key={task.id}
-                    to={`/events/${eventId}/tasks/${task.id}`}
-                    className="grid grid-cols-[minmax(220px,1.5fr)_160px_160px_180px_130px_120px_100px] items-center gap-2 border-b border-slate-100 px-4 py-3 text-sm transition last:border-b-0 hover:bg-indigo-50/50"
-                  >
-                    <span className="truncate font-semibold text-slate-950">{task.title}</span>
-                    <span className="truncate text-slate-600">{task.departmentName || 'Chưa gán ban'}</span>
-                    <span className="truncate text-slate-600">{task.assigneeName || 'Chưa phân công'}</span>
-                    <span className="whitespace-nowrap text-slate-600">{formatDate(task.deadline)}</span>
-                    <PriorityBadge priority={task.priority} />
-                    <StatusBadge status={task.status} />
-                    <span className="min-w-0">
-                      <ProgressBar value={task.progressPercentage ?? 0} />
-                      <span className="mt-1 block text-xs font-semibold text-slate-500">{task.progressPercentage ?? 0}%</span>
-                    </span>
-                  </Link>
-                ))}
+
+                {tasks.map((task) => {
+                  const assigneeWorkload = task.assigneeId
+                    ? workloadByMemberId[String(task.assigneeId)]
+                    : null;
+
+                  return (
+                    <Link
+                      key={task.id}
+                      to={`/events/${eventId}/tasks/${task.id}`}
+                      className="grid grid-cols-[minmax(220px,1.5fr)_160px_160px_180px_130px_120px_100px] items-center gap-2 border-b border-slate-100 px-4 py-3 text-sm transition last:border-b-0 hover:bg-indigo-50/50"
+                    >
+                      <span className="truncate font-semibold text-slate-950">
+                        {task.title}
+                      </span>
+
+                      <span className="truncate text-slate-600">
+                        {task.departmentName || 'Chưa gán ban'}
+                      </span>
+
+                      <span className="min-w-0">
+                        <span className="block truncate text-slate-600">
+                          {task.assigneeName || 'Chưa phân công'}
+                        </span>
+
+                        {assigneeWorkload && (
+                          <span
+                            className={`mt-0.5 block truncate text-[11px] font-semibold ${getWorkloadClassName(
+                              assigneeWorkload.workloadStatus
+                            )}`}
+                            title={`${assigneeWorkload.assignedTasks} task chưa hoàn thành · ${assigneeWorkload.workloadScore}% · ${assigneeWorkload.workloadStatus}`}
+                          >
+                            {assigneeWorkload.assignedTasks} task · {assigneeWorkload.workloadStatus}
+                          </span>
+                        )}
+                      </span>
+
+                      <span className="whitespace-nowrap text-slate-600">
+                        {formatDate(task.deadline)}
+                      </span>
+
+                      <PriorityBadge priority={task.priority} />
+
+                      <StatusBadge status={task.status} />
+
+                      <span className="min-w-0">
+                        <ProgressBar value={task.progressPercentage ?? 0} />
+                        <span className="mt-1 block text-xs font-semibold text-slate-500">
+                          {task.progressPercentage ?? 0}%
+                        </span>
+                      </span>
+                    </Link>
+                  );
+                })}
               </div>
             </div>
           )}
         </Panel>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <form onSubmit={handlePageSizeSubmit} className="flex items-center gap-2 text-sm text-slate-600">
-            <label htmlFor="task-page-size" className="font-semibold">Số dòng/trang</label>
+          <form
+            onSubmit={handlePageSizeSubmit}
+            className="flex items-center gap-2 text-sm text-slate-600"
+          >
+            <label htmlFor="task-page-size" className="font-semibold">
+              Số dòng/trang
+            </label>
+
             <input
               id="task-page-size"
               type="number"
@@ -230,19 +422,32 @@ const TaskListPage = ({ user, onLogout, onUserUpdate }) => {
               onBlur={applyPageSize}
               className="w-20 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
             />
+
             <span className="text-xs text-slate-500">
               {updatePreferencesMutation.isPending ? 'Đang lưu...' : 'Lưu theo tài khoản'}
             </span>
           </form>
+
           <div className="flex justify-end gap-2">
-          <Button type="button" onClick={() => setPage((old) => Math.max(old - 1, 0))} disabled={page === 0} variant="secondary">
-            <ChevronLeft size={16} />
-            Trước
-          </Button>
-          <Button type="button" onClick={() => setPage((old) => old + 1)} disabled={tasksQuery.data?.last !== false} variant="secondary">
-            Sau
-            <ChevronRight size={16} />
-          </Button>
+            <Button
+              type="button"
+              onClick={() => setPage((old) => Math.max(old - 1, 0))}
+              disabled={page === 0}
+              variant="secondary"
+            >
+              <ChevronLeft size={16} />
+              Trước
+            </Button>
+
+            <Button
+              type="button"
+              onClick={() => setPage((old) => old + 1)}
+              disabled={tasksQuery.data?.last !== false}
+              variant="secondary"
+            >
+              Sau
+              <ChevronRight size={16} />
+            </Button>
           </div>
         </div>
       </div>
