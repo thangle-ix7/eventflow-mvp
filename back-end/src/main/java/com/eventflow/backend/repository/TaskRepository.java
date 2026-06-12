@@ -170,4 +170,61 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
     // Efficient check: does this task have the given user as assignee?
     @Query("SELECT COUNT(t) > 0 FROM Task t WHERE t.id = :taskId AND t.assignee.id = :userId")
     boolean existsByIdAndAssigneeId(@Param("taskId") Long taskId, @Param("userId") Long userId);
+
+    /**
+     * Đếm số task chưa DONE đang được assign cho 1 member trong 1 event.
+     * Đây là currentAssignedTasks trong công thức workload.
+     */
+    @Query("""
+            SELECT COUNT(t)
+            FROM Task t
+            WHERE t.event.id = :eventId
+            AND t.assignee.id = :userId
+            AND t.status <> com.eventflow.backend.entity.TaskStatus.DONE
+            """)
+    long countActiveTasksByEventAndAssignee(
+            @Param("eventId") Long eventId,
+            @Param("userId") Long userId);
+
+    /**
+     * Đếm số task DONE của 1 member trong 1 event.
+     * Dùng để hiển thị thống kê phụ trong dashboard workload.
+     */
+    @Query("""
+            SELECT COUNT(t)
+            FROM Task t
+            WHERE t.event.id = :eventId
+            AND t.assignee.id = :userId
+            AND t.status = com.eventflow.backend.entity.TaskStatus.DONE
+            """)
+    long countDoneTasksByEventAndAssignee(
+            @Param("eventId") Long eventId,
+            @Param("userId") Long userId);
+
+    /**
+     * Đếm tổng task chưa DONE trong 1 department.
+     * Dùng để tính average workload trong department.
+     */
+    @Query("""
+            SELECT COUNT(t)
+            FROM Task t
+            WHERE t.event.id = :eventId
+            AND t.department.id = :departmentId
+            AND t.status <> com.eventflow.backend.entity.TaskStatus.DONE
+            """)
+    long countActiveTasksByEventAndDepartment(
+            @Param("eventId") Long eventId,
+            @Param("departmentId") Long departmentId);
+
+    /**
+     * Đếm tổng task chưa DONE trong toàn event.
+     * Dùng cho dashboard workload tổng quan của Event Leader.
+     */
+    @Query("""
+            SELECT COUNT(t)
+            FROM Task t
+            WHERE t.event.id = :eventId
+            AND t.status <> com.eventflow.backend.entity.TaskStatus.DONE
+            """)
+    long countActiveTasksByEvent(@Param("eventId") Long eventId);
 }

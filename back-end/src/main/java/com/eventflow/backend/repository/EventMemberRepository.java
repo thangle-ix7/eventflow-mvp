@@ -98,4 +98,25 @@ public interface EventMemberRepository extends JpaRepository<EventMember, Long> 
             @Param("eventId") Long eventId,
             @Param("userId") Long userId,
             @Param("role") UserRole role);
+
+
+    /**
+     * Đếm tổng số member trong event.
+     * Dùng để tính average workload toàn event.
+     */
+    long countByEventId(Long eventId);
+
+    /**
+     * Đếm tổng số member trong department.
+     * Dùng để tính teamAverageAssignedTasks.
+     */
+    @Query("""
+            SELECT COUNT(em)
+            FROM EventMember em
+            WHERE em.event.id = :eventId
+            AND em.department.id = :departmentId
+            """)
+    long countByEventIdAndDepartmentId(
+            @Param("eventId") Long eventId,
+            @Param("departmentId") Long departmentId);
 }
