@@ -1790,52 +1790,159 @@ const SettingsContent = ({ event, departments, members }) => {
   const departmentPath = getDepartmentHomePath(event);
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
-      <Panel className="p-5">
-        <h3 className="font-bold text-slate-950">Thông tin sự kiện</h3>
-        <dl className="mt-4 grid gap-4 sm:grid-cols-2">
-          <InfoItem label="Tên sự kiện" value={event?.name} />
-          <InfoItem label="Trạng thái" value={EVENT_STATUS_LABELS[event?.status] || event?.status || 'Đang diễn ra'} />
-          <InfoItem label="Vai trò của bạn" value={isLeader ? 'Trưởng nhóm' : 'Thành viên'} />
-          <InfoItem label="Thời gian diễn ra" value={formatEventRange(event)} />
-          <InfoItem label="Địa điểm" value={event?.location || 'Chưa có địa điểm'} />
-          <InfoItem label="Mô tả" value={event?.description || 'Chưa có mô tả'} />
-        </dl>
-      </Panel>
-      <Panel className="p-5">
-        <h3 className="font-bold text-slate-950">Tổng quan</h3>
-        <div className="mt-4 space-y-3">
-          <SummaryPill label="Ban tổ chức" value={departments.length} />
-          <SummaryPill label="Thành viên" value={members.length} />
+    <div className="space-y-6">
+      <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <Panel className="relative overflow-hidden p-0">
+          <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-sky-100 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-28 left-1/3 h-64 w-64 rounded-full bg-emerald-100/70 blur-3xl" />
+
+          <div className="relative border-b border-sky-100 bg-gradient-to-r from-sky-50 via-white to-emerald-50 px-5 py-5">
+            <div className="flex items-start gap-3">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-400 text-white shadow-lg shadow-cyan-100">
+                <Settings size={22} strokeWidth={1.8} />
+              </div>
+
+              <div>
+                <h3 className="text-lg font-black text-slate-950">
+                  Thông tin sự kiện
+                </h3>
+                <p className="mt-1 text-sm font-semibold leading-6 text-slate-500">
+                  Xem các thông tin chính của sự kiện đang được sử dụng trong EventFlow.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <dl className="relative grid gap-4 p-5 sm:grid-cols-2">
+            <InfoItem label="Tên sự kiện" value={event?.name} />
+            <InfoItem
+              label="Trạng thái"
+              value={EVENT_STATUS_LABELS[event?.status] || event?.status || 'Đang diễn ra'}
+            />
+            <InfoItem label="Vai trò của bạn" value={isLeader ? 'Trưởng nhóm' : 'Thành viên'} />
+            <InfoItem label="Thời gian diễn ra" value={formatEventRange(event)} />
+            <InfoItem label="Địa điểm" value={event?.location || 'Chưa có địa điểm'} />
+            <InfoItem label="Mô tả" value={event?.description || 'Chưa có mô tả'} className="sm:col-span-2" />
+          </dl>
+        </Panel>
+
+        <Panel className="relative overflow-hidden p-0">
+          <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-emerald-100/80 blur-3xl" />
+
+          <div className="relative border-b border-sky-100 bg-gradient-to-r from-sky-50 via-white to-emerald-50 px-5 py-5">
+            <div className="flex items-start gap-3">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-400 text-white shadow-lg shadow-cyan-100">
+                <Users size={22} strokeWidth={1.8} />
+              </div>
+
+              <div>
+                <h3 className="text-lg font-black text-slate-950">
+                  Tổng quan
+                </h3>
+                <p className="mt-1 text-sm font-semibold leading-6 text-slate-500">
+                  Quy mô hiện tại của sự kiện.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="relative space-y-3 p-5">
+            <SummaryPill label="Ban tổ chức" value={departments.length} icon={Settings} />
+            <SummaryPill label="Thành viên" value={members.length} icon={Users} />
+
+            <div className="rounded-[1.5rem] border border-cyan-100 bg-cyan-50/60 p-4">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-cyan-600 shadow-sm">
+                  <CheckCircle2 size={18} strokeWidth={1.8} />
+                </div>
+
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-cyan-600">
+                    Quyền truy cập
+                  </p>
+                  <p className="mt-1 text-sm font-black text-slate-950">
+                    {isLeader ? 'Leader permission' : 'Member view'}
+                  </p>
+                  <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">
+                    {isLeader
+                      ? 'Bạn có quyền quản lý thông tin, ban và thành viên.'
+                      : 'Bạn đang xem thông tin và các lối tắt được phép truy cập.'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Panel>
+      </section>
+
+      <Panel className="relative overflow-hidden p-0">
+        <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-sky-100 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-28 left-1/3 h-64 w-64 rounded-full bg-emerald-100/70 blur-3xl" />
+
+        <div className="relative border-b border-sky-100 bg-gradient-to-r from-sky-50 via-white to-emerald-50 px-5 py-5">
+          <div className="flex items-start gap-3">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-400 text-white shadow-lg shadow-cyan-100">
+              <Sparkles size={22} strokeWidth={1.8} />
+            </div>
+
+            <div>
+              <h3 className="text-lg font-black text-slate-950">
+                {isLeader ? 'Tác vụ quản trị' : 'Lối tắt của bạn'}
+              </h3>
+              <p className="mt-1 text-sm font-semibold leading-6 text-slate-500">
+                Truy cập nhanh những khu vực thường dùng trong sự kiện.
+              </p>
+            </div>
+          </div>
         </div>
-      </Panel>
-      <Panel className="p-5 lg:col-span-2">
-        <h3 className="font-bold text-slate-950">{isLeader ? 'Tác vụ quản trị' : 'Lối tắt của bạn'}</h3>
-        <div className="mt-4 flex flex-wrap gap-2">
+
+        <div className="relative grid gap-4 p-5 md:grid-cols-2 xl:grid-cols-3">
           {isLeader ? (
             <>
-              <Button as={Link} to={`/events/${event?.id}/edit`} variant="secondary">
-                Sửa thông tin sự kiện
-              </Button>
-              <Button as={Link} to={`/events/${event?.id}/departments`} variant="secondary">
-                Quản lý ban
-              </Button>
-              <Button as={Link} to={`/events/${event?.id}/members`} variant="secondary">
-                Quản lý thành viên
-              </Button>
+              <SettingsActionCard
+                to={`/events/${event?.id}/edit`}
+                icon={Settings}
+                title="Sửa thông tin sự kiện"
+                description="Cập nhật tên, thời gian, địa điểm, mô tả và các thông tin chính."
+              />
+
+              <SettingsActionCard
+                to={`/events/${event?.id}/departments`}
+                icon={Settings}
+                title="Quản lý ban"
+                description="Tạo ban, chỉnh sửa ban và phân chia cấu trúc tổ chức."
+              />
+
+              <SettingsActionCard
+                to={`/events/${event?.id}/members`}
+                icon={Users}
+                title="Quản lý thành viên"
+                description="Mời thành viên, xem role, ban phụ trách và trạng thái kết nối."
+              />
             </>
           ) : (
             <>
-              <Button as={Link} to={`/events/${event?.id}/tasks`} variant="secondary">
-                Công việc của tôi
-              </Button>
-              <Button as={Link} to={`/events/${event?.id}/documents`} variant="secondary">
-                Tài liệu được xem
-              </Button>
+              <SettingsActionCard
+                to={`/events/${event?.id}/tasks`}
+                icon={ClipboardList}
+                title="Công việc của tôi"
+                description="Xem các task được giao và cập nhật tiến độ công việc."
+              />
+
+              <SettingsActionCard
+                to={`/events/${event?.id}/documents`}
+                icon={FileText}
+                title="Tài liệu được xem"
+                description="Truy cập tài liệu, file đính kèm và link được chia sẻ."
+              />
+
               {departmentPath && (
-                <Button as={Link} to={departmentPath} variant="secondary">
-                  Thông tin ban
-                </Button>
+                <SettingsActionCard
+                  to={departmentPath}
+                  icon={Users}
+                  title="Thông tin ban"
+                  description="Xem thông tin ban phụ trách và các nội dung liên quan."
+                />
               )}
             </>
           )}
@@ -1845,17 +1952,63 @@ const SettingsContent = ({ event, departments, members }) => {
   );
 };
 
-const SummaryPill = ({ label, value }) => (
-  <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
-    <p className="mt-1 text-2xl font-extrabold text-slate-950">{value ?? 0}</p>
+const SettingsActionCard = ({ to, icon: Icon, title, description }) => (
+  <Link
+    to={to}
+    className="group relative overflow-hidden rounded-[2rem] border border-sky-100 bg-white p-5 shadow-xl shadow-sky-100/70 transition hover:-translate-y-1 hover:shadow-2xl hover:shadow-cyan-100"
+  >
+    <div className="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full bg-sky-100/80 opacity-0 blur-3xl transition group-hover:opacity-100" />
+
+    <div className="relative">
+      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-400 text-white shadow-lg shadow-cyan-100">
+        <Icon size={22} strokeWidth={1.8} />
+      </div>
+
+      <h4 className="mt-4 font-black text-slate-950">
+        {title}
+      </h4>
+
+      <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
+        {description}
+      </p>
+
+      <div className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-3 py-1.5 text-xs font-black text-sky-700 transition group-hover:bg-white">
+        Mở
+        <ExternalLink size={13} />
+      </div>
+    </div>
+  </Link>
+);
+
+const SummaryPill = ({ label, value, icon: Icon }) => (
+  <div className="rounded-[1.5rem] border border-sky-100 bg-sky-50/60 p-4">
+    <div className="flex items-start gap-3">
+      {Icon && (
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-sky-600 shadow-sm">
+          <Icon size={18} strokeWidth={1.8} />
+        </div>
+      )}
+
+      <div>
+        <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+          {label}
+        </p>
+        <p className="mt-1 text-3xl font-black text-slate-950">
+          {value ?? 0}
+        </p>
+      </div>
+    </div>
   </div>
 );
 
-const InfoItem = ({ label, value }) => (
-  <div>
-    <dt className="text-sm font-semibold text-slate-500">{label}</dt>
-    <dd className="mt-1 text-sm font-medium text-slate-950">{value || 'Không có dữ liệu'}</dd>
+const InfoItem = ({ label, value, className = '' }) => (
+  <div className={`rounded-[1.5rem] border border-sky-100 bg-sky-50/50 p-4 ${className}`}>
+    <dt className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+      {label}
+    </dt>
+    <dd className="mt-2 text-sm font-black leading-6 text-slate-950">
+      {value || 'Không có dữ liệu'}
+    </dd>
   </div>
 );
 

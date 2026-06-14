@@ -9,6 +9,8 @@ import {
   MapPin,
   Plus,
   Search,
+  SlidersHorizontal,
+  Sparkles,
   Users,
   X,
 } from 'lucide-react';
@@ -24,12 +26,14 @@ import eventApi from '../api/eventApi';
 import { formatDate } from '../utils/dateUtils';
 
 const PAGE_SIZE = 8;
+
 const STATUS_OPTIONS = [
   { value: '', label: 'Tất cả' },
   { value: 'ACTIVE', label: 'Đang diễn ra' },
   { value: 'DONE', label: 'Hoàn thành' },
   { value: 'CANCELLED', label: 'Đã hủy' },
 ];
+
 const SORT_OPTIONS = {
   upcoming: { sort: 'eventDate', direction: 'asc' },
   newest: { sort: 'createdAt', direction: 'desc' },
@@ -100,37 +104,62 @@ const EventListPage = ({ user, onLogout }) => {
       onEventChange={(event) => handleOpenEvent(event.target.value)}
       onLogout={onLogout}
     >
-      <div className="mx-auto max-w-7xl space-y-5">
-        <section className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div className="min-w-0">
-            <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">
-              Sự kiện của bạn
-            </h1>
+      <div className="mx-auto max-w-7xl space-y-6">
+        <section className="relative overflow-hidden rounded-[2rem] border border-sky-100 bg-white/85 p-6 shadow-xl shadow-sky-100/70 backdrop-blur-xl">
+          <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-sky-100 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-28 left-1/3 h-72 w-72 rounded-full bg-emerald-100/70 blur-3xl" />
+
+          <div className="relative flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+            <div className="min-w-0">
+              <p className="inline-flex rounded-full bg-sky-50 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-sky-600">
+                Event workspace
+              </p>
+
+              <h1 className="mt-4 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
+                Sự kiện của bạn
+              </h1>
+
+              <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-slate-600">
+                Quản lý các sự kiện bạn tạo hoặc tham gia, mở workspace để theo dõi ban tổ chức, task và dashboard.
+              </p>
+            </div>
+
+            <Button
+              as={Link}
+              to="/events/new"
+              className="min-h-11 w-full rounded-2xl bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 font-black text-white shadow-xl shadow-cyan-100 sm:w-auto"
+            >
+              <Plus size={18} />
+              Tạo sự kiện
+            </Button>
           </div>
-          <Button as={Link} to="/events/new" className="w-full sm:w-auto">
-            <Plus size={18} />
-            Tạo sự kiện
-          </Button>
         </section>
 
-        <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <section className="relative overflow-hidden rounded-[2rem] border border-sky-100 bg-white p-4 shadow-xl shadow-sky-100/70">
+          <div className="pointer-events-none absolute -left-16 -top-20 h-52 w-52 rounded-full bg-sky-100/70 blur-3xl" />
+
+          <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="relative min-w-0 flex-1">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" strokeWidth={1.8} />
+              <Search
+                className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-sky-400"
+                strokeWidth={1.8}
+              />
+
               <input
                 id="event-search"
                 name="search"
                 aria-label="Tìm kiếm sự kiện"
                 value={searchInput}
                 onChange={(event) => setSearchInput(event.target.value)}
-                placeholder="Tìm sự kiện"
-                className="h-11 w-full rounded-lg border border-slate-200 bg-slate-50 px-9 text-sm font-medium text-slate-800 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
+                placeholder="Tìm sự kiện theo tên..."
+                className="h-12 w-full rounded-2xl border border-sky-100 bg-sky-50/60 px-11 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:bg-white focus:ring-4 focus:ring-cyan-100"
               />
+
               {searchInput && (
                 <button
                   type="button"
                   onClick={() => setSearchInput('')}
-                  className="absolute right-2 top-1/2 rounded-md p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                  className="absolute right-3 top-1/2 rounded-xl p-1.5 text-slate-400 transition hover:bg-white hover:text-slate-700"
                   aria-label="Xóa tìm kiếm"
                 >
                   <X size={16} />
@@ -149,20 +178,33 @@ const EventListPage = ({ user, onLogout }) => {
               ))}
             </div>
 
-            <div className="flex items-center gap-2">
-              <select
-                aria-label="Sắp xếp sự kiện"
-                name="sortMode"
-                value={sortMode}
-                onChange={handleSortModeChange}
-                className="h-11 min-w-40 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
-              >
-                <option value="upcoming">Gần nhất</option>
-                <option value="newest">Mới tạo</option>
-                <option value="name">Tên A-Z</option>
-              </select>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <label className="relative">
+                <SlidersHorizontal
+                  className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-sky-400"
+                  strokeWidth={1.8}
+                />
+
+                <select
+                  aria-label="Sắp xếp sự kiện"
+                  name="sortMode"
+                  value={sortMode}
+                  onChange={handleSortModeChange}
+                  className="h-12 min-w-44 rounded-2xl border border-sky-100 bg-white px-10 text-sm font-black text-slate-700 outline-none transition focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100"
+                >
+                  <option value="upcoming">Gần nhất</option>
+                  <option value="newest">Mới tạo</option>
+                  <option value="name">Tên A-Z</option>
+                </select>
+              </label>
+
               {hasFilters && (
-                <Button type="button" variant="subtle" onClick={handleClearFilters} className="px-3">
+                <Button
+                  type="button"
+                  variant="subtle"
+                  onClick={handleClearFilters}
+                  className="rounded-2xl px-3 font-black text-sky-600"
+                >
                   Xóa lọc
                 </Button>
               )}
@@ -182,9 +224,13 @@ const EventListPage = ({ user, onLogout }) => {
 
         {!query.isLoading && !query.error && events.length > 0 && (
           <>
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {events.map((event) => (
-                <EventCard key={event.id} event={event} onOpen={() => handleOpenEvent(event.id)} />
+                <EventCard
+                  key={event.id}
+                  event={event}
+                  onOpen={() => handleOpenEvent(event.id)}
+                />
               ))}
             </div>
 
@@ -195,15 +241,18 @@ const EventListPage = ({ user, onLogout }) => {
                   onClick={() => setPage((old) => Math.max(old - 1, 0))}
                   disabled={page === 0}
                   variant="secondary"
+                  className="rounded-2xl"
                 >
                   <ChevronLeft size={16} />
                   Trước
                 </Button>
+
                 <Button
                   type="button"
                   onClick={() => setPage((old) => old + 1)}
                   disabled={query.data?.last !== false}
                   variant="secondary"
+                  className="rounded-2xl"
                 >
                   Sau
                   <ChevronRight size={16} />
@@ -230,10 +279,10 @@ const FilterChip = ({ active, label, onClick }) => (
   <button
     type="button"
     onClick={onClick}
-    className={`min-h-10 shrink-0 rounded-lg border px-3 py-2 text-sm font-bold transition ${
+    className={`min-h-10 shrink-0 rounded-2xl border px-4 py-2 text-sm font-black shadow-sm transition ${
       active
-        ? 'border-indigo-200 bg-indigo-50 text-indigo-700'
-        : 'border-slate-200 bg-white text-slate-600 hover:border-indigo-200 hover:text-indigo-700'
+        ? 'border-sky-200 bg-sky-50 text-sky-700 shadow-sky-100'
+        : 'border-sky-100 bg-white text-slate-600 hover:border-sky-200 hover:bg-sky-50 hover:text-sky-700'
     }`}
   >
     {label}
@@ -244,32 +293,38 @@ const EventCard = ({ event, onOpen }) => (
   <button
     type="button"
     onClick={onOpen}
-    className="group flex h-full flex-col rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-md"
+    className="group relative flex h-full min-h-[260px] flex-col overflow-hidden rounded-[2rem] border border-sky-100 bg-white p-5 text-left shadow-xl shadow-sky-100/70 transition hover:-translate-y-1 hover:shadow-2xl hover:shadow-cyan-100"
   >
-    <div className="flex items-start justify-between gap-3">
+    <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-sky-100/80 opacity-0 blur-3xl transition group-hover:opacity-100" />
+    <div className="pointer-events-none absolute -bottom-20 left-1/3 h-48 w-48 rounded-full bg-emerald-100/70 opacity-0 blur-3xl transition group-hover:opacity-100" />
+
+    <div className="relative flex items-start justify-between gap-3">
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <StatusBadge status={event.status || 'ACTIVE'} />
           <StatusBadge status={event.role} />
         </div>
-        <h2 className="mt-3 line-clamp-2 text-lg font-extrabold text-slate-950">
+
+        <h2 className="mt-4 line-clamp-2 text-xl font-black leading-snug text-slate-950">
           {event.name}
         </h2>
       </div>
-      <span className="mt-0.5 shrink-0 rounded-lg bg-slate-100 p-2 text-slate-400 transition group-hover:bg-indigo-50 group-hover:text-indigo-600">
+
+      <span className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-sky-50 text-sky-500 transition group-hover:bg-gradient-to-br group-hover:from-sky-500 group-hover:to-emerald-400 group-hover:text-white group-hover:shadow-lg group-hover:shadow-cyan-100">
         <ArrowRight size={18} />
       </span>
     </div>
 
-    <div className="mt-4 grid gap-2 text-sm text-slate-600">
+    <div className="relative mt-5 grid gap-3 text-sm font-semibold text-slate-600">
       <EventMeta icon={CalendarDays} text={formatEventRange(event)} />
       <EventMeta icon={MapPin} text={event.location || 'Chưa cập nhật địa điểm'} />
       <EventMeta icon={Users} text={event.role === 'LEADER' ? 'Bạn điều phối' : 'Bạn tham gia'} />
     </div>
 
-    <div className="mt-auto pt-4">
-      <span className="text-sm font-bold text-indigo-600 group-hover:text-indigo-700">
+    <div className="relative mt-auto pt-5">
+      <span className="inline-flex items-center gap-2 rounded-full bg-sky-50 px-3 py-1.5 text-sm font-black text-sky-600 transition group-hover:bg-white group-hover:text-emerald-600">
         Mở workspace
+        <ArrowRight size={15} />
       </span>
     </div>
   </button>
@@ -277,7 +332,9 @@ const EventCard = ({ event, onOpen }) => (
 
 const EventMeta = ({ icon: Icon, text }) => (
   <span className="inline-flex min-w-0 items-center gap-2">
-    <Icon size={16} className="shrink-0 text-slate-400" strokeWidth={1.8} />
+    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-500">
+      <Icon size={16} strokeWidth={1.8} />
+    </span>
     <span className="min-w-0 truncate">{text}</span>
   </span>
 );
@@ -286,24 +343,32 @@ const EventListEmpty = ({ hasFilters, onClearFilters }) => (
   <EmptyState
     icon={CalendarDays}
     title={hasFilters ? 'Không tìm thấy sự kiện' : 'Bạn chưa có sự kiện nào'}
+    description={
+      hasFilters
+        ? 'Không có sự kiện nào khớp với bộ lọc hiện tại. Hãy thử xóa lọc hoặc đổi từ khóa tìm kiếm.'
+        : 'Tạo sự kiện đầu tiên để bắt đầu quản lý ban tổ chức, task và dashboard trên EventFlow.'
+    }
     actions={
       <>
-      {hasFilters && (
+        {hasFilters && (
+          <Button
+            type="button"
+            onClick={onClearFilters}
+            variant="secondary"
+            className="rounded-2xl"
+          >
+            Xóa lọc
+          </Button>
+        )}
+
         <Button
-          type="button"
-          onClick={onClearFilters}
-          variant="secondary"
+          as={Link}
+          to="/events/new"
+          className="rounded-2xl bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 font-black text-white shadow-xl shadow-cyan-100"
         >
-          Xóa lọc
+          <Plus size={18} />
+          Tạo sự kiện
         </Button>
-      )}
-      <Button
-        as={Link}
-        to="/events/new"
-      >
-        <Plus size={18} />
-        Tạo sự kiện
-      </Button>
       </>
     }
   />

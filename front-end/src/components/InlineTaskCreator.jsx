@@ -305,13 +305,15 @@ const InlineTaskCreator = ({
 
   if (!isOpen) {
     return (
-      <div className="border-b border-slate-100 bg-white px-4 py-3">
+      <div className="border-b border-sky-100 bg-gradient-to-r from-white via-sky-50/60 to-emerald-50/60 px-4 py-4">
         <button
           type="button"
           onClick={() => setIsOpen(true)}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-semibold text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-100"
+          className="group inline-flex items-center gap-2 rounded-2xl border border-sky-100 bg-white px-4 py-2.5 text-sm font-black text-sky-600 shadow-sm shadow-sky-100 transition hover:-translate-y-0.5 hover:border-cyan-200 hover:bg-sky-50 hover:text-sky-700 hover:shadow-lg hover:shadow-cyan-100 active:translate-y-px"
         >
-          <Plus size={16} />
+          <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-emerald-400 text-white shadow-md shadow-cyan-100">
+            <Plus size={16} />
+          </span>
           {addButtonLabel}
         </button>
       </div>
@@ -319,33 +321,41 @@ const InlineTaskCreator = ({
   }
 
   return (
-    <div className="border-b border-slate-100 bg-indigo-50/30">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-indigo-100 px-4 py-3">
-        <p className="text-sm font-bold text-slate-900">{title}</p>
-        <div className="flex items-center gap-2">
+    <div className="overflow-hidden border-b border-sky-100 bg-gradient-to-br from-sky-50 via-white to-emerald-50/80">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-sky-100 bg-white/80 px-4 py-4 backdrop-blur">
+        <div>
+          <p className="text-sm font-black text-slate-950">{title}</p>
+          <p className="mt-1 text-xs font-semibold text-slate-500">
+            Nhập thủ công hoặc dùng AI để tạo nhanh danh sách công việc.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={addRow}
             disabled={mutation.isPending}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-50 disabled:opacity-60"
+            className="inline-flex items-center gap-1.5 rounded-2xl border border-sky-100 bg-white px-3 py-2 text-sm font-black text-sky-600 shadow-sm transition hover:-translate-y-0.5 hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Plus size={16} />
             Thêm dòng
           </button>
+
           <button
             type="button"
             onClick={handleSave}
             disabled={mutation.isPending}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+            className="inline-flex items-center gap-1.5 rounded-2xl bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 px-4 py-2 text-sm font-black text-white shadow-lg shadow-cyan-100 transition hover:-translate-y-0.5 hover:shadow-xl hover:shadow-cyan-200 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {mutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
             {saveLabel}
           </button>
+
           <button
             type="button"
             onClick={handleClose}
             disabled={mutation.isPending}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-white hover:text-slate-700 disabled:opacity-60"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-2xl text-slate-400 transition hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-60"
             aria-label="Đóng form thêm task"
           >
             <X size={16} />
@@ -353,19 +363,26 @@ const InlineTaskCreator = ({
         </div>
       </div>
 
-      <div className="grid gap-2 border-b border-indigo-100 px-4 py-3 sm:grid-cols-[1fr_auto]">
-        <input
-          value={suggestionInstruction}
-          onChange={(event) => setSuggestionInstruction(event.target.value)}
-          disabled={suggestionMutation.isPending || mutation.isPending}
-          className="min-w-0 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-500"
-          placeholder="Context cho AI"
-        />
+      <div className="grid gap-3 border-b border-sky-100 px-4 py-4 sm:grid-cols-[1fr_auto]">
+        <div className="relative">
+          <Sparkles
+            size={16}
+            className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sky-500"
+          />
+          <input
+            value={suggestionInstruction}
+            onChange={(event) => setSuggestionInstruction(event.target.value)}
+            disabled={suggestionMutation.isPending || mutation.isPending}
+            className="min-h-11 w-full min-w-0 rounded-2xl border border-sky-100 bg-white px-10 py-2.5 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100 disabled:bg-slate-50 disabled:text-slate-500"
+            placeholder="Context cho AI, ví dụ: sự kiện âm nhạc 200 người, cần chia việc hậu cần..."
+          />
+        </div>
+
         <button
           type="button"
           onClick={handleSuggestTasks}
           disabled={suggestionMutation.isPending || mutation.isPending}
-          className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-50 disabled:opacity-60"
+          className="inline-flex items-center justify-center gap-2 rounded-2xl border border-sky-100 bg-white px-4 py-2.5 text-sm font-black text-sky-600 shadow-sm transition hover:-translate-y-0.5 hover:bg-sky-50 hover:text-sky-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {suggestionMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
           AI gợi ý
@@ -400,7 +417,7 @@ const InlineTaskCreator = ({
                 key={row.id}
                 className={taskCreatorGridRowClassName}
               >
-                <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-indigo-50 text-xs font-extrabold text-indigo-700">
+                <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-400 text-xs font-black text-white shadow-md shadow-cyan-100">
                   {index + 1}
                 </span>
 
@@ -460,13 +477,13 @@ const InlineTaskCreator = ({
                   </select>
 
                   {isWorkloadLoading && (
-                    <p className="mt-1 truncate text-[10px] font-medium text-slate-500">
+                    <p className="mt-1 truncate text-[10px] font-bold text-slate-500">
                       Đang tải workload...
                     </p>
                   )}
 
                   {selectedWorkload && (
-                    <p className={`mt-1 truncate text-[10px] font-semibold ${workloadHintClassName(selectedWorkload.workloadStatus)}`}>
+                    <p className={`mt-1 truncate text-[10px] font-black ${workloadHintClassName(selectedWorkload.workloadStatus)}`}>
                       {selectedWorkload.assignedTasks} task · {selectedWorkload.workloadScore}% · {selectedWorkload.workloadStatus}
                     </p>
                   )}
@@ -512,7 +529,7 @@ const InlineTaskCreator = ({
                   type="button"
                   onClick={() => removeRow(row.id)}
                   disabled={mutation.isPending}
-                  className="inline-flex h-10 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-60"
+                  className="inline-flex h-10 w-9 items-center justify-center rounded-2xl text-slate-400 transition hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-60"
                   aria-label="Xóa dòng task"
                 >
                   <X size={16} />
@@ -524,7 +541,7 @@ const InlineTaskCreator = ({
       </div>
 
       {(localError || mutation.error) && (
-        <div className="px-4 pb-3 pt-2">
+        <div className="px-4 pb-4 pt-3">
           <ErrorState error={localError || mutation.error} title="Không tạo được công việc" />
         </div>
       )}
@@ -533,8 +550,8 @@ const InlineTaskCreator = ({
 };
 
 const taskCreatorGridColumns = 'grid-cols-[28px_minmax(150px,1.2fr)_minmax(100px,0.75fr)_120px_210px_180px_112px_104px_28px]';
-const taskCreatorGridHeaderClassName = `grid min-w-[1120px] ${taskCreatorGridColumns} items-center gap-1 border-b border-indigo-100 px-2 py-2 text-[10px] font-bold uppercase tracking-wide text-slate-500`;
-const taskCreatorGridRowClassName = `grid min-w-[1120px] ${taskCreatorGridColumns} items-start gap-1 border-b border-indigo-100/70 px-2 py-3 last:border-b-0`;
-const taskInputClassName = 'h-10 w-full min-w-0 rounded-lg border border-indigo-200 bg-white px-2 text-xs text-slate-800 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50 disabled:text-slate-500';
+const taskCreatorGridHeaderClassName = `grid min-w-[1120px] ${taskCreatorGridColumns} items-center gap-2 border-b border-sky-100 bg-sky-50/70 px-4 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-slate-500`;
+const taskCreatorGridRowClassName = `grid min-w-[1120px] ${taskCreatorGridColumns} items-start gap-2 border-b border-sky-100/70 bg-white/70 px-4 py-3 transition hover:bg-sky-50/70 last:border-b-0`;
+const taskInputClassName = 'h-10 w-full min-w-0 rounded-2xl border border-sky-100 bg-white px-3 text-xs font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100 disabled:bg-slate-50 disabled:text-slate-500';
 
 export default InlineTaskCreator;

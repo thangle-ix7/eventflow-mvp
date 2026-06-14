@@ -1,7 +1,18 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { FileText, Loader2, Paperclip, Save } from 'lucide-react';
+import {
+  CheckCircle2,
+  ClipboardList,
+  FileText,
+  Loader2,
+  Paperclip,
+  RefreshCw,
+  Save,
+  Sparkles,
+  TrendingUp,
+  XCircle,
+} from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import eventApi from '../api/eventApi';
 import taskApi from '../api/taskApi';
@@ -14,8 +25,18 @@ const TaskUpdatePage = ({ user, onLogout }) => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
-  const eventQuery = useQuery({ queryKey: ['event', eventId], queryFn: () => eventApi.getEvent(eventId), enabled: Boolean(eventId) });
-  const taskQuery = useQuery({ queryKey: ['task', taskId], queryFn: () => taskApi.getTask(taskId), enabled: Boolean(taskId) });
+  const eventQuery = useQuery({
+    queryKey: ['event', eventId],
+    queryFn: () => eventApi.getEvent(eventId),
+    enabled: Boolean(eventId),
+  });
+
+  const taskQuery = useQuery({
+    queryKey: ['task', taskId],
+    queryFn: () => taskApi.getTask(taskId),
+    enabled: Boolean(taskId),
+  });
+
   const task = taskQuery.data;
   const canUpdate = task?.assigneeId === user?.userId;
   const isSubtask = Boolean(task?.parentId);
@@ -36,13 +57,73 @@ const TaskUpdatePage = ({ user, onLogout }) => {
   });
 
   return (
-    <AppLayout user={user} events={eventQuery.data ? [eventQuery.data] : []} selectedEvent={eventQuery.data} onEventChange={() => {}} onLogout={onLogout}>
-      <div className="mx-auto max-w-3xl space-y-6">
-        {taskQuery.isLoading && <div className="flex items-center gap-2 rounded-xl bg-white p-6 text-gray-500"><Loader2 className="animate-spin" size={18} />Đang tải task...</div>}
-        {taskQuery.error && <div className="rounded-xl bg-red-50 p-4 text-red-700">{taskQuery.error.userMessage || taskQuery.error.message}</div>}
+    <AppLayout
+      user={user}
+      events={eventQuery.data ? [eventQuery.data] : []}
+      selectedEvent={eventQuery.data}
+      onEventChange={() => {}}
+      onLogout={onLogout}
+    >
+      <div className="mx-auto max-w-5xl space-y-6">
+        <section className="relative overflow-hidden rounded-[2rem] border border-sky-100 bg-white/85 p-6 shadow-xl shadow-sky-100/70 backdrop-blur-xl">
+          <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-sky-100 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-28 left-1/3 h-72 w-72 rounded-full bg-emerald-100/70 blur-3xl" />
+
+          <div className="relative flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex items-start gap-4">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-3xl bg-gradient-to-br from-sky-500 to-emerald-400 text-white shadow-lg shadow-cyan-100">
+                <RefreshCw size={28} strokeWidth={1.8} />
+              </div>
+
+              <div className="min-w-0">
+                <p className="inline-flex rounded-full bg-sky-50 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-sky-600">
+                  Task update
+                </p>
+
+                <h2 className="mt-3 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
+                  Update task
+                </h2>
+
+                <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-slate-600">
+                  {task?.title
+                    ? `Cập nhật trạng thái và tiến độ cho task: ${task.title}.`
+                    : 'Cập nhật trạng thái và tiến độ công việc được giao.'}
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-sky-100 bg-white/80 p-4 shadow-sm">
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">
+                Quyền cập nhật
+              </p>
+              <p className={`mt-1 text-sm font-black ${canUpdate ? 'text-emerald-600' : 'text-slate-600'}`}>
+                {canUpdate ? 'Assignee' : 'Không phải assignee'}
+              </p>
+            </div>
+          </div>
+
+          {(eventQuery.isLoading || taskQuery.isLoading) && (
+            <div className="relative mt-5 flex items-center gap-2 rounded-2xl border border-sky-100 bg-sky-50 p-4 text-sm font-black text-slate-500">
+              <Loader2 className="animate-spin text-sky-600" size={18} />
+              Đang tải task...
+            </div>
+          )}
+
+          {taskQuery.error && (
+            <div className="relative mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
+              {taskQuery.error.userMessage || taskQuery.error.message}
+            </div>
+          )}
+        </section>
+
         {task && (
           <>
-            <TaskWorkUpdateForm task={task} taskId={taskId} canUpdate={canUpdate} mutation={mutation} />
+            <TaskWorkUpdateForm
+              task={task}
+              taskId={taskId}
+              canUpdate={canUpdate}
+              mutation={mutation}
+            />
 
             <section className="grid gap-4 md:grid-cols-2">
               {!isSubtask && (
@@ -50,12 +131,15 @@ const TaskUpdatePage = ({ user, onLogout }) => {
                   to={`/events/${eventId}/tasks/${taskId}/reports`}
                   icon={<FileText size={22} />}
                   title="Report tiến độ"
+                  description="Nộp báo cáo tiến độ chi tiết kèm mô tả và ảnh minh chứng."
                 />
               )}
+
               <TaskUpdateLink
                 to={`/events/${eventId}/tasks/${taskId}/attachments`}
                 icon={<Paperclip size={22} />}
                 title="Attachment"
+                description="Upload file, ảnh, ZIP hoặc link tài liệu liên quan đến task."
               />
             </section>
           </>
@@ -91,57 +175,202 @@ const TaskWorkUpdateForm = ({ task, taskId, canUpdate, mutation }) => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900">Update task</h2>
+    <form
+      onSubmit={handleSubmit}
+      className="overflow-hidden rounded-[2rem] border border-sky-100 bg-white shadow-xl shadow-sky-100/70"
+    >
+      <div className="flex flex-col gap-3 border-b border-sky-100 bg-gradient-to-r from-sky-50 via-white to-emerald-50 px-5 py-5 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex items-start gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-400 text-white shadow-lg shadow-cyan-100">
+            <ClipboardList size={20} strokeWidth={1.8} />
+          </div>
+
+          <div>
+            <h3 className="text-lg font-black text-slate-950">
+              Cập nhật tiến độ
+            </h3>
+            <p className="mt-1 text-sm font-semibold leading-6 text-slate-500">
+              {isSubtask
+                ? 'Subtask tự tính tiến độ theo trạng thái: DONE = 100%, trạng thái khác = 0%.'
+                : 'Task chính có thể cập nhật trạng thái và phần trăm tiến độ.'}
+            </p>
+          </div>
+        </div>
+
+        <PermissionBadge canUpdate={canUpdate} />
       </div>
-      {!canUpdate && <div className="rounded-lg bg-gray-50 p-3 text-sm text-gray-600">Bạn không có quyền cập nhật task này.</div>}
-      {mutation.error && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{mutation.error.userMessage || mutation.error.message}</div>}
-      <div className={`grid gap-3 ${isSubtask ? '' : 'md:grid-cols-2'}`}>
-        <Field label="Status">
-          <select name="status" value={form.status} onChange={handleChange} disabled={!canUpdate} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 disabled:bg-gray-50">
-            <option value="TODO">TODO</option>
-            <option value="IN_PROGRESS">IN_PROGRESS</option>
-            <option value="IN_REVIEW">IN_REVIEW</option>
-            <option value="DONE">DONE</option>
-          </select>
-        </Field>
-        {!isSubtask && (
-          <Field label="Tiến độ (%)">
-            <input
-              name="progressPercentage"
-              type="number"
-              min="0"
-              max="100"
-              value={form.progressPercentage}
+
+      <div className="grid gap-5 p-5">
+        {!canUpdate && (
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm font-semibold leading-6 text-slate-600">
+            Bạn không có quyền cập nhật task này. Chỉ người được phân công mới có thể update trạng thái và tiến độ.
+          </div>
+        )}
+
+        {mutation.error && (
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
+            {mutation.error.userMessage || mutation.error.message}
+          </div>
+        )}
+
+        <div className={`grid gap-4 ${isSubtask ? '' : 'md:grid-cols-2'}`}>
+          <Field
+            label="Status"
+            icon={<ClipboardList className="h-4 w-4" strokeWidth={1.8} />}
+          >
+            <select
+              name="status"
+              value={form.status}
               onChange={handleChange}
               disabled={!canUpdate}
-              required
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 disabled:bg-gray-50"
-            />
+              className={inputClassName}
+            >
+              <option value="TODO">TODO</option>
+              <option value="IN_PROGRESS">IN_PROGRESS</option>
+              <option value="IN_REVIEW">IN_REVIEW</option>
+              <option value="DONE">DONE</option>
+            </select>
+
+            <StatusHint status={form.status} isSubtask={isSubtask} />
           </Field>
-        )}
+
+          {!isSubtask && (
+            <Field
+              label="Tiến độ (%)"
+              icon={<TrendingUp className="h-4 w-4" strokeWidth={1.8} />}
+            >
+              <input
+                name="progressPercentage"
+                type="number"
+                min="0"
+                max="100"
+                value={form.progressPercentage}
+                onChange={handleChange}
+                disabled={!canUpdate}
+                required
+                className={inputClassName}
+              />
+
+              <div className="mt-3 rounded-2xl border border-sky-100 bg-sky-50/70 p-3">
+                <div className="mb-2 flex items-center justify-between text-xs font-black text-slate-500">
+                  <span>Preview progress</span>
+                  <span>{form.progressPercentage || 0}%</span>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-white">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 transition-all"
+                    style={{ width: `${Math.min(Math.max(Number(form.progressPercentage || 0), 0), 100)}%` }}
+                  />
+                </div>
+              </div>
+            </Field>
+          )}
+        </div>
+
+        <button
+          type="submit"
+          disabled={!canUpdate || mutation.isPending}
+          className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 px-4 py-2 text-sm font-black text-white shadow-xl shadow-cyan-100 transition hover:-translate-y-0.5 hover:shadow-2xl hover:shadow-cyan-200 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {mutation.isPending ? (
+            <Loader2 size={16} className="animate-spin" />
+          ) : (
+            <Save size={16} />
+          )}
+          Lưu update
+        </button>
       </div>
-      <button type="submit" disabled={!canUpdate || mutation.isPending} className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300">
-        {mutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-        Lưu update
-      </button>
     </form>
   );
 };
 
-const TaskUpdateLink = ({ to, icon, title }) => (
-  <Link to={to} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition hover:border-blue-200 hover:bg-blue-50">
-    <div className="text-blue-600">{icon}</div>
-    <h3 className="mt-3 font-semibold text-gray-900">{title}</h3>
+const TaskUpdateLink = ({ to, icon, title, description }) => (
+  <Link
+    to={to}
+    className="group relative overflow-hidden rounded-[2rem] border border-sky-100 bg-white p-5 shadow-xl shadow-sky-100/70 transition hover:-translate-y-1 hover:shadow-2xl hover:shadow-cyan-100"
+  >
+    <div className="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full bg-sky-100/80 opacity-0 blur-3xl transition group-hover:opacity-100" />
+
+    <div className="relative">
+      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-400 text-white shadow-lg shadow-cyan-100">
+        {icon}
+      </div>
+
+      <h3 className="mt-4 font-black text-slate-950">
+        {title}
+      </h3>
+
+      <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
+        {description}
+      </p>
+
+      <div className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-3 py-1.5 text-xs font-black text-sky-700 transition group-hover:bg-white">
+        Mở
+        <Sparkles size={13} />
+      </div>
+    </div>
   </Link>
 );
 
-const Field = ({ label, children }) => (
+const Field = ({ label, icon, children }) => (
   <label className="block">
-    <span className="text-sm font-medium text-gray-700">{label}</span>
-    <div className="mt-1">{children}</div>
+    <span className="flex items-center gap-2 text-sm font-black text-slate-700">
+      <span className="text-sky-500">{icon}</span>
+      {label}
+    </span>
+
+    <div className="mt-2">{children}</div>
   </label>
 );
+
+const PermissionBadge = ({ canUpdate }) => (
+  <span
+    className={`inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-black shadow-sm ${
+      canUpdate
+        ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+        : 'border-slate-200 bg-white text-slate-600'
+    }`}
+  >
+    {canUpdate ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
+    {canUpdate ? 'Có thể cập nhật' : 'Không có quyền cập nhật'}
+  </span>
+);
+
+const StatusHint = ({ status, isSubtask }) => {
+  const meta = {
+    TODO: {
+      label: 'Task đang ở trạng thái cần làm.',
+      className: 'border-slate-200 bg-slate-50 text-slate-700',
+    },
+    IN_PROGRESS: {
+      label: 'Task đang được thực hiện.',
+      className: 'border-amber-200 bg-amber-50 text-amber-700',
+    },
+    IN_REVIEW: {
+      label: 'Task đã gửi chờ leader review.',
+      className: 'border-sky-200 bg-sky-50 text-sky-700',
+    },
+    DONE: {
+      label: 'Task hoàn thành. Progress sẽ là 100%.',
+      className: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    },
+  }[status] || {
+    label: status,
+    className: 'border-slate-200 bg-slate-50 text-slate-700',
+  };
+
+  return (
+    <div className={`mt-3 rounded-2xl border px-3 py-2 text-xs font-black ${meta.className}`}>
+      {meta.label}
+      {isSubtask && (
+        <span className="mt-1 block font-semibold opacity-80">
+          Subtask tự quy đổi progress theo status.
+        </span>
+      )}
+    </div>
+  );
+};
+
+const inputClassName = 'min-h-11 w-full min-w-0 rounded-2xl border border-sky-100 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:bg-white focus:ring-4 focus:ring-cyan-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500';
 
 export default TaskUpdatePage;
