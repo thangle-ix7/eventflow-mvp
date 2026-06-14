@@ -2,6 +2,7 @@ package com.eventflow.backend.security;
 
 import com.eventflow.backend.entity.EventNature;
 import com.eventflow.backend.entity.UserRole;
+import com.eventflow.backend.repository.DepartmentRepository;
 import com.eventflow.backend.repository.EventMemberRepository;
 import com.eventflow.backend.repository.EventRepository;
 import com.eventflow.backend.repository.TaskRepository;
@@ -16,6 +17,7 @@ public class EventSecurityService {
     private final TaskRepository taskRepository;
     private final EventRepository eventRepository;
     private final AdminSecurityService adminSecurityService;
+    private final DepartmentRepository departmentRepository;
 
     /**
      * Check if a user has a specific role in an event.
@@ -51,6 +53,17 @@ public class EventSecurityService {
             return false;
         }
         return taskRepository.existsByIdAndAssigneeId(taskId, userId);
+    }
+
+    /**
+     * Check user có phải Department Leader của department trong event hay không.
+     * Department Leader được xác định bằng departments.leader_user_id.
+     */
+    public boolean isDepartmentLeader(Long eventId, Long departmentId, Long userId) {
+        if (eventId == null || departmentId == null || userId == null) {
+            return false;
+        }
+        return departmentRepository.existsDepartmentLeader(eventId, departmentId, userId);
     }
 
     /**
