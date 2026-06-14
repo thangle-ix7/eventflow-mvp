@@ -129,16 +129,16 @@ public class NotificationSenderService {
         return switch (notification.getType()) {
             case UPCOMING ->
                     "Xin chào " + userName + ",\n\n" +
-                    "Công việc \"" + taskTitle + "\" của bạn sẽ đến hạn trong 24 giờ tới.\n" +
-                    "Hãy hoàn thành đúng hạn nhé!\n\n" +
-                    "EventFlow - Hệ thống quản lý sự kiện.";
+                            "Công việc \"" + taskTitle + "\" của bạn sẽ đến hạn trong 24 giờ tới.\n" +
+                            "Hãy hoàn thành đúng hạn nhé!\n\n" +
+                            "EventFlow - Hệ thống quản lý sự kiện.";
             case OVERDUE ->
                     "Xin chào " + userName + ",\n\n" +
-                    "Công việc \"" + taskTitle + "\" của bạn ĐÃ QUÁ HẠN!\n" +
-                    "Vui lòng cập nhật trạng thái ngay.\n\n" +
-                    "EventFlow - Hệ thống quản lý sự kiện.";
+                            "Công việc \"" + taskTitle + "\" của bạn ĐÃ QUÁ HẠN!\n" +
+                            "Vui lòng cập nhật trạng thái ngay.\n\n" +
+                            "EventFlow - Hệ thống quản lý sự kiện.";
             case TASK_ASSIGNED, TASK_UPDATED, TASK_REVIEW_REQUESTED, TASK_REVIEWED,
-                    CALENDAR_INVITE, CALENDAR_UPDATED, CALENDAR_REMINDER_TOMORROW, CALENDAR_REMINDER_SOON ->
+                 CALENDAR_INVITE, CALENDAR_UPDATED, CALENDAR_REMINDER_TOMORROW, CALENDAR_REMINDER_SOON ->
                     notification.getTitle() != null ? notification.getTitle() : "Bạn có thông báo mới từ EventFlow.";
         };
     }
@@ -166,16 +166,20 @@ public class NotificationSenderService {
     private String resolveEmailSubject(Notification notification) {
         String title = notification.getTitle();
         if (title != null && !title.isBlank()) {
-            return "Event Flow - " + title;
+            return "[EventFlow] " + title;
         }
+
         return switch (notification.getType()) {
-            case OVERDUE -> "Event Flow - Công việc đã quá hạn";
-            case UPCOMING, CALENDAR_REMINDER_TOMORROW, CALENDAR_REMINDER_SOON -> "Event Flow - Nhắc việc sắp đến hạn";
-            case TASK_ASSIGNED -> "Event Flow - Bạn được giao công việc mới";
-            case TASK_UPDATED -> "Event Flow - Công việc vừa được cập nhật";
-            case TASK_REVIEW_REQUESTED -> "Event Flow - Cần duyệt công việc";
-            case TASK_REVIEWED -> "Event Flow - Công việc đã được duyệt";
-            case CALENDAR_INVITE, CALENDAR_UPDATED -> "Event Flow - Cập nhật lịch sự kiện";
+            case OVERDUE -> "[EventFlow] Công việc đã quá hạn";
+            case UPCOMING -> "[EventFlow] Công việc sắp đến hạn";
+            case TASK_ASSIGNED -> "[EventFlow] Bạn được giao công việc mới";
+            case TASK_UPDATED -> "[EventFlow] Công việc vừa được cập nhật";
+            case TASK_REVIEW_REQUESTED -> "[EventFlow] Cần duyệt công việc";
+            case TASK_REVIEWED -> "[EventFlow] Công việc đã được duyệt";
+            case CALENDAR_INVITE -> "[EventFlow] Bạn có lịch mới";
+            case CALENDAR_UPDATED -> "[EventFlow] Lịch sự kiện vừa được cập nhật";
+            case CALENDAR_REMINDER_TOMORROW -> "[EventFlow] Nhắc lịch ngày mai";
+            case CALENDAR_REMINDER_SOON -> "[EventFlow] Nhắc lịch sắp diễn ra";
         };
     }
 
@@ -183,57 +187,140 @@ public class NotificationSenderService {
         String userName = user != null ? user.getName() : "bạn";
         String heading = notification.getTitle() != null && !notification.getTitle().isBlank()
                 ? notification.getTitle()
-                : "Bạn có thông báo mới";
+                : "Bạn có thông báo mới từ EventFlow";
         String taskTitle = task != null ? task.getTitle() : null;
         String actionUrl = buildNotificationUrl(notification, task);
-        String toneColor = notification.getType() == com.eventflow.backend.entity.NotiType.OVERDUE ? "#dc2626" : "#4f46e5";
+        String badgeLabel = resolveEmailBadgeLabel(notification);
+        String actionLabel = resolveEmailActionLabel(notification, task);
+        String accentColor = resolveEmailAccentColor(notification);
+        String accentSoftColor = resolveEmailAccentSoftColor(notification);
+        String plainText = text == null || text.isBlank()
+                ? "Bạn có một cập nhật mới trong hệ thống EventFlow."
+                : text;
+
         String cta = actionUrl == null ? "" : """
-                <table role="presentation" cellspacing="0" cellpadding="0" style="margin-top:24px;">
+                <table role="presentation" cellspacing="0" cellpadding="0" style="margin-top:26px;">
                   <tr>
-                    <td style="border-radius:12px;background:%s;">
-                      <a href="%s" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:13px 20px;border-radius:12px;color:#ffffff;text-decoration:none;font-size:15px;font-weight:800;">%s</a>
+                    <td style="border-radius:16px;background:linear-gradient(135deg,#0ea5e9 0%%,#06b6d4 48%%,#10b981 100%%);box-shadow:0 14px 26px rgba(14,165,233,0.24);">
+                      <a href="%s" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:14px 22px;border-radius:16px;color:#ffffff;text-decoration:none;font-size:15px;font-weight:900;letter-spacing:-0.01em;">%s</a>
                     </td>
                   </tr>
                 </table>
-                """.formatted(toneColor, escape(actionUrl), task != null ? "Mở công việc" : "Mở Event Flow");
+                """.formatted(escape(actionUrl), escape(actionLabel));
+
         String fallbackLink = actionUrl == null ? "" : """
-                <p style="margin:18px 0 0;font-size:13px;line-height:1.6;color:#64748b;">Nếu nút không mở được, dùng link này:</p>
-                <p style="margin:8px 0 0;word-break:break-all;font-size:12px;line-height:1.6;">
-                  <a href="%s" target="_blank" rel="noopener noreferrer" style="color:#4f46e5;text-decoration:underline;">%s</a>
-                </p>
-                """.formatted(escape(actionUrl), escape(actionUrl));
-        String taskBlock = taskTitle == null ? "" : """
-                <div style="margin-top:18px;padding:14px;border:1px solid #e2e8f0;border-radius:14px;background:#f8fafc;">
-                  <div style="font-size:12px;font-weight:800;text-transform:uppercase;color:#64748b;">Công việc</div>
-                  <div style="margin-top:6px;font-size:16px;font-weight:900;color:#0f172a;">%s</div>
-                  <div style="margin-top:8px;font-size:13px;color:#64748b;">Deadline: %s</div>
+                <div style="margin-top:18px;padding:14px 16px;border:1px solid #e0f2fe;border-radius:16px;background:#f8fcff;">
+                  <p style="margin:0;font-size:13px;line-height:1.6;color:#64748b;">Nếu nút không mở được, bạn có thể dùng đường dẫn sau:</p>
+                  <p style="margin:8px 0 0;word-break:break-all;font-size:12px;line-height:1.6;">
+                    <a href="%s" target="_blank" rel="noopener noreferrer" style="color:#0284c7;text-decoration:underline;font-weight:700;">%s</a>
+                  </p>
                 </div>
-                """.formatted(escape(taskTitle), escape(task.getDeadline() != null ? task.getDeadline().toString().replace('T', ' ') : "Chưa có"));
+                """.formatted(escape(actionUrl), escape(actionUrl));
+
+        String taskBlock = taskTitle == null ? "" : """
+                <div style="margin-top:20px;border:1px solid #dbeafe;border-radius:20px;background:linear-gradient(135deg,#f8fcff 0%%,#ecfeff 55%%,#f0fdf4 100%%);overflow:hidden;">
+                  <div style="padding:16px 18px;border-bottom:1px solid #e0f2fe;">
+                    <div style="font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:0.12em;color:#0284c7;">Thông tin công việc</div>
+                    <div style="margin-top:8px;font-size:17px;font-weight:900;line-height:1.4;color:#0f172a;">%s</div>
+                  </div>
+                  <table role="presentation" width="100%%" cellspacing="0" cellpadding="0">
+                    <tr>
+                      <td style="width:50%%;padding:14px 18px;border-right:1px solid #e0f2fe;">
+                        <div style="font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:0.1em;color:#94a3b8;">Deadline</div>
+                        <div style="margin-top:6px;font-size:14px;font-weight:800;color:#334155;">%s</div>
+                      </td>
+                      <td style="width:50%%;padding:14px 18px;">
+                        <div style="font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:0.1em;color:#94a3b8;">Trạng thái</div>
+                        <div style="margin-top:6px;font-size:14px;font-weight:800;color:#334155;">%s</div>
+                      </td>
+                    </tr>
+                  </table>
+                </div>
+                """.formatted(
+                escape(taskTitle),
+                escape(task.getDeadline() != null ? task.getDeadline().toString().replace('T', ' ') : "Chưa có"),
+                escape(task.getStatus() != null ? task.getStatus().name() : "Chưa cập nhật")
+        );
 
         return """
                 <!doctype html>
                 <html lang="vi">
-                  <body style="margin:0;background:#f8fafc;font-family:Inter,Segoe UI,Arial,sans-serif;color:#0f172a;">
-                    <table role="presentation" width="100%%" cellspacing="0" cellpadding="0" style="background:#f8fafc;padding:28px 14px;">
+                  <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>EventFlow Notification</title>
+                  </head>
+                  <body style="margin:0;padding:0;background:#f8fcff;font-family:Inter,Segoe UI,Arial,sans-serif;color:#0f172a;">
+                    <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">
+                      %s
+                    </div>
+
+                    <table role="presentation" width="100%%" cellspacing="0" cellpadding="0" style="background:#f8fcff;padding:28px 12px;">
                       <tr>
                         <td align="center">
-                          <table role="presentation" width="100%%" cellspacing="0" cellpadding="0" style="max-width:580px;background:#ffffff;border:1px solid #e2e8f0;border-radius:18px;overflow:hidden;box-shadow:0 18px 45px rgba(15,23,42,0.08);">
+                          <table role="presentation" width="100%%" cellspacing="0" cellpadding="0" style="max-width:620px;border-collapse:separate;border-spacing:0;">
                             <tr>
-                              <td style="padding:24px 28px;background:#020617;color:#ffffff;">
-                                <div style="font-size:20px;font-weight:900;">Event Flow</div>
-                                <div style="margin-top:6px;color:#cbd5e1;font-size:13px;">Nhắc việc và cập nhật vận hành sự kiện</div>
+                              <td style="padding:0 0 14px;">
+                                <table role="presentation" width="100%%" cellspacing="0" cellpadding="0">
+                                  <tr>
+                                    <td style="vertical-align:middle;">
+                                      <div style="display:inline-block;height:44px;width:44px;border-radius:18px;background:linear-gradient(135deg,#38bdf8 0%%,#10b981 100%%);box-shadow:0 12px 24px rgba(14,165,233,0.22);vertical-align:middle;"></div>
+                                      <span style="display:inline-block;margin-left:10px;vertical-align:middle;font-size:22px;font-weight:950;letter-spacing:-0.04em;color:#0f172a;">
+                                        Event<span style="color:#0ea5e9;">Flow</span>
+                                      </span>
+                                    </td>
+                                    <td align="right" style="vertical-align:middle;">
+                                      <span style="display:inline-block;border-radius:999px;background:#ecfeff;border:1px solid #bae6fd;padding:7px 11px;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:0.12em;color:#0284c7;">
+                                        Notification
+                                      </span>
+                                    </td>
+                                  </tr>
+                                </table>
                               </td>
                             </tr>
+
                             <tr>
-                              <td style="padding:28px;">
-                                <div style="display:inline-block;margin-bottom:14px;padding:6px 10px;border-radius:999px;background:#eef2ff;color:#4338ca;font-size:12px;font-weight:800;text-transform:uppercase;">Thông báo</div>
-                                <h1 style="margin:0;font-size:25px;line-height:1.3;font-weight:900;color:#0f172a;">%s</h1>
-                                <p style="margin:14px 0 0;font-size:15px;line-height:1.7;color:#475569;">Xin chào <strong>%s</strong>,</p>
-                                <p style="margin:8px 0 0;white-space:pre-line;font-size:15px;line-height:1.7;color:#475569;">%s</p>
-                                %s
-                                %s
-                                %s
-                                <div style="margin-top:24px;padding-top:18px;border-top:1px solid #e2e8f0;font-size:12px;line-height:1.6;color:#94a3b8;">Email này được gửi tự động từ Event Flow. Bạn vẫn có thể xem thông báo trong ứng dụng.</div>
+                              <td style="border:1px solid #dbeafe;border-radius:28px;background:#ffffff;overflow:hidden;box-shadow:0 24px 60px rgba(14,165,233,0.13);">
+                                <div style="height:8px;background:linear-gradient(90deg,#0ea5e9 0%%,#06b6d4 45%%,#10b981 100%%);"></div>
+
+                                <div style="padding:30px 30px 28px;background:
+                                  radial-gradient(circle at 92%% 0%%,rgba(16,185,129,0.13) 0,rgba(16,185,129,0) 34%%),
+                                  radial-gradient(circle at 0%% 0%%,rgba(14,165,233,0.16) 0,rgba(14,165,233,0) 36%%),
+                                  #ffffff;">
+                                  <span style="display:inline-block;margin-bottom:14px;padding:7px 12px;border-radius:999px;background:%s;border:1px solid #bae6fd;color:%s;font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:0.1em;">
+                                    %s
+                                  </span>
+
+                                  <h1 style="margin:0;font-size:27px;line-height:1.28;font-weight:950;letter-spacing:-0.04em;color:#0f172a;">
+                                    %s
+                                  </h1>
+
+                                  <p style="margin:16px 0 0;font-size:15px;line-height:1.75;color:#475569;">
+                                    Xin chào <strong style="color:#0f172a;">%s</strong>,
+                                  </p>
+
+                                  <div style="margin-top:10px;padding:16px 18px;border-radius:20px;background:#f8fcff;border:1px solid #e0f2fe;">
+                                    <p style="margin:0;white-space:pre-line;font-size:15px;line-height:1.75;color:#475569;">%s</p>
+                                  </div>
+
+                                  %s
+                                  %s
+                                  %s
+                                </div>
+
+                                <div style="padding:18px 30px;border-top:1px solid #e0f2fe;background:#f8fcff;">
+                                  <p style="margin:0;font-size:12px;line-height:1.7;color:#94a3b8;">
+                                    Email này được gửi tự động từ EventFlow. Bạn vẫn có thể xem thông báo trong ứng dụng.
+                                  </p>
+                                </div>
+                              </td>
+                            </tr>
+
+                            <tr>
+                              <td align="center" style="padding:18px 10px 0;">
+                                <p style="margin:0;font-size:12px;line-height:1.6;color:#94a3b8;">
+                                  EventFlow • AI Event Planning • FPT University Hanoi
+                                </p>
                               </td>
                             </tr>
                           </table>
@@ -242,7 +329,79 @@ public class NotificationSenderService {
                     </table>
                   </body>
                 </html>
-                """.formatted(escape(heading), escape(userName), escape(text), taskBlock, cta, fallbackLink);
+                """.formatted(
+                escape(heading),
+                accentSoftColor,
+                accentColor,
+                escape(badgeLabel),
+                escape(heading),
+                escape(userName),
+                escape(plainText),
+                taskBlock,
+                cta,
+                fallbackLink
+        );
+    }
+
+    private String resolveEmailBadgeLabel(Notification notification) {
+        if (notification == null || notification.getType() == null) {
+            return "Thông báo";
+        }
+
+        return switch (notification.getType()) {
+            case OVERDUE -> "Quá hạn";
+            case UPCOMING -> "Sắp đến hạn";
+            case TASK_ASSIGNED -> "Công việc mới";
+            case TASK_UPDATED -> "Cập nhật task";
+            case TASK_REVIEW_REQUESTED -> "Cần duyệt";
+            case TASK_REVIEWED -> "Đã duyệt";
+            case CALENDAR_INVITE -> "Lịch mới";
+            case CALENDAR_UPDATED -> "Cập nhật lịch";
+            case CALENDAR_REMINDER_TOMORROW -> "Nhắc lịch ngày mai";
+            case CALENDAR_REMINDER_SOON -> "Nhắc lịch sắp diễn ra";
+        };
+    }
+
+    private String resolveEmailActionLabel(Notification notification, Task task) {
+        if (task != null) {
+            return "Mở công việc";
+        }
+
+        if (notification != null && notification.getCalendarEventId() != null) {
+            return "Mở lịch sự kiện";
+        }
+
+        return "Mở EventFlow";
+    }
+
+    private String resolveEmailAccentColor(Notification notification) {
+        if (notification == null || notification.getType() == null) {
+            return "#0284c7";
+        }
+
+        return switch (notification.getType()) {
+            case OVERDUE -> "#dc2626";
+            case UPCOMING, CALENDAR_REMINDER_TOMORROW, CALENDAR_REMINDER_SOON -> "#d97706";
+            case TASK_REVIEW_REQUESTED -> "#7c3aed";
+            case TASK_REVIEWED -> "#059669";
+            case CALENDAR_INVITE, CALENDAR_UPDATED -> "#0284c7";
+            case TASK_ASSIGNED, TASK_UPDATED -> "#0891b2";
+        };
+    }
+
+    private String resolveEmailAccentSoftColor(Notification notification) {
+        if (notification == null || notification.getType() == null) {
+            return "#ecfeff";
+        }
+
+        return switch (notification.getType()) {
+            case OVERDUE -> "#fef2f2";
+            case UPCOMING, CALENDAR_REMINDER_TOMORROW, CALENDAR_REMINDER_SOON -> "#fffbeb";
+            case TASK_REVIEW_REQUESTED -> "#f5f3ff";
+            case TASK_REVIEWED -> "#ecfdf5";
+            case CALENDAR_INVITE, CALENDAR_UPDATED -> "#ecfeff";
+            case TASK_ASSIGNED, TASK_UPDATED -> "#ecfeff";
+        };
     }
 
     private String buildNotificationUrl(Notification notification, Task task) {

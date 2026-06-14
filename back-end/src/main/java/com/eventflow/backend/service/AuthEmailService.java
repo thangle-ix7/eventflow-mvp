@@ -41,17 +41,17 @@ public class AuthEmailService {
 
         sendAuthEmail(
                 toEmail,
-                "Event Flow - Xác thực email",
+                "[EventFlow] Xác thực email",
                 "Xác thực email",
-                "Hoàn tất tài khoản Event Flow",
-                "Bấm nút bên dưới để xác thực email và bắt đầu sử dụng workspace quản lý sự kiện.",
+                "Hoàn tất tài khoản EventFlow",
+                "Bạn chỉ còn một bước nữa để kích hoạt tài khoản. Bấm nút bên dưới để xác thực email và bắt đầu sử dụng workspace quản lý sự kiện.",
                 "Xác thực email",
                 link,
                 "Chào bạn,\n\n"
-                        + "Vui lòng xác thực email Event Flow bằng link sau:\n"
+                        + "Vui lòng xác thực email EventFlow bằng đường dẫn sau:\n"
                         + link + "\n\n"
-                        + "Link sẽ hết hạn theo cấu hình bảo mật của hệ thống.\n\n"
-                        + "Nếu bạn không tạo tài khoản Event Flow, hãy bỏ qua email này.");
+                        + "Đường dẫn sẽ hết hạn theo cấu hình bảo mật của hệ thống.\n\n"
+                        + "Nếu bạn không tạo tài khoản EventFlow, hãy bỏ qua email này.");
     }
 
     public void sendPasswordResetEmail(String toEmail, String token) {
@@ -62,16 +62,16 @@ public class AuthEmailService {
 
         sendAuthEmail(
                 toEmail,
-                "Event Flow - Đặt lại mật khẩu",
-                "Đặt lại mật khẩu",
+                "[EventFlow] Đặt lại mật khẩu",
+                "Bảo mật tài khoản",
                 "Tạo mật khẩu mới cho tài khoản",
-                "Yêu cầu đặt lại mật khẩu vừa được gửi tới Event Flow. Bấm nút bên dưới để tiếp tục.",
+                "EventFlow vừa nhận được yêu cầu đặt lại mật khẩu. Bấm nút bên dưới để tạo mật khẩu mới cho tài khoản của bạn.",
                 "Đặt lại mật khẩu",
                 link,
                 "Chào bạn,\n\n"
-                        + "Bạn có thể đặt lại mật khẩu Event Flow bằng link sau:\n"
+                        + "Bạn có thể đặt lại mật khẩu EventFlow bằng đường dẫn sau:\n"
                         + link + "\n\n"
-                        + "Link sẽ hết hạn trong thời gian ngắn. Nếu bạn không yêu cầu đặt lại mật khẩu, hãy bỏ qua email này.");
+                        + "Đường dẫn sẽ hết hạn trong thời gian ngắn. Nếu bạn không yêu cầu đặt lại mật khẩu, hãy bỏ qua email này.");
     }
 
     public void sendEventInvitationEmail(String toEmail, String token, String eventName, String inviterName) {
@@ -85,15 +85,15 @@ public class AuthEmailService {
 
         sendAuthEmail(
                 toEmail,
-                "Event Flow - Lời mời tham gia sự kiện",
+                "[EventFlow] Lời mời tham gia sự kiện",
                 "Lời mời sự kiện",
                 "Xác nhận tham gia " + safeEventName,
-                safeInviterName + " đã mời bạn tham gia sự kiện trên Event Flow.",
+                safeInviterName + " đã mời bạn tham gia sự kiện trên EventFlow. Xác nhận lời mời để xem công việc, lịch và tài liệu liên quan.",
                 "Xác nhận tham gia",
                 link,
                 "Chào bạn,\n\n"
-                        + safeInviterName + " đã mời bạn tham gia sự kiện \"" + safeEventName + "\" trên Event Flow.\n"
-                        + "Xác nhận lời mời bằng link sau:\n"
+                        + safeInviterName + " đã mời bạn tham gia sự kiện \"" + safeEventName + "\" trên EventFlow.\n"
+                        + "Xác nhận lời mời bằng đường dẫn sau:\n"
                         + link + "\n\n"
                         + "Nếu bạn không muốn tham gia, hãy bỏ qua email này.");
     }
@@ -134,38 +134,107 @@ public class AuthEmailService {
         String safeIntro = escape(intro);
         String safeButtonLabel = escape(buttonLabel);
         String safeActionUrl = escape(actionUrl);
+        String safePreview = safeHeading + " - " + safeIntro;
+        String badgeColor = resolveBadgeColor(eyebrow);
+        String badgeBackground = resolveBadgeBackground(eyebrow);
 
         return """
                 <!doctype html>
                 <html lang="vi">
-                  <body style="margin:0;background:#f8fafc;font-family:Inter,Segoe UI,Arial,sans-serif;color:#0f172a;">
-                    <table role="presentation" width="100%%" cellspacing="0" cellpadding="0" style="background:#f8fafc;padding:28px 14px;">
+                  <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>EventFlow Email</title>
+                  </head>
+                  <body style="margin:0;padding:0;background:#f8fcff;font-family:Inter,Segoe UI,Arial,sans-serif;color:#0f172a;">
+                    <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">
+                      %s
+                    </div>
+
+                    <table role="presentation" width="100%%" cellspacing="0" cellpadding="0" style="background:#f8fcff;padding:28px 12px;">
                       <tr>
                         <td align="center">
-                          <table role="presentation" width="100%%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border:1px solid #e2e8f0;border-radius:18px;overflow:hidden;box-shadow:0 18px 45px rgba(15,23,42,0.08);">
+                          <table role="presentation" width="100%%" cellspacing="0" cellpadding="0" style="max-width:620px;border-collapse:separate;border-spacing:0;">
                             <tr>
-                              <td style="padding:26px 28px 18px;background:#020617;color:#ffffff;">
-                                <div style="font-size:20px;font-weight:900;letter-spacing:0;">Event Flow</div>
-                                <div style="margin-top:6px;color:#cbd5e1;font-size:13px;">Nền tảng quản lý sự kiện và công việc</div>
-                              </td>
-                            </tr>
-                            <tr>
-                              <td style="padding:28px;">
-                                <div style="display:inline-block;margin-bottom:14px;padding:6px 10px;border-radius:999px;background:#eef2ff;color:#4338ca;font-size:12px;font-weight:800;text-transform:uppercase;">%s</div>
-                                <h1 style="margin:0;font-size:28px;line-height:1.25;font-weight:900;color:#0f172a;">%s</h1>
-                                <p style="margin:14px 0 0;font-size:15px;line-height:1.7;color:#475569;">%s</p>
-                                <table role="presentation" cellspacing="0" cellpadding="0" style="margin-top:24px;">
+                              <td style="padding:0 0 14px;">
+                                <table role="presentation" width="100%%" cellspacing="0" cellpadding="0">
                                   <tr>
-                                    <td style="border-radius:12px;background:#4f46e5;">
-                                      <a href="%s" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:13px 20px;border-radius:12px;color:#ffffff;text-decoration:none;font-size:15px;font-weight:800;">%s</a>
+                                    <td style="vertical-align:middle;">
+                                      <div style="display:inline-block;height:44px;width:44px;border-radius:18px;background:linear-gradient(135deg,#38bdf8 0%%,#06b6d4 48%%,#10b981 100%%);box-shadow:0 12px 24px rgba(14,165,233,0.22);vertical-align:middle;"></div>
+                                      <span style="display:inline-block;margin-left:10px;vertical-align:middle;font-size:22px;font-weight:950;letter-spacing:-0.04em;color:#0f172a;">
+                                        Event<span style="color:#0ea5e9;">Flow</span>
+                                      </span>
+                                    </td>
+                                    <td align="right" style="vertical-align:middle;">
+                                      <span style="display:inline-block;border-radius:999px;background:#ecfeff;border:1px solid #bae6fd;padding:7px 11px;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:0.12em;color:#0284c7;">
+                                        Account
+                                      </span>
                                     </td>
                                   </tr>
                                 </table>
-                                <p style="margin:22px 0 0;font-size:13px;line-height:1.6;color:#64748b;">Nếu nút không mở được, hãy copy đường dẫn này vào trình duyệt:</p>
-                                <p style="margin:8px 0 0;word-break:break-all;font-size:12px;line-height:1.6;">
-                                  <a href="%s" target="_blank" rel="noopener noreferrer" style="color:#4f46e5;text-decoration:underline;">%s</a>
+                              </td>
+                            </tr>
+
+                            <tr>
+                              <td style="border:1px solid #dbeafe;border-radius:28px;background:#ffffff;overflow:hidden;box-shadow:0 24px 60px rgba(14,165,233,0.13);">
+                                <div style="height:8px;background:linear-gradient(90deg,#0ea5e9 0%%,#06b6d4 45%%,#10b981 100%%);"></div>
+
+                                <div style="padding:30px 30px 28px;background:
+                                  radial-gradient(circle at 92%% 0%%,rgba(16,185,129,0.13) 0,rgba(16,185,129,0) 34%%),
+                                  radial-gradient(circle at 0%% 0%%,rgba(14,165,233,0.16) 0,rgba(14,165,233,0) 36%%),
+                                  #ffffff;">
+                                  <span style="display:inline-block;margin-bottom:14px;padding:7px 12px;border-radius:999px;background:%s;border:1px solid #bae6fd;color:%s;font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:0.1em;">
+                                    %s
+                                  </span>
+
+                                  <h1 style="margin:0;font-size:28px;line-height:1.25;font-weight:950;letter-spacing:-0.04em;color:#0f172a;">
+                                    %s
+                                  </h1>
+
+                                  <p style="margin:14px 0 0;font-size:15px;line-height:1.75;color:#475569;">
+                                    %s
+                                  </p>
+
+                                  <table role="presentation" cellspacing="0" cellpadding="0" style="margin-top:26px;">
+                                    <tr>
+                                      <td style="border-radius:16px;background:linear-gradient(135deg,#0ea5e9 0%%,#06b6d4 48%%,#10b981 100%%);box-shadow:0 14px 26px rgba(14,165,233,0.24);">
+                                        <a href="%s" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:14px 22px;border-radius:16px;color:#ffffff;text-decoration:none;font-size:15px;font-weight:900;letter-spacing:-0.01em;">
+                                          %s
+                                        </a>
+                                      </td>
+                                    </tr>
+                                  </table>
+
+                                  <div style="margin-top:22px;padding:14px 16px;border:1px solid #e0f2fe;border-radius:18px;background:#f8fcff;">
+                                    <p style="margin:0;font-size:13px;line-height:1.6;color:#64748b;">
+                                      Nếu nút không mở được, hãy copy đường dẫn này vào trình duyệt:
+                                    </p>
+                                    <p style="margin:8px 0 0;word-break:break-all;font-size:12px;line-height:1.6;">
+                                      <a href="%s" target="_blank" rel="noopener noreferrer" style="color:#0284c7;text-decoration:underline;font-weight:700;">%s</a>
+                                    </p>
+                                  </div>
+
+                                  <div style="margin-top:20px;padding:16px 18px;border-radius:20px;background:linear-gradient(135deg,#f8fcff 0%%,#ecfeff 55%%,#f0fdf4 100%%);border:1px solid #dbeafe;">
+                                    <div style="font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:0.12em;color:#0284c7;">Lưu ý bảo mật</div>
+                                    <p style="margin:8px 0 0;font-size:13px;line-height:1.7;color:#64748b;">
+                                      Nếu bạn không thực hiện yêu cầu này, bạn có thể bỏ qua email. Không chia sẻ đường dẫn này cho người khác.
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <div style="padding:18px 30px;border-top:1px solid #e0f2fe;background:#f8fcff;">
+                                  <p style="margin:0;font-size:12px;line-height:1.7;color:#94a3b8;">
+                                    Email này được gửi tự động từ EventFlow. Vui lòng không trả lời trực tiếp email này.
+                                  </p>
+                                </div>
+                              </td>
+                            </tr>
+
+                            <tr>
+                              <td align="center" style="padding:18px 10px 0;">
+                                <p style="margin:0;font-size:12px;line-height:1.6;color:#94a3b8;">
+                                  EventFlow • AI Event Planning • FPT University Hanoi
                                 </p>
-                                <div style="margin-top:24px;padding-top:18px;border-top:1px solid #e2e8f0;font-size:12px;line-height:1.6;color:#94a3b8;">Nếu bạn không thực hiện yêu cầu này, có thể bỏ qua email.</div>
                               </td>
                             </tr>
                           </table>
@@ -174,7 +243,52 @@ public class AuthEmailService {
                     </table>
                   </body>
                 </html>
-                """.formatted(safeEyebrow, safeHeading, safeIntro, safeActionUrl, safeButtonLabel, safeActionUrl, safeActionUrl);
+                """.formatted(
+                safePreview,
+                badgeBackground,
+                badgeColor,
+                safeEyebrow,
+                safeHeading,
+                safeIntro,
+                safeActionUrl,
+                safeButtonLabel,
+                safeActionUrl,
+                safeActionUrl
+        );
+    }
+
+    private String resolveBadgeColor(String eyebrow) {
+        if (eyebrow == null) {
+            return "#0284c7";
+        }
+
+        String normalized = eyebrow.toLowerCase();
+        if (normalized.contains("mật khẩu") || normalized.contains("bảo mật")) {
+            return "#d97706";
+        }
+
+        if (normalized.contains("mời") || normalized.contains("sự kiện")) {
+            return "#059669";
+        }
+
+        return "#0284c7";
+    }
+
+    private String resolveBadgeBackground(String eyebrow) {
+        if (eyebrow == null) {
+            return "#ecfeff";
+        }
+
+        String normalized = eyebrow.toLowerCase();
+        if (normalized.contains("mật khẩu") || normalized.contains("bảo mật")) {
+            return "#fffbeb";
+        }
+
+        if (normalized.contains("mời") || normalized.contains("sự kiện")) {
+            return "#ecfdf5";
+        }
+
+        return "#ecfeff";
     }
 
     private String escape(String value) {
