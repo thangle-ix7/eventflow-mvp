@@ -1,5 +1,6 @@
 package com.eventflow.backend.dto;
 
+import com.eventflow.backend.entity.EventNature;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -20,6 +21,7 @@ public class EventResponseDTO {
     private LocalDateTime endTime;
     private LocalDateTime eventDate;
     private String status;
+    private EventNature nature;
     private String role;
     private Long departmentId;
     private String departmentName;

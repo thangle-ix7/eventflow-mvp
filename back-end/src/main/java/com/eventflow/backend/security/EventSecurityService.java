@@ -1,7 +1,9 @@
 package com.eventflow.backend.security;
 
+import com.eventflow.backend.entity.EventNature;
 import com.eventflow.backend.entity.UserRole;
 import com.eventflow.backend.repository.EventMemberRepository;
+import com.eventflow.backend.repository.EventRepository;
 import com.eventflow.backend.repository.TaskRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -12,6 +14,8 @@ public class EventSecurityService {
 
     private final EventMemberRepository eventMemberRepository;
     private final TaskRepository taskRepository;
+    private final EventRepository eventRepository;
+    private final AdminSecurityService adminSecurityService;
 
     /**
      * Check if a user has a specific role in an event.
@@ -47,5 +51,51 @@ public class EventSecurityService {
             return false;
         }
         return taskRepository.existsByIdAndAssigneeId(taskId, userId);
+    }
+
+    /**
+     * Kiểm tra user có quyền quản lý event/template không
+     * - Nếu là template: ADMIN có thể quản lý
+     * - Nếu là event: LEADER có thể quản lý
+     */
+    public boolean canManageEvent(Long eventId, Long userId) {
+        if (eventId == null || userId == null) {
+            return false;
+        }
+
+        return eventRepository.findById(eventId)
+                .map(event -> {
+                    if (event.getNature() == EventNature.TEMPLATE) {
+                        // Template: chỉ ADMIN mới quản lý được
+                        return adminSecurityService.isAdmin(userId);
+                    } else {
+                        // Event thường: LEADER quản lý
+                        return isLeaderOfEvent(eventId, userId);
+                    }
+                })
+                .orElse(false);
+    }
+
+    /**
+     * Kiểm tra user có quyền truy cập event/template không
+     * - Template: tất cả đều truy cập được
+     * - Event: phải là member
+     */
+    public boolean canAccessEvent(Long eventId, Long userId) {
+        if (eventId == null || userId == null) {
+            return false;
+        }
+
+        return eventRepository.findById(eventId)
+                .map(event -> {
+                    if (event.getNature() == EventNature.TEMPLATE) {
+                        // Template: public cho tất cả
+                        return true;
+                    } else {
+                        // Event thường: phải là member
+                        return isMemberOfEvent(eventId, userId);
+                    }
+                })
+                .orElse(false);
     }
 }

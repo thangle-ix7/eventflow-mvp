@@ -42,21 +42,22 @@ public class TaskController {
             Authentication authentication) {
 
         Long userId = (Long) authentication.getPrincipal();
-        if (!eventSecurityService.isMemberOfEvent(eventId, userId)) {
+        if (!eventSecurityService.canAccessEvent(eventId, userId)) {
             return ResponseEntity.status(403).build();
         }
         boolean isLeader = eventSecurityService.isLeaderOfEvent(eventId, userId);
+        boolean isMember = eventSecurityService.isMemberOfEvent(eventId, userId);
 
         return ResponseEntity.ok(taskService.getTasksByEvent(
                 eventId,
                 status,
                 priority,
                 departmentId,
-                isLeader ? assigneeId : userId,
+                (isLeader || !isMember) ? assigneeId : userId,
                 search,
                 sort,
                 direction,
-                !isLeader));
+                isMember && !isLeader));
     }
 
     @GetMapping("/events/{eventId}/tasks/page")
@@ -134,7 +135,7 @@ public class TaskController {
             Authentication authentication) {
 
         Long userId = (Long) authentication.getPrincipal();
-        if (!eventSecurityService.isLeaderOfEvent(eventId, userId)) {
+        if (!eventSecurityService.canManageEvent(eventId, userId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
@@ -150,7 +151,7 @@ public class TaskController {
 
         Long userId = (Long) authentication.getPrincipal();
         Long eventId = taskService.getEventIdByTaskId(taskId);
-        if (!eventSecurityService.isLeaderOfEvent(eventId, userId)) {
+        if (!eventSecurityService.canManageEvent(eventId, userId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
@@ -166,7 +167,7 @@ public class TaskController {
 
         Long userId = (Long) authentication.getPrincipal();
         Long eventId = taskService.getEventIdByTaskId(taskId);
-        if (!eventSecurityService.isLeaderOfEvent(eventId, userId)) {
+        if (!eventSecurityService.canManageEvent(eventId, userId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 

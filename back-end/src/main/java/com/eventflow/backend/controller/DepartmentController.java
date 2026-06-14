@@ -35,10 +35,10 @@ public class DepartmentController {
             Authentication authentication) {
 
         Long userId = currentUserId(authentication);
-        if (!eventSecurityService.isMemberOfEvent(eventId, userId)) {
+        if (!eventSecurityService.canAccessEvent(eventId, userId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
-        if (!eventSecurityService.isLeaderOfEvent(eventId, userId)) {
+        if (!eventSecurityService.isLeaderOfEvent(eventId, userId) && eventSecurityService.isMemberOfEvent(eventId, userId)) {
             return ResponseEntity.ok(departmentService.getDepartmentsForMember(eventId, userId, page, size, search));
         }
 
@@ -85,7 +85,8 @@ public class DepartmentController {
             @Valid @RequestBody DepartmentRequestDTO request,
             Authentication authentication) {
 
-        if (!eventSecurityService.isLeaderOfEvent(eventId, currentUserId(authentication))) {
+        Long userId = currentUserId(authentication);
+        if (!eventSecurityService.canManageEvent(eventId, userId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
@@ -100,7 +101,8 @@ public class DepartmentController {
             @Valid @RequestBody DepartmentRequestDTO request,
             Authentication authentication) {
 
-        if (!eventSecurityService.isLeaderOfEvent(eventId, currentUserId(authentication))) {
+        Long userId = currentUserId(authentication);
+        if (!eventSecurityService.canManageEvent(eventId, userId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 

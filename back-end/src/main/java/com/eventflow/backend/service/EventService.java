@@ -6,6 +6,7 @@ import com.eventflow.backend.dto.PageResponse;
 import com.eventflow.backend.entity.Department;
 import com.eventflow.backend.entity.Event;
 import com.eventflow.backend.entity.EventMember;
+import com.eventflow.backend.entity.EventNature;
 import com.eventflow.backend.entity.User;
 import com.eventflow.backend.entity.UserRole;
 import com.eventflow.backend.repository.EventMemberRepository;
@@ -66,6 +67,8 @@ public class EventService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Người dùng không hợp lệ"));
 
+        EventNature nature = request.getNature() != null ? request.getNature() : EventNature.NORMAL;
+
         Event event = eventRepository.save(Event.builder()
                 .name(request.getName().trim())
                 .description(normalizeOptionalText(request.getDescription()))
@@ -73,6 +76,7 @@ public class EventService {
                 .eventDate(resolveStartTime(request))
                 .endTime(resolveEndTime(request))
                 .status(normalizeStatus(request.getStatus()))
+                .nature(nature)
                 .build());
 
         EventMember leader = eventMemberRepository.save(EventMember.builder()
@@ -106,6 +110,89 @@ public class EventService {
         }
 
         eventRepository.deleteById(eventId);
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<EventResponseDTO> getTemplates(
+            int page,
+            int size,
+            String sort,
+            String direction,
+            String search) {
+
+        var pageable = PageRequest.of(
+                normalizePage(page),
+                normalizeSize(size),
+                Sort.by(resolveDirection(direction), resolveTemplateSort(sort)));
+
+        return PageResponse.from(eventRepository.findAllByNature(
+                        EventNature.TEMPLATE,
+                        normalizeSearch(search),
+                        pageable)
+                .map(event -> mapToResponse(event, null)));
+    }
+
+    @Transactional(readOnly = true)
+    public EventResponseDTO getTemplate(Long templateId) {
+        Event template = eventRepository.findById(templateId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy template"));
+
+        if (template.getNature() != EventNature.TEMPLATE) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Event này không phải là template");
+        }
+
+        return mapToResponse(template, null);
+    }
+
+    @Transactional
+    public EventResponseDTO createTemplate(EventRequestDTO request, Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Người dùng không hợp lệ"));
+
+        Event template = eventRepository.save(Event.builder()
+                .name(request.getName().trim())
+                .description(normalizeOptionalText(request.getDescription()))
+                .location(normalizeOptionalText(request.getLocation()))
+                .eventDate(request.getEventDate() != null ? request.getEventDate() : LocalDateTime.now())
+                .endTime(request.getEndTime())
+                .status(normalizeStatus(request.getStatus()))
+                .nature(EventNature.TEMPLATE)
+                .contextDescription(normalizeOptionalText(request.getDescription()))
+                .build());
+
+        // Template không cần EventMember (public cho tất cả)
+        return mapToResponse(template, null);
+    }
+
+    @Transactional
+    public EventResponseDTO updateTemplate(Long templateId, EventRequestDTO request) {
+        Event template = eventRepository.findById(templateId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy template"));
+
+        if (template.getNature() != EventNature.TEMPLATE) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Event này không phải là template");
+        }
+
+        template.setName(request.getName().trim());
+        template.setDescription(normalizeOptionalText(request.getDescription()));
+        template.setLocation(normalizeOptionalText(request.getLocation()));
+        template.setEventDate(request.getEventDate() != null ? request.getEventDate() : template.getEventDate());
+        template.setEndTime(request.getEndTime());
+        template.setStatus(normalizeStatus(request.getStatus()));
+
+        return mapToResponse(eventRepository.save(template), null);
+    }
+
+    @Transactional
+    public void deleteTemplate(Long templateId) {
+        Event template = eventRepository.findById(templateId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy template"));
+
+        if (template.getNature() != EventNature.TEMPLATE) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Event này không phải là template");
+        }
+
+        eventRepository.deleteById(templateId);
     }
 
     private String normalizeStatus(String status) {
@@ -183,6 +270,18 @@ public class EventService {
         };
     }
 
+    private String resolveTemplateSort(String sort) {
+        if (sort == null || sort.isBlank()) {
+            return "name";
+        }
+
+        return switch (sort) {
+            case "name" -> "name";
+            case "createdAt" -> "createdAt";
+            default -> "name";
+        };
+    }
+
     private EventResponseDTO mapToResponse(EventMember member) {
         Department department = member.getDepartment();
         return mapToResponse(
@@ -206,7 +305,8 @@ public class EventService {
                 .endTime(event.getEndTime())
                 .eventDate(event.getEventDate())
                 .status(event.getStatus())
-                .role(role.name())
+                .nature(event.getNature())
+                .role(role != null ? role.name() : null)
                 .departmentId(departmentId)
                 .departmentName(departmentName)
                 .createdAt(event.getCreatedAt())

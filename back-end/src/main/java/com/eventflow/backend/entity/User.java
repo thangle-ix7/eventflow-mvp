@@ -74,6 +74,11 @@ public class User {
     @Column(name = "avatar_storage_path", length = 500)
     private String avatarStoragePath;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "system_role", nullable = false, length = 20)
+    @Builder.Default
+    private SystemRole systemRole = SystemRole.USER;
+
     @Column(name = "task_page_size", nullable = false)
     @Builder.Default
     private Integer taskPageSize = 10;
