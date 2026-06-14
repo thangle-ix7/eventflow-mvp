@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Loader2, X } from 'lucide-react';
 import { Button, ErrorState, Panel, TextInput } from './ui';
@@ -12,11 +12,15 @@ const TemplateInstantiationModal = ({
   onClose,
   onSuccess,
 }) => {
-  const [formData, setFormData] = useState({
-    name: '',
+const [formData, setFormData] = useState(() => {
+  const today = new Date().toLocaleDateString('vi-VN');
+  return {
+    name: template?.name ? `${template.name} - ${today}` : '',
+    description: template?.description || '',
     startTime: '',
     endTime: '',
-  });
+  };
+});
   const [errors, setErrors] = useState({});
 
   // Fetch departments for this template
@@ -36,15 +40,6 @@ const TemplateInstantiationModal = ({
   const departmentCount = departmentsQuery.data?.length || template?.departmentCount || 0;
   const taskCount = tasksQuery.data?.length || template?.taskCount || 0;
 
-  useEffect(() => {
-    if (template?.name) {
-      const today = new Date().toLocaleDateString('vi-VN');
-      setFormData((prev) => ({
-        ...prev,
-        name: `${template.name} - ${today}`,
-      }));
-    }
-  }, [template]);
 
   const instantiateMutation = useMutation({
     mutationFn: () => {

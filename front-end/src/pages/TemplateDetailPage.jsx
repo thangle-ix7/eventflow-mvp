@@ -178,6 +178,7 @@ const TemplateDetailPage = ({ user, onLogout }) => {
 
       {/* Modals */}
       <TemplateInstantiationModal
+        key={template?.id || 'new'}
         isOpen={showInstantiateModal}
         template={template}
         onClose={() => setShowInstantiateModal(false)}
