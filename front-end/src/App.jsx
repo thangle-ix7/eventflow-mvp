@@ -27,6 +27,12 @@ import TaskListPage from './pages/TaskListPage';
 import TaskReportsPage from './pages/TaskReportsPage';
 import TaskReviewsPage from './pages/TaskReviewsPage';
 import TaskUpdatePage from './pages/TaskUpdatePage';
+import TemplateListPage from './pages/TemplateListPage';
+import TemplateDetailPage from './pages/TemplateDetailPage';
+import TemplateSelectPage from './pages/TemplateSelectPage';
+import AdminTemplateListPage from './pages/AdminTemplateListPage';
+import AdminTemplateCreatePage from './pages/AdminTemplateCreatePage';
+import AdminTemplateDetailPage from './pages/AdminTemplateDetailPage';
 import eventApi from './api/eventApi';
 import userApi from './api/userApi';
 import { identifyUser, resetAnalytics, trackEvent, trackPageView } from './lib/analytics';
@@ -232,6 +238,18 @@ function App() {
           path="/events/:eventId/tasks/:taskId/edit"
           element={<TaskEditPage {...protectedProps} />}
         />
+        
+        {/* Template User Routes */}
+        <Route path="/events/templates" element={<TemplateListPage {...protectedProps} />} />
+        <Route path="/events/templates/:templateId" element={<TemplateDetailPage {...protectedProps} />} />
+        <Route path="/events/new/from-template" element={<TemplateSelectPage {...protectedProps} />} />
+        
+        {/* Template Admin Routes */}
+        <Route path="/admin/templates" element={<AdminTemplateListPage {...protectedProps} />} />
+        <Route path="/admin/templates/new" element={<AdminTemplateCreatePage {...protectedProps} />} />
+        <Route path="/admin/templates/:templateId" element={<AdminTemplateDetailPage {...protectedProps} />} />
+        
+        {/* Department Routes */}
         <Route
           path="/events/:eventId/departments"
           element={<DepartmentListPage {...protectedProps} />}
