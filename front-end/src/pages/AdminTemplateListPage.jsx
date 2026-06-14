@@ -5,7 +5,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Edit2,
-  Eye,
   Plus,
   Search,
   Trash2,

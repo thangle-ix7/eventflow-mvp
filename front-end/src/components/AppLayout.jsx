@@ -18,7 +18,6 @@ import {
   Users,
   UserRound,
   Workflow,
-  LayoutTemplate,
 } from 'lucide-react';
 
 const AppLayoutContext = createContext(false);

@@ -345,6 +345,7 @@ const AdminTemplateDetailPage = ({ user, onLogout }) => {
 
       {/* Modals */}
       <AdminTemplateDepartmentModal
+        key={deptModal.department?.id || 'new'}
         isOpen={deptModal.isOpen}
         department={deptModal.department}
         isLoading={addDeptMutation.isPending || updateDeptMutation.isPending}
@@ -354,6 +355,7 @@ const AdminTemplateDetailPage = ({ user, onLogout }) => {
       />
 
       <AdminTemplateTaskModal
+        key={taskModal.task?.id || 'new'}
         isOpen={taskModal.isOpen}
         task={taskModal.task}
         departments={departments}

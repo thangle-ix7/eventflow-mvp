@@ -11,30 +11,10 @@ const AdminTemplateDepartmentModal = ({
   onClose,
 }) => {
   const [formData, setFormData] = useState({
-    name: '',
-    description: '',
+    name: department?.name || '',
+    description: department?.description || '',
   });
 
-  useEffect(() => {
-    if (department) {
-      setFormData({
-        name: department.name || '',
-        description: department.description || '',
-      });
-    } else {
-      setFormData({ name: '', description: '' });
-    }
-  }, [department, isOpen]);
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSubmit(formData);
-  };
 
   if (!isOpen) return null;
 

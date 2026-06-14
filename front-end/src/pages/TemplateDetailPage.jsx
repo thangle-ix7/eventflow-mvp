@@ -9,7 +9,6 @@ import {
   LoadingState,
   StatusBadge,
 } from '../components/ui';
-import TemplatePreviewModal from '../components/TemplatePreviewModal';
 import TemplateInstantiationModal from '../components/TemplateInstantiationModal';
 import templateApi from '../api/templateApi';
 import { formatDate } from '../utils/dateUtils';
@@ -17,7 +16,6 @@ import { formatDate } from '../utils/dateUtils';
 const TemplateDetailPage = ({ user, onLogout }) => {
   const navigate = useNavigate();
   const { templateId } = useParams();
-  const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [showInstantiateModal, setShowInstantiateModal] = useState(false);
 
   const query = useQuery({
@@ -31,11 +29,6 @@ const TemplateDetailPage = ({ user, onLogout }) => {
   const handleInstantiateClick = () => {
     setShowPreviewModal(false);
     setShowInstantiateModal(true);
-  };
-
-  const handleInstantiateSuccess = (newEvent) => {
-    setShowInstantiateModal(false);
-    navigate(`/events/${newEvent.id}`);
   };
 
   if (query.isLoading) {

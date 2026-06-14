@@ -12,35 +12,12 @@ const AdminTemplateTaskModal = ({
   onClose,
 }) => {
   const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    priority: 'MEDIUM',
-    departmentId: '',
+    title: task?.title || task?.name || '',
+    description: task?.description || '',
+    priority: task?.priority || 'MEDIUM',
+    departmentId: task?.departmentId || '',
   });
   const [formError, setFormError] = useState('');
-
-  // Đồng bộ dữ liệu khi bấm vào Sửa Task cũ
-  useEffect(() => {
-    if (isOpen) {
-      if (task) {
-        setFormData({
-          title: task.title || task.name || '',
-          description: task.description || '',
-          priority: task.priority || 'MEDIUM',
-          departmentId: task.departmentId || '',
-        });
-      } else {
-        // Reset trắng form khi Thêm mới
-        setFormData({
-          title: '',
-          description: '',
-          priority: 'MEDIUM',
-          departmentId: '',
-        });
-      }
-      setFormError('');
-    }
-  }, [isOpen, task]);
 
   if (!isOpen) return null;
 
