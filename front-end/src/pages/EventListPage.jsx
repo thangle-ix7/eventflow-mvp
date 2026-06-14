@@ -11,6 +11,8 @@ import {
   Search,
   Users,
   X,
+  LayoutTemplate,
+  Settings
 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import {
@@ -107,10 +109,25 @@ const EventListPage = ({ user, onLogout }) => {
               Sự kiện của bạn
             </h1>
           </div>
-          <Button as={Link} to="/events/new" className="w-full sm:w-auto">
-            <Plus size={18} />
-            Tạo sự kiện
-          </Button>
+          
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">            <Button as={Link} to="/events/templates" variant="secondary" className="w-full sm:w-auto">
+              <LayoutTemplate size={18} />
+              Thư viện Mẫu
+            </Button>
+
+            {user?.systemRole === 'ADMIN' && (
+              <Button as={Link} to="/admin/templates" variant="secondary" className="w-full sm:w-auto">
+                <Settings size={18} />
+                Quản lý Mẫu
+              </Button>
+            )}
+
+            {/* Nút Tạo sự kiện mặc định */}
+            <Button as={Link} to="/events/new" className="w-full sm:w-auto">
+              <Plus size={18} />
+              Tạo sự kiện
+            </Button>
+          </div>
         </section>
 
         <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">

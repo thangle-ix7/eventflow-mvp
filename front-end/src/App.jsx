@@ -321,7 +321,7 @@ const RootAppLayout = ({ user, onLogout }) => {
 
 const resolveEventIdFromPath = (pathname) => {
   const match = pathname.match(/^\/events\/([^/]+)/);
-  if (!match || match[1] === 'new') {
+  if (!match || match[1] === 'new' || match[1] === 'templates') {
     return null;
   }
   return match[1];

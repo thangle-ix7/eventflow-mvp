@@ -47,100 +47,45 @@ const templateApi = {
     return response.data;
   },
 
-  // Admin endpoints
-  createTemplate: async (payload) => {
-    const response = await apiClient.post('/admin/events/templates', payload);
+  // Admin endpoints (Quản lý bản thân cái Template)
+createTemplate: async (payload) => {
+    const response = await apiClient.post('/events/admin/templates', payload);
     return response.data;
   },
 
   updateTemplate: async (templateId, payload) => {
-    if (!templateId) {
-      throw new Error('templateId không hợp lệ');
-    }
-
-    const response = await apiClient.put(
-      `/admin/events/templates/${templateId}`,
-      payload
-    );
+    const response = await apiClient.put(`/events/admin/templates/${templateId}`, payload);
     return response.data;
   },
 
   deleteTemplate: async (templateId) => {
-    if (!templateId) {
-      throw new Error('templateId không hợp lệ');
-    }
-
-    await apiClient.delete(`/admin/events/templates/${templateId}`);
+    await apiClient.delete(`/events/admin/templates/${templateId}`);
   },
 
-  // Department management in templates
+  // Phòng ban: ĐỒNG NHẤT VỀ API MỚI
   addDepartmentToTemplate: async (templateId, payload) => {
-    if (!templateId) {
-      throw new Error('templateId không hợp lệ');
-    }
-
-    const response = await apiClient.post(
-      `/admin/events/templates/${templateId}/departments`,
-      payload
-    );
-    return response.data;
+    return (await apiClient.post(`/events/admin/templates/${templateId}/departments`, payload)).data;
   },
 
   updateTemplateDepartment: async (templateId, deptId, payload) => {
-    if (!templateId || !deptId) {
-      throw new Error('templateId hoặc deptId không hợp lệ');
-    }
-
-    const response = await apiClient.put(
-      `/admin/events/templates/${templateId}/departments/${deptId}`,
-      payload
-    );
-    return response.data;
+    return (await apiClient.put(`/events/admin/templates/${templateId}/departments/${deptId}`, payload)).data;
   },
 
   deleteTemplateDepartment: async (templateId, deptId) => {
-    if (!templateId || !deptId) {
-      throw new Error('templateId hoặc deptId không hợp lệ');
-    }
-
-    await apiClient.delete(
-      `/admin/events/templates/${templateId}/departments/${deptId}`
-    );
+    await apiClient.delete(`/events/admin/templates/${templateId}/departments/${deptId}`);
   },
 
-  // Task management in templates
+  // Task: ĐỒNG NHẤT VỀ API MỚI
   addTaskToTemplate: async (templateId, payload) => {
-    if (!templateId) {
-      throw new Error('templateId không hợp lệ');
-    }
-
-    const response = await apiClient.post(
-      `/admin/events/templates/${templateId}/tasks`,
-      payload
-    );
-    return response.data;
+    return (await apiClient.post(`/events/admin/templates/${templateId}/tasks`, payload)).data;
   },
 
   updateTemplateTask: async (templateId, taskId, payload) => {
-    if (!templateId || !taskId) {
-      throw new Error('templateId hoặc taskId không hợp lệ');
-    }
-
-    const response = await apiClient.put(
-      `/admin/events/templates/${templateId}/tasks/${taskId}`,
-      payload
-    );
-    return response.data;
+    return (await apiClient.put(`/events/admin/templates/${templateId}/tasks/${taskId}`, payload)).data;
   },
 
   deleteTemplateTask: async (templateId, taskId) => {
-    if (!templateId || !taskId) {
-      throw new Error('templateId hoặc taskId không hợp lệ');
-    }
-
-    await apiClient.delete(
-      `/admin/events/templates/${templateId}/tasks/${taskId}`
-    );
+    await apiClient.delete(`/events/admin/templates/${templateId}/tasks/${taskId}`);
   },
 };
 

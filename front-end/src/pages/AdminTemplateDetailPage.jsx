@@ -3,6 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Edit2, Plus, Trash2 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
+import departmentApi from '../api/departmentApi';
+import taskApi from '../api/taskApi';
 import {
   Button,
   ErrorState,
@@ -30,6 +32,34 @@ const AdminTemplateDetailPage = ({ user, onLogout }) => {
     queryFn: () => templateApi.getTemplate(templateId),
     enabled: Boolean(templateId),
   });
+
+
+    // Kéo dữ liệu phòng ban
+  const departmentsQuery = useQuery({
+    queryKey: ['departments', templateId],
+    queryFn: () => departmentApi.getEventDepartments(templateId),
+    enabled: Boolean(templateId),
+  });
+
+  // Kéo dữ liệu task
+  const tasksQuery = useQuery({
+    queryKey: ['tasks', templateId],
+    queryFn: () => taskApi.getEventTasks(templateId),
+    enabled: Boolean(templateId),
+  });
+
+  const template = query.data;
+  // Lấy data thô
+  const rawDepartments = departmentsQuery.data || [];
+  
+  // Rút gọn mảng: Nếu có .content thì lấy .content, nếu không thì lấy chính nó
+  const departments = rawDepartments.content || (Array.isArray(rawDepartments) ? rawDepartments : []);
+  
+  // Phẳng hóa mảng Task (Fix vụ không hiện tên task như đã nói ở tin nhắn trước)
+  const rawTasks = tasksQuery.data || [];
+  const tasks = rawTasks.length > 0 && rawTasks[0].tasks 
+    ? rawTasks.flatMap(dept => dept.tasks) 
+    : (rawTasks.content || rawTasks);
 
   // Mutations
   const addDeptMutation = useMutation({
@@ -84,7 +114,6 @@ const AdminTemplateDetailPage = ({ user, onLogout }) => {
     },
   });
 
-  const template = query.data;
 
   const handleAddDept = () => {
     setDeptModal({ isOpen: true, department: null });
@@ -187,11 +216,11 @@ const AdminTemplateDetailPage = ({ user, onLogout }) => {
           </div>
           <div className="rounded-xl border border-slate-200 bg-white p-4">
             <p className="text-xs font-semibold text-slate-500">PHÒNG BAN</p>
-            <p className="mt-2 text-2xl font-bold text-slate-900">{template.departmentCount || 0}</p>
+            <p className="mt-2 text-2xl font-bold text-slate-900">{departments.length || 0}</p>
           </div>
           <div className="rounded-xl border border-slate-200 bg-white p-4">
             <p className="text-xs font-semibold text-slate-500">TASK</p>
-            <p className="mt-2 text-2xl font-bold text-slate-900">{template.taskCount || 0}</p>
+            <p className="mt-2 text-2xl font-bold text-slate-900">{tasks.length || 0}</p>
           </div>
           <div className="rounded-xl border border-slate-200 bg-white p-4">
             <p className="text-xs font-semibold text-slate-500">TẠO LÚC</p>
@@ -203,7 +232,7 @@ const AdminTemplateDetailPage = ({ user, onLogout }) => {
         <section>
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-xl font-bold text-slate-950">
-              Phòng ban ({template.departments?.length || 0})
+              Phòng ban ({departments?.length || 0})
             </h2>
             <Button onClick={handleAddDept} size="sm" className="text-xs">
               <Plus size={16} />
@@ -211,9 +240,9 @@ const AdminTemplateDetailPage = ({ user, onLogout }) => {
             </Button>
           </div>
           
-          {template.departments && template.departments.length > 0 ? (
+          {departments && departments.length > 0 ? (
             <div className="space-y-3">
-              {template.departments.map((dept) => (
+              {departments.map((dept) => (
                 <div
                   key={dept.id}
                   className="rounded-xl border border-slate-200 bg-white p-4 flex items-start justify-between"
@@ -254,7 +283,7 @@ const AdminTemplateDetailPage = ({ user, onLogout }) => {
         <section>
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-xl font-bold text-slate-950">
-              Task ({template.tasks?.length || 0})
+              Task ({tasks.length || 0})
             </h2>
             <Button onClick={handleAddTask} size="sm" className="text-xs">
               <Plus size={16} />
@@ -262,9 +291,9 @@ const AdminTemplateDetailPage = ({ user, onLogout }) => {
             </Button>
           </div>
           
-          {template.tasks && template.tasks.length > 0 ? (
+          {tasks && tasks.length > 0 ? (
             <div className="space-y-3">
-              {template.tasks.map((task) => (
+              {tasks.map((task) => (
                 <div
                   key={task.id}
                   className="rounded-xl border border-slate-200 bg-white p-4 flex items-start justify-between"
@@ -327,6 +356,7 @@ const AdminTemplateDetailPage = ({ user, onLogout }) => {
       <AdminTemplateTaskModal
         isOpen={taskModal.isOpen}
         task={taskModal.task}
+        departments={departments}
         isLoading={addTaskMutation.isPending || updateTaskMutation.isPending}
         error={addTaskMutation.error || updateTaskMutation.error}
         onSubmit={handleSaveTask}

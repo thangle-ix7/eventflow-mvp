@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { Loader2, X } from 'lucide-react';
 import { Button, ErrorState, Panel, TextInput } from './ui';
 import templateApi from '../api/templateApi';
+import departmentApi from '../api/departmentApi';
+import taskApi from '../api/taskApi';
 
 const TemplateInstantiationModal = ({
   isOpen,
@@ -12,29 +14,56 @@ const TemplateInstantiationModal = ({
 }) => {
   const [formData, setFormData] = useState({
     name: '',
-    startDate: '',
-    endDate: '',
+    startTime: '',
+    endTime: '',
   });
   const [errors, setErrors] = useState({});
 
+  // Fetch departments for this template
+  const departmentsQuery = useQuery({
+    queryKey: ['departments', template?.id],
+    queryFn: () => departmentApi.getEventDepartments(template?.id),
+    enabled: !!template?.id && isOpen,
+  });
+
+  // Fetch tasks for this template
+  const tasksQuery = useQuery({
+    queryKey: ['tasks', template?.id],
+    queryFn: () => taskApi.getEventTasks(template?.id),
+    enabled: !!template?.id && isOpen,
+  });
+
+  const departmentCount = departmentsQuery.data?.length || template?.departmentCount || 0;
+  const taskCount = tasksQuery.data?.length || template?.taskCount || 0;
+
   useEffect(() => {
     if (template?.name) {
+      const today = new Date().toLocaleDateString('vi-VN');
       setFormData((prev) => ({
         ...prev,
-        name: `${template.name} - $(new Date().toLocaleDateString('vi-VN')}`,
+        name: `${template.name} - ${today}`,
       }));
     }
   }, [template]);
 
   const instantiateMutation = useMutation({
-    mutationFn: () =>
-      templateApi.instantiateTemplate(template.id, {
+    mutationFn: () => {
+      // Format datetime values to ISO 8601 format for backend
+      const formatDateTime = (dateTimeStr) => {
+        if (!dateTimeStr) return null;
+        const dt = new Date(dateTimeStr);
+        return dt.toISOString();
+      };
+
+      return templateApi.instantiateTemplate(template.id, {
         name: formData.name,
-        startDate: formData.startDate,
-        endDate: formData.endDate,
-      }),
+        startTime: formatDateTime(formData.startTime),
+        eventDate: formatDateTime(formData.startTime), // Use startTime for eventDate too
+        endTime: formData.endTime ? formatDateTime(formData.endTime) : null,
+      });
+    },
     onSuccess: (newEvent) => {
-      setFormData({ name: '', startDate: '', endDate: '' });
+      setFormData({ name: '', startTime: '', endTime: '' });
       onSuccess(newEvent);
     },
   });
@@ -53,6 +82,9 @@ const TemplateInstantiationModal = ({
     const newErrors = {};
     if (!formData.name.trim()) {
       newErrors.name = 'Tên sự kiện không được để trống';
+    }
+    if (!formData.startTime) {
+      newErrors.startTime = 'Ngày bắt đầu không được để trống';
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -115,31 +147,36 @@ const TemplateInstantiationModal = ({
             )}
           </div>
 
-          {/* Start Date */}
+          {/* Start Time */}
           <div className="flex flex-col gap-1">
-            <label htmlFor="startDate" className="text-sm font-semibold text-slate-700">
-              Ngày bắt đầu (tùy chọn)
+            <label htmlFor="startTime" className="text-sm font-semibold text-slate-700">
+              Ngày bắt đầu *
             </label>
             <TextInput
-              id="startDate"
-              name="startDate"
-              type="date"
-              value={formData.startDate}
+              id="startTime"
+              name="startTime"
+              type="datetime-local"
+              value={formData.startTime}
               onChange={handleChange}
               disabled={instantiateMutation.isPending}
+              required
+              className={errors.startTime ? 'border-red-500' : ''}
             />
+            {errors.startTime && (
+              <p className="text-xs text-red-600">{errors.startTime}</p>
+            )}
           </div>
 
-          {/* End Date */}
+          {/* End Time */}
           <div className="flex flex-col gap-1">
-            <label htmlFor="endDate" className="text-sm font-semibold text-slate-700">
-              Ngày kết thúc (tùy chọn)
+            <label htmlFor="endTime" className="text-sm font-semibold text-slate-700">
+              Ngày kết thúc
             </label>
             <TextInput
-              id="endDate"
-              name="endDate"
-              type="date"
-              value={formData.endDate}
+              id="endTime"
+              name="endTime"
+              type="datetime-local"
+              value={formData.endTime}
               onChange={handleChange}
               disabled={instantiateMutation.isPending}
             />
@@ -147,8 +184,7 @@ const TemplateInstantiationModal = ({
 
           {/* Note */}
           <p className="text-xs text-slate-500">
-            Sự kiện sẽ được tạo với {template.departmentCount || 0} phòng ban và{' '}
-            {template.taskCount || 0} task từ template này.
+            Sự kiện sẽ được tạo với {departmentCount} phòng ban và {taskCount} task từ template này.
           </p>
         </form>
 

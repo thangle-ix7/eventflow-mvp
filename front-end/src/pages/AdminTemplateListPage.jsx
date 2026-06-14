@@ -21,6 +21,8 @@ import {
 } from '../components/ui';
 import DeleteConfirmModal from '../components/DeleteConfirmModal';
 import templateApi from '../api/templateApi';
+import departmentApi from '../api/departmentApi';
+import taskApi from '../api/taskApi';
 
 const PAGE_SIZE = 10;
 
@@ -160,12 +162,7 @@ const AdminTemplateListPage = ({ user, onLogout }) => {
                     <td className="px-4 py-3 text-slate-600 line-clamp-1">
                       {template.description || '-'}
                     </td>
-                    <td className="px-4 py-3 text-right text-slate-600">
-                      {template.departmentCount || 0}
-                    </td>
-                    <td className="px-4 py-3 text-right text-slate-600">
-                      {template.taskCount || 0}
-                    </td>
+                    <TemplateStatsCells templateId={template.id} />
                     <td className="px-4 py-3">
                       <StatusBadge status={template.status || 'ACTIVE'} />
                     </td>
@@ -234,6 +231,29 @@ const AdminTemplateListPage = ({ user, onLogout }) => {
         onCancel={() => setDeleteTarget(null)}
       />
     </AppLayout>
+  );
+};
+
+const TemplateStatsCells = ({ templateId }) => {
+  const { data: depts } = useQuery({
+    queryKey: ['departments', templateId],
+    queryFn: () => departmentApi.getEventDepartments(templateId),
+  });
+
+  const { data: rawTasks } = useQuery({
+    queryKey: ['tasks', templateId],
+    queryFn: () => taskApi.getEventTasks(templateId),
+  });
+
+  const taskCount = rawTasks?.length > 0 && rawTasks[0].tasks 
+    ? rawTasks.flatMap(d => d.tasks).length 
+    : (rawTasks?.content || rawTasks || []).length;
+
+  return (
+    <>
+      <td className="px-4 py-3 text-right text-slate-600 font-bold">{depts?.length || 0}</td>
+      <td className="px-4 py-3 text-right text-slate-600 font-bold">{taskCount || 0}</td>
+    </>
   );
 };
 

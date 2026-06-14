@@ -1,8 +1,31 @@
 import { X, Zap } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { Button, Panel, StatusBadge } from './ui';
 import { formatDate } from '../utils/dateUtils';
+import departmentApi from '../api/departmentApi';
+import taskApi from '../api/taskApi';
 
 const TemplatePreviewModal = ({ isOpen, template, onClose, onInstantiate }) => {
+  // Fetch departments for this template
+  const departmentsQuery = useQuery({
+    queryKey: ['departments', template?.id],
+    queryFn: () => departmentApi.getEventDepartments(template?.id),
+    enabled: !!template?.id && isOpen,
+  });
+
+  // Fetch tasks for this template
+  const tasksQuery = useQuery({
+    queryKey: ['tasks', template?.id],
+    queryFn: () => taskApi.getEventTasks(template?.id),
+    enabled: !!template?.id && isOpen,
+  });
+
+  const departments = departmentsQuery.data || template?.departments || [];
+  const rawTaskData = tasksQuery.data || template?.tasks || [];
+  const tasks = rawTaskData.length > 0 && rawTaskData[0].tasks 
+    ? rawTaskData.flatMap(dept => dept.tasks) 
+    : (rawTaskData.content || rawTaskData);
+
   if (!isOpen || !template) return null;
 
   return (
@@ -34,11 +57,11 @@ const TemplatePreviewModal = ({ isOpen, template, onClose, onInstantiate }) => {
             </div>
             <div>
               <p className="text-xs font-semibold text-slate-500">PHÒNG BAN</p>
-              <p className="mt-2 text-lg font-bold text-slate-900">{template.departmentCount || 0}</p>
+              <p className="mt-2 text-lg font-bold text-slate-900">{departments.length}</p>
             </div>
             <div>
               <p className="text-xs font-semibold text-slate-500">TASK</p>
-              <p className="mt-2 text-lg font-bold text-slate-900">{template.taskCount || 0}</p>
+              <p className="mt-2 text-lg font-bold text-slate-900">{tasks.length}</p>
             </div>
             <div>
               <p className="text-xs font-semibold text-slate-500">TẠO LÚC</p>
@@ -47,11 +70,11 @@ const TemplatePreviewModal = ({ isOpen, template, onClose, onInstantiate }) => {
           </div>
 
           {/* Departments Section */}
-          {template.departments && template.departments.length > 0 && (
+          {departments && departments.length > 0 && (
             <div>
               <h3 className="text-sm font-semibold text-slate-700">Phòng ban</h3>
               <div className="mt-3 space-y-2">
-                {template.departments.map((dept) => (
+                {departments.map((dept) => (
                   <div key={dept.id} className="flex items-center justify-between rounded-lg border border-slate-200 p-3">
                     <div>
                       <p className="font-medium text-slate-900">{dept.name}</p>
@@ -60,7 +83,7 @@ const TemplatePreviewModal = ({ isOpen, template, onClose, onInstantiate }) => {
                       )}
                     </div>
                     <span className="text-xs font-semibold text-slate-500">
-                      {dept.taskCount || 0} task
+                      {dept.memberCount || 0} thành viên
                     </span>
                   </div>
                 ))}
@@ -69,16 +92,16 @@ const TemplatePreviewModal = ({ isOpen, template, onClose, onInstantiate }) => {
           )}
 
           {/* Tasks Section */}
-          {template.tasks && template.tasks.length > 0 && (
+          {tasks && tasks.length > 0 && (
             <div>
               <h3 className="text-sm font-semibold text-slate-700">Task</h3>
               <div className="mt-3 space-y-2">
-                {template.tasks.slice(0, 10).map((task) => (
+                {tasks.slice(0, 10).map((task) => (
                   <div key={task.id} className="flex items-center justify-between rounded-lg border border-slate-200 p-3">
                     <div>
-                      <p className="font-medium text-slate-900">{task.name}</p>
-                      {task.description && (
-                        <p className="text-sm text-slate-500 line-clamp-1">{task.description}</p>
+                      <p className="font-medium text-slate-900">{task.title || task.name}</p>
+                      {(task.description || task.details) && (
+                        <p className="text-sm text-slate-500 line-clamp-1">{task.description || task.details}</p>
                       )}
                     </div>
                     <span className="text-xs font-semibold text-slate-500">
@@ -86,9 +109,9 @@ const TemplatePreviewModal = ({ isOpen, template, onClose, onInstantiate }) => {
                     </span>
                   </div>
                 ))}
-                {template.tasks.length > 10 && (
+                {tasks.length > 10 && (
                   <p className="text-xs text-slate-500 text-center pt-2">
-                    ...và {template.tasks.length - 10} task khác
+                    ...và {tasks.length - 10} task khác
                   </p>
                 )}
               </div>
