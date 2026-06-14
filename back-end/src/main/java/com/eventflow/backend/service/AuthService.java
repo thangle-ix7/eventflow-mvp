@@ -185,7 +185,8 @@ public class AuthService {
                 user.getName(),
                 user.getEmail(),
                 userProfileService.avatarUrl(user.getId(), user.getAvatarStoragePath()),
-                user.getTaskPageSize() != null ? user.getTaskPageSize() : 10);
+                user.getTaskPageSize() != null ? user.getTaskPageSize() : 10,
+                user.getSystemRole() != null ? user.getSystemRole().name() : "USER");
     }
 
     private ResponseStatusException invalidCredentials() {

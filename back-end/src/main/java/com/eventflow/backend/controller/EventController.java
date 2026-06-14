@@ -1,9 +1,6 @@
 package com.eventflow.backend.controller;
 
-import com.eventflow.backend.dto.EventRequestDTO;
-import com.eventflow.backend.dto.EventResponseDTO;
-import com.eventflow.backend.dto.PageResponse;
-import com.eventflow.backend.dto.TemplateInstantiateRequestDTO;
+import com.eventflow.backend.dto.*;
 import com.eventflow.backend.entity.Event;
 import com.eventflow.backend.security.AdminSecurityService;
 import com.eventflow.backend.security.EventSecurityService;
@@ -168,6 +165,100 @@ public class EventController {
         return ResponseEntity.noContent().build();
     }
 
+    @PostMapping("/admin/templates/{templateId}/departments")
+    public ResponseEntity<DepartmentResponseDTO> addDepartmentToTemplate(
+            @PathVariable Long templateId,
+            @Valid @RequestBody TemplateDepartmentRequestDTO request,
+            Authentication authentication) {
+
+        Long userId = currentUserId(authentication);
+        if (!adminSecurityService.canManageTemplates(userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(eventService.addDepartmentToTemplate(templateId, request));
+    }
+
+    // 1. Sửa phòng ban mẫu
+    @PutMapping("/admin/templates/{templateId}/departments/{deptId}")
+    public ResponseEntity<DepartmentResponseDTO> updateTemplateDepartment(
+            @PathVariable Long templateId,
+            @PathVariable Long deptId,
+            @Valid @RequestBody TemplateDepartmentRequestDTO request,
+            Authentication authentication) {
+
+        Long userId = currentUserId(authentication);
+        if (!adminSecurityService.canManageTemplates(userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        return ResponseEntity.ok(eventService.updateTemplateDepartment(templateId, deptId, request));
+    }
+
+    // 2. Xóa phòng ban mẫu
+    @DeleteMapping("/admin/templates/{templateId}/departments/{deptId}")
+    public ResponseEntity<Void> deleteTemplateDepartment(
+            @PathVariable Long templateId,
+            @PathVariable Long deptId,
+            Authentication authentication) {
+
+        Long userId = currentUserId(authentication);
+        if (!adminSecurityService.canManageTemplates(userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        eventService.deleteTemplateDepartment(templateId, deptId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/admin/templates/{templateId}/tasks")
+    public ResponseEntity<TaskResponseDTO> addTaskToTemplate(
+            @PathVariable Long templateId,
+            @Valid @RequestBody TemplateTaskRequestDTO request,
+            Authentication authentication) {
+
+        Long userId = currentUserId(authentication);
+        if (!adminSecurityService.canManageTemplates(userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(eventService.addTaskToTemplate(templateId, request));
+    }
+
+    // 3. Sửa task mẫu
+    @PutMapping("/admin/templates/{templateId}/tasks/{taskId}")
+    public ResponseEntity<TaskResponseDTO> updateTemplateTask(
+            @PathVariable Long templateId,
+            @PathVariable Long taskId,
+            @Valid @RequestBody TemplateTaskRequestDTO request,
+            Authentication authentication) {
+
+        Long userId = currentUserId(authentication);
+        if (!adminSecurityService.canManageTemplates(userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        return ResponseEntity.ok(eventService.updateTemplateTask(templateId, taskId, request));
+    }
+
+    // 4. Xóa task mẫu
+    @DeleteMapping("/admin/templates/{templateId}/tasks/{taskId}")
+    public ResponseEntity<Void> deleteTemplateTask(
+            @PathVariable Long templateId,
+            @PathVariable Long taskId,
+            Authentication authentication) {
+
+        Long userId = currentUserId(authentication);
+        if (!adminSecurityService.canManageTemplates(userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        eventService.deleteTemplateTask(templateId, taskId);
+        return ResponseEntity.noContent().build();
+    }
+    
     private Long currentUserId(Authentication authentication) {
         return (Long) authentication.getPrincipal();
     }

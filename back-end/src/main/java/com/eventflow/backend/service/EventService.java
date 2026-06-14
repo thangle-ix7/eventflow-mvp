@@ -1,17 +1,8 @@
 package com.eventflow.backend.service;
 
-import com.eventflow.backend.dto.EventRequestDTO;
-import com.eventflow.backend.dto.EventResponseDTO;
-import com.eventflow.backend.dto.PageResponse;
-import com.eventflow.backend.entity.Department;
-import com.eventflow.backend.entity.Event;
-import com.eventflow.backend.entity.EventMember;
-import com.eventflow.backend.entity.EventNature;
-import com.eventflow.backend.entity.User;
-import com.eventflow.backend.entity.UserRole;
-import com.eventflow.backend.repository.EventMemberRepository;
-import com.eventflow.backend.repository.EventRepository;
-import com.eventflow.backend.repository.UserRepository;
+import com.eventflow.backend.dto.*;
+import com.eventflow.backend.entity.*;
+import com.eventflow.backend.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -30,6 +21,8 @@ public class EventService {
     private final EventRepository eventRepository;
     private final EventMemberRepository eventMemberRepository;
     private final UserRepository userRepository;
+    private final DepartmentRepository departmentRepository;
+    private final TaskRepository taskRepository;
 
     @Transactional(readOnly = true)
     public PageResponse<EventResponseDTO> getEventsForUser(
@@ -193,6 +186,173 @@ public class EventService {
         }
 
         eventRepository.deleteById(templateId);
+    }
+
+    @Transactional
+    public DepartmentResponseDTO addDepartmentToTemplate(Long templateId, TemplateDepartmentRequestDTO request) {
+        Event template = eventRepository.findById(templateId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy template"));
+
+        if (template.getNature() != EventNature.TEMPLATE) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Sự kiện này không phải là Template");
+        }
+
+        Department dept = new Department();
+        dept.setEvent(template);
+        dept.setName(request.getName().trim());
+        dept.setDescription(normalizeOptionalText(request.getDescription()));
+
+        Department savedDept = departmentRepository.save(dept);
+
+        return DepartmentResponseDTO.builder()
+                .id(savedDept.getId())
+                .name(savedDept.getName())
+                .description(savedDept.getDescription())
+                .build();
+    }
+
+    @Transactional
+    public DepartmentResponseDTO updateTemplateDepartment(Long templateId, Long deptId, TemplateDepartmentRequestDTO request) {
+        Department dept = departmentRepository.findById(deptId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy phòng ban"));
+
+        // Kiểm tra xem phòng ban này có đúng thuộc về template này không
+        if (!dept.getEvent().getId().equals(templateId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Phòng ban không thuộc về template này");
+        }
+
+        dept.setName(request.getName().trim());
+        dept.setDescription(normalizeOptionalText(request.getDescription()));
+
+        Department savedDept = departmentRepository.save(dept);
+
+        return DepartmentResponseDTO.builder()
+                .id(savedDept.getId())
+                .name(savedDept.getName())
+                .description(savedDept.getDescription())
+                .build();
+    }
+
+
+    @Transactional
+    public void deleteTemplateDepartment(Long templateId, Long deptId) {
+        Department dept = departmentRepository.findById(deptId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy phòng ban"));
+
+        if (!dept.getEvent().getId().equals(templateId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Phòng ban không thuộc về template này");
+        }
+
+        taskRepository.clearDepartmentIdByDepartmentId(deptId);
+        departmentRepository.delete(dept);
+    }
+
+    @Transactional
+    public TaskResponseDTO addTaskToTemplate(Long templateId, TemplateTaskRequestDTO request) {
+        Event template = eventRepository.findById(templateId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy template"));
+
+        if (template.getNature() != EventNature.TEMPLATE) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Sự kiện này không phải là Template");
+        }
+
+        // Tạo Task rỗng không có deadline
+        Task task = new Task();
+        task.setEvent(template);
+        task.setTitle(request.getTitle().trim()); // Gán title từ DTO vào name của Entity
+        task.setDescription(normalizeOptionalText(request.getDescription()));
+
+        // Map Priority
+        if (request.getPriority() != null) {
+            task.setPriority(TaskPriority.valueOf(request.getPriority().toUpperCase()));
+        } else {
+            task.setPriority(TaskPriority.MEDIUM);
+        }
+
+        // Set các giá trị mặc định cho Task
+        task.setStatus(TaskStatus.TODO);
+        task.setProgressPercentage(0);
+
+        // Gán Task cho Phòng ban (Nếu có)
+        if (request.getDepartmentId() != null) {
+            Department dept = departmentRepository.findById(request.getDepartmentId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy phòng ban"));
+
+            if (!dept.getEvent().getId().equals(templateId)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Phòng ban không thuộc về template này");
+            }
+            task.setDepartment(dept);
+        }
+
+        Task savedTask = taskRepository.save(task);
+
+        return TaskResponseDTO.builder()
+                .id(savedTask.getId())
+                .eventId(templateId)
+                .title(savedTask.getTitle())
+                .description(savedTask.getDescription())
+                .priority(savedTask.getPriority())
+                .status(savedTask.getStatus())
+                .progressPercentage(savedTask.getProgressPercentage())
+                .departmentId(savedTask.getDepartment() != null ? savedTask.getDepartment().getId() : null)
+                .departmentName(savedTask.getDepartment() != null ? savedTask.getDepartment().getName() : null)
+                .build();
+    }
+
+    @Transactional
+    public TaskResponseDTO updateTemplateTask(Long templateId, Long taskId, TemplateTaskRequestDTO request) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy task"));
+
+        if (!task.getEvent().getId().equals(templateId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Task không thuộc về template này");
+        }
+
+        task.setTitle(request.getTitle().trim());
+        task.setDescription(normalizeOptionalText(request.getDescription()));
+
+        if (request.getPriority() != null) {
+            task.setPriority(TaskPriority.valueOf(request.getPriority().toUpperCase()));
+        }
+
+        // Cập nhật lại phòng ban phụ trách (nếu Admin đổi ban hoặc gỡ ban)
+        if (request.getDepartmentId() != null) {
+            Department dept = departmentRepository.findById(request.getDepartmentId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy phòng ban"));
+
+            if (!dept.getEvent().getId().equals(templateId)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Phòng ban không thuộc về template này");
+            }
+            task.setDepartment(dept);
+        } else {
+            task.setDepartment(null); // Gỡ phòng ban ra khỏi task mẫu
+        }
+
+        Task savedTask = taskRepository.save(task);
+
+        return TaskResponseDTO.builder()
+                .id(savedTask.getId())
+                .eventId(templateId)
+                .title(savedTask.getTitle())
+                .description(savedTask.getDescription())
+                .priority(savedTask.getPriority())
+                .status(savedTask.getStatus())
+                .progressPercentage(savedTask.getProgressPercentage())
+                .departmentId(savedTask.getDepartment() != null ? savedTask.getDepartment().getId() : null)
+                .departmentName(savedTask.getDepartment() != null ? savedTask.getDepartment().getName() : null)
+                .build();
+    }
+
+    @Transactional
+    public void deleteTemplateTask(Long templateId, Long taskId) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy task"));
+
+        if (!task.getEvent().getId().equals(templateId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Task không thuộc về template này");
+        }
+
+        taskRepository.delete(task);
     }
 
     private String normalizeStatus(String status) {

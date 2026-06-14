@@ -41,6 +41,9 @@ public class EventSecurityService {
     }
 
     public boolean isLeaderOfEvent(Long eventId, Long userId) {
+        if (adminSecurityService.canManageTemplates(userId)) {
+            return true;
+        }
         return hasRoleInEvent(eventId, userId, UserRole.LEADER.name());
     }
 

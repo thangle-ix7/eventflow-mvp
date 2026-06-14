@@ -19,4 +19,5 @@ public class UserProfileDTO {
     private String avatarUrl;
     private Integer taskPageSize;
     private LocalDateTime createdAt;
+    private String systemRole;
 }
