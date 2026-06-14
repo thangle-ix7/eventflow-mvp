@@ -26,9 +26,8 @@ const TemplateDetailPage = ({ user, onLogout }) => {
 
   const template = query.data;
 
-  const handleInstantiateClick = () => {
-    setShowPreviewModal(false);
-    setShowInstantiateModal(true);
+  const handleInstantiateSuccess = (newEvent) => {
+    navigate(`/events/${newEvent.id}`);
   };
 
   if (query.isLoading) {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Loader2, X } from 'lucide-react';
 import { Button, ErrorState, Panel, TextInput } from './ui';
 
@@ -15,6 +15,15 @@ const AdminTemplateDepartmentModal = ({
     description: department?.description || '',
   });
 
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault(); // Ngăn trình duyệt load lại trang
+    onSubmit(formData);
+  };
 
   if (!isOpen) return null;
 

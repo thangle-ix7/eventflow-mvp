@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import {useState } from 'react';
 import { X, Loader2 } from 'lucide-react';
 import { Button, ErrorState, TextInput, SelectControl } from './ui';
 
