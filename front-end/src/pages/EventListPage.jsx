@@ -10,7 +10,6 @@ import {
   Plus,
   Search,
   SlidersHorizontal,
-  Sparkles,
   Users,
   X,
 } from 'lucide-react';

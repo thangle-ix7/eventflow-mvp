@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Plus, Save, Sparkles, X } from 'lucide-react';
 import aiSuggestionApi from '../api/aiSuggestionApi';
@@ -91,8 +91,15 @@ const InlineTaskCreator = ({
     enabled: Boolean(eventId),
   });
 
-  const getEffectiveDepartmentId = (row) => (lockedDepartment ? String(departmentId || '') : row.departmentId);
-  const getEffectiveAssigneeId = (row) => (lockedAssignee ? String(assigneeId || '') : row.assigneeId);
+  const getEffectiveDepartmentId = useCallback(
+    (row) => (lockedDepartment ? String(departmentId || '') : row.departmentId),
+    [lockedDepartment, departmentId]
+  );
+
+  const getEffectiveAssigneeId = useCallback(
+    (row) => (lockedAssignee ? String(assigneeId || '') : row.assigneeId),
+    [lockedAssignee, assigneeId]
+  );
 
   /*
    * Lấy danh sách departmentId đang được dùng trong các dòng.
@@ -104,7 +111,7 @@ const InlineTaskCreator = ({
       .filter(Boolean);
 
     return [...new Set(ids)];
-  }, [rows, lockedDepartment, departmentId]);
+  }, [rows, getEffectiveDepartmentId]);
 
   /*
    * Query workload cho từng department đang được chọn.

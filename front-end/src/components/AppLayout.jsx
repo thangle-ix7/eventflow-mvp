@@ -1,6 +1,6 @@
 import TelegramOnboarding from './TelegramOnboarding';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import userApi from '../api/userApi';
 import { getDepartmentHomePath, getEventPermissions } from '../utils/permissionUtils';
@@ -138,39 +138,35 @@ const AppLayoutFrame = ({
     sidebarState.eventId === selectedEventId ? sidebarState.open : isDesktop
   );
 
-  const searchSuggestionBase = useMemo(() => {
-    const base = [
-      { label: 'Sự kiện của bạn', description: '', to: '/' },
-      { label: 'Tạo sự kiện', description: '', to: '/events/new' },
-      { label: 'Hồ sơ cá nhân', description: '', to: '/profile' },
-      ...events.map((event) => ({
-        label: event.name,
-        description: '',
-        to: `/events/${event.id}`,
-      })),
-    ];
+  const searchSuggestionBase = [
+    { label: 'Sự kiện của bạn', description: '', to: '/' },
+    { label: 'Tạo sự kiện', description: '', to: '/events/new' },
+    { label: 'Hồ sơ cá nhân', description: '', to: '/profile' },
+    ...events.map((event) => ({
+      label: event.name,
+      description: '',
+      to: `/events/${event.id}`,
+    })),
+  ];
 
-    if (selectedEvent?.id) {
-      base.push(
-        { label: 'Công việc', description: '', to: `/events/${selectedEvent.id}/tasks` },
-        { label: 'Thành viên', description: '', to: `/events/${selectedEvent.id}/members` },
-        { label: 'Lịch', description: '', to: `/events/${selectedEvent.id}/calendar` },
-        { label: 'Tài liệu', description: '', to: `/events/${selectedEvent.id}/documents` },
-        { label: 'Báo cáo', description: '', to: `/events/${selectedEvent.id}/reports` },
-        { label: permissions.canManageEvent ? 'Cài đặt' : 'Thông tin', description: '', to: `/events/${selectedEvent.id}/settings` },
-      );
+  if (selectedEvent?.id) {
+    searchSuggestionBase.push(
+      { label: 'Công việc', description: '', to: `/events/${selectedEvent.id}/tasks` },
+      { label: 'Thành viên', description: '', to: `/events/${selectedEvent.id}/members` },
+      { label: 'Lịch', description: '', to: `/events/${selectedEvent.id}/calendar` },
+      { label: 'Tài liệu', description: '', to: `/events/${selectedEvent.id}/documents` },
+      { label: 'Báo cáo', description: '', to: `/events/${selectedEvent.id}/reports` },
+      { label: permissions.canManageEvent ? 'Cài đặt' : 'Thông tin', description: '', to: `/events/${selectedEvent.id}/settings` },
+    );
 
-      if (departmentHomePath) {
-        base.push({ label: 'Ban tổ chức', description: '', to: departmentHomePath });
-      }
-
-      if (permissions.canViewEventDashboard) {
-        base.push({ label: 'Dashboard sự kiện', description: '', to: `/events/${selectedEvent.id}/dashboard` });
-      }
+    if (departmentHomePath) {
+      searchSuggestionBase.push({ label: 'Ban tổ chức', description: '', to: departmentHomePath });
     }
 
-    return base;
-  }, [departmentHomePath, events, permissions.canManageEvent, permissions.canViewEventDashboard, selectedEvent?.id]);
+    if (permissions.canViewEventDashboard) {
+      searchSuggestionBase.push({ label: 'Dashboard sự kiện', description: '', to: `/events/${selectedEvent.id}/dashboard` });
+    }
+  }
 
   const searchNeedle = globalSearch.trim().toLowerCase();
   const searchSuggestions = searchNeedle

@@ -7,7 +7,6 @@ import {
   Loader2,
   Pencil,
   Save,
-  Send,
   TrendingUp,
   Upload,
   X,
