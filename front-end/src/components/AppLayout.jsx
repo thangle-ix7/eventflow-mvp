@@ -4,6 +4,8 @@ import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import userApi from '../api/userApi';
 import { getDepartmentHomePath, getEventPermissions } from '../utils/permissionUtils';
+import LanguageSwitcher from './LanguageSwitcher';
+import { useTranslation } from 'react-i18next';
 import {
   BarChart3,
   Bell,
@@ -40,6 +42,7 @@ const AppLayoutFrame = ({
   showTelegramOnboarding = true,
   children,
 }) => {
+  const { t, i18n } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -95,11 +98,11 @@ const AppLayoutFrame = ({
 
   const eventNav = selectedEvent?.id
     ? [
-      { to: `/events/${selectedEvent.id}`, label: 'Tổng quan', icon: Workflow },
+      { to: `/events/${selectedEvent.id}`, label: t('sidebar.dashboard'), icon: Workflow },
       ...(permissions.canViewEventDashboard ? [{ to: `/events/${selectedEvent.id}/dashboard`, label: 'Dashboard', icon: BarChart3 }] : []),
-      { to: `/events/${selectedEvent.id}/tasks`, label: 'Công việc', icon: ClipboardList },
-      ...(departmentHomePath ? [{ to: departmentHomePath, label: 'Ban tổ chức', icon: Users }] : []),
-      { to: `/events/${selectedEvent.id}/members`, label: 'Thành viên', icon: UserRound },
+      { to: `/events/${selectedEvent.id}/tasks`, label: t('sidebar.tasks'), icon: ClipboardList },
+      ...(departmentHomePath ? [{ to: departmentHomePath, label: t('sidebar.departments'), icon: Users }] : []),
+      { to: `/events/${selectedEvent.id}/members`, label: t('sidebar.members'), icon: UserRound },
     ]
     : [];
 
@@ -107,31 +110,31 @@ const AppLayoutFrame = ({
     ? [
       {
         to: `/events/${selectedEvent.id}/calendar`,
-        label: 'Lịch',
+        label: t('utility.calendar'),
         description: 'Lịch vận hành',
         icon: CalendarDays,
       },
       {
         to: `/events/${selectedEvent.id}/documents`,
-        label: 'Tài liệu',
+        label: t('utility.documents'),
         description: 'File & link',
         icon: FileText,
       },
       {
         to: `/events/${selectedEvent.id}/reports`,
-        label: 'Báo cáo',
-        description: 'Tiến độ thực tế',
+        label: t('utility.reports'),
+        description: t('description.progress'),
         icon: TrendingUp,
       },
       {
         to: `/events/${selectedEvent.id}/settings`,
-        label: permissions.canManageEvent ? 'Cài đặt' : 'Thông tin',
+        label: permissions.canManageEvent ? t('utility.settings') : t('common.view'),
         description: 'Thiết lập sự kiện',
         icon: Settings,
       },
     ]
     : [
-      { to: '/', label: 'Sự kiện của bạn', description: 'Danh sách sự kiện', icon: CalendarDays },
+      { to: '/', label: t('event.title'), description: 'Danh sách sự kiện', icon: CalendarDays },
     ];
 
   const sidebarOpen = Boolean(selectedEventId) && (
@@ -139,8 +142,8 @@ const AppLayoutFrame = ({
   );
 
   const searchSuggestionBase = [
-    { label: 'Sự kiện của bạn', description: '', to: '/' },
-    { label: 'Tạo sự kiện', description: '', to: '/events/new' },
+    { label: t('event.title'), description: '', to: '/' },
+    { label: t('event.create'), description: '', to: '/events/new' },
     { label: 'Templates', description: 'Xem templates sẵn có', to: '/events/templates' },
     ...(user?.systemRole === 'ADMIN' ? [{ label: 'Quản lý Templates', description: 'Admin panel', to: '/admin/templates' }] : []),
     { label: 'Hồ sơ cá nhân', description: '', to: '/profile' },
@@ -153,16 +156,16 @@ const AppLayoutFrame = ({
 
   if (selectedEvent?.id) {
     searchSuggestionBase.push(
-      { label: 'Công việc', description: '', to: `/events/${selectedEvent.id}/tasks` },
-      { label: 'Thành viên', description: '', to: `/events/${selectedEvent.id}/members` },
-      { label: 'Lịch', description: '', to: `/events/${selectedEvent.id}/calendar` },
-      { label: 'Tài liệu', description: '', to: `/events/${selectedEvent.id}/documents` },
-      { label: 'Báo cáo', description: '', to: `/events/${selectedEvent.id}/reports` },
-      { label: permissions.canManageEvent ? 'Cài đặt' : 'Thông tin', description: '', to: `/events/${selectedEvent.id}/settings` },
+      { label: t('sidebar.tasks'), description: '', to: `/events/${selectedEvent.id}/tasks` },
+      { label: t('sidebar.members'), description: '', to: `/events/${selectedEvent.id}/members` },
+      { label: t('utility.calendar'), description: '', to: `/events/${selectedEvent.id}/calendar` },
+      { label: t('utility.documents'), description: '', to: `/events/${selectedEvent.id}/documents` },
+      { label: t('utility.reports'), description: '', to: `/events/${selectedEvent.id}/reports` },
+      { label: permissions.canManageEvent ? t('utility.settings') : t('common.view'), description: '', to: `/events/${selectedEvent.id}/settings` },
     );
 
     if (departmentHomePath) {
-      searchSuggestionBase.push({ label: 'Ban tổ chức', description: '', to: departmentHomePath });
+      searchSuggestionBase.push({ label: t('sidebar.departments'), description: '', to: departmentHomePath });
     }
 
     if (permissions.canViewEventDashboard) {
@@ -444,8 +447,8 @@ const AppLayoutFrame = ({
                     type="search"
                     id="global-search"
                     name="globalSearch"
-                    aria-label="Tìm kiếm trong Event Flow"
-                    placeholder="Tìm kiếm sự kiện, công việc, ban..."
+                    aria-label={t('common.search')}
+                    placeholder={`${t('common.search')}...`}
                     value={globalSearch}
                     onChange={(event) => setGlobalSearch(event.target.value)}
                     className="h-11 w-full rounded-2xl border border-sky-100 bg-sky-50/70 px-11 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:bg-white focus:ring-4 focus:ring-cyan-100"
@@ -455,7 +458,7 @@ const AppLayoutFrame = ({
                     <div className="absolute left-0 right-0 top-13 z-50 mt-2 overflow-hidden rounded-3xl border border-sky-100 bg-white py-2 text-slate-900 shadow-2xl shadow-sky-100">
                       {searchSuggestions.length === 0 ? (
                         <div className="px-4 py-3 text-sm font-semibold text-slate-500">
-                          Không tìm thấy kết quả phù hợp
+                          {t('error.notFound')}
                         </div>
                       ) : (
                         searchSuggestions.map((item) => (
@@ -484,7 +487,7 @@ const AppLayoutFrame = ({
                   <Link
                     to={`/events/${selectedEvent.id}/calendar`}
                     className="hidden rounded-2xl p-2 transition hover:bg-sky-50 hover:text-sky-600 lg:inline-flex"
-                    aria-label="Lịch sự kiện"
+                    aria-label={t('utility.calendar')}
                   >
                     <CalendarDays className="h-5 w-5" strokeWidth={1.8} />
                   </Link>
@@ -494,7 +497,7 @@ const AppLayoutFrame = ({
                   <button
                     type="button"
                     className="relative rounded-2xl p-2 transition hover:bg-sky-50 hover:text-sky-600"
-                    aria-label="Mở thông báo"
+                    aria-label={t('notification.title')}
                     aria-expanded={notificationOpen}
                     onClick={() => setNotificationOpen((open) => !open)}
                   >
@@ -510,7 +513,7 @@ const AppLayoutFrame = ({
                     <div className="fixed left-3 right-3 top-[4.75rem] z-50 max-h-[min(28rem,calc(100vh-5.5rem))] overflow-hidden rounded-3xl border border-sky-100 bg-white text-slate-900 shadow-2xl shadow-sky-100 sm:absolute sm:left-auto sm:right-0 sm:top-12 sm:max-h-none sm:w-[min(380px,calc(100vw-2rem))]">
                       <div className="flex items-center justify-between gap-3 border-b border-sky-100 bg-gradient-to-r from-sky-50 to-emerald-50 px-4 py-3">
                         <div>
-                          <p className="text-sm font-black text-slate-950">Thông báo</p>
+                          <p className="text-sm font-black text-slate-950">{t('notification.title')}</p>
                           <p className="text-xs font-bold text-slate-500">
                             {pendingNotificationCount} thông báo chưa đọc
                           </p>
@@ -522,26 +525,26 @@ const AppLayoutFrame = ({
                           disabled={pendingNotificationCount === 0 || markAllNotificationsReadMutation.isPending}
                           className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-sky-600 shadow-sm transition hover:text-sky-700 disabled:text-slate-300"
                         >
-                          Đọc hết
+                          {t('notification.markAllRead')}
                         </button>
                       </div>
 
                       <div className="max-h-[min(22rem,calc(100vh-10rem))] overflow-y-auto sm:max-h-96">
                         {notificationListQuery.isLoading && (
                           <div className="px-4 py-5 text-sm font-semibold text-slate-500">
-                            Đang tải thông báo...
+                            {t('common.loading')}...
                           </div>
                         )}
 
                         {notificationListQuery.error && (
                           <div className="px-4 py-5 text-sm font-semibold text-red-600">
-                            Không tải được thông báo.
+                            {t('error.unexpected')}
                           </div>
                         )}
 
                         {!notificationListQuery.isLoading && !notificationListQuery.error && (notificationListQuery.data || []).length === 0 && (
                           <div className="px-4 py-5 text-sm font-semibold text-slate-500">
-                            Chưa có thông báo nào.
+                            {t('notification.noNotification')}
                           </div>
                         )}
 
@@ -590,7 +593,7 @@ const AppLayoutFrame = ({
                                   <span className="block text-sm font-black text-slate-950">{notification.title}</span>
                                   <span className="mt-1 block text-xs font-medium leading-5 text-slate-600">{notification.message}</span>
                                   <span className="mt-2 block text-[11px] font-bold text-slate-400">
-                                    {notification.eventName || 'Sự kiện'} • {formatNotificationTime(notification.createdAt)}
+                                    {notification.eventName || t('event.title')} • {formatNotificationTime(notification.createdAt, i18n.language)}
                                   </span>
                                 </span>
 
@@ -610,6 +613,8 @@ const AppLayoutFrame = ({
                 </div>
               </div>
 
+              <LanguageSwitcher />
+
               <Link
                 to="/profile"
                 className="hidden min-w-0 rounded-2xl px-3 py-2 text-right text-sm text-slate-500 transition hover:bg-sky-50 hover:text-sky-600 sm:block"
@@ -626,10 +631,10 @@ const AppLayoutFrame = ({
                 type="button"
                 onClick={onLogout}
                 className="inline-flex h-10 w-10 shrink-0 items-center justify-center gap-2 rounded-2xl border border-sky-100 bg-white text-sm font-black text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-red-100 hover:bg-red-50 hover:text-red-600 active:translate-y-px sm:w-auto sm:px-3"
-                aria-label="Đăng xuất"
+                aria-label={t('common.logout')}
               >
                 <LogOut className="h-4 w-4" strokeWidth={1.8} />
-                <span className="hidden sm:inline">Đăng xuất</span>
+                <span className="hidden sm:inline">{t('common.logout')}</span>
               </button>
             </div>
           </div>
@@ -684,13 +689,11 @@ const AppLayoutFrame = ({
                 </div>
 
                 <p className="mt-5 max-w-xl font-medium leading-7 text-slate-300">
-                  Dự án EXE201 của nhóm sinh viên Trường Đại học FPT Hà Nội, cung cấp dịch vụ hỗ trợ tổ chức,
-                  điều phối và quản lý sự kiện trên nền tảng số cho câu lạc bộ, đội nhóm, doanh nghiệp nhỏ và
-                  các đơn vị tổ chức sự kiện.
+                  {t('footer.project')}
                 </p>
 
                 <p className="mt-4 text-xs font-black uppercase tracking-[0.22em] text-cyan-300">
-                  EXE201 • FPT University Hanoi • Event Support Service
+                  {t('footer.team')} • {t('footer.university')} • Event Support Service
                 </p>
               </div>
 
@@ -699,8 +702,8 @@ const AppLayoutFrame = ({
                   Thông tin dự án
                 </p>
                 <div className="mt-4 space-y-2 font-semibold text-slate-300">
-                  <p>Nhóm dự án: EventFlow EXE201 Team</p>
-                  <p>Đơn vị học thuật: Trường Đại học FPT Hà Nội</p>
+                  <p>Nhóm dự án: {t('footer.team')}</p>
+                  <p>Đơn vị học thuật: {t('footer.university')}</p>
                   <p>Khu Công nghệ cao Hòa Lạc, Hà Nội</p>
                   <a
                     href="mailto:event.flow.corp.vn@gmail.com"
@@ -713,7 +716,7 @@ const AppLayoutFrame = ({
 
               <div>
                 <p className="font-black uppercase tracking-[0.18em] text-white">
-                  Kết nối với nhóm
+                  {t('footer.social')}
                 </p>
                 <p className="mt-4 font-medium leading-7 text-slate-300">
                   Theo dõi tiến độ dự án, hình ảnh vận hành và thông báo dịch vụ trên các nền tảng xã hội của nhóm.
@@ -735,7 +738,7 @@ const AppLayoutFrame = ({
                 </div>
 
                 <p className="mt-5 text-xs font-semibold text-slate-500">
-                  © 2026 EventFlow EXE201 Team. All rights reserved.
+                  {t('footer.copyright')}
                 </p>
               </div>
             </div>
@@ -746,17 +749,17 @@ const AppLayoutFrame = ({
   );
 };
 
-const formatNotificationTime = (value) => {
+const formatNotificationTime = (value, lang) => {
   if (!value) {
-    return 'Vừa tạo';
+    return lang === 'en' ? 'Just now' : 'Vừa tạo';
   }
 
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
-    return 'Vừa tạo';
+    return lang === 'en' ? 'Just now' : 'Vừa tạo';
   }
 
-  return date.toLocaleString('vi-VN', {
+  return date.toLocaleString(lang === 'en' ? 'en-US' : 'vi-VN', {
     day: '2-digit',
     month: '2-digit',
     hour: '2-digit',
