@@ -1,7 +1,16 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { BarChart3, ClipboardList, Loader2, TrendingUp, Users } from 'lucide-react';
+import {
+  BarChart3,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  ClipboardList,
+  Loader2,
+  TrendingUp,
+  Users,
+} from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import dashboardApi from '../api/dashboardApi';
 import eventApi from '../api/eventApi';
@@ -99,39 +108,70 @@ const DepartmentDashboardPage = ({ user, onLogout }) => {
   return (
     <AppLayout user={user} events={event ? [event] : []} selectedEvent={event} onEventChange={() => {}} onLogout={onLogout}>
       <div className="min-w-0 space-y-6">
-        <section className="space-y-4">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <section className="relative overflow-hidden rounded-[2rem] border border-sky-100 bg-white/85 p-6 shadow-xl shadow-sky-100/70 backdrop-blur-xl">
+          <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-sky-100 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-28 left-1/3 h-72 w-72 rounded-full bg-emerald-100/70 blur-3xl" />
+
+          <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-gray-500">
+              <p className="inline-flex rounded-full bg-sky-50 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-sky-600">
+                Department dashboard
+              </p>
+
+              <p className="mt-4 text-sm font-bold text-slate-500">
                 {event?.name || 'Event'} / Department / {summary?.departmentName || 'Dashboard'}
               </p>
-              <h2 className="mt-1 text-2xl font-bold text-gray-900">{summary?.departmentName || 'Dashboard ban'}</h2>
+
+              <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
+                {summary?.departmentName || 'Dashboard ban'}
+              </h2>
+
+              <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-slate-600">
+                Theo dõi tiến độ, trạng thái công việc và danh sách task của ban theo từng tuần.
+              </p>
             </div>
+
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
               <div className="grid grid-cols-2 gap-2 sm:flex">
-                <Link to={`/events/${eventId}/departments/${departmentId}/members`} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-700 shadow-sm transition hover:bg-emerald-100 active:translate-y-px sm:rounded-full">
+                <Link
+                  to={`/events/${eventId}/departments/${departmentId}/members`}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-2 text-sm font-black text-emerald-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-white hover:shadow-lg hover:shadow-emerald-100 active:translate-y-px"
+                >
                   <Users size={16} />
                   Member
                 </Link>
-                <Link to={`/events/${eventId}/departments/${departmentId}/tasks`} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-indigo-50 px-3 py-2 text-sm font-bold text-indigo-700 shadow-sm transition hover:bg-indigo-100 active:translate-y-px sm:rounded-full">
+
+                <Link
+                  to={`/events/${eventId}/departments/${departmentId}/tasks`}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-sky-100 bg-sky-50 px-4 py-2 text-sm font-black text-sky-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-white hover:shadow-lg hover:shadow-sky-100 active:translate-y-px"
+                >
                   <ClipboardList size={16} />
                   Task
                 </Link>
               </div>
-              <WeekControl weekIndex={weekIndex} setWeekIndex={(next) => { setPage(0); setWeekIndex(next); }} weekRange={weekRange} />
+
+              <WeekControl
+                weekIndex={weekIndex}
+                setWeekIndex={(next) => {
+                  setPage(0);
+                  setWeekIndex(next);
+                }}
+                weekRange={weekRange}
+              />
             </div>
           </div>
         </section>
 
         {canViewDashboard && summary && !error && (
           <>
-            <section className="grid gap-4">
+            <section className="grid gap-5">
               <ChartPanel icon={<TrendingUp size={18} />} title="Line chart task theo ngày">
                 <StatusLineChart
                   data={trendQuery.data || []}
                   onPointClick={({ status, date }) => openFilteredTasks({ status, fromDate: date, toDate: date })}
                 />
               </ChartPanel>
+
               <ChartPanel icon={<BarChart3 size={18} />} title="Column chart task theo status">
                 <StatusColumnChart
                   data={statusData}
@@ -156,32 +196,66 @@ const STATUS_LABELS = {
   IN_REVIEW: 'Chờ duyệt',
   DONE: 'Hoàn thành',
 };
+
 const normalizeStatusData = (data = []) => STATUS_ORDER.map((status) => ({
   label: status,
   totalTasks: statusValue(data, status),
 }));
 
 const WeekControl = ({ weekIndex, setWeekIndex, weekRange }) => (
-  <div className="flex min-w-0 flex-col gap-1">
-    <div className="text-sm font-semibold text-gray-700">
-      Tuần {weekIndex + 1}: {weekRange.fromDate} đến {weekRange.toDate}
+  <div className="min-w-0 rounded-2xl border border-sky-100 bg-white/80 p-3 shadow-sm backdrop-blur">
+    <div className="flex items-center gap-2 text-sm font-black text-slate-700">
+      <CalendarDays className="h-4 w-4 text-sky-500" strokeWidth={1.8} />
+      Tuần {weekIndex + 1}
     </div>
-    <div className="grid grid-cols-2 gap-2 sm:flex">
-      <button type="button" onClick={() => setWeekIndex(Math.max(weekIndex - 1, 0))} disabled={weekIndex === 0} className="min-h-10 rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 disabled:opacity-50">Tuần trước</button>
-      <button type="button" onClick={() => setWeekIndex(weekIndex + 1)} className="min-h-10 rounded-lg border border-blue-600 px-3 py-2 text-sm font-semibold text-blue-600 hover:bg-blue-50">Tuần sau</button>
+
+    <p className="mt-1 text-xs font-semibold text-slate-500">
+      {weekRange.fromDate} đến {weekRange.toDate}
+    </p>
+
+    <div className="mt-3 grid grid-cols-2 gap-2 sm:flex">
+      <button
+        type="button"
+        onClick={() => setWeekIndex(Math.max(weekIndex - 1, 0))}
+        disabled={weekIndex === 0}
+        className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-2xl border border-sky-100 bg-white px-3 py-2 text-sm font-black text-slate-600 transition hover:bg-sky-50 hover:text-sky-600 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <ChevronLeft className="h-4 w-4" strokeWidth={1.8} />
+        Tuần trước
+      </button>
+
+      <button
+        type="button"
+        onClick={() => setWeekIndex(weekIndex + 1)}
+        className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-2xl bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 px-3 py-2 text-sm font-black text-white shadow-lg shadow-cyan-100 transition hover:-translate-y-0.5 hover:shadow-xl hover:shadow-cyan-200"
+      >
+        Tuần sau
+        <ChevronRight className="h-4 w-4" strokeWidth={1.8} />
+      </button>
     </div>
   </div>
 );
 
 const ChartPanel = ({ icon, title, children }) => (
-  <section className="min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-    <div className="mb-4 flex items-start gap-3">
-      <div className="rounded-lg bg-blue-50 p-2 text-blue-600">{icon}</div>
-      <div className="min-w-0">
-        <h3 className="font-semibold text-gray-900">{title}</h3>
+  <section className="min-w-0 overflow-hidden rounded-[2rem] border border-sky-100 bg-white shadow-xl shadow-sky-100/70">
+    <div className="border-b border-sky-100 bg-gradient-to-r from-sky-50 via-white to-emerald-50 px-5 py-4">
+      <div className="flex items-start gap-3">
+        <div className="rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-400 p-3 text-white shadow-lg shadow-cyan-100">
+          {icon}
+        </div>
+
+        <div className="min-w-0">
+          <h3 className="font-black text-slate-950">{title}</h3>
+          <p className="mt-1 text-xs font-semibold text-slate-500">
+            Click vào điểm/cột để xem danh sách task tương ứng.
+          </p>
+        </div>
       </div>
     </div>
-    {children}
+
+    <div className="p-4 sm:p-5">
+      {children}
+    </div>
   </section>
 );
 
@@ -193,15 +267,16 @@ const StatusLineChart = ({ data, onPointClick }) => {
   const height = 280;
   const padding = 36;
   const series = [
-    { key: 'todoTasks', status: 'TODO', label: 'TODO', color: '#2563eb', pointOffset: -9 },
+    { key: 'todoTasks', status: 'TODO', label: 'TODO', color: '#0ea5e9', pointOffset: -9 },
     { key: 'inProgressTasks', status: 'IN_PROGRESS', label: 'IN_PROGRESS', color: '#f59e0b', pointOffset: -3 },
     { key: 'inReviewTasks', status: 'IN_REVIEW', label: 'IN_REVIEW', color: '#8b5cf6', pointOffset: 3 },
-    { key: 'completedTasks', status: 'DONE', label: 'DONE', color: '#10b981', pointOffset: 9 },
+    { key: 'completedTasks', status: 'DONE', label: 'DONE', color: '#22c55e', pointOffset: 9 },
   ];
   const maxValue = Math.max(...data.flatMap((item) => series.map((line) => item[line.key] || 0)), 1);
   const labelStep = Math.max(Math.ceil(data.length / 8), 1);
   const shouldShowXAxisLabel = (index) => index === 0 || index === data.length - 1 || index % labelStep === 0;
   const formatAxisLabel = (label) => label?.slice(5) || label;
+
   const smoothPath = (points) => {
     if (points.length < 2) {
       return points[0] ? `M ${points[0].x} ${points[0].y}` : '';
@@ -217,6 +292,7 @@ const StatusLineChart = ({ data, onPointClick }) => {
       return `${path} C ${previous.x + controlDistance} ${previous.y}, ${point.x - controlDistance} ${point.y}, ${point.x} ${point.y}`;
     }, '');
   };
+
   const pointsFor = (line) => data.map((item, index) => {
     const baseX = padding + (index * (width - padding * 2)) / Math.max(data.length - 1, 1);
     const x = Math.min(Math.max(baseX + line.pointOffset, padding), width - padding);
@@ -226,70 +302,120 @@ const StatusLineChart = ({ data, onPointClick }) => {
 
   return (
     <div className="min-w-0">
-      <div className="mb-3 flex flex-wrap gap-3 text-xs font-semibold text-gray-600">
-        {series.map((line) => <span key={line.key} className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: line.color }} />{line.label}</span>)}
+      <div className="mb-4 flex flex-wrap gap-3 text-xs font-black text-slate-600">
+        {series.map((line) => (
+          <span key={line.key} className="inline-flex items-center gap-1.5 rounded-full border border-sky-100 bg-white px-3 py-1 shadow-sm">
+            <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: line.color }} />
+            {line.label}
+          </span>
+        ))}
       </div>
-      <svg viewBox={`0 0 ${width} ${height}`} className="h-64 w-full sm:h-72">
-        <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} className="stroke-gray-200" />
-        <line x1={padding} y1={padding} x2={padding} y2={height - padding} className="stroke-gray-200" />
-        {series.map((line) => {
-          const points = pointsFor(line);
-          const path = smoothPath(points);
-          return (
-            <g key={line.key}>
-              <path d={path} fill="none" stroke={line.color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-              {points.filter((point) => point.value > 0).map((point) => (
-                <g key={`${line.key}-${point.label}`}>
-                  <circle
-                    cx={point.x}
-                    cy={point.y}
-                    r="5"
-                    fill={line.color}
-                    className="cursor-pointer"
-                    onMouseEnter={() => setHoveredPoint({ ...point, statusLabel: line.label })}
-                    onMouseLeave={() => setHoveredPoint(null)}
-                    onFocus={() => setHoveredPoint({ ...point, statusLabel: line.label })}
-                    onBlur={() => setHoveredPoint(null)}
-                    onClick={() => onPointClick?.({ status: line.status, date: point.label })}
-                  />
-                  <circle
-                    cx={point.x}
-                    cy={point.y}
-                    r="14"
-                    fill="transparent"
-                    className="cursor-pointer"
-                    onMouseEnter={() => setHoveredPoint({ ...point, statusLabel: line.label })}
-                    onMouseLeave={() => setHoveredPoint(null)}
-                    onClick={() => onPointClick?.({ status: line.status, date: point.label })}
-                  />
-                  <text x={point.x} y={point.y - 10} textAnchor="middle" className="fill-gray-700 text-[11px] font-semibold">
-                    {point.value}
-                  </text>
-                </g>
-              ))}
-            </g>
-          );
-        })}
-        {hoveredPoint && (
-          <g className="pointer-events-none">
-            <rect
-              x={Math.min(Math.max(hoveredPoint.x - 78, 8), width - 166)}
-              y={Math.max(hoveredPoint.y - 72, 8)}
-              width="158"
-              height="52"
-              rx="8"
-              className="fill-white/95 stroke-gray-200"
+
+      <div className="overflow-hidden rounded-3xl border border-sky-100 bg-gradient-to-br from-white via-sky-50/40 to-emerald-50/40 p-2">
+        <svg viewBox={`0 0 ${width} ${height}`} className="h-64 w-full sm:h-72">
+          <defs>
+            <filter id="line-glow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="2.5" result="coloredBlur" />
+              <feMerge>
+                <feMergeNode in="coloredBlur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
+
+          <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="#bae6fd" />
+          <line x1={padding} y1={padding} x2={padding} y2={height - padding} stroke="#bae6fd" />
+
+          {[0.25, 0.5, 0.75].map((ratio) => (
+            <line
+              key={ratio}
+              x1={padding}
+              y1={height - padding - ratio * (height - padding * 2)}
+              x2={width - padding}
+              y2={height - padding - ratio * (height - padding * 2)}
+              stroke="#e0f2fe"
+              strokeDasharray="6 8"
             />
-            <text x={Math.min(Math.max(hoveredPoint.x, 86), width - 86)} y={Math.max(hoveredPoint.y - 50, 30)} textAnchor="middle" className="fill-gray-900 text-[11px] font-bold">
-              {hoveredPoint.label}
+          ))}
+
+          {series.map((line) => {
+            const points = pointsFor(line);
+            const path = smoothPath(points);
+
+            return (
+              <g key={line.key}>
+                <path
+                  d={path}
+                  fill="none"
+                  stroke={line.color}
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  filter="url(#line-glow)"
+                />
+
+                {points.filter((point) => point.value > 0).map((point) => (
+                  <g key={`${line.key}-${point.label}`}>
+                    <circle
+                      cx={point.x}
+                      cy={point.y}
+                      r="5"
+                      fill={line.color}
+                      stroke="#ffffff"
+                      strokeWidth="2"
+                      className="cursor-pointer"
+                      onMouseEnter={() => setHoveredPoint({ ...point, statusLabel: line.label })}
+                      onMouseLeave={() => setHoveredPoint(null)}
+                      onFocus={() => setHoveredPoint({ ...point, statusLabel: line.label })}
+                      onBlur={() => setHoveredPoint(null)}
+                      onClick={() => onPointClick?.({ status: line.status, date: point.label })}
+                    />
+                    <circle
+                      cx={point.x}
+                      cy={point.y}
+                      r="14"
+                      fill="transparent"
+                      className="cursor-pointer"
+                      onMouseEnter={() => setHoveredPoint({ ...point, statusLabel: line.label })}
+                      onMouseLeave={() => setHoveredPoint(null)}
+                      onClick={() => onPointClick?.({ status: line.status, date: point.label })}
+                    />
+                    <text x={point.x} y={point.y - 10} textAnchor="middle" fill="#334155" className="text-[11px] font-black">
+                      {point.value}
+                    </text>
+                  </g>
+                ))}
+              </g>
+            );
+          })}
+
+          {hoveredPoint && (
+            <g className="pointer-events-none">
+              <rect
+                x={Math.min(Math.max(hoveredPoint.x - 78, 8), width - 166)}
+                y={Math.max(hoveredPoint.y - 72, 8)}
+                width="158"
+                height="52"
+                rx="14"
+                fill="#ffffff"
+                stroke="#bae6fd"
+              />
+              <text x={Math.min(Math.max(hoveredPoint.x, 86), width - 86)} y={Math.max(hoveredPoint.y - 50, 30)} textAnchor="middle" fill="#0f172a" className="text-[11px] font-black">
+                {hoveredPoint.label}
+              </text>
+              <text x={Math.min(Math.max(hoveredPoint.x, 86), width - 86)} y={Math.max(hoveredPoint.y - 32, 48)} textAnchor="middle" fill="#475569" className="text-[11px] font-semibold">
+                {hoveredPoint.statusLabel}: {hoveredPoint.value} task
+              </text>
+            </g>
+          )}
+
+          {pointsFor(series[0]).filter((point) => shouldShowXAxisLabel(point.index)).map((point) => (
+            <text key={point.label} x={point.x} y={height - 10} textAnchor="middle" fill="#64748b" className="text-[10px] font-bold">
+              {formatAxisLabel(point.label)}
             </text>
-            <text x={Math.min(Math.max(hoveredPoint.x, 86), width - 86)} y={Math.max(hoveredPoint.y - 32, 48)} textAnchor="middle" className="fill-gray-600 text-[11px]">
-              {hoveredPoint.statusLabel}: {hoveredPoint.value} task
-            </text>
-          </g>
-        )}
-        {pointsFor(series[0]).filter((point) => shouldShowXAxisLabel(point.index)).map((point) => <text key={point.label} x={point.x} y={height - 10} textAnchor="middle" className="fill-gray-500 text-[10px]">{formatAxisLabel(point.label)}</text>)}
-      </svg>
+          ))}
+        </svg>
+      </div>
     </div>
   );
 };
@@ -299,53 +425,88 @@ const StatusColumnChart = ({ data, onColumnClick }) => {
   if (!data.length) return <EmptyChart message="Chưa có dữ liệu status." />;
 
   const maxValue = Math.max(...data.map((item) => item.totalTasks || 0), 1);
-  const colorByStatus = { TODO: 'bg-blue-500', IN_PROGRESS: 'bg-amber-500', IN_REVIEW: 'bg-violet-500', DONE: 'bg-emerald-500' };
+  const colorByStatus = {
+    TODO: 'from-sky-500 to-cyan-400',
+    IN_PROGRESS: 'from-amber-500 to-orange-400',
+    IN_REVIEW: 'from-violet-500 to-fuchsia-400',
+    DONE: 'from-emerald-500 to-green-400',
+  };
 
   return (
-    <div className="grid h-64 grid-cols-4 items-end gap-2 border-b border-gray-200 pb-3 sm:h-72 sm:gap-4">
-      {data.map((item) => (
-        <button
-          key={item.label}
-          type="button"
-          onMouseEnter={() => setHoveredColumn(item.label)}
-          onMouseLeave={() => setHoveredColumn(null)}
-          onFocus={() => setHoveredColumn(item.label)}
-          onBlur={() => setHoveredColumn(null)}
-          onClick={() => onColumnClick?.(item.label)}
-          className="relative flex h-full min-w-0 flex-col items-center justify-end rounded-lg px-1 transition hover:bg-blue-50 sm:px-2"
-          title={`Xem task ${STATUS_LABELS[item.label] || item.label}`}
-        >
-          {hoveredColumn === item.label && (
-            <div className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 w-40 -translate-x-1/2 rounded-lg border border-gray-200 bg-white/90 px-3 py-2 text-center text-xs text-gray-900 shadow-lg backdrop-blur">
-              <p className="font-bold">{STATUS_LABELS[item.label] || item.label}</p>
-              <p className="mt-1 text-gray-600">{item.totalTasks || 0} task</p>
+    <div className="rounded-3xl border border-sky-100 bg-gradient-to-br from-white via-sky-50/40 to-emerald-50/40 p-4">
+      <div className="grid h-64 grid-cols-4 items-end gap-2 border-b border-sky-100 pb-3 sm:h-72 sm:gap-4">
+        {data.map((item) => (
+          <button
+            key={item.label}
+            type="button"
+            onMouseEnter={() => setHoveredColumn(item.label)}
+            onMouseLeave={() => setHoveredColumn(null)}
+            onFocus={() => setHoveredColumn(item.label)}
+            onBlur={() => setHoveredColumn(null)}
+            onClick={() => onColumnClick?.(item.label)}
+            className="relative flex h-full min-w-0 flex-col items-center justify-end rounded-2xl px-1 transition hover:bg-white/70 sm:px-2"
+            title={`Xem task ${STATUS_LABELS[item.label] || item.label}`}
+          >
+            {hoveredColumn === item.label && (
+              <div className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 w-40 -translate-x-1/2 rounded-2xl border border-sky-100 bg-white/95 px-3 py-2 text-center text-xs text-slate-900 shadow-xl shadow-sky-100 backdrop-blur">
+                <p className="font-black">{STATUS_LABELS[item.label] || item.label}</p>
+                <p className="mt-1 font-semibold text-slate-500">{item.totalTasks || 0} task</p>
+              </div>
+            )}
+
+            <div className="flex h-52 w-full items-end justify-center">
+              <div
+                className={`w-9 rounded-t-2xl bg-gradient-to-t ${colorByStatus[item.label] || 'from-slate-500 to-slate-400'} shadow-lg shadow-sky-100 transition-all sm:w-14`}
+                style={{ height: `${Math.max(((item.totalTasks || 0) / maxValue) * 100, item.totalTasks ? 10 : 2)}%` }}
+              />
             </div>
-          )}
-          <div className="flex h-52 w-full items-end justify-center">
-            <div className={`w-8 rounded-t sm:w-14 ${colorByStatus[item.label] || 'bg-gray-500'}`} style={{ height: `${Math.max(((item.totalTasks || 0) / maxValue) * 100, item.totalTasks ? 10 : 2)}%` }} />
-          </div>
-          <p className="mt-2 text-xs font-bold text-gray-700">{item.totalTasks || 0}</p>
-          <p className="max-w-full truncate text-center text-[11px] font-semibold text-gray-500 sm:text-xs">{STATUS_LABELS[item.label] || item.label}</p>
-        </button>
-      ))}
+
+            <p className="mt-3 text-xs font-black text-slate-700">{item.totalTasks || 0}</p>
+            <p className="max-w-full truncate text-center text-[11px] font-bold text-slate-500 sm:text-xs">
+              {STATUS_LABELS[item.label] || item.label}
+            </p>
+          </button>
+        ))}
+      </div>
     </div>
   );
 };
 
 const TaskListSection = ({ tasks, page, setPage, pageData, eventId }) => (
-  <section className="min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-    <div className="flex items-center gap-2 border-b border-gray-100 p-4">
-      <ClipboardList size={18} className="text-blue-600" />
-      <h3 className="font-semibold text-gray-900">Danh sách công việc</h3>
+  <section className="min-w-0 overflow-hidden rounded-[2rem] border border-sky-100 bg-white shadow-xl shadow-sky-100/70">
+    <div className="flex items-center gap-3 border-b border-sky-100 bg-gradient-to-r from-sky-50 via-white to-emerald-50 px-5 py-4">
+      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-400 text-white shadow-lg shadow-cyan-100">
+        <ClipboardList size={18} />
+      </div>
+      <div>
+        <h3 className="font-black text-slate-950">Danh sách công việc</h3>
+        <p className="mt-1 text-xs font-semibold text-slate-500">Các task trong khoảng thời gian đang chọn.</p>
+      </div>
     </div>
-    {tasks.length === 0 && <div className="p-8 text-center text-gray-500">Chưa có task.</div>}
+
+    {tasks.length === 0 && (
+      <div className="p-10 text-center">
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-3xl bg-sky-50 text-sky-500">
+          <ClipboardList className="h-7 w-7" strokeWidth={1.8} />
+        </div>
+        <p className="text-sm font-bold text-slate-500">Chưa có task.</p>
+      </div>
+    )}
+
     {tasks.map((task) => (
-      <Link key={task.id} to={`/events/${eventId}/tasks/${task.id}`} className="block border-b border-gray-100 p-4 last:border-b-0 hover:bg-blue-50/50">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="font-semibold text-gray-900">{task.title}</p>
-            <p className="text-sm text-gray-500">{task.assigneeName || 'Chưa phân công'} • {formatDate(task.deadline)}</p>
+      <Link
+        key={task.id}
+        to={`/events/${eventId}/tasks/${task.id}`}
+        className="block border-b border-sky-50 p-5 transition last:border-b-0 hover:bg-sky-50/70"
+      >
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <p className="truncate font-black text-slate-950">{task.title}</p>
+            <p className="mt-1 text-sm font-semibold text-slate-500">
+              {task.assigneeName || 'Chưa phân công'} • {formatDate(task.deadline)}
+            </p>
           </div>
+
           <div className="flex flex-wrap gap-2">
             <PriorityBadge priority={task.priority} />
             <StatusBadge status={task.status} />
@@ -353,14 +514,45 @@ const TaskListSection = ({ tasks, page, setPage, pageData, eventId }) => (
         </div>
       </Link>
     ))}
-    <div className="grid grid-cols-2 gap-2 p-4 sm:flex sm:justify-end">
-      <button type="button" onClick={() => setPage((old) => Math.max(old - 1, 0))} disabled={page === 0} className="min-h-10 rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 disabled:opacity-50">Trước</button>
-      <button type="button" onClick={() => setPage((old) => old + 1)} disabled={pageData?.last !== false} className="min-h-10 rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 disabled:opacity-50">Sau</button>
+
+    <div className="grid grid-cols-2 gap-2 border-t border-sky-100 bg-sky-50/50 p-4 sm:flex sm:justify-end">
+      <button
+        type="button"
+        onClick={() => setPage((old) => Math.max(old - 1, 0))}
+        disabled={page === 0}
+        className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-2xl border border-sky-100 bg-white px-4 py-2 text-sm font-black text-slate-600 shadow-sm transition hover:bg-sky-50 hover:text-sky-600 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <ChevronLeft className="h-4 w-4" strokeWidth={1.8} />
+        Trước
+      </button>
+
+      <button
+        type="button"
+        onClick={() => setPage((old) => old + 1)}
+        disabled={pageData?.last !== false}
+        className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-2xl border border-sky-100 bg-white px-4 py-2 text-sm font-black text-slate-600 shadow-sm transition hover:bg-sky-50 hover:text-sky-600 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        Sau
+        <ChevronRight className="h-4 w-4" strokeWidth={1.8} />
+      </button>
     </div>
   </section>
 );
 
-const LoadingBlock = ({ message }) => <div className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white p-8 text-gray-500"><Loader2 size={20} className="animate-spin" />{message}</div>;
-const EmptyChart = ({ message }) => <div className="flex h-72 items-center justify-center rounded-lg border border-dashed border-gray-300 text-sm text-gray-500">{message}</div>;
+const LoadingBlock = ({ message }) => (
+  <div className="relative flex items-center justify-center gap-3 overflow-hidden rounded-[2rem] border border-sky-100 bg-white p-8 text-sm font-black text-slate-500 shadow-xl shadow-sky-100/70">
+    <div className="pointer-events-none absolute -left-16 -top-16 h-44 w-44 rounded-full bg-sky-100 blur-3xl" />
+    <div className="relative flex h-10 w-10 items-center justify-center rounded-2xl bg-sky-50 text-sky-600">
+      <Loader2 size={20} className="animate-spin" />
+    </div>
+    <span className="relative">{message}</span>
+  </div>
+);
+
+const EmptyChart = ({ message }) => (
+  <div className="flex h-72 items-center justify-center rounded-3xl border border-dashed border-sky-200 bg-sky-50/50 px-4 text-center text-sm font-bold text-slate-500">
+    {message}
+  </div>
+);
 
 export default DepartmentDashboardPage;

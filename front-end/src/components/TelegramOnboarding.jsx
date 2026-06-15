@@ -173,150 +173,200 @@ const TelegramOnboarding = ({ userId }) => {
   }
 
   return (
-    <div className="fixed bottom-3 left-3 right-3 z-50 mx-auto max-h-[calc(100vh-1.5rem)] max-w-3xl overflow-y-auto rounded-xl border border-indigo-200 bg-white shadow-xl shadow-slate-950/10 sm:bottom-4 sm:left-4 sm:right-4">
-      <div className="border-b border-slate-100 px-4 py-3 sm:px-5">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex min-w-0 gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-              <MessageCircle className="h-5 w-5" strokeWidth={1.8} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-bold uppercase text-indigo-600">Nhắc deadline tự động</p>
-              <h2 className="text-lg font-extrabold text-slate-950">Kết nối Telegram trong 2 phút</h2>
-              <p className="mt-1 text-sm leading-5 text-slate-600">
-                EventFlow sẽ gửi nhắc việc qua bot. Bạn chỉ cần copy một lệnh, gửi cho bot và bấm Xác nhận.
-              </p>
-              <div className="mt-2 inline-flex max-w-full items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-xs font-bold text-indigo-700">
-                <MessageCircle className="h-3.5 w-3.5 shrink-0" strokeWidth={1.8} />
-                <span className="truncate">Đúng bot: @{appConfig.telegramBotUsername}</span>
+    <div className="fixed bottom-3 left-3 right-3 z-50 mx-auto max-h-[calc(100vh-1.5rem)] max-w-4xl overflow-hidden rounded-[2rem] border border-sky-100 bg-white/90 shadow-2xl shadow-sky-950/15 backdrop-blur-2xl sm:bottom-4 sm:left-4 sm:right-4">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -left-24 -top-24 h-56 w-56 rounded-full bg-sky-300/30 blur-3xl" />
+        <div className="absolute -bottom-28 right-0 h-64 w-64 rounded-full bg-emerald-300/30 blur-3xl" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(14,165,233,0.06)_1px,transparent_1px),linear-gradient(to_bottom,rgba(14,165,233,0.06)_1px,transparent_1px)] bg-[size:36px_36px]" />
+      </div>
+
+      <div className="relative max-h-[calc(100vh-1.5rem)] overflow-y-auto">
+        <div className="border-b border-sky-100 bg-white/75 px-4 py-4 backdrop-blur-xl sm:px-5">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex min-w-0 gap-3">
+              <div className="relative flex h-12 w-12 shrink-0 items-center justify-center">
+                <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-400 opacity-40 blur-md" />
+                <div className="relative flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-400 text-white shadow-lg shadow-cyan-100">
+                  <MessageCircle className="h-6 w-6" strokeWidth={1.8} />
+                </div>
+              </div>
+
+              <div className="min-w-0">
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-500">
+                  Nhắc deadline tự động
+                </p>
+
+                <h2 className="mt-1 text-xl font-black tracking-tight text-slate-950">
+                  Kết nối Telegram trong 2 phút
+                </h2>
+
+                <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-slate-600">
+                  EventFlow sẽ gửi nhắc việc qua bot. Bạn chỉ cần copy một lệnh,
+                  gửi cho bot và bấm Xác nhận.
+                </p>
+
+                <div className="mt-3 inline-flex max-w-full items-center gap-2 rounded-full border border-sky-100 bg-sky-50 px-3 py-1.5 text-xs font-black text-sky-600">
+                  <MessageCircle className="h-3.5 w-3.5 shrink-0" strokeWidth={1.8} />
+                  <span className="truncate">Đúng bot: @{appConfig.telegramBotUsername}</span>
+                </div>
               </div>
             </div>
+
+            <button
+              type="button"
+              onClick={handleCollapse}
+              className="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-2xl border border-sky-100 bg-white px-3 py-2 text-xs font-black text-slate-500 shadow-sm transition hover:-translate-y-0.5 hover:border-red-100 hover:bg-red-50 hover:text-red-600"
+              aria-label="Đóng hướng dẫn kết nối Telegram"
+            >
+              <X className="h-4 w-4" strokeWidth={1.8} />
+              Đóng
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={handleCollapse}
-            className="inline-flex min-h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600 shadow-sm hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
-            aria-label="Đóng hướng dẫn kết nối Telegram"
-          >
-            <X className="h-4 w-4" strokeWidth={1.8} />
-            Đóng
-          </button>
         </div>
+
+        <div className="relative grid gap-5 px-4 py-5 sm:px-5 lg:grid-cols-[1fr_16rem]">
+          <div className="space-y-3">
+            <StepItem
+              icon={<ExternalLink className="h-4 w-4" strokeWidth={1.8} />}
+              number="01"
+              title={`Mở đúng bot @${appConfig.telegramBotUsername}`}
+              description="Nếu Telegram hỏi QR, quét bằng điện thoại. Sau đó kiểm tra tên chat đang mở đúng là bot này."
+            />
+
+            <StepItem
+              icon={<Copy className="h-4 w-4" strokeWidth={1.8} />}
+              number="02"
+              title="Dán lệnh đã copy vào chat bot"
+              description="Không gửi lệnh vào chat cá nhân, nhóm, hoặc bot khác. Nếu chưa copy được, dùng nút Copy lệnh."
+            />
+
+            <StepItem
+              icon={<MousePointerClick className="h-4 w-4" strokeWidth={1.8} />}
+              number="03"
+              title="Bấm Xác nhận trong Telegram"
+              description="Sau khi bấm Xác nhận, quay lại EventFlow và kiểm tra kết nối."
+            />
+          </div>
+
+          <div className="space-y-2.5">
+            <button
+              type="button"
+              onClick={handleStartGuidedFlow}
+              disabled={createTokenMutation.isPending}
+              className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 px-3 py-2 text-sm font-black text-white shadow-xl shadow-cyan-100 transition hover:-translate-y-0.5 hover:shadow-2xl hover:shadow-cyan-200 disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              {createTokenMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.8} />
+              ) : (
+                <ClipboardCheck className="h-4 w-4" strokeWidth={1.8} />
+              )}
+              Copy lệnh và mở Telegram
+            </button>
+
+            <button
+              type="button"
+              onClick={handleCheckConnection}
+              disabled={isFetching}
+              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-sky-100 bg-white px-3 py-2 text-sm font-black text-sky-600 shadow-sm transition hover:-translate-y-0.5 hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isFetching ? (
+                <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.8} />
+              ) : (
+                <Check className="h-4 w-4" strokeWidth={1.8} />
+              )}
+              Tôi đã xác nhận, kiểm tra
+            </button>
+
+            <button
+              type="button"
+              onClick={handleCopyCommand}
+              disabled={createTokenMutation.isPending}
+              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-sky-100 bg-white px-3 py-2 text-sm font-black text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:bg-sky-50 hover:text-sky-600 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {copiedCommand ? (
+                <Check className="h-4 w-4 text-emerald-600" strokeWidth={1.8} />
+              ) : (
+                <Copy className="h-4 w-4" strokeWidth={1.8} />
+              )}
+              {copiedCommand ? 'Đã copy' : 'Chỉ copy lệnh'}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleOpenTelegramApp}
+              disabled={createTokenMutation.isPending}
+              className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-2xl px-3 py-2 text-xs font-black text-slate-500 transition hover:bg-sky-50 hover:text-sky-600 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <Send className="h-3.5 w-3.5" strokeWidth={1.8} />
+              Mở app Telegram nếu đã cài
+            </button>
+          </div>
+        </div>
+
+        {(error || createTokenMutation.error) && (
+          <div className="mx-4 mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold leading-6 text-red-700 sm:mx-5">
+            Không thể tạo/kiểm tra link kết nối:{' '}
+            {(error || createTokenMutation.error).userMessage ||
+              (error || createTokenMutation.error).message}
+          </div>
+        )}
+
+        {connectionStatus && (
+          <div
+            className={`mx-4 mb-4 rounded-2xl border px-4 py-3 text-sm font-semibold leading-6 sm:mx-5 ${
+              connectionStatus.type === 'success'
+                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                : connectionStatus.type === 'warning'
+                  ? 'border-amber-200 bg-amber-50 text-amber-700'
+                  : 'border-sky-200 bg-sky-50 text-sky-700'
+            }`}
+          >
+            {connectionStatus.message}
+          </div>
+        )}
+
+        {startCommand && (
+          <div className="mx-4 mb-5 overflow-hidden rounded-2xl border border-sky-100 bg-white shadow-sm sm:mx-5">
+            <div className="border-b border-sky-100 bg-sky-50 px-4 py-3">
+              <p className="text-sm font-black text-slate-950">
+                Lệnh gửi cho @{appConfig.telegramBotUsername}
+              </p>
+            </div>
+
+            <div className="px-4 py-3">
+              <p className="break-all rounded-xl border border-sky-100 bg-slate-950 px-3 py-2 font-mono text-xs font-semibold leading-5 text-cyan-100">
+                {startCommand}
+              </p>
+
+              <p className="mt-3 text-xs font-semibold leading-5 text-slate-500">
+                Lệnh này chỉ có tác dụng khi gửi trong chat @{appConfig.telegramBotUsername}.
+                Nếu đang ở chat khác, hãy chuyển về đúng bot trước.
+              </p>
+            </div>
+          </div>
+        )}
       </div>
-
-      <div className="grid gap-4 px-4 py-4 sm:px-5 lg:grid-cols-[1fr_15rem]">
-        <div className="space-y-3">
-          <StepItem
-            icon={<ExternalLink className="h-4 w-4" strokeWidth={1.8} />}
-            title={`Mở đúng bot @${appConfig.telegramBotUsername}`}
-            description="Nếu Telegram hỏi QR, quét bằng điện thoại. Sau đó kiểm tra tên chat đang mở đúng là bot này."
-          />
-          <StepItem
-            icon={<Copy className="h-4 w-4" strokeWidth={1.8} />}
-            title="Dán lệnh đã copy vào chat bot"
-            description="Không gửi lệnh vào chat cá nhân, nhóm, hoặc bot khác. Nếu chưa copy được, dùng nút Copy lệnh."
-          />
-          <StepItem
-            icon={<MousePointerClick className="h-4 w-4" strokeWidth={1.8} />}
-            title="Bấm Xác nhận trong Telegram"
-            description="Sau khi bấm Xác nhận, quay lại EventFlow và kiểm tra kết nối."
-          />
-        </div>
-
-        <div className="space-y-2">
-          <button
-            type="button"
-            onClick={handleStartGuidedFlow}
-            disabled={createTokenMutation.isPending}
-            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-bold text-white shadow-sm transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-70"
-          >
-            {createTokenMutation.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.8} />
-            ) : (
-              <ClipboardCheck className="h-4 w-4" strokeWidth={1.8} />
-            )}
-            Copy lệnh và mở Telegram
-          </button>
-
-          <button
-            type="button"
-            onClick={handleCheckConnection}
-            disabled={isFetching}
-            className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
-          >
-            {isFetching ? <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.8} /> : <Check className="h-4 w-4" strokeWidth={1.8} />}
-            Tôi đã xác nhận, kiểm tra
-          </button>
-
-          <button
-            type="button"
-            onClick={handleCopyCommand}
-            disabled={createTokenMutation.isPending}
-            className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
-          >
-            {copiedCommand ? (
-              <Check className="h-4 w-4 text-emerald-600" strokeWidth={1.8} />
-            ) : (
-              <Copy className="h-4 w-4" strokeWidth={1.8} />
-            )}
-            {copiedCommand ? 'Đã copy' : 'Chỉ copy lệnh'}
-          </button>
-
-          <button
-            type="button"
-            onClick={handleOpenTelegramApp}
-            disabled={createTokenMutation.isPending}
-            className="inline-flex min-h-9 w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-bold text-slate-500 hover:bg-slate-50 hover:text-slate-700 disabled:opacity-60"
-          >
-            <Send className="h-3.5 w-3.5" strokeWidth={1.8} />
-            Mở app Telegram nếu đã cài
-          </button>
-        </div>
-      </div>
-
-      {(error || createTokenMutation.error) && (
-        <div className="mx-4 mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600 sm:mx-5">
-          Không thể tạo/kiểm tra link kết nối:{' '}
-          {(error || createTokenMutation.error).userMessage ||
-            (error || createTokenMutation.error).message}
-        </div>
-      )}
-
-      {connectionStatus && (
-        <div
-          className={`mx-4 mb-3 rounded-lg border px-3 py-2 text-sm leading-5 sm:mx-5 ${
-            connectionStatus.type === 'success'
-              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-              : connectionStatus.type === 'warning'
-                ? 'border-amber-200 bg-amber-50 text-amber-700'
-                : 'border-indigo-200 bg-indigo-50 text-indigo-700'
-          }`}
-        >
-          {connectionStatus.message}
-        </div>
-      )}
-
-      {startCommand && (
-        <div className="mx-4 mb-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-500 sm:mx-5">
-          <p className="font-semibold text-slate-700">Lệnh gửi cho @{appConfig.telegramBotUsername}</p>
-          <p className="mt-1 break-all font-mono text-slate-800">{startCommand}</p>
-          <p className="mt-1">
-            Lệnh này chỉ có tác dụng khi gửi trong chat @{appConfig.telegramBotUsername}. Nếu đang ở chat khác, hãy chuyển về đúng bot trước.
-          </p>
-        </div>
-      )}
     </div>
   );
 };
 
-const StepItem = ({ icon, title, description }) => (
-  <div className="flex gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
-    <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-indigo-600 ring-1 ring-slate-200">
+const StepItem = ({ icon, number, title, description }) => (
+  <div className="group flex gap-3 rounded-2xl border border-sky-100 bg-white/85 px-4 py-3 shadow-sm shadow-sky-100/50 transition hover:-translate-y-0.5 hover:bg-sky-50 hover:shadow-lg hover:shadow-cyan-100">
+    <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-400 text-white shadow-md shadow-cyan-100">
       {icon}
     </div>
+
     <div className="min-w-0">
-      <p className="text-sm font-bold text-slate-900">{title}</p>
-      <p className="mt-0.5 text-xs leading-5 text-slate-600">{description}</p>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-black text-sky-600">
+          {number}
+        </span>
+        <p className="text-sm font-black text-slate-950">{title}</p>
+      </div>
+
+      <p className="mt-1 text-xs font-semibold leading-5 text-slate-600">
+        {description}
+      </p>
     </div>
   </div>
 );
