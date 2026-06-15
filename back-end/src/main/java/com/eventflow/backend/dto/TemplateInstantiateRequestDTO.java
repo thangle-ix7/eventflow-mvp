@@ -1,7 +1,7 @@
 package com.eventflow.backend.dto;
 
-import com.eventflow.backend.entity.EventNature;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class EventRequestDTO {
+public class TemplateInstantiateRequestDTO {
 
     @NotBlank(message = "Tên sự kiện không được để trống")
     @Size(max = 255, message = "Tên sự kiện không được vượt quá 255 ký tự")
@@ -24,14 +24,11 @@ public class EventRequestDTO {
     @Size(max = 255, message = "Địa điểm không được vượt quá 255 ký tự")
     private String location;
 
+    @NotNull(message = "Ngày bắt đầu không được để trống")
     private LocalDateTime startTime;
 
     private LocalDateTime endTime;
 
+    @NotNull(message = "Ngày sự kiện không được để trống")
     private LocalDateTime eventDate;
-
-    @Size(max = 50, message = "Trạng thái không được vượt quá 50 ký tự")
-    private String status;
-
-    private EventNature nature;
 }

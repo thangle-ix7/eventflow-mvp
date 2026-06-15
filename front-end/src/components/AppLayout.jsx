@@ -141,6 +141,8 @@ const AppLayoutFrame = ({
   const searchSuggestionBase = [
     { label: 'Sự kiện của bạn', description: '', to: '/' },
     { label: 'Tạo sự kiện', description: '', to: '/events/new' },
+    { label: 'Templates', description: 'Xem templates sẵn có', to: '/events/templates' },
+    ...(user?.systemRole === 'ADMIN' ? [{ label: 'Quản lý Templates', description: 'Admin panel', to: '/admin/templates' }] : []),
     { label: 'Hồ sơ cá nhân', description: '', to: '/profile' },
     ...events.map((event) => ({
       label: event.name,

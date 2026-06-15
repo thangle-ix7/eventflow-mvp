@@ -12,6 +12,8 @@ import {
   SlidersHorizontal,
   Users,
   X,
+  LayoutTemplate,
+  Settings
 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import {
@@ -123,14 +125,28 @@ const EventListPage = ({ user, onLogout }) => {
               </p>
             </div>
 
-            <Button
-              as={Link}
-              to="/events/new"
-              className="min-h-11 w-full rounded-2xl bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 font-black text-white shadow-xl shadow-cyan-100 sm:w-auto"
-            >
-              <Plus size={18} />
-              Tạo sự kiện
-            </Button>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <Button as={Link} to="/events/templates" variant="secondary" className="w-full sm:w-auto min-h-11 rounded-2xl">
+                <LayoutTemplate size={18} />
+                Thư viện Mẫu
+              </Button>
+
+              {user?.systemRole === 'ADMIN' && (
+                <Button as={Link} to="/admin/templates" variant="secondary" className="w-full sm:w-auto min-h-11 rounded-2xl">
+                  <Settings size={18} />
+                  Quản lý Mẫu
+                </Button>
+              )}
+
+              <Button
+                as={Link}
+                to="/events/new"
+                className="min-h-11 w-full rounded-2xl bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 font-black text-white shadow-xl shadow-cyan-100 sm:w-auto"
+              >
+                <Plus size={18} />
+                Tạo sự kiện
+              </Button>
+            </div>
           </div>
         </section>
 

@@ -6,6 +6,7 @@ import com.eventflow.backend.entity.TaskStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -24,6 +25,8 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             LEFT JOIN FETCH t.assignee
             WHERE t.status != com.eventflow.backend.entity.TaskStatus.DONE
             AND t.status != com.eventflow.backend.entity.TaskStatus.IN_REVIEW
+            AND t.deadline IS NOT NULL 
+            AND t.event.nature = com.eventflow.backend.entity.EventNature.NORMAL
             """)
     List<Task> findAllPendingTasksForReminders();
 
@@ -227,4 +230,8 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             AND t.status <> com.eventflow.backend.entity.TaskStatus.DONE
             """)
     long countActiveTasksByEvent(@Param("eventId") Long eventId);
+
+    @Modifying
+    @Query("UPDATE Task t SET t.department = null WHERE t.department.id = :deptId")
+    void clearDepartmentIdByDepartmentId(@Param("deptId") Long deptId);
 }
