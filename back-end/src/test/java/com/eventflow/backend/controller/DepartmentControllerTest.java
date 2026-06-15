@@ -18,6 +18,8 @@ import java.security.Principal;
 import java.util.List;
 
 import static org.hamcrest.Matchers.hasSize;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -45,6 +47,8 @@ class DepartmentControllerTest {
     void getDepartmentsReturnsPageWhenUserIsEventLeader() throws Exception {
         when(eventSecurityService.isMemberOfEvent(10L, 42L)).thenReturn(true);
         when(eventSecurityService.isLeaderOfEvent(10L, 42L)).thenReturn(true);
+        when(eventSecurityService.canManageEvent(10L, 42L)).thenReturn(true);
+        when(eventSecurityService.canAccessEvent(10L, 42L)).thenReturn(true);
         when(departmentService.getDepartments(10L, 0, 50, "name", "asc", "ops"))
                 .thenReturn(PageResponse.<DepartmentResponseDTO>builder()
                         .content(List.of(DepartmentResponseDTO.builder()
@@ -71,8 +75,11 @@ class DepartmentControllerTest {
 
     @Test
     void getDepartmentsReturnsOnlyMemberDepartmentWhenUserIsMember() throws Exception {
-        when(eventSecurityService.isMemberOfEvent(10L, 42L)).thenReturn(true);
-        when(eventSecurityService.isLeaderOfEvent(10L, 42L)).thenReturn(false);
+        when(eventSecurityService.isMemberOfEvent(anyLong(), anyLong())).thenReturn(true);
+        when(eventSecurityService.canAccessEvent(anyLong(), anyLong())).thenReturn(true);
+        when(eventSecurityService.hasRoleInEvent(anyLong(), anyLong(), any())).thenReturn(true);
+        when(eventSecurityService.isLeaderOfEvent(anyLong(), anyLong())).thenReturn(false);
+        when(eventSecurityService.canManageEvent(anyLong(), anyLong())).thenReturn(false);
         when(departmentService.getDepartmentsForMember(10L, 42L, 0, 50, "ops"))
                 .thenReturn(PageResponse.<DepartmentResponseDTO>builder()
                         .content(List.of(DepartmentResponseDTO.builder()
@@ -88,10 +95,11 @@ class DepartmentControllerTest {
                         .last(true)
                         .build());
 
+        // 4. THỰC THI TEST
         mockMvc.perform(get("/api/v1/events/10/departments")
                         .queryParam("search", "ops")
                         .principal(authenticatedUser(42L)))
-                .andExpect(status().isOk())
+                .andExpect(status().isOk()) // Kỳ vọng trả về 200 OK
                 .andExpect(jsonPath("$.content", hasSize(1)))
                 .andExpect(jsonPath("$.content[0].name").value("Member Department"));
     }
@@ -122,6 +130,7 @@ class DepartmentControllerTest {
     @Test
     void createDepartmentReturnsCreatedResponse() throws Exception {
         when(eventSecurityService.isLeaderOfEvent(10L, 42L)).thenReturn(true);
+        when(eventSecurityService.canManageEvent(10L, 42L)).thenReturn(true);
         when(departmentService.createDepartment(10L, new DepartmentRequestDTO("Operations")))
                 .thenReturn(DepartmentResponseDTO.builder()
                         .id(1L)
