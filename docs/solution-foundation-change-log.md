@@ -322,12 +322,57 @@ Kết quả:
 
 ## 6. Việc tiếp theo
 
-Sau bước migration/entity, các bước tiếp theo nên làm theo thứ tự:
+## 6. Planning CRUD đã triển khai
 
-1. Thêm repository cho `TaskCategory`, `Planning`, `PlanningPhase`, `Milestone`.
-2. Thêm DTO request/response.
-3. Cập nhật DTO hiện có nếu frontend cần thấy `nature`, context AI, category hoặc milestone.
-4. Xây service/API Event Template instantiate.
-5. Xây CRUD Planning / Phase / Milestone.
-6. Nâng cấp AI Suggestion cho planning/milestone/task by milestone.
-7. Xây WorkloadService và WorkloadController.
+Đã thêm Planning CRUD backend sau bước migration/entity.
+
+### 6.1. Endpoint planning
+
+Base path:
+
+```text
+/api/v1/events/{eventId}/plannings
+/api/events/{eventId}/plannings
+```
+
+Endpoints:
+
+```text
+GET    /api/v1/events/{eventId}/plannings
+GET    /api/v1/events/{eventId}/plannings/{planningId}
+POST   /api/v1/events/{eventId}/plannings
+PUT    /api/v1/events/{eventId}/plannings/{planningId}
+DELETE /api/v1/events/{eventId}/plannings/{planningId}
+POST   /api/v1/events/{eventId}/plannings/{planningId}/phases
+PUT    /api/v1/events/{eventId}/plannings/{planningId}/phases/{phaseId}
+DELETE /api/v1/events/{eventId}/plannings/{planningId}/phases/{phaseId}
+```
+
+Quyền:
+
+- Member trong event được xem planning.
+- Chỉ Event Leader được tạo, sửa, xóa planning và planning phases.
+
+### 6.2. File mới cho Planning CRUD
+
+- `PlanningRequestDTO`
+- `PlanningResponseDTO`
+- `PlanningPhaseRequestDTO`
+- `PlanningPhaseResponseDTO`
+- `PlanningRepository`
+- `PlanningPhaseRepository`
+- `PlanningService`
+- `PlanningController`
+
+Planning response trả kèm danh sách `phases`, sort theo `orderIndex`.
+
+## 7. Việc tiếp theo
+
+Sau bước Planning CRUD, các bước tiếp theo nên làm theo thứ tự:
+
+1. Xây CRUD Milestone.
+2. Cập nhật Task DTO/Service để gắn `milestoneId` và `categoryId`.
+3. Xây Task Category CRUD nếu frontend cần quản lý category riêng.
+4. Sau khi CRUD nền đã ổn, mới nâng cấp AI Suggestion cho planning/milestone/task by milestone.
+5. Xây Event Template instantiate.
+6. Xây WorkloadService và WorkloadController.

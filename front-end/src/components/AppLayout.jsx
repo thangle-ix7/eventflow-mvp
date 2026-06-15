@@ -12,6 +12,7 @@ import {
   CalendarDays,
   ClipboardList,
   FileText,
+  Layers,
   LogOut,
   Menu,
   Search,
@@ -100,6 +101,7 @@ const AppLayoutFrame = ({
     ? [
       { to: `/events/${selectedEvent.id}`, label: t('sidebar.dashboard'), icon: Workflow },
       ...(permissions.canViewEventDashboard ? [{ to: `/events/${selectedEvent.id}/dashboard`, label: 'Dashboard', icon: BarChart3 }] : []),
+      { to: `/events/${selectedEvent.id}/plannings`, label: t('sidebar.plannings'), icon: Layers },
       { to: `/events/${selectedEvent.id}/tasks`, label: t('sidebar.tasks'), icon: ClipboardList },
       ...(departmentHomePath ? [{ to: departmentHomePath, label: t('sidebar.departments'), icon: Users }] : []),
       { to: `/events/${selectedEvent.id}/members`, label: t('sidebar.members'), icon: UserRound },
@@ -157,6 +159,7 @@ const AppLayoutFrame = ({
   if (selectedEvent?.id) {
     searchSuggestionBase.push(
       { label: t('sidebar.tasks'), description: '', to: `/events/${selectedEvent.id}/tasks` },
+      { label: t('sidebar.plannings'), description: '', to: `/events/${selectedEvent.id}/plannings` },
       { label: t('sidebar.members'), description: '', to: `/events/${selectedEvent.id}/members` },
       { label: t('utility.calendar'), description: '', to: `/events/${selectedEvent.id}/calendar` },
       { label: t('utility.documents'), description: '', to: `/events/${selectedEvent.id}/documents` },
