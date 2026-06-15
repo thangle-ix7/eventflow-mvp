@@ -35,6 +35,11 @@ public class TaskReminderScheduler {
         List<Task> tasks = taskRepository.findAllPendingTasksForReminders();
 
         for (Task task : tasks) {
+
+            if (task.getDeadline() == null) {
+                continue;
+            }
+
             User assignee = task.getAssignee();
             Long taskId = task.getId();
             Long eventId = task.getEvent().getId();

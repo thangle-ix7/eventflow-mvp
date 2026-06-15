@@ -131,7 +131,8 @@ public class UserProfileService {
                 user.getTelegramChatId(),
                 avatarUrl(user.getId(), user.getAvatarStoragePath()),
                 user.getTaskPageSize() != null ? user.getTaskPageSize() : 10,
-                user.getCreatedAt());
+                user.getCreatedAt(),
+                user.getSystemRole() != null ? user.getSystemRole().name() : "USER");
     }
 
     public record AvatarDownload(

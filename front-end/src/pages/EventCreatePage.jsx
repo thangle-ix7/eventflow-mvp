@@ -53,6 +53,21 @@ const EventCreatePage = ({ user, onLogout }) => {
       showTelegramOnboarding={false}
     >
       <div className="mx-auto max-w-2xl space-y-6">
+        {/* Choice Section */}
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="rounded-xl border-2 border-blue-600 bg-blue-50 p-4">
+            <p className="text-sm font-semibold text-blue-900">Chế độ hiện tại</p>
+            <p className="mt-2 text-center text-lg font-bold text-blue-700">Tạo từ đầu</p>
+          </div>
+          <Link
+            to="/events/new/from-template"
+            className="rounded-xl border-2 border-slate-300 bg-white p-4 text-center transition hover:border-indigo-300 hover:bg-indigo-50"
+          >
+            <p className="text-sm font-semibold text-slate-600">Hoặc chọn</p>
+            <p className="mt-2 text-lg font-bold text-slate-700">Dùng Template</p>
+          </Link>
+        </div>
+
         <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
           <div className="flex items-start gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600">
