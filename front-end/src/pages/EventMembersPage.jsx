@@ -1,10 +1,30 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
-import { CalendarDays, Loader2, Mail, Search, Send, Trash2, UserPlus, Users } from 'lucide-react';
+import {
+  Building2,
+  CalendarDays,
+  CheckCircle2,
+  Loader2,
+  Mail,
+  Search,
+  Send,
+  ShieldCheck,
+  Trash2,
+  UserPlus,
+  Users,
+} from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import UserAvatar from '../components/UserAvatar';
-import { EmptyState, ErrorState, LoadingState, PageHeader, Panel, StatusBadge, TextInput } from '../components/ui';
+import {
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  PageHeader,
+  Panel,
+  StatusBadge,
+  TextInput,
+} from '../components/ui';
 import departmentApi from '../api/departmentApi';
 import eventApi from '../api/eventApi';
 import eventMemberApi from '../api/eventMemberApi';
@@ -33,6 +53,7 @@ const EventMembersPage = ({ user, onLogout }) => {
     queryFn: () => eventMemberApi.getMembers(eventId),
     enabled: Boolean(eventId),
   });
+
   const departmentsQuery = useQuery({
     queryKey: ['eventDepartments', eventId],
     queryFn: () => departmentApi.getEventDepartments(eventId),
@@ -63,6 +84,7 @@ const EventMembersPage = ({ user, onLogout }) => {
   const members = membersQuery.data || EMPTY_MEMBERS;
   const departments = departmentsQuery.data || EMPTY_DEPARTMENTS;
   const memberPageTitle = isLeader ? 'Thành viên sự kiện' : 'Thành viên trong phạm vi của bạn';
+
   const filteredMembers = useMemo(() => {
     const keyword = search.trim().toLowerCase();
 
@@ -82,6 +104,7 @@ const EventMembersPage = ({ user, onLogout }) => {
       return matchesKeyword && matchesRole && matchesDepartment;
     });
   }, [departmentFilter, members, roleFilter, search]);
+
   const handleSubmit = (event) => {
     event.preventDefault();
     setInviteSuccess('');
@@ -97,89 +120,155 @@ const EventMembersPage = ({ user, onLogout }) => {
       onLogout={onLogout}
     >
       <div className="space-y-6">
-        <Panel className="p-4">
-          <PageHeader
-            eyebrow={event?.name || 'Sự kiện'}
-            title={memberPageTitle}
-          />
+        <PageHeader
+          eyebrow={event?.name || 'Sự kiện'}
+          title={memberPageTitle}
+          description="Quản lý thành viên tham gia sự kiện, role, ban phụ trách và trạng thái kết nối Telegram."
+          meta={
+            <>
+              <span className="inline-flex items-center gap-2 rounded-full border border-sky-100 bg-white px-3 py-1.5 font-black text-sky-600 shadow-sm">
+                <Users size={16} />
+                {members.length} thành viên
+              </span>
 
-          {isLeader && (
-            <form onSubmit={handleSubmit} className="mt-4 grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 md:grid-cols-[1fr_150px_auto]">
-              <input
-                type="email"
-                value={form.email}
-                onChange={(event) => setForm((old) => ({ ...old, email: event.target.value }))}
-                required
-                placeholder="member@example.com"
-                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-              />
-              <select
-                value={form.role}
-                onChange={(event) => setForm((old) => ({ ...old, role: event.target.value }))}
-                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+              <span className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-white px-3 py-1.5 font-black text-emerald-600 shadow-sm">
+                <Building2 size={16} />
+                {departments.length} ban tổ chức
+              </span>
+
+              <span className="inline-flex items-center gap-2 rounded-full border border-cyan-100 bg-white px-3 py-1.5 font-black text-cyan-600 shadow-sm">
+                <ShieldCheck size={16} />
+                {isLeader ? 'Leader permission' : 'Member view'}
+              </span>
+            </>
+          }
+        />
+
+        {isLeader && (
+          <Panel className="relative overflow-hidden p-5">
+            <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-sky-100 blur-3xl" />
+            <div className="pointer-events-none absolute -bottom-28 left-1/3 h-64 w-64 rounded-full bg-emerald-100/70 blur-3xl" />
+
+            <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex items-start gap-3">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-400 text-white shadow-lg shadow-cyan-100">
+                  <UserPlus className="h-6 w-6" strokeWidth={1.8} />
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-black text-slate-950">
+                    Mời thành viên mới
+                  </h3>
+                  <p className="mt-1 text-sm font-semibold leading-6 text-slate-500">
+                    Nhập email và chọn role để gửi lời mời tham gia sự kiện.
+                  </p>
+                </div>
+              </div>
+
+              <form
+                onSubmit={handleSubmit}
+                className="grid w-full gap-3 lg:max-w-3xl md:grid-cols-[1fr_150px_auto]"
               >
-                <option value="MEMBER">MEMBER</option>
-                <option value="LEADER">LEADER</option>
-              </select>
-              <button
-                type="submit"
-                disabled={addMemberMutation.isPending}
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-indigo-600 to-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:from-indigo-700 hover:to-blue-700 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {addMemberMutation.isPending ? <Loader2 size={18} className="animate-spin" /> : <UserPlus size={18} />}
-                Gửi lời mời
-              </button>
-            </form>
-          )}
+                <input
+                  type="email"
+                  value={form.email}
+                  onChange={(event) => setForm((old) => ({ ...old, email: event.target.value }))}
+                  required
+                  placeholder="member@example.com"
+                  className={inputClassName}
+                />
 
-          {inviteSuccess && (
-            <div className="mt-3 rounded-lg bg-emerald-50 p-3 text-sm font-semibold text-emerald-700">
-              {inviteSuccess}
-            </div>
-          )}
+                <select
+                  value={form.role}
+                  onChange={(event) => setForm((old) => ({ ...old, role: event.target.value }))}
+                  className={inputClassName}
+                >
+                  <option value="MEMBER">MEMBER</option>
+                  <option value="LEADER">LEADER</option>
+                </select>
 
-          {addMemberMutation.error && (
-            <div className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">
-              {addMemberMutation.error.userMessage || addMemberMutation.error.message}
+                <button
+                  type="submit"
+                  disabled={addMemberMutation.isPending}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 px-4 py-2 text-sm font-black text-white shadow-xl shadow-cyan-100 transition hover:-translate-y-0.5 hover:shadow-2xl hover:shadow-cyan-200 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {addMemberMutation.isPending ? (
+                    <Loader2 size={18} className="animate-spin" />
+                  ) : (
+                    <UserPlus size={18} />
+                  )}
+                  Gửi lời mời
+                </button>
+              </form>
             </div>
-          )}
-        </Panel>
+
+            {inviteSuccess && (
+              <div className="relative mt-4 flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-black text-emerald-700">
+                <CheckCircle2 size={18} className="mt-0.5 shrink-0" />
+                <span>{inviteSuccess}</span>
+              </div>
+            )}
+
+            {addMemberMutation.error && (
+              <div className="relative mt-4">
+                <ErrorState error={addMemberMutation.error} title="Không gửi được lời mời" />
+              </div>
+            )}
+          </Panel>
+        )}
 
         <Panel className="overflow-hidden">
-          <div className="flex flex-col gap-3 border-b border-slate-100 p-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <h2 className="text-lg font-bold text-slate-950">Danh sách thành viên</h2>
+          <div className="flex flex-col gap-4 border-b border-sky-100 bg-gradient-to-r from-sky-50 via-white to-emerald-50 px-5 py-5 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-400 text-white shadow-lg shadow-cyan-100">
+                <Users className="h-5 w-5" strokeWidth={1.8} />
+              </div>
+
+              <div>
+                <h2 className="text-lg font-black text-slate-950">
+                  Danh sách thành viên
+                </h2>
+                <p className="mt-1 text-sm font-semibold text-slate-500">
+                  Tìm kiếm theo tên, email, ban hoặc trạng thái Telegram.
+                </p>
+              </div>
             </div>
+
             <div className={`grid w-full gap-2 ${isLeader ? 'lg:max-w-3xl lg:grid-cols-[minmax(220px,1fr)_150px_190px]' : 'lg:max-w-sm'}`}>
               <TextInput
                 aria-label="Tìm kiếm thành viên"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Tìm tên, email, ban..."
+                className="rounded-2xl border-sky-100 bg-white font-semibold focus:border-cyan-300 focus:ring-cyan-100"
               />
+
               {isLeader && (
                 <>
                   <select
                     aria-label="Lọc theo role"
                     value={roleFilter}
                     onChange={(event) => setRoleFilter(event.target.value)}
-                    className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                    className={inputClassName}
                   >
                     <option value="">Tất cả role</option>
                     <option value="LEADER">LEADER</option>
                     <option value="MEMBER">MEMBER</option>
                   </select>
+
                   <select
                     aria-label="Lọc theo ban"
                     value={departmentFilter}
                     onChange={(event) => setDepartmentFilter(event.target.value)}
                     disabled={departmentsQuery.isLoading}
-                    className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50"
+                    className={inputClassName}
                   >
                     <option value="">Tất cả ban</option>
                     <option value="__none">Chưa gán ban</option>
                     {departments.map((department) => (
-                      <option key={department.id} value={department.id}>{department.name}</option>
+                      <option key={department.id} value={department.id}>
+                        {department.name}
+                      </option>
                     ))}
                   </select>
                 </>
@@ -187,36 +276,54 @@ const EventMembersPage = ({ user, onLogout }) => {
             </div>
           </div>
 
-          {membersQuery.isLoading && <LoadingState message="Đang tải thành viên..." />}
-          {membersQuery.error && <div className="p-4"><ErrorState error={membersQuery.error} title="Không tải được thành viên" /></div>}
+          {membersQuery.isLoading && (
+            <div className="p-5">
+              <LoadingState message="Đang tải thành viên..." />
+            </div>
+          )}
+
+          {membersQuery.error && (
+            <div className="p-5">
+              <ErrorState error={membersQuery.error} title="Không tải được thành viên" />
+            </div>
+          )}
+
           {!membersQuery.isLoading && !membersQuery.error && members.length === 0 && (
-            <div className="p-4">
+            <div className="p-5">
               <EmptyState
                 icon={Users}
                 title="Chưa có thành viên"
+                description="Khi gửi lời mời hoặc có thành viên tham gia sự kiện, danh sách sẽ hiển thị tại đây."
               />
             </div>
           )}
+
           {!membersQuery.isLoading && !membersQuery.error && members.length > 0 && filteredMembers.length === 0 && (
-            <div className="p-4">
-              <EmptyState icon={Search} title="Không tìm thấy thành viên" />
+            <div className="p-5">
+              <EmptyState
+                icon={Search}
+                title="Không tìm thấy thành viên"
+                description="Thử thay đổi từ khóa tìm kiếm hoặc bộ lọc role/ban."
+              />
             </div>
           )}
+
           {!membersQuery.isLoading && !membersQuery.error && filteredMembers.length > 0 && (
             <div className="overflow-x-auto">
-              <table className="min-w-[1040px] w-full text-left text-sm">
-                <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500">
+              <table className="w-full min-w-[1080px] text-left text-sm">
+                <thead className="bg-sky-50/70 text-xs font-black uppercase tracking-[0.18em] text-slate-500">
                   <tr>
-                    <th className="px-4 py-3">User</th>
-                    <th className="px-4 py-3">Email</th>
-                    <th className="px-4 py-3">Role</th>
-                    <th className="px-4 py-3">Ban</th>
-                    <th className="px-4 py-3">Telegram</th>
-                    <th className="px-4 py-3">Tham gia event</th>
-                    {isLeader && <th className="px-4 py-3 text-right">Thao tác</th>}
+                    <th className="px-5 py-4">User</th>
+                    <th className="px-5 py-4">Email</th>
+                    <th className="px-5 py-4">Role</th>
+                    <th className="px-5 py-4">Ban</th>
+                    <th className="px-5 py-4">Telegram</th>
+                    <th className="px-5 py-4">Tham gia event</th>
+                    {isLeader && <th className="px-5 py-4 text-right">Thao tác</th>}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+
+                <tbody className="divide-y divide-sky-50">
                   {filteredMembers.map((member) => (
                     <MemberRow
                       key={member.id}
@@ -250,22 +357,29 @@ const MemberRow = ({
   const removingThisMember = removeMemberMutation.isPending && removeMemberMutation.variables?.userId === member.userId;
 
   return (
-    <tr className="transition hover:bg-indigo-50/40">
-      <td className="px-4 py-3">
-        <Link to={`/events/${eventId}/members/${member.userId}`} className="flex min-w-0 items-center gap-3 rounded-lg p-1 transition hover:bg-white">
+    <tr className="transition hover:bg-sky-50/70">
+      <td className="px-5 py-4">
+        <Link
+          to={`/events/${eventId}/members/${member.userId}`}
+          className="flex min-w-0 items-center gap-3 rounded-2xl p-1.5 transition hover:bg-white hover:shadow-sm"
+        >
           <UserAvatar userId={member.userId} avatarUrl={member.avatarUrl} name={member.name} size="sm" />
           <span className="min-w-0">
-            <span className="block truncate font-semibold text-slate-950">{member.name}</span>
+            <span className="block truncate font-black text-slate-950">
+              {member.name}
+            </span>
           </span>
         </Link>
       </td>
-      <td className="px-4 py-3">
-        <span className="flex max-w-[220px] items-center gap-2 truncate text-slate-600">
-          <Mail size={15} className="shrink-0 text-slate-400" />
+
+      <td className="px-5 py-4">
+        <span className="flex max-w-[240px] items-center gap-2 truncate font-semibold text-slate-600">
+          <Mail size={15} className="shrink-0 text-sky-400" />
           <span className="truncate">{member.email}</span>
         </span>
       </td>
-      <td className="px-4 py-3">
+
+      <td className="px-5 py-4">
         {isLeader ? (
           <select
             value={member.role}
@@ -277,7 +391,7 @@ const MemberRow = ({
               })
             }
             disabled={updateRoleMutation.isPending}
-            className="rounded-full border border-indigo-100 bg-indigo-50 px-3 py-2 text-sm font-bold text-indigo-700 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:opacity-60"
+            className="rounded-2xl border border-sky-100 bg-sky-50 px-3 py-2 text-sm font-black text-sky-700 outline-none transition focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <option value="MEMBER">MEMBER</option>
             <option value="LEADER">LEADER</option>
@@ -286,33 +400,48 @@ const MemberRow = ({
           <StatusBadge status={member.role} />
         )}
       </td>
-      <td className="px-4 py-3">
-        <span className="font-medium text-slate-700">{member.departmentName || 'Chưa gán ban'}</span>
+
+      <td className="px-5 py-4">
+        <span className="inline-flex items-center gap-2 font-semibold text-slate-700">
+          <Building2 size={15} className="text-emerald-500" />
+          {member.departmentName || 'Chưa gán ban'}
+        </span>
       </td>
-      <td className="px-4 py-3">
-        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${
-          member.telegramLinked ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'
-        }`}>
+
+      <td className="px-5 py-4">
+        <span
+          className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-black shadow-sm ${
+            member.telegramLinked
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+              : 'border-slate-200 bg-slate-50 text-slate-600'
+          }`}
+        >
           <Send size={13} />
           {member.telegramLinked ? 'Đã kết nối' : 'Chưa kết nối'}
         </span>
       </td>
-      <td className="px-4 py-3 text-slate-600">
+
+      <td className="px-5 py-4 font-semibold text-slate-600">
         <span className="inline-flex items-center gap-2">
-          <CalendarDays size={15} className="text-slate-400" />
+          <CalendarDays size={15} className="text-emerald-500" />
           {formatDate(member.joinedAt)}
         </span>
       </td>
+
       {isLeader && (
-        <td className="px-4 py-3 text-right">
+        <td className="px-5 py-4 text-right">
           {!isCurrentUser && (
             <button
               type="button"
               onClick={() => removeMemberMutation.mutate({ eventId, userId: member.userId })}
               disabled={removingThisMember}
-              className="inline-flex items-center justify-center gap-2 rounded-full border border-red-100 bg-red-50 px-3 py-2 text-sm font-bold text-red-600 shadow-sm transition hover:border-red-200 hover:bg-red-100 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-red-100 bg-red-50 px-3 py-2 text-sm font-black text-red-600 shadow-sm transition hover:-translate-y-0.5 hover:border-red-200 hover:bg-red-100 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {removingThisMember ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+              {removingThisMember ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <Trash2 size={16} />
+              )}
               Xóa
             </button>
           )}
@@ -321,5 +450,7 @@ const MemberRow = ({
     </tr>
   );
 };
+
+const inputClassName = 'min-h-11 w-full min-w-0 rounded-2xl border border-sky-100 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:bg-white focus:ring-4 focus:ring-cyan-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500';
 
 export default EventMembersPage;

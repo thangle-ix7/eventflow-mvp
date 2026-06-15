@@ -18,6 +18,7 @@ import EventPlanningPage from './pages/EventPlanningPage';
 import EventUtilityPage from './pages/EventUtilityPage';
 import ErrorPage from './pages/ErrorPage';
 import InvitationConfirmPage from './pages/InvitationConfirmPage';
+import LandingPage from './pages/LandingPage';
 import MemberDetailPage from './pages/MemberDetailPage';
 import ProfilePage from './pages/ProfilePage';
 import TaskCreatePage from './pages/TaskCreatePage';
@@ -28,6 +29,12 @@ import TaskListPage from './pages/TaskListPage';
 import TaskReportsPage from './pages/TaskReportsPage';
 import TaskReviewsPage from './pages/TaskReviewsPage';
 import TaskUpdatePage from './pages/TaskUpdatePage';
+import TemplateListPage from './pages/TemplateListPage';
+import TemplateDetailPage from './pages/TemplateDetailPage';
+import TemplateSelectPage from './pages/TemplateSelectPage';
+import AdminTemplateListPage from './pages/AdminTemplateListPage';
+import AdminTemplateCreatePage from './pages/AdminTemplateCreatePage';
+import AdminTemplateDetailPage from './pages/AdminTemplateDetailPage';
 import eventApi from './api/eventApi';
 import userApi from './api/userApi';
 import { identifyUser, resetAnalytics, trackEvent, trackPageView } from './lib/analytics';
@@ -38,6 +45,7 @@ const DepartmentDashboardPage = lazy(() => import('./pages/DepartmentDashboardPa
 function App() {
   const navigate = useNavigate();
   const location = useLocation();
+
   const [user, setUser] = useState(() => {
     try {
       const saved = localStorage.getItem('user');
@@ -47,7 +55,7 @@ function App() {
     }
   });
 
-  const handleLoginSuccess = (userData, redirectTo = '/') => {
+  const handleLoginSuccess = (userData, redirectTo = '/events') => {
     localStorage.setItem('token', userData.token);
     localStorage.setItem('user', JSON.stringify(userData));
     setUser(userData);
@@ -93,7 +101,9 @@ function App() {
     }
 
     let cancelled = false;
-    userApi.getProfile(user.userId, { preferCache: false })
+
+    userApi
+      .getProfile(user.userId, { preferCache: false })
       .then((profile) => {
         if (!cancelled) {
           setUser((oldUser) => {
@@ -136,140 +146,188 @@ function App() {
 
   return (
     <Routes>
+      <Route path="/" element={<LandingPage />} />
+
       <Route
         path="/error"
-        element={<ErrorRoutePage homePath={user ? '/' : '/login'} state={location.state} />}
+        element={<ErrorRoutePage homePath={user ? '/events' : '/'} state={location.state} />}
       />
+
       <Route
         path="/login"
         element={
           user ? (
-            <Navigate to="/" replace />
+            <Navigate to="/events" replace />
           ) : (
             <LoginPage onLoginSuccess={handleLoginSuccess} />
           )
         }
       />
+
       <Route
         path="/verify-email"
         element={<LoginPage onLoginSuccess={handleLoginSuccess} />}
       />
+
       <Route
         path="/reset-password"
         element={<LoginPage onLoginSuccess={handleLoginSuccess} />}
       />
+
       <Route
         path="/invitations/confirm"
         element={<InvitationConfirmPage />}
       />
+
       <Route element={<ProtectedRoute user={user} />}>
         <Route element={<RootAppLayout {...protectedProps} />}>
-        <Route path="/" element={<EventListPage {...protectedProps} />} />
-        <Route path="/profile" element={<ProfilePage {...protectedProps} />} />
-        <Route path="/events/new" element={<EventCreatePage {...protectedProps} />} />
-        <Route path="/events/:eventId" element={<EventDetailPage {...protectedProps} />} />
-        <Route path="/events/:eventId/edit" element={<EventEditPage {...protectedProps} />} />
-        <Route
-          path="/events/:eventId/dashboard"
-          element={
-            <LazyPageFallback>
-              <EventDashboardPage {...protectedProps} />
-            </LazyPageFallback>
-          }
-        />
-        <Route
-          path="/events/:eventId/calendar"
-          element={<EventUtilityPage {...protectedProps} type="calendar" />}
-        />
-        <Route
-          path="/events/:eventId/documents"
-          element={<EventUtilityPage {...protectedProps} type="documents" />}
-        />
-        <Route
-          path="/events/:eventId/reports"
-          element={<EventUtilityPage {...protectedProps} type="reports" />}
-        />
-        <Route
-          path="/events/:eventId/settings"
-          element={<EventUtilityPage {...protectedProps} type="settings" />}
-        />
-        <Route
-          path="/events/:eventId/members"
-          element={<EventMembersPage {...protectedProps} />}
-        />
-        <Route
-          path="/events/:eventId/plannings"
-          element={<EventPlanningPage {...protectedProps} />}
-        />
-        <Route
-          path="/events/:eventId/members/:userId"
-          element={<MemberDetailPage {...protectedProps} />}
-        />
-        <Route
-          path="/events/:eventId/tasks"
-          element={<TaskListPage {...protectedProps} />}
-        />
-        <Route
-          path="/events/:eventId/tasks/new"
-          element={<TaskCreatePage {...protectedProps} />}
-        />
-        <Route
-          path="/events/:eventId/tasks/:taskId"
-          element={<TaskDetailPage {...protectedProps} />}
-        />
-        <Route
-          path="/events/:eventId/tasks/:taskId/attachments"
-          element={<TaskAttachmentsPage {...protectedProps} />}
-        />
-        <Route
-          path="/events/:eventId/tasks/:taskId/reports"
-          element={<TaskReportsPage {...protectedProps} />}
-        />
-        <Route
-          path="/events/:eventId/tasks/:taskId/update"
-          element={<TaskUpdatePage {...protectedProps} />}
-        />
-        <Route
-          path="/events/:eventId/tasks/:taskId/reviews"
-          element={<TaskReviewsPage {...protectedProps} />}
-        />
-        <Route
-          path="/events/:eventId/tasks/:taskId/edit"
-          element={<TaskEditPage {...protectedProps} />}
-        />
-        <Route
-          path="/events/:eventId/departments"
-          element={<DepartmentListPage {...protectedProps} />}
-        />
-        <Route
-          path="/events/:eventId/departments/new"
-          element={<DepartmentCreatePage {...protectedProps} />}
-        />
-        <Route
-          path="/events/:eventId/departments/:departmentId"
-          element={<DepartmentDetailPage {...protectedProps} />}
-        />
-        <Route
-          path="/events/:eventId/departments/:departmentId/dashboard"
-          element={
-            <LazyPageFallback>
-              <DepartmentDashboardPage {...protectedProps} />
-            </LazyPageFallback>
-          }
-        />
-        <Route
-          path="/events/:eventId/departments/:departmentId/members"
-          element={<DepartmentMembersPage {...protectedProps} />}
-        />
-        <Route
-          path="/events/:eventId/departments/:departmentId/tasks"
-          element={<DepartmentTasksPage {...protectedProps} />}
-        />
+          <Route path="/events" element={<EventListPage {...protectedProps} />} />
+          <Route path="/profile" element={<ProfilePage {...protectedProps} />} />
+          <Route path="/events/new" element={<EventCreatePage {...protectedProps} />} />
+          <Route path="/events/:eventId" element={<EventDetailPage {...protectedProps} />} />
+          <Route path="/events/:eventId/edit" element={<EventEditPage {...protectedProps} />} />
+
+          <Route
+            path="/events/:eventId/dashboard"
+            element={
+              <LazyPageFallback>
+                <EventDashboardPage {...protectedProps} />
+              </LazyPageFallback>
+            }
+          />
+
+          <Route
+            path="/events/:eventId/calendar"
+            element={<EventUtilityPage {...protectedProps} type="calendar" />}
+          />
+
+          <Route
+            path="/events/:eventId/documents"
+            element={<EventUtilityPage {...protectedProps} type="documents" />}
+          />
+
+          <Route
+            path="/events/:eventId/reports"
+            element={<EventUtilityPage {...protectedProps} type="reports" />}
+          />
+
+          <Route
+            path="/events/:eventId/settings"
+            element={<EventUtilityPage {...protectedProps} type="settings" />}
+          />
+
+          <Route
+            path="/events/:eventId/members"
+            element={<EventMembersPage {...protectedProps} />}
+          />
+
+          <Route
+            path="/events/:eventId/plannings"
+            element={<EventPlanningPage {...protectedProps} />}
+          />
+
+          <Route
+            path="/events/:eventId/members/:userId"
+            element={<MemberDetailPage {...protectedProps} />}
+          />
+
+          <Route
+            path="/events/:eventId/tasks"
+            element={<TaskListPage {...protectedProps} />}
+          />
+
+          <Route
+            path="/events/:eventId/tasks/new"
+            element={<TaskCreatePage {...protectedProps} />}
+          />
+
+          <Route
+            path="/events/:eventId/tasks/:taskId"
+            element={<TaskDetailPage {...protectedProps} />}
+          />
+
+          <Route
+            path="/events/:eventId/tasks/:taskId/attachments"
+            element={<TaskAttachmentsPage {...protectedProps} />}
+          />
+
+          <Route
+            path="/events/:eventId/tasks/:taskId/reports"
+            element={<TaskReportsPage {...protectedProps} />}
+          />
+
+          <Route
+            path="/events/:eventId/tasks/:taskId/update"
+            element={<TaskUpdatePage {...protectedProps} />}
+          />
+
+          <Route
+            path="/events/:eventId/tasks/:taskId/reviews"
+            element={<TaskReviewsPage {...protectedProps} />}
+          />
+
+          <Route
+            path="/events/:eventId/tasks/:taskId/edit"
+            element={<TaskEditPage {...protectedProps} />}
+          />
+
+          {/* Template User Routes */}
+          <Route path="/events/templates" element={<TemplateListPage {...protectedProps} />} />
+          <Route path="/events/templates/:templateId" element={<TemplateDetailPage {...protectedProps} />} />
+          <Route path="/events/new/from-template" element={<TemplateSelectPage {...protectedProps} />} />
+          
+          {/* Template Admin Routes */}
+          <Route path="/admin/templates" element={<AdminTemplateListPage {...protectedProps} />} />
+          <Route path="/admin/templates/new" element={<AdminTemplateCreatePage {...protectedProps} />} />
+          <Route path="/admin/templates/:templateId" element={<AdminTemplateDetailPage {...protectedProps} />} />
+
+          {/* Department Routes */}
+          <Route
+            path="/events/:eventId/departments"
+            element={<DepartmentListPage {...protectedProps} />}
+          />
+
+          <Route
+            path="/events/:eventId/departments/new"
+            element={<DepartmentCreatePage {...protectedProps} />}
+          />
+
+          <Route
+            path="/events/:eventId/departments/:departmentId"
+            element={<DepartmentDetailPage {...protectedProps} />}
+          />
+
+          <Route
+            path="/events/:eventId/departments/:departmentId/dashboard"
+            element={
+              <LazyPageFallback>
+                <DepartmentDashboardPage {...protectedProps} />
+              </LazyPageFallback>
+            }
+          />
+
+          <Route
+            path="/events/:eventId/departments/:departmentId/members"
+            element={<DepartmentMembersPage {...protectedProps} />}
+          />
+
+          <Route
+            path="/events/:eventId/departments/:departmentId/tasks"
+            element={<DepartmentTasksPage {...protectedProps} />}
+          />
         </Route>
       </Route>
+
       <Route
         path="*"
-        element={<ErrorPage variant="notFound" showReload={false} homePath={user ? '/' : '/login'} fullScreen />}
+        element={
+          <ErrorPage
+            variant="notFound"
+            showReload={false}
+            homePath={user ? '/events' : '/'}
+            fullScreen
+          />
+        }
       />
     </Routes>
   );
@@ -278,17 +336,20 @@ function App() {
 const RootAppLayout = ({ user, onLogout }) => {
   const location = useLocation();
   const eventId = resolveEventIdFromPath(location.pathname);
+
   const eventsQuery = useQuery({
     queryKey: ['events', 'layout'],
     queryFn: () => eventApi.getMyEvents(),
     enabled: Boolean(user?.userId),
     staleTime: 60_000,
   });
+
   const selectedEventQuery = useQuery({
     queryKey: ['event', eventId],
     queryFn: () => eventApi.getEvent(eventId),
     enabled: Boolean(eventId),
   });
+
   const events = eventsQuery.data || [];
   const selectedEvent = selectedEventQuery.data || events.find((event) => String(event.id) === String(eventId)) || null;
   const showTelegramOnboarding = location.pathname === '/profile';
@@ -308,9 +369,10 @@ const RootAppLayout = ({ user, onLogout }) => {
 
 const resolveEventIdFromPath = (pathname) => {
   const match = pathname.match(/^\/events\/([^/]+)/);
-  if (!match || match[1] === 'new') {
+  if (!match || match[1] === 'new' || match[1] === 'templates') {
     return null;
   }
+
   return match[1];
 };
 
@@ -321,9 +383,11 @@ const resolveRouteAnalyticsProperties = (pathname) => {
   if (segments[0] === 'events' && segments[1] && segments[1] !== 'new') {
     properties.event_id = segments[1];
   }
+
   if (segments[2] === 'departments' && segments[3] && segments[3] !== 'new') {
     properties.department_id = segments[3];
   }
+
   if (segments[2] === 'tasks' && segments[3] && segments[3] !== 'new') {
     properties.task_id = segments[3];
   }
@@ -363,15 +427,19 @@ const resolveErrorVariant = (status) => {
   if (!status) {
     return 'offline';
   }
+
   if (status === 403) {
     return 'accessDenied';
   }
+
   if (status === 404) {
     return 'notFound';
   }
+
   if (status >= 500) {
     return 'serverError';
   }
+
   return 'unexpected';
 };
 
@@ -379,15 +447,19 @@ const resolveErrorTitle = (status) => {
   if (!status) {
     return 'Không kết nối được hệ thống';
   }
+
   if (status === 403) {
     return 'Không có quyền truy cập';
   }
+
   if (status === 404) {
     return 'Không tìm thấy nội dung này';
   }
+
   if (status >= 500) {
     return 'Hệ thống đang gián đoạn';
   }
+
   return 'Có lỗi xảy ra';
 };
 

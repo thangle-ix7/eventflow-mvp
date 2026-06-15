@@ -33,109 +33,147 @@ public class NotificationWorkflowService {
     private final EventMemberRepository eventMemberRepository;
 
     public void notifyTaskAssigned(Task task) {
-        User assignee = task.getAssignee();
-        if (assignee == null) {
+        if (task == null || task.getAssignee() == null) {
             return;
         }
 
-        String eventName = task.getEvent() != null ? task.getEvent().getName() : "sự kiện";
+        User assignee = task.getAssignee();
+        String eventName = resolveEventName(task);
+        String taskTitle = resolveTaskTitle(task);
+
         TaskNotification notification = buildTaskNotification(
                 assignee,
                 task,
                 NotiType.TASK_ASSIGNED,
                 "Bạn được giao công việc mới",
-                "Bạn được giao công việc \"" + task.getTitle() + "\" trong " + eventName
-                        + ". Deadline: " + formatDateTime(task.getDeadline()) + ".");
+                "Bạn vừa được giao một công việc mới trong sự kiện " + quote(eventName) + ".\n\n"
+                        + "Công việc: " + taskTitle + "\n"
+                        + "Deadline: " + formatDateTime(task.getDeadline()) + "\n\n"
+                        + "Vui lòng mở EventFlow để xem chi tiết và cập nhật tiến độ đúng hạn.");
+
         runAfterCommit("task assigned notification for taskId=" + task.getId(), () -> insertTaskNotification(notification));
     }
 
     public void notifyTaskUpdated(Task task) {
-        User assignee = task.getAssignee();
-        if (assignee == null) {
+        if (task == null || task.getAssignee() == null) {
             return;
         }
+
+        User assignee = task.getAssignee();
+        String taskTitle = resolveTaskTitle(task);
 
         TaskNotification notification = buildTaskNotification(
                 assignee,
                 task,
                 NotiType.TASK_UPDATED,
-                "Công việc được cập nhật",
-                "Công việc \"" + task.getTitle() + "\" vừa được cập nhật. Deadline hiện tại: "
-                        + formatDateTime(task.getDeadline()) + ".");
+                "Công việc vừa được cập nhật",
+                "Công việc " + quote(taskTitle) + " vừa có thay đổi mới.\n\n"
+                        + "Trạng thái hiện tại: " + formatTaskStatus(task) + "\n"
+                        + "Tiến độ: " + formatProgress(task) + "\n"
+                        + "Deadline: " + formatDateTime(task.getDeadline()) + "\n\n"
+                        + "Vui lòng kiểm tra lại thông tin công việc trên EventFlow.");
+
         runAfterCommit("task updated notification for taskId=" + task.getId(), () -> insertTaskNotification(notification));
     }
 
     public void notifyTaskReviewRequested(Task task) {
-        if (task.getEvent() == null) {
+        if (task == null || task.getEvent() == null) {
             return;
         }
 
         Long eventId = task.getEvent().getId();
         Long taskId = task.getId();
-        String taskTitle = task.getTitle();
+        String taskTitle = resolveTaskTitle(task);
+        String eventName = resolveEventName(task);
+
         runAfterCommit("task review requested notifications for taskId=" + taskId, () -> {
             List<EventMember> leaders = eventMemberRepository.findByEventIdAndRoleWithUser(eventId, UserRole.LEADER);
+
             for (EventMember leaderMember : leaders) {
+                User leader = leaderMember.getUser();
+                if (leader == null) {
+                    continue;
+                }
+
                 insertTaskNotification(
                         buildTaskNotification(
-                                leaderMember.getUser(),
+                                leader,
                                 taskId,
                                 eventId,
                                 NotiType.TASK_REVIEW_REQUESTED,
-                                "Công việc cần duyệt",
-                                "Công việc \"" + taskTitle + "\" đã được gửi duyệt."));
+                                "Có công việc đang chờ duyệt",
+                                "Một công việc trong sự kiện " + quote(eventName) + " đã được gửi duyệt.\n\n"
+                                        + "Công việc: " + taskTitle + "\n"
+                                        + "Trạng thái hiện tại: " + formatTaskStatus(task) + "\n"
+                                        + "Tiến độ: " + formatProgress(task) + "\n\n"
+                                        + "Vui lòng mở EventFlow để kiểm tra và phản hồi."));
             }
         });
     }
 
     public void notifyTaskProgressUpdated(Task task, User updater) {
-        if (task.getEvent() == null) {
+        if (task == null || task.getEvent() == null) {
             return;
         }
 
         Long eventId = task.getEvent().getId();
         Long taskId = task.getId();
-        String taskTitle = task.getTitle();
-        String status = task.getStatus().name();
-        Integer progress = task.getProgressPercentage() != null ? task.getProgressPercentage() : 0;
+        String taskTitle = resolveTaskTitle(task);
+        String eventName = resolveEventName(task);
         Long updaterId = updater != null ? updater.getId() : null;
-        String updaterName = updater != null ? updater.getName() : "Thành viên";
-        String message = updaterName + " vừa cập nhật công việc \"" + taskTitle
-                + "\". Trạng thái: " + status
-                + ", tiến độ: " + progress + "%.";
+        String updaterName = updater != null && updater.getName() != null && !updater.getName().isBlank()
+                ? updater.getName()
+                : "Thành viên";
+
+        String message = updaterName + " vừa cập nhật tiến độ công việc trong sự kiện " + quote(eventName) + ".\n\n"
+                + "Công việc: " + taskTitle + "\n"
+                + "Trạng thái: " + formatTaskStatus(task) + "\n"
+                + "Tiến độ: " + formatProgress(task) + "\n\n"
+                + "Vui lòng mở EventFlow để theo dõi thay đổi mới nhất.";
 
         runAfterCommit("task progress notifications for taskId=" + taskId, () -> {
             List<EventMember> leaders = eventMemberRepository.findByEventIdAndRoleWithUser(eventId, UserRole.LEADER);
+
             for (EventMember leaderMember : leaders) {
                 User leader = leaderMember.getUser();
-                if (updaterId != null && leader.getId().equals(updaterId)) {
+                if (leader == null) {
                     continue;
                 }
+
+                if (updaterId != null && leader.getId() != null && leader.getId().equals(updaterId)) {
+                    continue;
+                }
+
                 insertTaskNotification(
                         buildTaskNotification(
                                 leader,
                                 taskId,
                                 eventId,
                                 NotiType.TASK_UPDATED,
-                                "Công việc có cập nhật mới",
+                                "Công việc có cập nhật tiến độ",
                                 message));
             }
         });
     }
 
     public void notifyTaskReviewed(Task task) {
-        User assignee = task.getAssignee();
-        if (assignee == null) {
+        if (task == null || task.getAssignee() == null) {
             return;
         }
+
+        User assignee = task.getAssignee();
+        String taskTitle = resolveTaskTitle(task);
 
         TaskNotification notification = buildTaskNotification(
                 assignee,
                 task,
                 NotiType.TASK_REVIEWED,
                 "Công việc đã được duyệt",
-                "Công việc \"" + task.getTitle() + "\" đã được review. Trạng thái mới: "
-                        + task.getStatus().name() + ".");
+                "Công việc " + quote(taskTitle) + " đã được review.\n\n"
+                        + "Trạng thái mới: " + formatTaskStatus(task) + "\n"
+                        + "Tiến độ hiện tại: " + formatProgress(task) + "\n\n"
+                        + "Bạn có thể mở EventFlow để xem kết quả review và các ghi chú liên quan.");
+
         runAfterCommit("task reviewed notification for taskId=" + task.getId(), () -> insertTaskNotification(notification));
     }
 
@@ -149,6 +187,8 @@ public class NotificationWorkflowService {
             LocalDateTime startTime,
             LocalDateTime endTime) {
 
+        String calendarTitle = resolveCalendarTitle(title);
+
         runAfterCommit("calendar created notifications for calendarEventId=" + calendarEventId, () -> notifyCalendarParticipants(
                 eventId,
                 departmentId,
@@ -156,9 +196,11 @@ public class NotificationWorkflowService {
                 calendarEventId,
                 creatorId,
                 NotiType.CALENDAR_INVITE,
-                "Lịch họp mới",
-                "Bạn có lịch \"" + title + "\" từ " + formatDateTime(startTime)
-                        + " đến " + formatDateTime(endTime) + "."));
+                "Bạn có lịch mới",
+                "Bạn được thêm vào một lịch mới trên EventFlow.\n\n"
+                        + "Lịch: " + calendarTitle + "\n"
+                        + "Thời gian: " + formatDateTimeRange(startTime, endTime) + "\n\n"
+                        + "Vui lòng kiểm tra lịch sự kiện để chuẩn bị đúng thời gian."));
     }
 
     public void notifyCalendarUpdated(
@@ -171,6 +213,8 @@ public class NotificationWorkflowService {
             LocalDateTime startTime,
             LocalDateTime endTime) {
 
+        String calendarTitle = resolveCalendarTitle(title);
+
         runAfterCommit("calendar updated notifications for calendarEventId=" + calendarEventId, () -> notifyCalendarParticipants(
                 eventId,
                 departmentId,
@@ -178,9 +222,11 @@ public class NotificationWorkflowService {
                 calendarEventId,
                 creatorId,
                 NotiType.CALENDAR_UPDATED,
-                "Lịch họp được cập nhật",
-                "Lịch \"" + title + "\" vừa được cập nhật: " + formatDateTime(startTime)
-                        + " đến " + formatDateTime(endTime) + "."));
+                "Lịch sự kiện vừa được cập nhật",
+                "Một lịch bạn tham gia vừa được cập nhật.\n\n"
+                        + "Lịch: " + calendarTitle + "\n"
+                        + "Thời gian mới: " + formatDateTimeRange(startTime, endTime) + "\n\n"
+                        + "Vui lòng mở EventFlow để xem chi tiết lịch mới nhất."));
     }
 
     private void notifyCalendarParticipants(
@@ -194,21 +240,26 @@ public class NotificationWorkflowService {
             String message) {
 
         Map<Long, User> recipients = new LinkedHashMap<>();
+
         if (departmentId != null) {
             for (EventMember member : eventMemberRepository.findAllByEventIdAndDepartmentIdWithUser(eventId, departmentId)) {
-                recipients.put(member.getUser().getId(), member.getUser());
+                if (member.getUser() != null && member.getUser().getId() != null) {
+                    recipients.put(member.getUser().getId(), member.getUser());
+                }
             }
         }
 
         if (attendeeIds != null && !attendeeIds.isEmpty()) {
             for (EventMember member : eventMemberRepository.findAllByEventIdWithUser(eventId)) {
-                if (attendeeIds.contains(member.getUser().getId())) {
+                if (member.getUser() != null && member.getUser().getId() != null
+                        && attendeeIds.contains(member.getUser().getId())) {
                     recipients.put(member.getUser().getId(), member.getUser());
                 }
             }
         }
 
         recipients.remove(creatorId);
+
         for (User user : recipients.values()) {
             notificationRepository.insertWorkflowNotification(
                     user.getId(),
@@ -301,6 +352,50 @@ public class NotificationWorkflowService {
         return user.getTelegramChatId() != null && !user.getTelegramChatId().isBlank()
                 ? NotiChannel.TELEGRAM
                 : NotiChannel.EMAIL;
+    }
+
+    private String resolveTaskTitle(Task task) {
+        return task.getTitle() != null && !task.getTitle().isBlank()
+                ? task.getTitle()
+                : "Công việc chưa có tên";
+    }
+
+    private String resolveEventName(Task task) {
+        if (task.getEvent() != null && task.getEvent().getName() != null && !task.getEvent().getName().isBlank()) {
+            return task.getEvent().getName();
+        }
+        return "sự kiện";
+    }
+
+    private String resolveCalendarTitle(String title) {
+        return title != null && !title.isBlank()
+                ? title
+                : "Lịch sự kiện";
+    }
+
+    private String formatTaskStatus(Task task) {
+        return task.getStatus() != null ? task.getStatus().name() : "Chưa cập nhật";
+    }
+
+    private String formatProgress(Task task) {
+        int progress = task.getProgressPercentage() != null ? task.getProgressPercentage() : 0;
+        return progress + "%";
+    }
+
+    private String formatDateTimeRange(LocalDateTime startTime, LocalDateTime endTime) {
+        if (startTime == null && endTime == null) {
+            return "chưa có";
+        }
+
+        if (startTime != null && endTime != null) {
+            return formatDateTime(startTime) + " - " + formatDateTime(endTime);
+        }
+
+        return startTime != null ? formatDateTime(startTime) : formatDateTime(endTime);
+    }
+
+    private String quote(String value) {
+        return "\"" + value + "\"";
     }
 
     private String formatDateTime(LocalDateTime value) {

@@ -14,4 +14,5 @@ public class AuthResponse {
     private String email;
     private String avatarUrl;
     private Integer taskPageSize;
+    private String systemRole;
 }

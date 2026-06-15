@@ -1,5 +1,6 @@
 package com.eventflow.backend.dto;
 
+import com.eventflow.backend.entity.EventNature;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
@@ -31,4 +32,6 @@ public class EventRequestDTO {
 
     @Size(max = 50, message = "Trạng thái không được vượt quá 50 ký tự")
     private String status;
+
+    private EventNature nature;
 }

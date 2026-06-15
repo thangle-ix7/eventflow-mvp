@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback, useMemo, useState } from 'react';
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Plus, Save, Sparkles, X } from 'lucide-react';
 import aiSuggestionApi from '../api/aiSuggestionApi';
 import eventMemberApi from '../api/eventMemberApi';
 import taskApi from '../api/taskApi';
+import workloadApi from '../api/workloadApi';
 import { ErrorState } from './ui';
 import { invalidateDashboardQueries } from '../utils/dashboardQueryUtils';
 
@@ -35,6 +36,26 @@ const createEmptyRow = (departmentId = '', assigneeId = '') => ({
 
 const normalizeSuggestedDeadline = (value) => (value ? toDateTimeLocalValue(value) || String(value).slice(0, 16) : '');
 
+const workloadText = (workload) => {
+  if (!workload) {
+    return '';
+  }
+
+  return ` - ${workload.assignedTasks} task - ${workload.workloadStatus}`;
+};
+
+const workloadHintClassName = (status) => {
+  if (status === 'OVERLOADED') {
+    return 'text-red-600';
+  }
+
+  if (status === 'HIGH') {
+    return 'text-amber-600';
+  }
+
+  return 'text-slate-500';
+};
+
 const InlineTaskCreator = ({
   eventId,
   parentTaskId,
@@ -63,11 +84,99 @@ const InlineTaskCreator = ({
   const [isOpen, setIsOpen] = useState(false);
   const [suggestionInstruction, setSuggestionInstruction] = useState('');
   const addButtonLabel = openLabel || (parentTaskId ? 'Thêm subtask' : 'Thêm task');
+
   const membersQuery = useQuery({
     queryKey: ['eventMembers', eventId],
     queryFn: () => eventMemberApi.getMembers(eventId),
     enabled: Boolean(eventId),
   });
+
+  const getEffectiveDepartmentId = useCallback(
+    (row) => (lockedDepartment ? String(departmentId || '') : row.departmentId),
+    [lockedDepartment, departmentId]
+  );
+
+  const getEffectiveAssigneeId = useCallback(
+    (row) => (lockedAssignee ? String(assigneeId || '') : row.assigneeId),
+    [lockedAssignee, assigneeId]
+  );
+
+  /*
+   * Lấy danh sách departmentId đang được dùng trong các dòng.
+   * Vì mỗi dòng có thể chọn một ban khác nhau, workload phải query theo từng ban.
+   */
+  const selectedDepartmentIds = useMemo(() => {
+    const ids = rows
+      .map((row) => getEffectiveDepartmentId(row))
+      .filter(Boolean);
+
+    return [...new Set(ids)];
+  }, [rows, getEffectiveDepartmentId]);
+
+  /*
+   * Query workload cho từng department đang được chọn.
+   * Không dùng query workload từ TaskListPage vì khi filter là "Tất cả ban",
+   * mỗi dòng vẫn có thể chọn department riêng.
+   */
+  const departmentWorkloadQueries = useQueries({
+    queries: selectedDepartmentIds.map((selectedDepartmentId) => ({
+      queryKey: ['departmentWorkload', eventId, selectedDepartmentId],
+      queryFn: () => workloadApi.getDepartmentWorkload({
+        eventId,
+        departmentId: selectedDepartmentId,
+      }),
+      enabled: Boolean(eventId && selectedDepartmentId),
+    })),
+  });
+
+  /*
+   * Map workload theo departmentId:
+   * {
+   *   "9101": departmentWorkloadResponse
+   * }
+   */
+  const workloadByDepartmentId = useMemo(() => {
+    return selectedDepartmentIds.reduce((map, selectedDepartmentId, index) => {
+      const data = departmentWorkloadQueries[index]?.data;
+      if (data) {
+        map[String(selectedDepartmentId)] = data;
+      }
+      return map;
+    }, {});
+  }, [selectedDepartmentIds, departmentWorkloadQueries]);
+
+  const getDepartmentWorkload = (departmentIdValue) => {
+    if (!departmentIdValue) {
+      return null;
+    }
+
+    return workloadByDepartmentId[String(departmentIdValue)] || null;
+  };
+
+  const getMemberWorkload = (departmentIdValue, memberId) => {
+    const departmentWorkload = getDepartmentWorkload(departmentIdValue);
+    const workloadMembers = departmentWorkload?.members || [];
+
+    return workloadMembers.find((member) => String(member.memberId) === String(memberId)) || null;
+  };
+
+  const isDepartmentWorkloadLoading = (departmentIdValue) => {
+    if (!departmentIdValue) {
+      return false;
+    }
+
+    const index = selectedDepartmentIds.findIndex((id) => String(id) === String(departmentIdValue));
+    return departmentWorkloadQueries[index]?.isLoading || false;
+  };
+
+  const getAssignableMembers = (row) => {
+    const effectiveDepartmentId = getEffectiveDepartmentId(row);
+    if (!effectiveDepartmentId) {
+      return [];
+    }
+
+    return (membersQuery.data || []).filter((member) => String(member.departmentId || '') === effectiveDepartmentId);
+  };
 
   const mutation = useMutation({
     mutationFn: async (payloads) => Promise.all(payloads.map((payload) => (
@@ -84,6 +193,9 @@ const InlineTaskCreator = ({
       });
       queryClient.invalidateQueries({ queryKey: ['eventTaskPage', eventId] });
       queryClient.invalidateQueries({ queryKey: ['eventTasks', eventId] });
+      selectedDepartmentIds.forEach((selectedDepartmentId) => {
+        queryClient.invalidateQueries({ queryKey: ['departmentWorkload', eventId, selectedDepartmentId] });
+      });
       if (parentTaskId) {
         queryClient.invalidateQueries({ queryKey: ['subtasks', String(parentTaskId)] });
       }
@@ -113,18 +225,6 @@ const InlineTaskCreator = ({
       })));
     },
   });
-
-  const getEffectiveDepartmentId = (row) => (lockedDepartment ? String(departmentId || '') : row.departmentId);
-  const getEffectiveAssigneeId = (row) => (lockedAssignee ? String(assigneeId || '') : row.assigneeId);
-
-  const getAssignableMembers = (row) => {
-    const effectiveDepartmentId = getEffectiveDepartmentId(row);
-    if (!effectiveDepartmentId) {
-      return [];
-    }
-
-    return (membersQuery.data || []).filter((member) => String(member.departmentId || '') === effectiveDepartmentId);
-  };
 
   const updateRow = (rowId, name, value) => {
     setLocalError('');
@@ -212,13 +312,15 @@ const InlineTaskCreator = ({
 
   if (!isOpen) {
     return (
-      <div className="border-b border-slate-100 bg-white px-4 py-3">
+      <div className="border-b border-sky-100 bg-gradient-to-r from-white via-sky-50/60 to-emerald-50/60 px-4 py-4">
         <button
           type="button"
           onClick={() => setIsOpen(true)}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-semibold text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-100"
+          className="group inline-flex items-center gap-2 rounded-2xl border border-sky-100 bg-white px-4 py-2.5 text-sm font-black text-sky-600 shadow-sm shadow-sky-100 transition hover:-translate-y-0.5 hover:border-cyan-200 hover:bg-sky-50 hover:text-sky-700 hover:shadow-lg hover:shadow-cyan-100 active:translate-y-px"
         >
-          <Plus size={16} />
+          <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-emerald-400 text-white shadow-md shadow-cyan-100">
+            <Plus size={16} />
+          </span>
           {addButtonLabel}
         </button>
       </div>
@@ -226,59 +328,76 @@ const InlineTaskCreator = ({
   }
 
   return (
-    <div className="border-b border-slate-100 bg-indigo-50/30">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-indigo-100 px-4 py-3">
-        <p className="text-sm font-bold text-slate-900">{title}</p>
-        <div className="flex items-center gap-2">
+    <div className="overflow-hidden border-b border-sky-100 bg-gradient-to-br from-sky-50 via-white to-emerald-50/80">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-sky-100 bg-white/80 px-4 py-4 backdrop-blur">
+        <div>
+          <p className="text-sm font-black text-slate-950">{title}</p>
+          <p className="mt-1 text-xs font-semibold text-slate-500">
+            Nhập thủ công hoặc dùng AI để tạo nhanh danh sách công việc.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={addRow}
             disabled={mutation.isPending}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-50 disabled:opacity-60"
+            className="inline-flex items-center gap-1.5 rounded-2xl border border-sky-100 bg-white px-3 py-2 text-sm font-black text-sky-600 shadow-sm transition hover:-translate-y-0.5 hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Plus size={16} />
             Thêm dòng
           </button>
+
           <button
             type="button"
             onClick={handleSave}
             disabled={mutation.isPending}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+            className="inline-flex items-center gap-1.5 rounded-2xl bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 px-4 py-2 text-sm font-black text-white shadow-lg shadow-cyan-100 transition hover:-translate-y-0.5 hover:shadow-xl hover:shadow-cyan-200 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {mutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
             {saveLabel}
           </button>
+
           <button
             type="button"
             onClick={handleClose}
             disabled={mutation.isPending}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-white hover:text-slate-700 disabled:opacity-60"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-2xl text-slate-400 transition hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-60"
             aria-label="Đóng form thêm task"
           >
             <X size={16} />
           </button>
         </div>
       </div>
-      <div className="grid gap-2 border-b border-indigo-100 px-4 py-3 sm:grid-cols-[1fr_auto]">
-        <input
-          value={suggestionInstruction}
-          onChange={(event) => setSuggestionInstruction(event.target.value)}
-          disabled={suggestionMutation.isPending || mutation.isPending}
-          className="min-w-0 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-500"
-          placeholder="Context cho AI"
-        />
+
+      <div className="grid gap-3 border-b border-sky-100 px-4 py-4 sm:grid-cols-[1fr_auto]">
+        <div className="relative">
+          <Sparkles
+            size={16}
+            className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sky-500"
+          />
+          <input
+            value={suggestionInstruction}
+            onChange={(event) => setSuggestionInstruction(event.target.value)}
+            disabled={suggestionMutation.isPending || mutation.isPending}
+            className="min-h-11 w-full min-w-0 rounded-2xl border border-sky-100 bg-white px-10 py-2.5 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100 disabled:bg-slate-50 disabled:text-slate-500"
+            placeholder="Context cho AI, ví dụ: sự kiện âm nhạc 200 người, cần chia việc hậu cần..."
+          />
+        </div>
+
         <button
           type="button"
           onClick={handleSuggestTasks}
           disabled={suggestionMutation.isPending || mutation.isPending}
-          className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-50 disabled:opacity-60"
+          className="inline-flex items-center justify-center gap-2 rounded-2xl border border-sky-100 bg-white px-4 py-2.5 text-sm font-black text-sky-600 shadow-sm transition hover:-translate-y-0.5 hover:bg-sky-50 hover:text-sky-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {suggestionMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
           AI gợi ý
         </button>
       </div>
+
       <div className="overflow-x-auto">
-        <div className="min-w-[980px]">
+        <div className="min-w-[1120px]">
           <div className={taskCreatorGridHeaderClassName}>
             <span>#</span>
             <span>Tên task</span>
@@ -290,19 +409,25 @@ const InlineTaskCreator = ({
             <span>Trạng thái</span>
             <span></span>
           </div>
+
           {rows.map((row, index) => {
             const effectiveDepartmentId = getEffectiveDepartmentId(row);
             const effectiveAssigneeId = getEffectiveAssigneeId(row);
             const assignableMembers = getAssignableMembers(row);
+            const selectedWorkload = effectiveAssigneeId
+              ? getMemberWorkload(effectiveDepartmentId, effectiveAssigneeId)
+              : null;
+            const isWorkloadLoading = isDepartmentWorkloadLoading(effectiveDepartmentId);
 
             return (
               <div
                 key={row.id}
                 className={taskCreatorGridRowClassName}
               >
-                <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-indigo-50 text-xs font-extrabold text-indigo-700">
+                <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-400 text-xs font-black text-white shadow-md shadow-cyan-100">
                   {index + 1}
                 </span>
+
                 <input
                   value={row.title}
                   onChange={(event) => updateRow(row.id, 'title', event.target.value)}
@@ -312,6 +437,7 @@ const InlineTaskCreator = ({
                   aria-label="Tên task"
                   className={taskInputClassName}
                 />
+
                 <input
                   value={row.description}
                   onChange={(event) => updateRow(row.id, 'description', event.target.value)}
@@ -321,6 +447,7 @@ const InlineTaskCreator = ({
                   aria-label="Mô tả"
                   className={taskInputClassName}
                 />
+
                 <select
                   value={effectiveDepartmentId}
                   onChange={(event) => updateRow(row.id, 'departmentId', event.target.value)}
@@ -335,20 +462,40 @@ const InlineTaskCreator = ({
                     </option>
                   ))}
                 </select>
-                <select
-                  value={effectiveAssigneeId}
-                  onChange={(event) => updateRow(row.id, 'assigneeId', event.target.value)}
-                  disabled={!effectiveDepartmentId || lockedAssignee || mutation.isPending}
-                  aria-label="Phụ trách"
-                  className={taskInputClassName}
-                >
-                  <option value="">Chưa phân công</option>
-                  {assignableMembers.map((member) => (
-                    <option key={member.userId} value={member.userId}>
-                      {member.name}
-                    </option>
-                  ))}
-                </select>
+
+                <div className="min-w-0">
+                  <select
+                    value={effectiveAssigneeId}
+                    onChange={(event) => updateRow(row.id, 'assigneeId', event.target.value)}
+                    disabled={!effectiveDepartmentId || lockedAssignee || mutation.isPending}
+                    aria-label="Phụ trách"
+                    className={taskInputClassName}
+                  >
+                    <option value="">Chưa phân công</option>
+                    {assignableMembers.map((member) => {
+                      const workload = getMemberWorkload(effectiveDepartmentId, member.userId);
+
+                      return (
+                        <option key={member.userId} value={member.userId}>
+                          {member.name}{workloadText(workload)}
+                        </option>
+                      );
+                    })}
+                  </select>
+
+                  {isWorkloadLoading && (
+                    <p className="mt-1 truncate text-[10px] font-bold text-slate-500">
+                      Đang tải workload...
+                    </p>
+                  )}
+
+                  {selectedWorkload && (
+                    <p className={`mt-1 truncate text-[10px] font-black ${workloadHintClassName(selectedWorkload.workloadStatus)}`}>
+                      {selectedWorkload.assignedTasks} task · {selectedWorkload.workloadScore}% · {selectedWorkload.workloadStatus}
+                    </p>
+                  )}
+                </div>
+
                 <input
                   type="datetime-local"
                   value={row.deadline || defaultDeadline}
@@ -358,6 +505,7 @@ const InlineTaskCreator = ({
                   aria-label="Deadline"
                   className={taskInputClassName}
                 />
+
                 <select
                   value={row.priority}
                   onChange={(event) => updateRow(row.id, 'priority', event.target.value)}
@@ -370,6 +518,7 @@ const InlineTaskCreator = ({
                   <option value="HIGH">Cao</option>
                   <option value="URGENT">Khẩn cấp</option>
                 </select>
+
                 <select
                   value={row.status}
                   onChange={(event) => updateRow(row.id, 'status', event.target.value)}
@@ -382,11 +531,12 @@ const InlineTaskCreator = ({
                   <option value="IN_REVIEW">Chờ duyệt</option>
                   <option value="DONE">Hoàn thành</option>
                 </select>
+
                 <button
                   type="button"
                   onClick={() => removeRow(row.id)}
                   disabled={mutation.isPending}
-                  className="inline-flex h-10 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-60"
+                  className="inline-flex h-10 w-9 items-center justify-center rounded-2xl text-slate-400 transition hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-60"
                   aria-label="Xóa dòng task"
                 >
                   <X size={16} />
@@ -396,8 +546,9 @@ const InlineTaskCreator = ({
           })}
         </div>
       </div>
+
       {(localError || mutation.error) && (
-        <div className="px-4 pb-3 pt-2">
+        <div className="px-4 pb-4 pt-3">
           <ErrorState error={localError || mutation.error} title="Không tạo được công việc" />
         </div>
       )}
@@ -405,9 +556,9 @@ const InlineTaskCreator = ({
   );
 };
 
-const taskCreatorGridColumns = 'grid-cols-[28px_minmax(150px,1.35fr)_minmax(100px,0.8fr)_110px_120px_180px_112px_104px_28px]';
-const taskCreatorGridHeaderClassName = `grid min-w-[980px] ${taskCreatorGridColumns} items-center gap-1 border-b border-indigo-100 px-2 py-2 text-[10px] font-bold uppercase tracking-wide text-slate-500`;
-const taskCreatorGridRowClassName = `grid min-w-[980px] ${taskCreatorGridColumns} items-center gap-1 border-b border-indigo-100/70 px-2 py-3 last:border-b-0`;
-const taskInputClassName = 'h-10 w-full min-w-0 rounded-lg border border-indigo-200 bg-white px-2 text-xs text-slate-800 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50 disabled:text-slate-500';
+const taskCreatorGridColumns = 'grid-cols-[28px_minmax(150px,1.2fr)_minmax(100px,0.75fr)_120px_210px_180px_112px_104px_28px]';
+const taskCreatorGridHeaderClassName = `grid min-w-[1120px] ${taskCreatorGridColumns} items-center gap-2 border-b border-sky-100 bg-sky-50/70 px-4 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-slate-500`;
+const taskCreatorGridRowClassName = `grid min-w-[1120px] ${taskCreatorGridColumns} items-start gap-2 border-b border-sky-100/70 bg-white/70 px-4 py-3 transition hover:bg-sky-50/70 last:border-b-0`;
+const taskInputClassName = 'h-10 w-full min-w-0 rounded-2xl border border-sky-100 bg-white px-3 text-xs font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100 disabled:bg-slate-50 disabled:text-slate-500';
 
 export default InlineTaskCreator;
