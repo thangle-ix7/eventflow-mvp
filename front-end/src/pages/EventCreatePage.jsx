@@ -10,9 +10,13 @@ import {
   MapPin,
   ShieldCheck,
   Sparkles,
+  Tag,
+  Target,
+  UsersRound,
 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import eventApi from '../api/eventApi';
+import { EVENT_TYPE_OPTIONS } from '../utils/eventTypeUtils';
 
 const EventCreatePage = ({ user, onLogout }) => {
   const navigate = useNavigate();
@@ -21,6 +25,11 @@ const EventCreatePage = ({ user, onLogout }) => {
     name: '',
     description: '',
     location: '',
+    eventType: '',
+    objective: '',
+    expectedAttendees: '',
+    scale: '',
+    contextDescription: '',
     startTime: '',
     endTime: '',
     status: 'ACTIVE',
@@ -46,6 +55,11 @@ const EventCreatePage = ({ user, onLogout }) => {
       name: form.name,
       description: form.description,
       location: form.location,
+      eventType: form.eventType || null,
+      objective: form.objective,
+      expectedAttendees: form.expectedAttendees ? Number(form.expectedAttendees) : null,
+      scale: form.scale,
+      contextDescription: form.contextDescription || form.description,
       startTime: form.startTime,
       endTime: form.endTime,
       status: form.status,
@@ -77,35 +91,28 @@ const EventCreatePage = ({ user, onLogout }) => {
           </Link>
         </div>
 
-        <section className="relative overflow-hidden rounded-[2rem] border border-sky-100 bg-white/85 p-6 shadow-xl shadow-sky-100/70 backdrop-blur-xl">
-          <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-sky-100 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-28 left-1/3 h-72 w-72 rounded-full bg-emerald-100/70 blur-3xl" />
-
-          <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex items-start gap-4">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-3xl bg-gradient-to-br from-sky-500 to-emerald-400 text-white shadow-lg shadow-cyan-100">
-                <CalendarPlus size={28} strokeWidth={1.8} />
-              </div>
-
+        <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div className="min-w-0">
               <div>
-                <p className="inline-flex rounded-full bg-sky-50 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-sky-600">
+                <p className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-sky-600">
+                  <CalendarPlus size={15} strokeWidth={1.8} />
                   Event setup
                 </p>
 
-                <h2 className="mt-3 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
+                <h2 className="mt-1 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
                   Tạo sự kiện mới
                 </h2>
 
-                <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-slate-600">
+                <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-slate-600">
                   Bạn sẽ trở thành LEADER của sự kiện và có quyền tạo ban, tạo task,
                   xem dashboard và quản lý tiến độ.
                 </p>
               </div>
             </div>
 
-            <div className="rounded-3xl border border-emerald-100 bg-white/80 p-4 shadow-sm">
+            <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 px-4 py-3">
               <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-white text-emerald-600">
                   <ShieldCheck className="h-5 w-5" strokeWidth={1.8} />
                 </div>
 
@@ -117,8 +124,7 @@ const EventCreatePage = ({ user, onLogout }) => {
                 </div>
               </div>
             </div>
-          </div>
-        </section>
+        </header>
 
         <div className="grid gap-6 lg:grid-cols-[1fr_0.7fr]">
           <form
@@ -167,6 +173,26 @@ const EventCreatePage = ({ user, onLogout }) => {
               </Field>
 
               <Field
+                label="Loại sự kiện"
+                icon={<Tag className="h-4 w-4" strokeWidth={1.8} />}
+                hint="Dùng để chọn template, phân loại dashboard và chuẩn bị leader snapshot sau beta."
+              >
+                <select
+                  name="eventType"
+                  value={form.eventType}
+                  onChange={handleChange}
+                  className={inputClassName}
+                >
+                  <option value="">-- Chọn loại sự kiện --</option>
+                  {EVENT_TYPE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+
+              <Field
                 label="Mô tả chi tiết"
                 icon={<FileText className="h-4 w-4" strokeWidth={1.8} />}
                 hint="Mô tả phạm vi, mục tiêu, các khu vực hoặc hoạt động chính của sự kiện."
@@ -178,6 +204,69 @@ const EventCreatePage = ({ user, onLogout }) => {
                   rows={5}
                   placeholder="Ví dụ: Sự kiện gồm lễ khai mạc, check-in khách mời, khu vực hậu cần, truyền thông và tổng kết."
                   className={`${inputClassName} min-h-32 resize-y py-3`}
+                />
+              </Field>
+
+              <Field
+                label="Mục tiêu sự kiện"
+                icon={<Target className="h-4 w-4" strokeWidth={1.8} />}
+                hint="Một câu rõ ràng để ban tổ chức hiểu sự kiện cần đạt điều gì."
+              >
+                <textarea
+                  name="objective"
+                  value={form.objective}
+                  onChange={handleChange}
+                  rows={3}
+                  maxLength={2000}
+                  placeholder="Ví dụ: Tổ chức giải đấu công bằng, đúng lịch, an toàn và tạo trải nghiệm tốt cho 16 đội tham gia."
+                  className={`${inputClassName} min-h-24 resize-y py-3`}
+                />
+              </Field>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <Field
+                  label="Số người dự kiến"
+                  icon={<UsersRound className="h-4 w-4" strokeWidth={1.8} />}
+                >
+                  <input
+                    name="expectedAttendees"
+                    type="number"
+                    min="0"
+                    value={form.expectedAttendees}
+                    onChange={handleChange}
+                    placeholder="Ví dụ: 200"
+                    className={inputClassName}
+                  />
+                </Field>
+
+                <Field
+                  label="Quy mô"
+                  icon={<Sparkles className="h-4 w-4" strokeWidth={1.8} />}
+                >
+                  <input
+                    name="scale"
+                    value={form.scale}
+                    onChange={handleChange}
+                    maxLength={100}
+                    placeholder="Ví dụ: 16 đội - 2 ngày"
+                    className={inputClassName}
+                  />
+                </Field>
+              </div>
+
+              <Field
+                label="Bối cảnh vận hành"
+                icon={<FileText className="h-4 w-4" strokeWidth={1.8} />}
+                hint="Thông tin này giúp AI/template hiểu ràng buộc chính của sự kiện."
+              >
+                <textarea
+                  name="contextDescription"
+                  value={form.contextDescription}
+                  onChange={handleChange}
+                  rows={3}
+                  maxLength={2000}
+                  placeholder="Ví dụ: Sự kiện diễn ra trong 2 ngày, có nhiều trận song song, cần cập nhật tỷ số nhanh và có phương án y tế."
+                  className={`${inputClassName} min-h-24 resize-y py-3`}
                 />
               </Field>
 
@@ -278,8 +367,9 @@ const EventCreatePage = ({ user, onLogout }) => {
 
                 <div className="mt-4 space-y-3">
                   <InfoItem title="1. Tạo ban tổ chức" description="Chia sự kiện thành các ban như Hậu cần, Truyền thông, Nhân sự." />
-                  <InfoItem title="2. Giao task" description="Tạo công việc, gán người phụ trách, deadline và mức ưu tiên." />
-                  <InfoItem title="3. Theo dõi dashboard" description="Xem tiến độ, task quá hạn và hiệu suất từng ban." />
+                  <InfoItem title="2. Mời thành viên" description="Mời người tham gia, gán role và ban phụ trách để bắt đầu phối hợp." />
+                  <InfoItem title="3. Giao task" description="Tạo công việc, gán người phụ trách, deadline và mức ưu tiên." />
+                  <InfoItem title="4. Theo dõi dashboard" description="Xem tiến độ, task quá hạn và hiệu suất từng ban." />
                 </div>
               </div>
             </div>

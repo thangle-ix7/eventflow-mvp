@@ -125,6 +125,7 @@ const TemplateSelectPage = ({ user, onLogout }) => {
 
       {/* Instantiation Modal */}
       <TemplateInstantiationModal
+        key={selectedTemplate?.id || 'closed'}
         isOpen={Boolean(selectedTemplate)}
         template={selectedTemplate}
         onClose={() => setSelectedTemplate(null)}

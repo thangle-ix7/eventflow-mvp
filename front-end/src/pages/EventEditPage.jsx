@@ -11,10 +11,14 @@ import {
   Save,
   ShieldCheck,
   Sparkles,
+  Tag,
+  Target,
+  UsersRound,
 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import { Button, ErrorState, LoadingState, Panel } from '../components/ui';
 import eventApi from '../api/eventApi';
+import { EVENT_TYPE_OPTIONS } from '../utils/eventTypeUtils';
 
 const pad = (value) => String(value).padStart(2, '0');
 
@@ -159,6 +163,11 @@ const EventEditForm = ({ event, eventId, mutation }) => {
     name: event.name || '',
     description: event.description || '',
     location: event.location || '',
+    eventType: event.eventType || '',
+    objective: event.objective || '',
+    expectedAttendees: event.expectedAttendees ?? '',
+    scale: event.scale || '',
+    contextDescription: event.contextDescription || '',
     startTime: toDateTimeLocalValue(event.startTime || event.eventDate),
     endTime: toDateTimeLocalValue(event.endTime),
     status: event.status || 'ACTIVE',
@@ -183,6 +192,11 @@ const EventEditForm = ({ event, eventId, mutation }) => {
         name: form.name,
         description: form.description,
         location: form.location,
+        eventType: form.eventType || null,
+        objective: form.objective,
+        expectedAttendees: form.expectedAttendees ? Number(form.expectedAttendees) : null,
+        scale: form.scale,
+        contextDescription: form.contextDescription || form.description,
         startTime: form.startTime,
         endTime: form.endTime || null,
         status: form.status,
@@ -219,6 +233,26 @@ const EventEditForm = ({ event, eventId, mutation }) => {
       </Field>
 
       <Field
+        label="Loại sự kiện"
+        icon={<Tag className="h-4 w-4" strokeWidth={1.8} />}
+        hint="Phân loại này sẽ được dùng cho template, AI planning và leader snapshot sau beta."
+      >
+        <select
+          name="eventType"
+          value={form.eventType}
+          onChange={handleChange}
+          className={inputClassName}
+        >
+          <option value="">-- Chọn loại sự kiện --</option>
+          {EVENT_TYPE_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </Field>
+
+      <Field
         label="Mô tả chi tiết"
         icon={<FileText className="h-4 w-4" strokeWidth={1.8} />}
         hint="Mô tả mục tiêu, phạm vi và các hoạt động chính của sự kiện."
@@ -230,6 +264,64 @@ const EventEditForm = ({ event, eventId, mutation }) => {
           maxLength={2000}
           rows={5}
           className={`${inputClassName} min-h-32 resize-y py-3`}
+        />
+      </Field>
+
+      <Field
+        label="Mục tiêu sự kiện"
+        icon={<Target className="h-4 w-4" strokeWidth={1.8} />}
+      >
+        <textarea
+          name="objective"
+          value={form.objective}
+          onChange={handleChange}
+          maxLength={2000}
+          rows={3}
+          className={`${inputClassName} min-h-24 resize-y py-3`}
+        />
+      </Field>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field
+          label="Số người dự kiến"
+          icon={<UsersRound className="h-4 w-4" strokeWidth={1.8} />}
+        >
+          <input
+            name="expectedAttendees"
+            type="number"
+            min="0"
+            value={form.expectedAttendees}
+            onChange={handleChange}
+            className={inputClassName}
+          />
+        </Field>
+
+        <Field
+          label="Quy mô"
+          icon={<Sparkles className="h-4 w-4" strokeWidth={1.8} />}
+        >
+          <input
+            name="scale"
+            value={form.scale}
+            onChange={handleChange}
+            maxLength={100}
+            className={inputClassName}
+          />
+        </Field>
+      </div>
+
+      <Field
+        label="Bối cảnh vận hành"
+        icon={<FileText className="h-4 w-4" strokeWidth={1.8} />}
+        hint="Thông tin bối cảnh giúp AI/template đưa ra gợi ý sát hơn."
+      >
+        <textarea
+          name="contextDescription"
+          value={form.contextDescription}
+          onChange={handleChange}
+          maxLength={2000}
+          rows={3}
+          className={`${inputClassName} min-h-24 resize-y py-3`}
         />
       </Field>
 

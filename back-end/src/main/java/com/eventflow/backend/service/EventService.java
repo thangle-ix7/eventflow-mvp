@@ -70,6 +70,11 @@ public class EventService {
                 .endTime(resolveEndTime(request))
                 .status(normalizeStatus(request.getStatus()))
                 .nature(nature)
+                .contextDescription(normalizeOptionalText(request.getContextDescription()))
+                .eventType(normalizeEventType(request.getEventType()))
+                .objective(normalizeOptionalText(request.getObjective()))
+                .expectedAttendees(normalizeExpectedAttendees(request.getExpectedAttendees()))
+                .scale(normalizeOptionalText(request.getScale()))
                 .build());
 
         EventMember leader = eventMemberRepository.save(EventMember.builder()
@@ -92,6 +97,11 @@ public class EventService {
         event.setEventDate(resolveStartTime(request));
         event.setEndTime(resolveEndTime(request));
         event.setStatus(normalizeStatus(request.getStatus()));
+        event.setContextDescription(normalizeOptionalText(request.getContextDescription()));
+        event.setEventType(normalizeEventType(request.getEventType()));
+        event.setObjective(normalizeOptionalText(request.getObjective()));
+        event.setExpectedAttendees(normalizeExpectedAttendees(request.getExpectedAttendees()));
+        event.setScale(normalizeOptionalText(request.getScale()));
 
         return mapToResponse(eventRepository.save(event), UserRole.LEADER);
     }
@@ -150,7 +160,11 @@ public class EventService {
                 .endTime(request.getEndTime())
                 .status(normalizeStatus(request.getStatus()))
                 .nature(EventNature.TEMPLATE)
-                .contextDescription(normalizeOptionalText(request.getDescription()))
+                .contextDescription(coalesceText(request.getContextDescription(), request.getDescription()))
+                .eventType(normalizeEventType(request.getEventType()))
+                .objective(normalizeOptionalText(request.getObjective()))
+                .expectedAttendees(normalizeExpectedAttendees(request.getExpectedAttendees()))
+                .scale(normalizeOptionalText(request.getScale()))
                 .build());
 
         // Template không cần EventMember (public cho tất cả)
@@ -172,6 +186,11 @@ public class EventService {
         template.setEventDate(request.getEventDate() != null ? request.getEventDate() : template.getEventDate());
         template.setEndTime(request.getEndTime());
         template.setStatus(normalizeStatus(request.getStatus()));
+        template.setContextDescription(coalesceText(request.getContextDescription(), request.getDescription()));
+        template.setEventType(normalizeEventType(request.getEventType()));
+        template.setObjective(normalizeOptionalText(request.getObjective()));
+        template.setExpectedAttendees(normalizeExpectedAttendees(request.getExpectedAttendees()));
+        template.setScale(normalizeOptionalText(request.getScale()));
 
         return mapToResponse(eventRepository.save(template), null);
     }
@@ -404,6 +423,23 @@ public class EventService {
         return value.trim();
     }
 
+    private String coalesceText(String preferred, String fallback) {
+        String normalizedPreferred = normalizeOptionalText(preferred);
+        return normalizedPreferred != null ? normalizedPreferred : normalizeOptionalText(fallback);
+    }
+
+    private String normalizeEventType(String eventType) {
+        String normalized = normalizeOptionalText(eventType);
+        return normalized != null ? normalized.toUpperCase() : null;
+    }
+
+    private Integer normalizeExpectedAttendees(Integer expectedAttendees) {
+        if (expectedAttendees == null) {
+            return null;
+        }
+        return Math.max(expectedAttendees, 0);
+    }
+
     private int normalizePage(int page) {
         return Math.max(page, 0);
     }
@@ -437,7 +473,7 @@ public class EventService {
 
         return switch (sort) {
             case "name" -> "name";
-            case "createdAt" -> "createdAt";
+            case "createdAt", "createdDate" -> "createdAt";
             default -> "name";
         };
     }
@@ -466,6 +502,11 @@ public class EventService {
                 .eventDate(event.getEventDate())
                 .status(event.getStatus())
                 .nature(event.getNature())
+                .contextDescription(event.getContextDescription())
+                .eventType(event.getEventType())
+                .objective(event.getObjective())
+                .expectedAttendees(event.getExpectedAttendees())
+                .scale(event.getScale())
                 .role(role != null ? role.name() : null)
                 .departmentId(departmentId)
                 .departmentName(departmentName)

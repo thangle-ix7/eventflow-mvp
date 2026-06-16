@@ -42,6 +42,9 @@ public class Event {
     @Column(name = "context_description", columnDefinition = "TEXT")
     private String contextDescription;
 
+    @Column(name = "event_type", length = 50)
+    private String eventType;
+
     @Column(columnDefinition = "TEXT")
     private String objective;
 

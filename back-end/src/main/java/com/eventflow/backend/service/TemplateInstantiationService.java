@@ -52,16 +52,19 @@ public class TemplateInstantiationService {
         // 2. Clone Event từ Template sang NORMAL
         Event newEvent = Event.builder()
                 .name(request.getName())
-                .description(request.getDescription())
-                .location(request.getLocation())
+                .description(coalesceText(request.getDescription(), template.getDescription()))
+                .location(coalesceText(request.getLocation(), template.getLocation()))
                 .eventDate(request.getEventDate())
                 .endTime(request.getEndTime())
                 .nature(EventNature.NORMAL)
                 .status("DRAFT")
-                .contextDescription(template.getContextDescription())
-                .objective(template.getObjective())
-                .expectedAttendees(template.getExpectedAttendees())
-                .scale(template.getScale())
+                .contextDescription(coalesceText(request.getContextDescription(), template.getContextDescription()))
+                .eventType(coalesceText(request.getEventType(), template.getEventType()))
+                .objective(coalesceText(request.getObjective(), template.getObjective()))
+                .expectedAttendees(request.getExpectedAttendees() != null
+                        ? Math.max(request.getExpectedAttendees(), 0)
+                        : template.getExpectedAttendees())
+                .scale(coalesceText(request.getScale(), template.getScale()))
                 .createdAt(LocalDateTime.now())
                 .build();
 
@@ -165,5 +168,15 @@ public class TemplateInstantiationService {
                 .progressPercentage(0) // Reset progress
                 .createdAt(LocalDateTime.now())
                 .build();
+    }
+
+    private String coalesceText(String preferred, String fallback) {
+        if (preferred != null && !preferred.isBlank()) {
+            return preferred.trim();
+        }
+        if (fallback != null && !fallback.isBlank()) {
+            return fallback.trim();
+        }
+        return null;
     }
 }

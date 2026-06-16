@@ -13,6 +13,7 @@ import {
   Users,
   X,
   LayoutTemplate,
+  MessageSquareHeart,
   Settings
 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
@@ -106,21 +107,17 @@ const EventListPage = ({ user, onLogout }) => {
       onLogout={onLogout}
     >
       <div className="mx-auto max-w-7xl space-y-6">
-        <section className="relative overflow-hidden rounded-[2rem] border border-sky-100 bg-white/85 p-6 shadow-xl shadow-sky-100/70 backdrop-blur-xl">
-          <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-sky-100 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-28 left-1/3 h-72 w-72 rounded-full bg-emerald-100/70 blur-3xl" />
-
-          <div className="relative flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+        <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div className="min-w-0">
-              <p className="inline-flex rounded-full bg-sky-50 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-sky-600">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-600">
                 Event workspace
               </p>
 
-              <h1 className="mt-4 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
+              <h1 className="mt-1 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
                 Sự kiện của bạn
               </h1>
 
-              <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-slate-600">
+              <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-slate-600">
                 Quản lý các sự kiện bạn tạo hoặc tham gia, mở workspace để theo dõi ban tổ chức, task và dashboard.
               </p>
             </div>
@@ -132,10 +129,16 @@ const EventListPage = ({ user, onLogout }) => {
               </Button>
 
               {user?.systemRole === 'ADMIN' && (
-                <Button as={Link} to="/admin/templates" variant="secondary" className="w-full sm:w-auto min-h-11 rounded-2xl">
-                  <Settings size={18} />
-                  Quản lý Mẫu
-                </Button>
+                <>
+                  <Button as={Link} to="/admin/feedback" variant="secondary" className="w-full sm:w-auto min-h-11 rounded-2xl">
+                    <MessageSquareHeart size={18} />
+                    Feedback
+                  </Button>
+                  <Button as={Link} to="/admin/templates" variant="secondary" className="w-full sm:w-auto min-h-11 rounded-2xl">
+                    <Settings size={18} />
+                    Quản lý Mẫu
+                  </Button>
+                </>
               )}
 
               <Button
@@ -147,8 +150,7 @@ const EventListPage = ({ user, onLogout }) => {
                 Tạo sự kiện
               </Button>
             </div>
-          </div>
-        </section>
+        </header>
 
         <section className="relative overflow-hidden rounded-[2rem] border border-sky-100 bg-white p-4 shadow-xl shadow-sky-100/70">
           <div className="pointer-events-none absolute -left-16 -top-20 h-52 w-52 rounded-full bg-sky-100/70 blur-3xl" />
