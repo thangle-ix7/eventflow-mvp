@@ -8,4 +8,6 @@ export const invalidateDashboardQueries = (queryClient, eventId) => {
   queryClient.invalidateQueries({ queryKey: ['departmentTasksByStatus', eventId] });
   queryClient.invalidateQueries({ queryKey: ['eventDashboardTasks', eventId] });
   queryClient.invalidateQueries({ queryKey: ['departmentDashboardTasks', eventId] });
+  queryClient.invalidateQueries({ queryKey: ['leaderSnapshot', eventId] });
+  queryClient.invalidateQueries({ queryKey: ['departmentLeaderSnapshot', eventId] });
 };

@@ -35,6 +35,7 @@ import TemplateSelectPage from './pages/TemplateSelectPage';
 import AdminTemplateListPage from './pages/AdminTemplateListPage';
 import AdminTemplateCreatePage from './pages/AdminTemplateCreatePage';
 import AdminTemplateDetailPage from './pages/AdminTemplateDetailPage';
+import AdminFeedbackPage from './pages/AdminFeedbackPage';
 import eventApi from './api/eventApi';
 import userApi from './api/userApi';
 import { identifyUser, resetAnalytics, trackEvent, trackPageView } from './lib/analytics';
@@ -280,6 +281,7 @@ function App() {
           <Route path="/admin/templates" element={<AdminTemplateListPage {...protectedProps} />} />
           <Route path="/admin/templates/new" element={<AdminTemplateCreatePage {...protectedProps} />} />
           <Route path="/admin/templates/:templateId" element={<AdminTemplateDetailPage {...protectedProps} />} />
+          <Route path="/admin/feedback" element={<AdminFeedbackPage {...protectedProps} />} />
 
           {/* Department Routes */}
           <Route

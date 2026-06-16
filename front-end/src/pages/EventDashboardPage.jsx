@@ -1,39 +1,31 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
   BarChart3,
   CalendarDays,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  ClipboardList,
   Clock3,
   ListTodo,
-  Plus,
   TrendingUp,
-  UserRound,
 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
+import { EventLeaderSnapshotPanel } from '../components/DashboardSnapshotPanels';
 import {
   Button,
-  EmptyState,
   LoadingState,
   MetricCard,
-  PageHeader,
   Panel,
-  PriorityBadge,
   SelectControl,
-  StatusBadge,
 } from '../components/ui';
 import dashboardApi from '../api/dashboardApi';
 import departmentApi from '../api/departmentApi';
 import eventApi from '../api/eventApi';
-import taskApi from '../api/taskApi';
-import { formatDate } from '../utils/dateUtils';
+import leaderSnapshotApi from '../api/leaderSnapshotApi';
 import { getEventPermissions } from '../utils/permissionUtils';
 
-const PAGE_SIZE = 8;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 const toDateInput = (date) => date.toISOString().slice(0, 10);
@@ -50,7 +42,6 @@ const EventDashboardPage = ({ user, onLogout }) => {
   const { eventId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const [page, setPage] = useState(0);
   const [weekIndex, setWeekIndex] = useState(0);
   const [departmentId, setDepartmentId] = useState('');
 
@@ -63,6 +54,12 @@ const EventDashboardPage = ({ user, onLogout }) => {
   const event = eventQuery.data;
   const permissions = getEventPermissions(event);
   const canViewDashboard = permissions.canViewEventDashboard;
+
+  const leaderSnapshotQuery = useQuery({
+    queryKey: ['leaderSnapshot', eventId],
+    queryFn: () => leaderSnapshotApi.getLeaderSnapshot(eventId),
+    enabled: Boolean(eventId && canViewDashboard),
+  });
 
   const weekRange = useMemo(
     () => getWeekRange(event?.startTime || event?.eventDate, weekIndex),
@@ -101,43 +98,24 @@ const EventDashboardPage = ({ user, onLogout }) => {
     enabled: Boolean(eventId && canViewDashboard),
   });
 
-  const tasksQuery = useQuery({
-    queryKey: ['eventDashboardTasks', eventId, selectedDepartmentId, page, weekRange.fromDate, weekRange.toDate],
-    queryFn: () => taskApi.getEventTaskPage({
-      eventId,
-      page,
-      size: PAGE_SIZE,
-      sort: 'deadline',
-      direction: 'asc',
-      departmentId: selectedDepartmentId,
-      ...weekRange,
-    }),
-    enabled: Boolean(eventId && canViewDashboard),
-  });
-
   const summary = summaryQuery.data;
   const departments = useMemo(() => departmentsQuery.data || [], [departmentsQuery.data]);
-  const selectedDepartment = departments.find((department) => String(department.id) === String(selectedDepartmentId));
   const statusData = useMemo(() => normalizeStatusData(statusQuery.data), [statusQuery.data]);
-  const tasks = useMemo(() => tasksQuery.data?.content || [], [tasksQuery.data]);
 
   const isLoading = eventQuery.isLoading || (canViewDashboard && (
     departmentsQuery.isLoading ||
     summaryQuery.isLoading ||
     statusQuery.isLoading ||
-    trendQuery.isLoading ||
-    tasksQuery.isLoading
+    trendQuery.isLoading
   ));
 
   const error = eventQuery.error ||
     departmentsQuery.error ||
     summaryQuery.error ||
     statusQuery.error ||
-    trendQuery.error ||
-    tasksQuery.error;
+    trendQuery.error;
 
   const handleDepartmentChange = (event) => {
-    setPage(0);
     setDepartmentId(event.target.value);
   };
 
@@ -174,6 +152,15 @@ const EventDashboardPage = ({ user, onLogout }) => {
   }
 
   if (event && !canViewDashboard) {
+    if (permissions.ownDepartmentId) {
+      return (
+        <Navigate
+          to={`/events/${eventId}/departments/${permissions.ownDepartmentId}/dashboard`}
+          replace
+        />
+      );
+    }
+
     return (
       <Navigate
         to="/error"
@@ -191,22 +178,11 @@ const EventDashboardPage = ({ user, onLogout }) => {
   return (
     <AppLayout user={user} events={event ? [event] : []} selectedEvent={event} onEventChange={() => {}} onLogout={onLogout}>
       <div className="min-w-0 space-y-6">
-        <PageHeader
-          eyebrow={`${event?.name || 'Sự kiện'} / ${selectedDepartment?.name || 'Toàn bộ ban'}`}
-          title="Dashboard sự kiện"
-          description="Theo dõi tổng quan tiến độ, trạng thái task, xu hướng hoàn thành và các công việc sắp tới theo từng tuần."
-          meta={
-            <>
-              <span className="inline-flex items-center gap-2 rounded-full border border-sky-100 bg-white px-3 py-1.5 font-black text-sky-600 shadow-sm">
-                <CalendarDays className="h-4 w-4" strokeWidth={1.8} />
-                {weekRange.fromDate} - {weekRange.toDate}
-              </span>
-              <span className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-white px-3 py-1.5 font-black text-emerald-600 shadow-sm">
-                <BarChart3 className="h-4 w-4" strokeWidth={1.8} />
-                {selectedDepartment?.name || 'Toàn bộ sự kiện'}
-              </span>
-            </>
-          }
+        <EventLeaderSnapshotPanel
+          eventId={eventId}
+          snapshot={leaderSnapshotQuery.data}
+          isLoading={leaderSnapshotQuery.isLoading}
+          error={leaderSnapshotQuery.error}
         />
 
         <Panel className="relative overflow-hidden p-5">
@@ -243,10 +219,7 @@ const EventDashboardPage = ({ user, onLogout }) => {
 
             <WeekControl
               weekIndex={weekIndex}
-              setWeekIndex={(next) => {
-                setPage(0);
-                setWeekIndex(next);
-              }}
+              setWeekIndex={setWeekIndex}
             />
           </div>
         </Panel>
@@ -261,7 +234,7 @@ const EventDashboardPage = ({ user, onLogout }) => {
             </section>
 
             <section className="grid gap-5">
-              <ChartPanel icon={<TrendingUp size={18} />} title="Line chart task theo ngày">
+              <ChartPanel icon={<TrendingUp size={18} />} title="Task theo ngày">
                 <StatusLineChart
                   data={trendQuery.data || []}
                   onPointClick={({ status, date }) => openFilteredTasks({ status, fromDate: date, toDate: date })}
@@ -275,14 +248,6 @@ const EventDashboardPage = ({ user, onLogout }) => {
                 />
               </ChartPanel>
             </section>
-
-            <TaskListSection
-              tasks={tasks}
-              page={page}
-              setPage={setPage}
-              pageData={tasksQuery.data}
-              eventId={eventId}
-            />
           </>
         )}
       </div>
@@ -348,9 +313,6 @@ const ChartPanel = ({ icon, title, children }) => (
 
         <div className="min-w-0">
           <h3 className="font-black text-slate-950">{title}</h3>
-          <p className="mt-1 text-xs font-semibold text-slate-500">
-            Click vào điểm/cột để mở danh sách task tương ứng.
-          </p>
         </div>
       </div>
     </div>
@@ -579,144 +541,6 @@ const StatusColumnChart = ({ data, onColumnClick }) => {
     </div>
   );
 };
-
-const TaskListSection = ({ tasks, page, setPage, pageData, eventId }) => (
-  <Panel className="min-w-0 overflow-hidden">
-    <div className="flex flex-col gap-3 border-b border-sky-100 bg-gradient-to-r from-sky-50 via-white to-emerald-50 px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex items-center gap-3">
-        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-400 text-white shadow-lg shadow-cyan-100">
-          <ClipboardList size={18} />
-        </div>
-
-        <div>
-          <h3 className="font-black text-slate-950">Công việc sắp tới</h3>
-          <p className="mt-1 text-sm font-semibold text-slate-500">
-            {tasks.length} công việc trong khoảng thời gian đang chọn.
-          </p>
-        </div>
-      </div>
-
-      <Button as={Link} to={`/events/${eventId}/tasks/new`} className="sm:w-auto">
-        <Plus size={16} />
-        Tạo công việc
-      </Button>
-    </div>
-
-    {tasks.length === 0 && (
-      <div className="p-5">
-        <EmptyState
-          icon={ClipboardList}
-          title="Chưa có công việc trong tuần này"
-          description="Khi có task trong khoảng thời gian đang chọn, danh sách sẽ hiển thị tại đây."
-        />
-      </div>
-    )}
-
-    {tasks.length > 0 && (
-      <>
-        <div className="grid gap-3 p-4 sm:hidden">
-          {tasks.map((task) => (
-            <Link
-              key={task.id}
-              to={`/events/${eventId}/tasks/${task.id}`}
-              className="rounded-3xl border border-sky-100 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:bg-sky-50 hover:shadow-lg hover:shadow-sky-100"
-            >
-              <p className="line-clamp-2 font-black text-slate-950">{task.title}</p>
-              <p className="mt-2 text-sm font-semibold text-slate-600">
-                {task.departmentName || 'Chưa gán ban'} • {task.assigneeName || 'Chưa phân công'}
-              </p>
-              <p className="mt-1 text-sm font-semibold text-slate-500">
-                {formatDate(task.deadline)}
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <PriorityBadge priority={task.priority} />
-                <StatusBadge status={task.status} />
-              </div>
-            </Link>
-          ))}
-        </div>
-
-        <div className="hidden overflow-x-auto sm:block">
-          <table className="w-full min-w-[820px] text-left text-sm">
-            <thead className="bg-sky-50/70 text-xs font-black uppercase tracking-[0.18em] text-slate-500">
-              <tr>
-                <th className="px-5 py-4">Công việc</th>
-                <th className="px-5 py-4">Ban / phụ trách</th>
-                <th className="px-5 py-4">Hạn hoàn thành</th>
-                <th className="px-5 py-4">Ưu tiên</th>
-                <th className="px-5 py-4">Trạng thái</th>
-              </tr>
-            </thead>
-
-            <tbody className="divide-y divide-sky-50">
-              {tasks.map((task) => (
-                <tr key={task.id} className="transition hover:bg-sky-50/70">
-                  <td className="px-5 py-4">
-                    <Link
-                      to={`/events/${eventId}/tasks/${task.id}`}
-                      className="font-black text-slate-950 hover:text-sky-600"
-                    >
-                      {task.title}
-                    </Link>
-                  </td>
-
-                  <td className="px-5 py-4 text-slate-600">
-                    <p className="font-black text-slate-800">
-                      {task.departmentName || 'Chưa gán ban'}
-                    </p>
-                    <p className="mt-1 inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500">
-                      <UserRound className="h-3.5 w-3.5 text-sky-400" strokeWidth={1.8} />
-                      {task.assigneeName || 'Chưa phân công'}
-                    </p>
-                  </td>
-
-                  <td className="px-5 py-4 font-semibold text-slate-600">
-                    <span className="inline-flex items-center gap-2">
-                      <CalendarDays className="h-4 w-4 text-emerald-500" strokeWidth={1.8} />
-                      {formatDate(task.deadline)}
-                    </span>
-                  </td>
-
-                  <td className="px-5 py-4">
-                    <PriorityBadge priority={task.priority} />
-                  </td>
-
-                  <td className="px-5 py-4">
-                    <StatusBadge status={task.status} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </>
-    )}
-
-    <div className="grid grid-cols-2 gap-2 border-t border-sky-100 bg-sky-50/50 p-4 sm:flex sm:justify-end">
-      <Button
-        type="button"
-        onClick={() => setPage((old) => Math.max(old - 1, 0))}
-        disabled={page === 0}
-        variant="secondary"
-        className="rounded-2xl"
-      >
-        <ChevronLeft className="h-4 w-4" strokeWidth={1.8} />
-        Trước
-      </Button>
-
-      <Button
-        type="button"
-        onClick={() => setPage((old) => old + 1)}
-        disabled={pageData?.last !== false}
-        variant="secondary"
-        className="rounded-2xl"
-      >
-        Sau
-        <ChevronRight className="h-4 w-4" strokeWidth={1.8} />
-      </Button>
-    </div>
-  </Panel>
-);
 
 const EmptyChart = ({ message }) => (
   <div className="flex h-72 items-center justify-center rounded-3xl border border-dashed border-sky-200 bg-sky-50/50 px-4 text-center text-sm font-bold text-slate-500">

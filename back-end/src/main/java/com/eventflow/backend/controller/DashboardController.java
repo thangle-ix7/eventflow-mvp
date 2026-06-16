@@ -23,7 +23,7 @@ public class DashboardController {
 
     private final DashboardService dashboardService;
     private final EventSecurityService eventSecurityService;
-    private static final String DASHBOARD_ACCESS_DENIED = "Chỉ leader của sự kiện mới được xem dashboard.";
+    private static final String DASHBOARD_ACCESS_DENIED = "Bạn không có quyền xem dashboard này.";
 
     @GetMapping("/events/{eventId}/dashboard-summary")
     public ResponseEntity<DashboardSummaryDTO> getDashboardSummary(
@@ -97,7 +97,7 @@ public class DashboardController {
             @PathVariable Long departmentId,
             Authentication authentication) {
 
-        if (!eventSecurityService.isLeaderOfEvent(eventId, currentUserId(authentication))) {
+        if (!canViewDepartmentDashboard(eventId, departmentId, currentUserId(authentication))) {
             throw dashboardAccessDenied();
         }
 
@@ -112,7 +112,7 @@ public class DashboardController {
             @RequestParam(required = false) LocalDate toDate,
             Authentication authentication) {
 
-        if (!eventSecurityService.isLeaderOfEvent(eventId, currentUserId(authentication))) {
+        if (!canViewDepartmentDashboard(eventId, departmentId, currentUserId(authentication))) {
             throw dashboardAccessDenied();
         }
 
@@ -125,7 +125,7 @@ public class DashboardController {
             @PathVariable Long departmentId,
             Authentication authentication) {
 
-        if (!eventSecurityService.isLeaderOfEvent(eventId, currentUserId(authentication))) {
+        if (!canViewDepartmentDashboard(eventId, departmentId, currentUserId(authentication))) {
             throw dashboardAccessDenied();
         }
 
@@ -140,7 +140,7 @@ public class DashboardController {
             @RequestParam(required = false) LocalDate toDate,
             Authentication authentication) {
 
-        if (!eventSecurityService.isLeaderOfEvent(eventId, currentUserId(authentication))) {
+        if (!canViewDepartmentDashboard(eventId, departmentId, currentUserId(authentication))) {
             throw dashboardAccessDenied();
         }
 
@@ -149,6 +149,11 @@ public class DashboardController {
 
     private Long currentUserId(Authentication authentication) {
         return (Long) authentication.getPrincipal();
+    }
+
+    private boolean canViewDepartmentDashboard(Long eventId, Long departmentId, Long userId) {
+        return eventSecurityService.isLeaderOfEvent(eventId, userId)
+                || eventSecurityService.isDepartmentLeader(eventId, departmentId, userId);
     }
 
     private ResponseStatusException dashboardAccessDenied() {

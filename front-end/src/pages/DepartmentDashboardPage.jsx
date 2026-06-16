@@ -12,12 +12,14 @@ import {
   Users,
 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
+import { DepartmentLeaderSnapshotPanel } from '../components/DashboardSnapshotPanels';
 import dashboardApi from '../api/dashboardApi';
 import eventApi from '../api/eventApi';
+import leaderSnapshotApi from '../api/leaderSnapshotApi';
 import taskApi from '../api/taskApi';
 import { PriorityBadge, StatusBadge } from '../components/ui';
 import { formatDate } from '../utils/dateUtils';
-import { getEventPermissions } from '../utils/permissionUtils';
+import { canAccessDepartment, getEventPermissions } from '../utils/permissionUtils';
 
 const PAGE_SIZE = 8;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -42,8 +44,13 @@ const DepartmentDashboardPage = ({ user, onLogout }) => {
   const eventQuery = useQuery({ queryKey: ['event', eventId], queryFn: () => eventApi.getEvent(eventId), enabled: Boolean(eventId) });
   const event = eventQuery.data;
   const permissions = getEventPermissions(event);
-  const canViewDashboard = permissions.canViewDepartmentDashboard;
+  const canViewDashboard = Boolean(event && permissions.canViewDepartmentDashboard && canAccessDepartment(event, departmentId));
   const weekRange = getWeekRange(event?.startTime || event?.eventDate, weekIndex);
+  const leaderSnapshotQuery = useQuery({
+    queryKey: ['departmentLeaderSnapshot', eventId, departmentId],
+    queryFn: () => leaderSnapshotApi.getDepartmentLeaderSnapshot({ eventId, departmentId }),
+    enabled: Boolean(eventId && departmentId && canViewDashboard),
+  });
   const summaryQuery = useQuery({ queryKey: ['departmentDashboardSummary', eventId, departmentId], queryFn: () => dashboardApi.getDepartmentSummary({ eventId, departmentId }), enabled: Boolean(eventId && departmentId && canViewDashboard) });
   const trendQuery = useQuery({ queryKey: ['departmentTaskStatusTrend', eventId, departmentId, weekRange.fromDate, weekRange.toDate], queryFn: () => dashboardApi.getDepartmentTaskTrend({ eventId, departmentId, ...weekRange }), enabled: Boolean(eventId && departmentId && canViewDashboard) });
   const statusQuery = useQuery({ queryKey: ['departmentTasksByStatus', eventId, departmentId, weekRange.fromDate, weekRange.toDate], queryFn: () => dashboardApi.getDepartmentTasksByStatus({ eventId, departmentId, ...weekRange }), enabled: Boolean(eventId && departmentId && canViewDashboard) });
@@ -108,71 +115,54 @@ const DepartmentDashboardPage = ({ user, onLogout }) => {
   return (
     <AppLayout user={user} events={event ? [event] : []} selectedEvent={event} onEventChange={() => {}} onLogout={onLogout}>
       <div className="min-w-0 space-y-6">
-        <section className="relative overflow-hidden rounded-[2rem] border border-sky-100 bg-white/85 p-6 shadow-xl shadow-sky-100/70 backdrop-blur-xl">
-          <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-sky-100 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-28 left-1/3 h-72 w-72 rounded-full bg-emerald-100/70 blur-3xl" />
+        <section className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div className="grid grid-cols-2 gap-2 sm:flex">
+            <Link
+              to={`/events/${eventId}/departments/${departmentId}/members`}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-2 text-sm font-black text-emerald-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-white hover:shadow-lg hover:shadow-emerald-100 active:translate-y-px"
+            >
+              <Users size={16} />
+              Member
+            </Link>
 
-          <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-            <div className="min-w-0">
-              <p className="inline-flex rounded-full bg-sky-50 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-sky-600">
-                Department dashboard
-              </p>
-
-              <p className="mt-4 text-sm font-bold text-slate-500">
-                {event?.name || 'Event'} / Department / {summary?.departmentName || 'Dashboard'}
-              </p>
-
-              <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
-                {summary?.departmentName || 'Dashboard ban'}
-              </h2>
-
-              <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-slate-600">
-                Theo dõi tiến độ, trạng thái công việc và danh sách task của ban theo từng tuần.
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-              <div className="grid grid-cols-2 gap-2 sm:flex">
-                <Link
-                  to={`/events/${eventId}/departments/${departmentId}/members`}
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-2 text-sm font-black text-emerald-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-white hover:shadow-lg hover:shadow-emerald-100 active:translate-y-px"
-                >
-                  <Users size={16} />
-                  Member
-                </Link>
-
-                <Link
-                  to={`/events/${eventId}/departments/${departmentId}/tasks`}
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-sky-100 bg-sky-50 px-4 py-2 text-sm font-black text-sky-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-white hover:shadow-lg hover:shadow-sky-100 active:translate-y-px"
-                >
-                  <ClipboardList size={16} />
-                  Task
-                </Link>
-              </div>
-
-              <WeekControl
-                weekIndex={weekIndex}
-                setWeekIndex={(next) => {
-                  setPage(0);
-                  setWeekIndex(next);
-                }}
-                weekRange={weekRange}
-              />
-            </div>
+            <Link
+              to={`/events/${eventId}/departments/${departmentId}/tasks`}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-sky-100 bg-sky-50 px-4 py-2 text-sm font-black text-sky-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-white hover:shadow-lg hover:shadow-sky-100 active:translate-y-px"
+            >
+              <ClipboardList size={16} />
+              Task
+            </Link>
           </div>
+
+          <WeekControl
+            weekIndex={weekIndex}
+            setWeekIndex={(next) => {
+              setPage(0);
+              setWeekIndex(next);
+            }}
+            weekRange={weekRange}
+          />
         </section>
+
+        <DepartmentLeaderSnapshotPanel
+          eventId={eventId}
+          departmentId={departmentId}
+          snapshot={leaderSnapshotQuery.data}
+          isLoading={leaderSnapshotQuery.isLoading}
+          error={leaderSnapshotQuery.error}
+        />
 
         {canViewDashboard && summary && !error && (
           <>
             <section className="grid gap-5">
-              <ChartPanel icon={<TrendingUp size={18} />} title="Line chart task theo ngày">
+              <ChartPanel icon={<TrendingUp size={18} />} title="Task theo ngày">
                 <StatusLineChart
                   data={trendQuery.data || []}
                   onPointClick={({ status, date }) => openFilteredTasks({ status, fromDate: date, toDate: date })}
                 />
               </ChartPanel>
 
-              <ChartPanel icon={<BarChart3 size={18} />} title="Column chart task theo status">
+              <ChartPanel icon={<BarChart3 size={18} />} title="Task theo trạng thái">
                 <StatusColumnChart
                   data={statusData}
                   onColumnClick={(status) => openFilteredTasks({ status, fromDate: weekRange.fromDate, toDate: weekRange.toDate })}
@@ -246,9 +236,6 @@ const ChartPanel = ({ icon, title, children }) => (
 
         <div className="min-w-0">
           <h3 className="font-black text-slate-950">{title}</h3>
-          <p className="mt-1 text-xs font-semibold text-slate-500">
-            Click vào điểm/cột để xem danh sách task tương ứng.
-          </p>
         </div>
       </div>
     </div>
