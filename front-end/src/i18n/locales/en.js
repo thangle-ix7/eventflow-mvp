@@ -74,17 +74,6 @@ const en = {
       settings: 'Settings',
     },
 
-    landing: {
-      title: 'AI Event Planning',
-
-      subtitle:
-        'Support organizing, coordinating and managing events on a digital platform.',
-
-      start: 'Get Started',
-
-      login: 'Login',
-    },
-
     auth: {
       login: 'Login',
 

@@ -27,7 +27,7 @@ import {
 } from '../components/ui';
 import eventApi from '../api/eventApi';
 import { formatDate } from '../utils/dateUtils';
-import LanguageSwitcher from '../components/LanguageSwitcher';
+// import LanguageSwitcher from '../components/LanguageSwitcher';
 import { useTranslation } from 'react-i18next';
 
 const PAGE_SIZE = 8;
@@ -95,7 +95,7 @@ const EventListPage = ({ user, onLogout }) => {
   const handleOpenEvent = (eventId) => {
     navigate(`/events/${eventId}`);
   };
-  const { t, i18n } = useTranslation();
+ const { t } = useTranslation();
   const STATUS_OPTIONS = [
     { value: '', label: t('common.all') },
 

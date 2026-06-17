@@ -59,17 +59,6 @@ const vi = {
       settings: 'Cài đặt',
     },
 
-    landing: {
-      title: 'Trợ lý tổ chức sự kiện',
-
-      subtitle:
-        'Hỗ trợ tổ chức, điều phối và quản lý sự kiện trên nền tảng số.',
-
-      start: 'Bắt đầu',
-
-      login: 'Đăng nhập',
-    },
-
     auth: {
       login: 'Đăng nhập',
 
