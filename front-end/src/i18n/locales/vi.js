@@ -44,6 +44,8 @@ const vi = {
 
       members: 'Thành viên',
 
+      plannings: 'Kế hoạch',
+
       tasks: 'Công việc',
 
       calendar: 'Lịch',

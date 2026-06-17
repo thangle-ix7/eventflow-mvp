@@ -14,74 +14,76 @@ const PlanningComposer = ({
 }) => (
   <Panel className="overflow-hidden">
     <form onSubmit={onSubmit}>
-      <div className="border-b border-slate-100 bg-slate-50/70 p-4">
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-          <div>
-            <h3 className="text-base font-extrabold text-slate-950">Tạo planning</h3>
+      <div className="border-b border-sky-100 bg-white px-4 py-4">
+        <div className="grid gap-4">
+          <div className="min-w-0">
+            <h3 className="text-lg font-black text-slate-950">Tạo planning</h3>
             {aiApplied && (
               <p className="mt-1 inline-flex items-center gap-2 text-sm font-semibold text-emerald-700">
                 <CheckCircle2 size={15} />
-                Đã điền nháp từ AI, bạn có thể chỉnh lại trước khi lưu.
+                Đã điền nháp từ AI
               </p>
             )}
           </div>
-          <div className="flex w-full flex-col gap-2 sm:flex-row xl:max-w-2xl">
+
+          <label className="grid gap-2">
+            <span className="text-xs font-black uppercase tracking-[0.14em] text-slate-500 sm:col-span-2">
+              AI context
+            </span>
             <input
               value={aiInstruction}
               onChange={(event) => setAiInstruction(event.target.value)}
-              placeholder="Context cho AI: quy mô, mục tiêu, kiểu sự kiện..."
-              className="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+              placeholder="Quy mô, mục tiêu, kiểu sự kiện..."
+              className="min-h-12 min-w-0 rounded-2xl border border-sky-100 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100"
             />
-            <Button type="button" variant="secondary" onClick={() => aiMutation.mutate()} disabled={aiMutation.isPending}>
+            <Button type="button" variant="secondary" onClick={() => aiMutation.mutate()} disabled={aiMutation.isPending} className="min-h-12 rounded-2xl">
               {aiMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
               Gợi ý AI
             </Button>
-          </div>
+          </label>
         </div>
         {aiMutation.error && (
-          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          <div className="mt-3 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-700">
             {aiMutation.error.userMessage || aiMutation.error.message}
           </div>
         )}
       </div>
 
-      <div className="grid gap-4 p-4 xl:grid-cols-[minmax(280px,0.85fr)_minmax(0,1.15fr)]">
-        <div className="space-y-3">
-          <label className="block text-sm font-semibold text-slate-700">
+      <div className="grid gap-4 p-4">
+        <div className="space-y-4 rounded-2xl border border-sky-100 bg-sky-50/40 p-4">
+          <label className="block text-sm font-black text-slate-800">
             Tên kế hoạch
             <input
               value={form.title}
               onChange={(event) => setForm((old) => ({ ...old, title: event.target.value }))}
               maxLength={255}
               placeholder="VD: Kế hoạch vận hành sự kiện"
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+              className={inputClassName}
             />
           </label>
-          <label className="block text-sm font-semibold text-slate-700">
+          <label className="block text-sm font-black text-slate-800">
             Mô tả
             <textarea
               value={form.description}
               onChange={(event) => setForm((old) => ({ ...old, description: event.target.value }))}
               maxLength={2000}
               rows={5}
-              placeholder="Mục tiêu tổng quan, phạm vi và lưu ý khi chạy planning."
-              className="mt-1 w-full resize-y rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+              placeholder="Mục tiêu tổng quan, phạm vi và lưu ý vận hành."
+              className={textareaClassName}
             />
           </label>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-4 rounded-2xl border border-sky-100 bg-white p-4">
           <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-bold text-slate-800">Phase roadmap</p>
-              <p className="text-xs font-medium text-slate-500">Mỗi phase là một dòng để dễ scan và chỉnh nhanh.</p>
-            </div>
-            <Button type="button" variant="secondary" onClick={() => addDraftPhase(setForm)}>
+            <p className="text-sm font-black text-slate-900">Phase roadmap</p>
+            <Button type="button" variant="secondary" onClick={() => addDraftPhase(setForm)} className="min-h-10 rounded-2xl">
               <Plus size={16} />
               Thêm phase
             </Button>
           </div>
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+
+          <div className="space-y-3">
             {form.phases.map((phase, index) => (
               <PhaseDraftRow
                 key={`${index}-${phase.orderIndex}`}
@@ -95,11 +97,11 @@ const PlanningComposer = ({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 p-4">
-        <p className="text-sm font-semibold text-slate-500">
-          {countFilledPhases(form.phases)} phase sẽ được lưu
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-sky-100 bg-sky-50/50 px-4 py-4">
+        <p className="rounded-2xl bg-white px-3 py-2 text-sm font-black text-slate-600 shadow-sm">
+          {countFilledPhases(form.phases)} / {form.phases.length} phase có tên sẽ được lưu
         </p>
-        <Button type="submit" disabled={!form.title.trim() || createMutation.isPending}>
+        <Button type="submit" disabled={!form.title.trim() || createMutation.isPending} className="min-h-12 rounded-2xl">
           {createMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
           Lưu planning
         </Button>
@@ -109,47 +111,61 @@ const PlanningComposer = ({
 );
 
 const PhaseDraftRow = ({ phase, index, setForm, canRemove }) => (
-  <div className="grid gap-3 border-b border-slate-100 p-3 last:border-b-0 lg:grid-cols-[86px_minmax(0,1fr)_minmax(180px,0.65fr)_40px] lg:items-start">
-    <div className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wide text-slate-400">
-      <span className="inline-flex h-7 w-7 items-center justify-center rounded bg-slate-100 text-slate-600">{index + 1}</span>
-      Phase
-    </div>
-    <div className="grid gap-2">
-      <input
-        value={phase.phaseName}
-        onChange={(event) => updateDraftPhase(setForm, index, 'phaseName', event.target.value)}
-        maxLength={255}
-        placeholder="Tên phase"
-        className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-      />
-      <textarea
-        value={phase.description}
-        onChange={(event) => updateDraftPhase(setForm, index, 'description', event.target.value)}
-        maxLength={2000}
-        rows={2}
-        placeholder="Mô tả ngắn việc cần chuẩn bị"
-        className="resize-y rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-      />
-    </div>
-    <textarea
-      value={phase.objective}
-      onChange={(event) => updateDraftPhase(setForm, index, 'objective', event.target.value)}
-      maxLength={2000}
-      rows={3}
-      placeholder="Mục tiêu phase"
-      className="resize-y rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-    />
-    <div className="flex justify-end">
+  <div className="rounded-2xl border border-sky-100 bg-sky-50/40 p-3">
+    <div className="mb-3 flex items-center justify-between gap-3">
+      <div className="flex items-center gap-2">
+        <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-white text-sm font-black text-sky-700 shadow-sm">
+          {index + 1}
+        </span>
+        <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Phase</span>
+      </div>
+
       {canRemove && (
         <button
           type="button"
           onClick={() => removeDraftPhase(setForm, index)}
-          className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600"
+          className="rounded-xl p-2 text-slate-400 transition hover:bg-red-50 hover:text-red-600"
           aria-label="Xóa phase"
         >
           <X size={16} />
         </button>
       )}
+    </div>
+
+    <div className="grid gap-3 lg:grid-cols-2">
+      <label className="block text-xs font-black uppercase tracking-[0.12em] text-slate-500">
+        Tên phase
+        <input
+          value={phase.phaseName}
+          onChange={(event) => updateDraftPhase(setForm, index, 'phaseName', event.target.value)}
+          maxLength={255}
+          placeholder="VD: Chuẩn bị trước sự kiện"
+          className={inputClassName}
+        />
+      </label>
+
+      <label className="block text-xs font-black uppercase tracking-[0.12em] text-slate-500">
+        Mục tiêu
+        <input
+          value={phase.objective}
+          onChange={(event) => updateDraftPhase(setForm, index, 'objective', event.target.value)}
+          maxLength={2000}
+          placeholder="Mục tiêu phase"
+          className={inputClassName}
+        />
+      </label>
+
+      <label className="block text-xs font-black uppercase tracking-[0.12em] text-slate-500 lg:col-span-2">
+        Mô tả
+        <textarea
+          value={phase.description}
+          onChange={(event) => updateDraftPhase(setForm, index, 'description', event.target.value)}
+          maxLength={2000}
+          rows={3}
+          placeholder="Các việc chính cần chuẩn bị"
+          className={textareaClassName}
+        />
+      </label>
     </div>
   </div>
 );
@@ -176,5 +192,8 @@ const updateDraftPhase = (setForm, index, field, value) => {
     )),
   }));
 };
+
+const inputClassName = 'mt-1 min-h-12 w-full rounded-2xl border border-sky-100 bg-white px-4 py-2.5 text-sm font-semibold normal-case tracking-normal text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100';
+const textareaClassName = 'mt-1 min-h-[120px] w-full resize-y rounded-2xl border border-sky-100 bg-white px-4 py-3 text-sm font-semibold normal-case tracking-normal text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100';
 
 export default PlanningComposer;

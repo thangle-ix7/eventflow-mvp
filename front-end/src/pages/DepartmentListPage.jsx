@@ -15,7 +15,7 @@ import {
   X,
 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
-import { Button, EmptyState, ErrorState, LoadingState, PageHeader, Panel } from '../components/ui';
+import { Button, EmptyState, ErrorState, LoadingState, Panel } from '../components/ui';
 import aiSuggestionApi from '../api/aiSuggestionApi';
 import departmentApi from '../api/departmentApi';
 import eventApi from '../api/eventApi';
@@ -194,33 +194,16 @@ const DepartmentListPage = ({ user, onLogout }) => {
 
         {isLeader && (
           <>
-            <PageHeader
-              eyebrow={event?.name || 'Sự kiện'}
-              title="Ban tổ chức"
-              description="Quản lý danh sách ban, trưởng ban và cơ cấu nhân sự cho sự kiện."
-              actions={isLeader && (
-                <Button
-                  as={Link}
-                  to={`/events/${eventId}/departments/new`}
-                  className="min-h-11 rounded-2xl bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 font-black text-white shadow-xl shadow-cyan-100"
-                >
-                  <Plus size={18} />
-                  Tạo ban
-                </Button>
-              )}
-              meta={
-                <>
-                  <span className="inline-flex items-center gap-2 rounded-full border border-sky-100 bg-white px-3 py-1.5 font-black text-sky-600 shadow-sm">
-                    <Building2 size={16} />
-                    {departments.length} ban tổ chức
-                  </span>
-                  <span className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-white px-3 py-1.5 font-black text-emerald-600 shadow-sm">
-                    <UserRound size={16} />
-                    {members.length} thành viên sự kiện
-                  </span>
-                </>
-              }
-            />
+            <div className="flex justify-end">
+              <Button
+                as={Link}
+                to={`/events/${eventId}/departments/new`}
+                className="min-h-11 rounded-2xl bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 font-black text-white shadow-xl shadow-cyan-100"
+              >
+                <Plus size={18} />
+                Tạo ban
+              </Button>
+            </div>
 
             <DepartmentAiSuggestionPanel
               instruction={aiInstruction}
@@ -241,9 +224,6 @@ const DepartmentListPage = ({ user, onLogout }) => {
                     <h3 className="text-lg font-black text-slate-950">
                       Danh sách ban tổ chức
                     </h3>
-                    <p className="mt-1 text-sm font-semibold text-slate-500">
-                      Click vào một dòng để mở chi tiết ban.
-                    </p>
                   </div>
                 </div>
 

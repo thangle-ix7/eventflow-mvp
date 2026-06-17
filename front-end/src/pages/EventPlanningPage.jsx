@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
 import { ClipboardList } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
-import { EmptyState, ErrorState, LoadingState, PageHeader } from '../components/ui';
+import { EmptyState, ErrorState, LoadingState } from '../components/ui';
 import PlanningCard from '../components/planning/PlanningCard';
 import PlanningComposer from '../components/planning/PlanningComposer';
 import {
@@ -192,10 +192,6 @@ const EventPlanningPage = ({ user, onLogout }) => {
   return (
     <AppLayout user={user} events={event ? [event] : []} selectedEvent={event} onLogout={onLogout}>
       <div className="space-y-6">
-        <PageHeader
-          title="Kế hoạch"
-        />
-
         {isLoading && <LoadingState message="Đang tải kế hoạch..." />}
         {!isLoading && error && (
           <ErrorPage
@@ -207,70 +203,74 @@ const EventPlanningPage = ({ user, onLogout }) => {
 
         {!isLoading && !error && (
           <>
-            {isLeader && (
-              <PlanningComposer
-                form={draftForm}
-                setForm={setDraftForm}
-                aiInstruction={aiInstruction}
-                setAiInstruction={setAiInstruction}
-                aiApplied={aiApplied}
-                aiMutation={aiPlanningMutation}
-                createMutation={createPlanningMutation}
-                onSubmit={handleCreatePlanning}
-              />
-            )}
-
-            {(createPlanningMutation.error || updatePlanningMutation.error || deletePlanningMutation.error || createPhaseMutation.error || updatePhaseMutation.error || deletePhaseMutation.error) && (
-              <ErrorState
-                title="Không lưu được kế hoạch"
-                error={createPlanningMutation.error || updatePlanningMutation.error || deletePlanningMutation.error || createPhaseMutation.error || updatePhaseMutation.error || deletePhaseMutation.error}
-              />
-            )}
-
-            {plannings.length === 0 ? (
-              <EmptyState
-                icon={ClipboardList}
-                title="Chưa có planning"
-                description={isLeader ? 'Tạo kế hoạch đầu tiên hoặc dùng AI để lấy khung planning ban đầu.' : 'Leader chưa tạo planning cho sự kiện này.'}
-              />
-            ) : (
-              <div className="space-y-4">
-                {plannings.map((planning) => (
-                  <PlanningCard
-                    key={planning.id}
-                    planning={planning}
-                    isLeader={isLeader}
-                    editingPlanningId={editingPlanningId}
-                    editingPlanningForm={editingPlanningForm}
-                    setEditingPlanningForm={setEditingPlanningForm}
-                    startEditingPlanning={startEditingPlanning}
-                    cancelEditingPlanning={() => setEditingPlanningId(null)}
-                    submitPlanningEdit={submitPlanningEdit}
-                    updatePlanningMutation={updatePlanningMutation}
-                    deletePlanningMutation={deletePlanningMutation}
-                    handleDeletePlanning={handleDeletePlanning}
-                    editingPhaseKey={editingPhaseKey}
-                    editingPhaseForm={editingPhaseForm}
-                    setEditingPhaseForm={setEditingPhaseForm}
-                    startEditingPhase={startEditingPhase}
-                    cancelEditingPhase={() => setEditingPhaseKey(null)}
-                    submitPhaseEdit={submitPhaseEdit}
-                    updatePhaseMutation={updatePhaseMutation}
-                    deletePhaseMutation={deletePhaseMutation}
-                    handleDeletePhase={handleDeletePhase}
-                    newPhaseForm={resolveNewPhaseForm(planning, newPhaseForms)}
-                    setNewPhaseForm={(updater) => setNewPhaseForms((old) => ({
-                      ...old,
-                      [planning.id]: typeof updater === 'function'
-                        ? updater(resolveNewPhaseForm(planning, old))
-                        : updater,
-                    }))}
-                    submitNewPhase={submitNewPhase}
-                    createPhaseMutation={createPhaseMutation}
+            <div className={isLeader ? 'grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px] xl:items-start' : ''}>
+              <section className="space-y-4">
+                {(createPlanningMutation.error || updatePlanningMutation.error || deletePlanningMutation.error || createPhaseMutation.error || updatePhaseMutation.error || deletePhaseMutation.error) && (
+                  <ErrorState
+                    title="Không lưu được kế hoạch"
+                    error={createPlanningMutation.error || updatePlanningMutation.error || deletePlanningMutation.error || createPhaseMutation.error || updatePhaseMutation.error || deletePhaseMutation.error}
                   />
-                ))}
-              </div>
-            )}
+                )}
+
+                {plannings.length === 0 ? (
+                  <EmptyState
+                    icon={ClipboardList}
+                    title="Chưa có planning"
+                    description={isLeader ? 'Tạo kế hoạch đầu tiên hoặc dùng AI để lấy khung planning ban đầu.' : 'Leader chưa tạo planning cho sự kiện này.'}
+                  />
+                ) : (
+                  plannings.map((planning) => (
+                    <PlanningCard
+                      key={planning.id}
+                      planning={planning}
+                      isLeader={isLeader}
+                      editingPlanningId={editingPlanningId}
+                      editingPlanningForm={editingPlanningForm}
+                      setEditingPlanningForm={setEditingPlanningForm}
+                      startEditingPlanning={startEditingPlanning}
+                      cancelEditingPlanning={() => setEditingPlanningId(null)}
+                      submitPlanningEdit={submitPlanningEdit}
+                      updatePlanningMutation={updatePlanningMutation}
+                      deletePlanningMutation={deletePlanningMutation}
+                      handleDeletePlanning={handleDeletePlanning}
+                      editingPhaseKey={editingPhaseKey}
+                      editingPhaseForm={editingPhaseForm}
+                      setEditingPhaseForm={setEditingPhaseForm}
+                      startEditingPhase={startEditingPhase}
+                      cancelEditingPhase={() => setEditingPhaseKey(null)}
+                      submitPhaseEdit={submitPhaseEdit}
+                      updatePhaseMutation={updatePhaseMutation}
+                      deletePhaseMutation={deletePhaseMutation}
+                      handleDeletePhase={handleDeletePhase}
+                      newPhaseForm={resolveNewPhaseForm(planning, newPhaseForms)}
+                      setNewPhaseForm={(updater) => setNewPhaseForms((old) => ({
+                        ...old,
+                        [planning.id]: typeof updater === 'function'
+                          ? updater(resolveNewPhaseForm(planning, old))
+                          : updater,
+                      }))}
+                      submitNewPhase={submitNewPhase}
+                      createPhaseMutation={createPhaseMutation}
+                    />
+                  ))
+                )}
+              </section>
+
+              {isLeader && (
+                <aside className="xl:sticky xl:top-24">
+                  <PlanningComposer
+                    form={draftForm}
+                    setForm={setDraftForm}
+                    aiInstruction={aiInstruction}
+                    setAiInstruction={setAiInstruction}
+                    aiApplied={aiApplied}
+                    aiMutation={aiPlanningMutation}
+                    createMutation={createPlanningMutation}
+                    onSubmit={handleCreatePlanning}
+                  />
+                </aside>
+              )}
+            </div>
           </>
         )}
       </div>

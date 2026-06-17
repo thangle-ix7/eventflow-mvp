@@ -23,14 +23,14 @@ const toDateTimeLocalValue = (value) => {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 };
 
-const createEmptyRow = (departmentId = '', assigneeId = '') => ({
+const createEmptyRow = (departmentId = '', assigneeId = '', status = 'TODO') => ({
   id: crypto.randomUUID(),
   title: '',
   description: '',
   departmentId: departmentId ? String(departmentId) : '',
   assigneeId: assigneeId ? String(assigneeId) : '',
   deadline: '',
-  status: 'TODO',
+  status,
   priority: 'MEDIUM',
 });
 
@@ -66,6 +66,8 @@ const InlineTaskCreator = ({
   lockedDepartment = false,
   lockedAssignee = false,
   invalidateKeys = [],
+  initialStatus = 'TODO',
+  defaultOpen = false,
   title = 'Thêm task theo danh sách',
   saveLabel = 'Save',
   openLabel,
@@ -79,9 +81,9 @@ const InlineTaskCreator = ({
     () => toDateTimeLocalValue(event?.endTime || event?.startTime || event?.eventDate),
     [event?.endTime, event?.eventDate, event?.startTime]
   );
-  const [rows, setRows] = useState([createEmptyRow(departmentId, assigneeId)]);
+  const [rows, setRows] = useState([createEmptyRow(departmentId, assigneeId, initialStatus)]);
   const [localError, setLocalError] = useState('');
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(defaultOpen);
   const [suggestionInstruction, setSuggestionInstruction] = useState('');
   const addButtonLabel = openLabel || (parentTaskId ? 'Thêm subtask' : 'Thêm task');
 
@@ -185,7 +187,7 @@ const InlineTaskCreator = ({
         : taskApi.createTask({ eventId, payload })
     ))),
     onSuccess: () => {
-      setRows([createEmptyRow(departmentId, assigneeId)]);
+      setRows([createEmptyRow(departmentId, assigneeId, initialStatus)]);
       setLocalError('');
       setIsOpen(false);
       invalidateKeys.forEach((queryKey) => {
@@ -220,7 +222,7 @@ const InlineTaskCreator = ({
         departmentId: task.departmentId ? String(task.departmentId) : String(departmentId || ''),
         assigneeId: task.assigneeId ? String(task.assigneeId) : String(assigneeId || ''),
         deadline: normalizeSuggestedDeadline(task.deadline),
-        status: task.status || 'TODO',
+        status: task.status || initialStatus,
         priority: task.priority || 'MEDIUM',
       })));
     },
@@ -242,19 +244,19 @@ const InlineTaskCreator = ({
   };
 
   const addRow = () => {
-    setRows((old) => [...old, createEmptyRow(departmentId, assigneeId)]);
+    setRows((old) => [...old, createEmptyRow(departmentId, assigneeId, initialStatus)]);
   };
 
   const removeRow = (rowId) => {
     setRows((old) => (
       old.length === 1
-        ? [createEmptyRow(departmentId, assigneeId)]
+        ? [createEmptyRow(departmentId, assigneeId, initialStatus)]
         : old.filter((row) => row.id !== rowId)
     ));
   };
 
   const handleClose = () => {
-    setRows([createEmptyRow(departmentId, assigneeId)]);
+    setRows([createEmptyRow(departmentId, assigneeId, initialStatus)]);
     setLocalError('');
     setIsOpen(false);
   };
@@ -332,9 +334,6 @@ const InlineTaskCreator = ({
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-sky-100 bg-white/80 px-4 py-4 backdrop-blur">
         <div>
           <p className="text-sm font-black text-slate-950">{title}</p>
-          <p className="mt-1 text-xs font-semibold text-slate-500">
-            Nhập thủ công hoặc dùng AI để tạo nhanh danh sách công việc.
-          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">

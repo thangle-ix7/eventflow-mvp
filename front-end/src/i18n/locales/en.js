@@ -59,6 +59,8 @@ const en = {
 
       members: 'Members',
 
+      plannings: 'Planning',
+
       tasks: 'Tasks',
 
       calendar: 'Calendar',

@@ -5,8 +5,10 @@ import {
   CalendarDays,
   ClipboardList,
   FileText,
+  Flag,
   Layers3,
   Loader2,
+  Plus,
   Save,
   Sparkles,
   TrendingUp,
@@ -16,8 +18,10 @@ import AppLayout from '../components/AppLayout';
 import departmentApi from '../api/departmentApi';
 import eventApi from '../api/eventApi';
 import eventMemberApi from '../api/eventMemberApi';
+import milestoneApi from '../api/milestoneApi';
 import taskApi from '../api/taskApi';
 import workloadApi from '../api/workloadApi';
+import MilestoneCreateModal from '../components/MilestoneCreateModal';
 import { invalidateDashboardQueries } from '../utils/dashboardQueryUtils';
 
 const toDatetimeLocal = (value) => (value ? value.slice(0, 16) : '');
@@ -81,32 +85,23 @@ const TaskEditPage = ({ user, onLogout }) => {
       onLogout={onLogout}
     >
       <div className="mx-auto max-w-6xl space-y-6">
-        <section className="relative overflow-hidden rounded-[2rem] border border-sky-100 bg-white/85 p-6 shadow-xl shadow-sky-100/70 backdrop-blur-xl">
-          <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-sky-100 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-28 left-1/3 h-72 w-72 rounded-full bg-emerald-100/70 blur-3xl" />
-
-          <div className="relative flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-            <div className="flex items-start gap-4">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-3xl bg-gradient-to-br from-sky-500 to-emerald-400 text-white shadow-lg shadow-cyan-100">
-                <ClipboardList size={28} strokeWidth={1.8} />
-              </div>
-
+        <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div className="min-w-0">
-                <p className="inline-flex rounded-full bg-sky-50 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-sky-600">
+                <p className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-sky-600">
+                  <ClipboardList size={15} strokeWidth={1.8} />
                   Task management
                 </p>
 
-                <h2 className="mt-3 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
+                <h2 className="mt-1 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
                   Cập nhật task
                 </h2>
 
-                <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-slate-600">
+                <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-slate-600">
                   Chỉnh sửa thông tin task, người phụ trách, deadline, trạng thái, độ ưu tiên và tiến độ.
                 </p>
               </div>
-            </div>
 
-            <div className="rounded-3xl border border-sky-100 bg-white/80 p-4 shadow-sm">
+            <div className="rounded-2xl border border-sky-100 bg-sky-50/70 px-4 py-3">
               <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">
                 Event
               </p>
@@ -114,8 +109,7 @@ const TaskEditPage = ({ user, onLogout }) => {
                 {eventQuery.data?.name || 'Đang tải...'}
               </p>
             </div>
-          </div>
-        </section>
+        </header>
 
         {taskQuery.isLoading && (
           <div className="flex items-center gap-3 rounded-[2rem] border border-sky-100 bg-white p-5 text-sm font-black text-slate-500 shadow-xl shadow-sky-100/70">
@@ -152,11 +146,13 @@ const TaskEditPage = ({ user, onLogout }) => {
 const TaskEditForm = ({ task, event, departments, members, mutation, taskId, eventId }) => {
   const maxDeadline = toDatetimeLocal(event?.endTime || event?.startTime || event?.eventDate);
   const isSubtask = Boolean(task.parentId);
+  const [isMilestoneModalOpen, setIsMilestoneModalOpen] = useState(false);
   const [form, setForm] = useState({
     title: task.title || '',
     description: task.description || '',
     departmentId: String(task.departmentId || ''),
     assigneeId: task.assigneeId ? String(task.assigneeId) : '',
+    milestoneId: task.milestoneId ? String(task.milestoneId) : '',
     deadline: toDatetimeLocal(task.deadline),
     status: task.status || 'TODO',
     priority: task.priority || 'MEDIUM',
@@ -167,6 +163,12 @@ const TaskEditForm = ({ task, event, departments, members, mutation, taskId, eve
     queryKey: ['departmentWorkload', eventId, form.departmentId],
     queryFn: () => workloadApi.getDepartmentWorkload({ eventId, departmentId: form.departmentId }),
     enabled: Boolean(eventId && form.departmentId),
+  });
+
+  const milestonesQuery = useQuery({
+    queryKey: ['eventMilestones', eventId],
+    queryFn: () => milestoneApi.getEventMilestones(eventId),
+    enabled: Boolean(eventId),
   });
 
   const handleChange = (event) => {
@@ -208,6 +210,7 @@ const TaskEditForm = ({ task, event, departments, members, mutation, taskId, eve
         description: form.description,
         departmentId: form.departmentId ? Number(form.departmentId) : null,
         assigneeId: form.assigneeId ? Number(form.assigneeId) : null,
+        milestoneId: form.milestoneId ? Number(form.milestoneId) : null,
         deadline: form.deadline,
         status: form.status,
         priority: form.priority,
@@ -216,7 +219,13 @@ const TaskEditForm = ({ task, event, departments, members, mutation, taskId, eve
     });
   };
 
+  const handleMilestoneCreated = (milestone) => {
+    setForm((old) => ({ ...old, milestoneId: String(milestone.id) }));
+    setIsMilestoneModalOpen(false);
+  };
+
   return (
+    <>
     <div className="grid gap-6 lg:grid-cols-[1fr_0.72fr]">
       <form
         onSubmit={handleSubmit}
@@ -275,6 +284,47 @@ const TaskEditForm = ({ task, event, departments, members, mutation, taskId, eve
               className={`${inputClassName} min-h-32 resize-none py-3`}
               placeholder="Mục tiêu, phạm vi, yêu cầu đầu ra của task..."
             />
+          </Field>
+
+          <Field
+            label="Milestone"
+            icon={<Flag className="h-4 w-4" strokeWidth={1.8} />}
+            hint={isSubtask ? 'Subtask kế thừa milestone của task cha.' : 'Không bắt buộc. Dùng để dashboard tính tiến độ theo từng chặng.'}
+          >
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <select
+                name="milestoneId"
+                value={form.milestoneId}
+                onChange={handleChange}
+                disabled={isSubtask}
+                className={inputClassName}
+              >
+                <option value="">Chưa gán milestone</option>
+                {milestonesQuery.data?.map((milestone) => (
+                  <option key={milestone.id} value={milestone.id}>
+                    {milestone.name}
+                  </option>
+                ))}
+              </select>
+
+              {!isSubtask && (
+                <button
+                  type="button"
+                  onClick={() => setIsMilestoneModalOpen(true)}
+                  className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-2xl border border-sky-100 bg-white px-4 py-2 text-sm font-black text-sky-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-sky-50 hover:shadow-lg hover:shadow-sky-100"
+                >
+                  <Plus size={16} />
+                  Tạo milestone
+                </button>
+              )}
+            </div>
+
+            {milestonesQuery.isLoading && (
+              <p className="mt-2 flex items-center gap-2 text-xs font-semibold text-slate-500">
+                <Loader2 size={13} className="animate-spin text-sky-500" />
+                Đang tải milestone...
+              </p>
+            )}
           </Field>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -468,6 +518,14 @@ const TaskEditForm = ({ task, event, departments, members, mutation, taskId, eve
         </section>
       </aside>
     </div>
+
+    <MilestoneCreateModal
+      eventId={eventId}
+      isOpen={isMilestoneModalOpen}
+      onCancel={() => setIsMilestoneModalOpen(false)}
+      onCreated={handleMilestoneCreated}
+    />
+    </>
   );
 };
 

@@ -5,8 +5,10 @@ import {
   CalendarDays,
   ClipboardList,
   FileText,
+  Flag,
   Layers3,
   Loader2,
+  Plus,
   Save,
   Sparkles,
   TrendingUp,
@@ -18,8 +20,10 @@ import aiSuggestionApi from '../api/aiSuggestionApi';
 import departmentApi from '../api/departmentApi';
 import eventApi from '../api/eventApi';
 import eventMemberApi from '../api/eventMemberApi';
+import milestoneApi from '../api/milestoneApi';
 import taskApi from '../api/taskApi';
 import workloadApi from '../api/workloadApi';
+import MilestoneCreateModal from '../components/MilestoneCreateModal';
 import { invalidateDashboardQueries } from '../utils/dashboardQueryUtils';
 
 const pad = (value) => String(value).padStart(2, '0');
@@ -51,6 +55,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
     description: '',
     departmentId: initialDepartmentId,
     assigneeId: '',
+    milestoneId: '',
     deadline: '',
     status: 'TODO',
     priority: 'MEDIUM',
@@ -58,6 +63,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
   });
 
   const [suggestionInstruction, setSuggestionInstruction] = useState('');
+  const [isMilestoneModalOpen, setIsMilestoneModalOpen] = useState(false);
 
   const eventQuery = useQuery({
     queryKey: ['event', eventId],
@@ -74,6 +80,12 @@ const TaskCreatePage = ({ user, onLogout }) => {
   const membersQuery = useQuery({
     queryKey: ['eventMembers', eventId],
     queryFn: () => eventMemberApi.getMembers(eventId),
+    enabled: Boolean(eventId),
+  });
+
+  const milestonesQuery = useQuery({
+    queryKey: ['eventMilestones', eventId],
+    queryFn: () => milestoneApi.getEventMilestones(eventId),
     enabled: Boolean(eventId),
   });
 
@@ -138,6 +150,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
         description: form.description,
         departmentId: form.departmentId ? Number(form.departmentId) : null,
         assigneeId: form.assigneeId ? Number(form.assigneeId) : null,
+        milestoneId: form.milestoneId ? Number(form.milestoneId) : null,
         deadline: form.deadline,
         status: form.status,
         priority: form.priority,
@@ -153,6 +166,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
       description: task.description || '',
       departmentId,
       assigneeId: task.assigneeId ? String(task.assigneeId) : '',
+      milestoneId: task.milestoneId ? String(task.milestoneId) : '',
       deadline: normalizeSuggestedDeadline(task.deadline),
       status: task.status || 'TODO',
       priority: task.priority || 'MEDIUM',
@@ -168,6 +182,11 @@ const TaskCreatePage = ({ user, onLogout }) => {
     });
   };
 
+  const handleMilestoneCreated = (milestone) => {
+    setForm((old) => ({ ...old, milestoneId: String(milestone.id) }));
+    setIsMilestoneModalOpen(false);
+  };
+
   return (
     <AppLayout
       user={user}
@@ -177,32 +196,23 @@ const TaskCreatePage = ({ user, onLogout }) => {
       onLogout={onLogout}
     >
       <div className="mx-auto max-w-6xl space-y-6">
-        <section className="relative overflow-hidden rounded-[2rem] border border-sky-100 bg-white/85 p-6 shadow-xl shadow-sky-100/70 backdrop-blur-xl">
-          <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-sky-100 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-28 left-1/3 h-72 w-72 rounded-full bg-emerald-100/70 blur-3xl" />
-
-          <div className="relative flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-            <div className="flex items-start gap-4">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-3xl bg-gradient-to-br from-sky-500 to-emerald-400 text-white shadow-lg shadow-cyan-100">
-                <ClipboardList size={28} strokeWidth={1.8} />
-              </div>
-
+        <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div className="min-w-0">
-                <p className="inline-flex rounded-full bg-sky-50 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-sky-600">
+                <p className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-sky-600">
+                  <ClipboardList size={15} strokeWidth={1.8} />
                   Task management
                 </p>
 
-                <h2 className="mt-3 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
+                <h2 className="mt-1 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
                   Tạo task mới
                 </h2>
 
-                <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-slate-600">
+                <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-slate-600">
                   Tạo công việc, gán ban phụ trách, phân công thành viên, đặt deadline và theo dõi workload trước khi giao task.
                 </p>
               </div>
-            </div>
 
-            <div className="rounded-3xl border border-sky-100 bg-white/80 p-4 shadow-sm">
+            <div className="rounded-2xl border border-sky-100 bg-sky-50/70 px-4 py-3">
               <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">
                 Event
               </p>
@@ -210,8 +220,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
                 {eventQuery.data?.name || 'Đang tải...'}
               </p>
             </div>
-          </div>
-        </section>
+        </header>
 
         <div className="grid gap-6 lg:grid-cols-[1fr_0.72fr]">
           <form
@@ -270,6 +279,44 @@ const TaskCreatePage = ({ user, onLogout }) => {
                   className={`${inputClassName} min-h-32 resize-none py-3`}
                   placeholder="Mô tả chi tiết công việc, yêu cầu đầu ra, ghi chú..."
                 />
+              </Field>
+
+              <Field
+                label="Milestone"
+                icon={<Flag className="h-4 w-4" strokeWidth={1.8} />}
+                hint="Không bắt buộc. Gắn task vào milestone để dashboard tính tiến độ theo từng chặng."
+              >
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <select
+                    name="milestoneId"
+                    value={form.milestoneId}
+                    onChange={handleChange}
+                    className={inputClassName}
+                  >
+                    <option value="">Chưa gán milestone</option>
+                    {milestonesQuery.data?.map((milestone) => (
+                      <option key={milestone.id} value={milestone.id}>
+                        {milestone.name}
+                      </option>
+                    ))}
+                  </select>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsMilestoneModalOpen(true)}
+                    className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-2xl border border-sky-100 bg-white px-4 py-2 text-sm font-black text-sky-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-sky-50 hover:shadow-lg hover:shadow-sky-100"
+                  >
+                    <Plus size={16} />
+                    Tạo milestone
+                  </button>
+                </div>
+
+                {milestonesQuery.isLoading && (
+                  <p className="mt-2 flex items-center gap-2 text-xs font-semibold text-slate-500">
+                    <Loader2 size={13} className="animate-spin text-sky-500" />
+                    Đang tải milestone...
+                  </p>
+                )}
               </Field>
 
               <div className="grid gap-4 sm:grid-cols-2">
@@ -523,6 +570,13 @@ const TaskCreatePage = ({ user, onLogout }) => {
           </aside>
         </div>
       </div>
+
+      <MilestoneCreateModal
+        eventId={eventId}
+        isOpen={isMilestoneModalOpen}
+        onCancel={() => setIsMilestoneModalOpen(false)}
+        onCreated={handleMilestoneCreated}
+      />
     </AppLayout>
   );
 };

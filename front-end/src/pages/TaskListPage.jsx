@@ -1,36 +1,29 @@
-import { useMemo, useState } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import {
   CalendarDays,
-  ChevronLeft,
-  ChevronRight,
-  ClipboardList,
   Layers3,
+  Plus,
   Search,
-  SlidersHorizontal,
   UserRound,
+  X,
 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import InlineTaskCreator from '../components/InlineTaskCreator';
 import {
   Button,
-  EmptyState,
   ErrorState,
   LoadingState,
-  PageHeader,
   Panel,
   PriorityBadge,
   ProgressBar,
-  StatusBadge,
 } from '../components/ui';
 import eventApi from '../api/eventApi';
 import taskApi from '../api/taskApi';
 import departmentApi from '../api/departmentApi';
-import userApi from '../api/userApi';
 import workloadApi from '../api/workloadApi';
 import { formatDate } from '../utils/dateUtils';
-import { normalizeTaskPageSize } from '../utils/paginationUtils';
 
 const getWorkloadClassName = (status) => {
   if (status === 'OVERLOADED') {
@@ -48,20 +41,24 @@ const getWorkloadClassName = (status) => {
   return 'text-slate-500';
 };
 
-const TaskListPage = ({ user, onLogout, onUserUpdate }) => {
+const STATUS_COLUMNS = [
+  { key: 'TODO', label: 'Cần làm', tone: 'border-slate-100 bg-slate-50 text-slate-700' },
+  { key: 'IN_PROGRESS', label: 'Đang làm', tone: 'border-amber-100 bg-amber-50 text-amber-700' },
+  { key: 'IN_REVIEW', label: 'Chờ duyệt', tone: 'border-violet-100 bg-violet-50 text-violet-700' },
+  { key: 'DONE', label: 'Hoàn thành', tone: 'border-emerald-100 bg-emerald-50 text-emerald-700' },
+];
+
+const TaskListPage = ({ user, onLogout }) => {
   const { eventId } = useParams();
   const [searchParams] = useSearchParams();
 
-  const [page, setPage] = useState(0);
-  const initialPageSize = normalizeTaskPageSize(user?.taskPageSize);
-  const [pageSize, setPageSize] = useState(initialPageSize);
-  const [pageSizeInput, setPageSizeInput] = useState(() => String(initialPageSize));
   const [searchInput, setSearchInput] = useState(() => searchParams.get('search') || '');
   const [search, setSearch] = useState(() => searchParams.get('search') || '');
   const [status, setStatus] = useState(() => searchParams.get('status') || '');
   const [priority, setPriority] = useState(() => searchParams.get('priority') || '');
   const [fromDate, setFromDate] = useState(() => searchParams.get('fromDate') || '');
   const [toDate, setToDate] = useState(() => searchParams.get('toDate') || '');
+  const [quickCreateStatus, setQuickCreateStatus] = useState('');
   const [departmentId, setDepartmentId] = useState(
     () => searchParams.get('departmentId') || ''
   );
@@ -78,36 +75,7 @@ const TaskListPage = ({ user, onLogout, onUserUpdate }) => {
     enabled: Boolean(eventId),
   });
 
-  const tasksQuery = useQuery({
-    queryKey: [
-      'eventTaskPage',
-      eventId,
-      page,
-      pageSize,
-      search,
-      status,
-      priority,
-      departmentId,
-      fromDate,
-      toDate,
-    ],
-    queryFn: () =>
-      taskApi.getEventTaskPage({
-        eventId,
-        page,
-        size: pageSize,
-        search,
-        status,
-        priority,
-        departmentId,
-        fromDate,
-        toDate,
-      }),
-    enabled: Boolean(eventId),
-  });
-
   const event = eventQuery.data;
-  const tasks = tasksQuery.data?.content || [];
   const departments = departmentsQuery.data || [];
   const isLeader = event?.role === 'LEADER';
 
@@ -152,44 +120,28 @@ const TaskListPage = ({ user, onLogout, onUserUpdate }) => {
     enabled: Boolean(eventId && departmentId),
   });
 
-  const updatePreferencesMutation = useMutation({
-    mutationFn: userApi.updatePreferences,
-    onSuccess: (profile) => {
-      onUserUpdate?.({ ...user, taskPageSize: profile.taskPageSize });
-    },
-  });
-
   const handleSearchSubmit = (event) => {
     event.preventDefault();
-    setPage(0);
     setSearch(searchInput.trim());
   };
 
-  const applyPageSize = () => {
-    const nextPageSize = normalizeTaskPageSize(pageSizeInput);
-    setPage(0);
-    setPageSize(nextPageSize);
-    setPageSizeInput(String(nextPageSize));
-
-    if (
-      nextPageSize !== normalizeTaskPageSize(user?.taskPageSize) &&
-      !updatePreferencesMutation.isPending
-    ) {
-      updatePreferencesMutation.mutate({
-        userId: user.userId,
-        taskPageSize: nextPageSize,
-      });
-    }
-  };
-
-  const handlePageSizeSubmit = (event) => {
-    event.preventDefault();
-    applyPageSize();
-  };
-
   const handleDepartmentFilterChange = (event) => {
-    setPage(0);
     setDepartmentId(event.target.value);
+  };
+
+  const activeFilterCount = useMemo(
+    () => [search, status, priority, departmentId, fromDate, toDate].filter(Boolean).length,
+    [departmentId, fromDate, priority, search, status, toDate]
+  );
+
+  const resetFilters = () => {
+    setSearchInput('');
+    setSearch('');
+    setStatus('');
+    setPriority('');
+    setDepartmentId('');
+    setFromDate('');
+    setToDate('');
   };
 
   return (
@@ -201,72 +153,57 @@ const TaskListPage = ({ user, onLogout, onUserUpdate }) => {
       onLogout={onLogout}
     >
       <div className="space-y-6">
-        <PageHeader
-          eyebrow={event?.name || 'Sự kiện'}
-          title="Danh sách công việc"
-          description="Quản lý task của sự kiện, theo dõi người phụ trách, ban phụ trách, deadline, trạng thái, ưu tiên và tiến độ thực hiện."
-          meta={
-            <>
-              <span className="inline-flex items-center gap-2 rounded-full border border-sky-100 bg-white px-3 py-1.5 font-black text-sky-600 shadow-sm">
-                <ClipboardList size={16} />
-                {tasksQuery.data?.totalElements ?? tasksQuery.data?.totalItems ?? tasks.length} công việc
-              </span>
-
-              <span className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-white px-3 py-1.5 font-black text-emerald-600 shadow-sm">
-                <Layers3 size={16} />
-                {departments.length} ban tổ chức
-              </span>
-
-              <span className="inline-flex items-center gap-2 rounded-full border border-cyan-100 bg-white px-3 py-1.5 font-black text-cyan-600 shadow-sm">
-                <SlidersHorizontal size={16} />
-                {isLeader ? 'Leader permission' : 'Member view'}
-              </span>
-            </>
-          }
-        />
-
-        <Panel className="relative overflow-hidden p-5">
-          <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-sky-100 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-28 left-1/3 h-64 w-64 rounded-full bg-emerald-100/70 blur-3xl" />
-
-          <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex items-start gap-3">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-400 text-white shadow-lg shadow-cyan-100">
-                <SlidersHorizontal className="h-6 w-6" strokeWidth={1.8} />
-              </div>             
-                <h3 className="text-lg font-black text-slate-950">
-                  Tìm kiếm 
-                </h3>                           
-            </div>
-
+        <Panel className="p-4">
+          <div className="grid gap-4">
             <form
               onSubmit={handleSearchSubmit}
-              className="grid w-full gap-3 lg:max-w-5xl"
+              className="grid w-full gap-3"
             >
-              <div className="relative">
-                <Search
-                  className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-sky-400"
-                  strokeWidth={1.8}
-                />
+              <div className="grid gap-3 lg:grid-cols-[minmax(260px,1fr)_auto_auto]">
+                <div className="relative">
+                  <Search
+                    className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-sky-400"
+                    strokeWidth={1.8}
+                  />
 
-                <input
-                  id="task-search"
-                  name="search"
-                  aria-label="Tìm công việc"
-                  value={searchInput}
-                  onChange={(event) => setSearchInput(event.target.value)}
-                  placeholder="Tìm theo tên công việc..."
-                  className={`${inputClassName} pl-11`}
-                />
+                  <input
+                    id="task-search"
+                    name="search"
+                    aria-label="Tìm công việc"
+                    value={searchInput}
+                    onChange={(event) => setSearchInput(event.target.value)}
+                    placeholder="Tìm theo tên công việc..."
+                    className={`${inputClassName} pl-11`}
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-sky-600 px-4 py-2 text-sm font-black text-white shadow-sm transition hover:bg-sky-700 active:translate-y-px"
+                >
+                  <Search size={18} />
+                  Tìm
+                </button>
+
+                {isLeader && (
+                  <Button
+                    type="button"
+                    variant={quickCreateStatus ? 'secondary' : 'primary'}
+                    onClick={() => setQuickCreateStatus((currentStatus) => (currentStatus ? '' : 'TODO'))}
+                    className="min-h-11 rounded-2xl"
+                  >
+                    {quickCreateStatus ? <X size={18} /> : <Plus size={18} />}
+                    {quickCreateStatus ? 'Đóng tạo nhanh' : 'Tạo task'}
+                  </Button>
+                )}
               </div>
 
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[160px_160px_minmax(190px,1fr)_150px_150px_auto]">
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[150px_150px_minmax(190px,1fr)_150px_150px_auto]">
                 <select
                   aria-label="Lọc trạng thái công việc"
                   name="status"
                   value={status}
                   onChange={(event) => {
-                    setPage(0);
                     setStatus(event.target.value);
                   }}
                   className={inputClassName}
@@ -283,7 +220,6 @@ const TaskListPage = ({ user, onLogout, onUserUpdate }) => {
                   name="priority"
                   value={priority}
                   onChange={(event) => {
-                    setPage(0);
                     setPriority(event.target.value);
                   }}
                   className={inputClassName}
@@ -316,7 +252,6 @@ const TaskListPage = ({ user, onLogout, onUserUpdate }) => {
                   aria-label="Từ ngày"
                   value={fromDate}
                   onChange={(event) => {
-                    setPage(0);
                     setFromDate(event.target.value);
                   }}
                   className={inputClassName}
@@ -327,240 +262,376 @@ const TaskListPage = ({ user, onLogout, onUserUpdate }) => {
                   aria-label="Đến ngày"
                   value={toDate}
                   onChange={(event) => {
-                    setPage(0);
                     setToDate(event.target.value);
                   }}
                   className={inputClassName}
                 />
 
-                <button
-                  type="submit"
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 px-4 py-2 text-sm font-black text-white shadow-xl shadow-cyan-100 transition hover:-translate-y-0.5 hover:shadow-2xl hover:shadow-cyan-200 active:translate-y-px"
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={resetFilters}
+                  disabled={activeFilterCount === 0}
+                  className="min-h-11 rounded-2xl"
                 >
-                  <Search size={18} />
-                  Tìm kiếm
-                </button>
+                  <X size={16} />
+                  Xóa lọc
+                </Button>
               </div>
             </form>
+
+            {activeFilterCount > 0 && (
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-sky-600">
+                {activeFilterCount} bộ lọc đang áp dụng
+              </p>
+            )}
           </div>
         </Panel>
 
-        {isLeader && !tasksQuery.isLoading && !tasksQuery.error && (
-          <Panel className="relative overflow-hidden p-0">
-            <div className="border-b border-sky-100 bg-gradient-to-r from-sky-50 via-white to-emerald-50 px-5 py-5">
-              <div className="flex items-start gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-400 text-white shadow-lg shadow-cyan-100">
-                  <ClipboardList className="h-5 w-5" strokeWidth={1.8} />
-                </div>
-
-                <div>
-                  <h2 className="text-lg font-black text-slate-950">
-                    Thêm nhanh công việc
-                  </h2>
-                  <p className="mt-1 text-sm font-semibold text-slate-500">
-                    Tạo nhanh task trong sự kiện. Nếu đang lọc theo ban, task mới sẽ được khóa theo ban đó.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-sky-50/40 p-4">
-              <InlineTaskCreator
-                eventId={eventId}
-                event={event}
-                departments={departments}
-                departmentId={departmentId}
-                lockedDepartment={Boolean(departmentId)}
-                departmentWorkload={departmentWorkloadQuery.data}
-                departmentWorkloadLoading={departmentWorkloadQuery.isLoading}
-                departmentWorkloadError={departmentWorkloadQuery.error}
-                invalidateKeys={[
-                  ['eventTaskPage', eventId],
-                  ['departmentTaskPage', eventId, departmentId],
-                  ['departmentWorkload', eventId, departmentId],
-                  ['eventWorkload', eventId],
-                ]}
-              />
-            </div>
+        {isLeader && quickCreateStatus && (
+          <Panel className="p-4">
+            <InlineTaskCreator
+              key={`task-creator-${quickCreateStatus}`}
+              eventId={eventId}
+              event={event}
+              departments={departments}
+              departmentId={departmentId}
+              lockedDepartment={Boolean(departmentId)}
+              initialStatus={quickCreateStatus}
+              defaultOpen
+              departmentWorkload={departmentWorkloadQuery.data}
+              departmentWorkloadLoading={departmentWorkloadQuery.isLoading}
+              departmentWorkloadError={departmentWorkloadQuery.error}
+              invalidateKeys={[
+                ['eventTaskPage', eventId],
+                ['departmentTaskPage', eventId, departmentId],
+                ['departmentWorkload', eventId, departmentId],
+                ['eventWorkload', eventId],
+              ]}
+            />
           </Panel>
         )}
 
         <Panel className="overflow-hidden">
-          <div className="flex flex-col gap-4 border-b border-sky-100 bg-gradient-to-r from-sky-50 via-white to-emerald-50 px-5 py-5 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-400 text-white shadow-lg shadow-cyan-100">
-                <ClipboardList className="h-5 w-5" strokeWidth={1.8} />
-              </div>
-
-              <div>
-                <h2 className="text-lg font-black text-slate-950">
-                  Bảng công việc
-                </h2>
-                <p className="mt-1 text-sm font-semibold text-slate-500">
-                  Xem task theo bộ lọc hiện tại và bấm vào từng dòng để mở chi tiết.
-                </p>
-              </div>
-            </div>
-
-            <span className="inline-flex w-fit rounded-full border border-sky-100 bg-white px-3 py-1.5 text-xs font-black text-sky-600 shadow-sm">
-              Trang {page + 1}
-            </span>
-          </div>
-
-          {tasksQuery.isLoading && (
-            <div className="p-5">
-              <LoadingState message="Đang tải công việc..." />
-            </div>
-          )}
-
-          {tasksQuery.error && (
-            <div className="p-5">
-              <ErrorState
-                error={tasksQuery.error}
-                title="Không tải được danh sách công việc"
-              />
-            </div>
-          )}
-
-          {!tasksQuery.isLoading && !tasksQuery.error && tasks.length === 0 && (
-            <div className="p-5">
-              <EmptyState
-                icon={ClipboardList}
-                title="Chưa có công việc phù hợp"
-                description="Thử thay đổi bộ lọc hoặc tạo task mới bằng khu vực thêm nhanh."
-              />
-            </div>
-          )}
-
-          {!tasksQuery.isLoading && !tasksQuery.error && tasks.length > 0 && (
-            <div className="overflow-x-auto">
-              <div className="min-w-[1060px]">
-                <div className="grid grid-cols-[minmax(240px,1.5fr)_170px_190px_180px_130px_130px_120px] items-center gap-3 border-b border-sky-100 bg-sky-50/70 px-5 py-3 text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">
-                  <span>Công việc</span>
-                  <span>Ban</span>
-                  <span>Phụ trách</span>
-                  <span>Deadline</span>
-                  <span>Ưu tiên</span>
-                  <span>Trạng thái</span>
-                  <span>Tiến độ</span>
-                </div>
-
-                {tasks.map((task) => {
-                  const assigneeWorkload = task.assigneeId
-                    ? workloadByMemberId[String(task.assigneeId)]
-                    : null;
-
-                  return (
-                    <Link
-                      key={task.id}
-                      to={`/events/${eventId}/tasks/${task.id}`}
-                      className="grid grid-cols-[minmax(240px,1.5fr)_170px_190px_180px_130px_130px_120px] items-center gap-3 border-b border-sky-100 px-5 py-4 text-sm transition last:border-b-0 hover:bg-sky-50/70"
-                    >
-                      <span className="min-w-0">
-                        <span className="block truncate font-black text-slate-950">
-                          {task.title}
-                        </span>
-                      </span>
-
-                      <span className="inline-flex min-w-0 items-center gap-2 truncate font-semibold text-slate-600">
-                        <Layers3 size={15} className="shrink-0 text-emerald-500" />
-                        <span className="truncate">{task.departmentName || 'Chưa gán ban'}</span>
-                      </span>
-
-                      <span className="min-w-0">
-                        <span className="flex items-center gap-2 truncate font-semibold text-slate-600">
-                          <UserRound size={15} className="shrink-0 text-sky-500" />
-                          <span className="truncate">{task.assigneeName || 'Chưa phân công'}</span>
-                        </span>
-
-                        {assigneeWorkload && (
-                          <span
-                            className={`mt-1 block truncate text-[11px] font-black ${getWorkloadClassName(
-                              assigneeWorkload.workloadStatus
-                            )}`}
-                            title={`${assigneeWorkload.assignedTasks} task chưa hoàn thành · ${assigneeWorkload.workloadScore}% · ${assigneeWorkload.workloadStatus}`}
-                          >
-                            {assigneeWorkload.assignedTasks} task · {assigneeWorkload.workloadStatus}
-                          </span>
-                        )}
-                      </span>
-
-                      <span className="inline-flex items-center gap-2 whitespace-nowrap font-semibold text-slate-600">
-                        <CalendarDays size={15} className="text-emerald-500" />
-                        {formatDate(task.deadline)}
-                      </span>
-
-                      <PriorityBadge priority={task.priority} />
-
-                      <StatusBadge status={task.status} />
-
-                      <span className="min-w-0">
-                        <ProgressBar value={task.progressPercentage ?? 0} />
-                        <span className="mt-1 block text-xs font-black text-slate-500">
-                          {task.progressPercentage ?? 0}%
-                        </span>
-                      </span>
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+          <StatusTaskBoard
+            eventId={eventId}
+            search={search}
+            status={status}
+            priority={priority}
+            departmentId={departmentId}
+            fromDate={fromDate}
+            toDate={toDate}
+            workloadByMemberId={workloadByMemberId}
+            canCreate={isLeader}
+            onCreateInStatus={setQuickCreateStatus}
+          />
         </Panel>
-
-        <div className="flex flex-col gap-3 rounded-[2rem] border border-sky-100 bg-white p-4 shadow-xl shadow-sky-100/70 sm:flex-row sm:items-center sm:justify-between">
-          <form
-            onSubmit={handlePageSizeSubmit}
-            className="flex flex-wrap items-center gap-2 text-sm text-slate-600"
-          >
-            <label htmlFor="task-page-size" className="font-black text-slate-700">
-              Số dòng/trang
-            </label>
-
-            <input
-              id="task-page-size"
-              type="number"
-              min="1"
-              max="100"
-              value={pageSizeInput}
-              onChange={(event) => setPageSizeInput(event.target.value)}
-              onBlur={applyPageSize}
-              className="min-h-10 w-24 rounded-2xl border border-sky-100 bg-sky-50/60 px-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-cyan-300 focus:bg-white focus:ring-4 focus:ring-cyan-100"
-            />
-
-            <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-black text-slate-500">
-              {updatePreferencesMutation.isPending ? 'Đang lưu...' : 'Lưu theo tài khoản'}
-            </span>
-          </form>
-
-          <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              onClick={() => setPage((old) => Math.max(old - 1, 0))}
-              disabled={page === 0}
-              variant="secondary"
-              className="rounded-2xl"
-            >
-              <ChevronLeft size={16} />
-              Trước
-            </Button>
-
-            <Button
-              type="button"
-              onClick={() => setPage((old) => old + 1)}
-              disabled={tasksQuery.data?.last !== false}
-              variant="secondary"
-              className="rounded-2xl"
-            >
-              Sau
-              <ChevronRight size={16} />
-            </Button>
-          </div>
-        </div>
       </div>
     </AppLayout>
   );
 };
+
+const StatusTaskBoard = ({
+  eventId,
+  search,
+  status,
+  priority,
+  departmentId,
+  fromDate,
+  toDate,
+  workloadByMemberId,
+  canCreate,
+  onCreateInStatus,
+}) => {
+  const queryClient = useQueryClient();
+  const [draggingTask, setDraggingTask] = useState(null);
+  const visibleColumns = useMemo(
+    () => (status ? STATUS_COLUMNS.filter((column) => column.key === status) : STATUS_COLUMNS),
+    [status]
+  );
+
+  const updateStatusMutation = useMutation({
+    mutationFn: taskApi.updateTaskStatus,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['eventTaskPage', eventId] });
+      queryClient.invalidateQueries({ queryKey: ['eventWorkload', eventId] });
+      queryClient.invalidateQueries({ queryKey: ['leaderSnapshot', eventId] });
+      queryClient.invalidateQueries({ queryKey: ['leaderPriorityTasks', eventId] });
+    },
+  });
+
+  const handleDropTask = (nextStatus) => {
+    if (!draggingTask || draggingTask.status === nextStatus || updateStatusMutation.isPending) {
+      setDraggingTask(null);
+      return;
+    }
+
+    updateStatusMutation.mutate({
+      taskId: draggingTask.id,
+      status: nextStatus,
+    });
+    setDraggingTask(null);
+  };
+
+  return (
+    <div className="p-4">
+      {updateStatusMutation.error && (
+        <div className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
+          {updateStatusMutation.error.userMessage || updateStatusMutation.error.message}
+        </div>
+      )}
+
+      <div className="overflow-x-auto">
+        <div className={`grid min-w-[1180px] gap-3 ${visibleColumns.length === 1 ? 'grid-cols-1' : 'grid-cols-4'}`}>
+          {visibleColumns.map((column) => (
+            <StatusTaskColumn
+              key={column.key}
+              eventId={eventId}
+              column={column}
+              search={search}
+              priority={priority}
+              departmentId={departmentId}
+              fromDate={fromDate}
+              toDate={toDate}
+              workloadByMemberId={workloadByMemberId}
+              draggingTask={draggingTask}
+              isUpdatingStatus={updateStatusMutation.isPending}
+              onDragTask={setDraggingTask}
+              onDropTask={handleDropTask}
+              canCreate={canCreate}
+              onCreateInStatus={onCreateInStatus}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const StatusTaskColumn = ({
+  eventId,
+  column,
+  search,
+  priority,
+  departmentId,
+  fromDate,
+  toDate,
+  workloadByMemberId,
+  draggingTask,
+  isUpdatingStatus,
+  onDragTask,
+  onDropTask,
+  canCreate,
+  onCreateInStatus,
+}) => {
+  const scrollerRef = useRef(null);
+  const sentinelRef = useRef(null);
+  const query = useInfiniteQuery({
+    queryKey: [
+      'eventTaskPage',
+      eventId,
+      'statusBoard',
+      column.key,
+      search,
+      priority,
+      departmentId,
+      fromDate,
+      toDate,
+    ],
+    queryFn: ({ pageParam = 0 }) => taskApi.getEventTaskPage({
+      eventId,
+      page: pageParam,
+      size: 4,
+      sort: 'deadline',
+      direction: 'asc',
+      status: column.key,
+      priority,
+      departmentId,
+      search,
+      fromDate,
+      toDate,
+    }),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) => (lastPage.last ? undefined : lastPage.page + 1),
+    enabled: Boolean(eventId),
+  });
+
+  const tasks = query.data?.pages.flatMap((page) => page.content || []) || [];
+  const total = query.data?.pages?.[0]?.totalElements ?? 0;
+  const { fetchNextPage, hasNextPage, isFetchingNextPage } = query;
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel || !hasNextPage || isFetchingNextPage) return undefined;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          fetchNextPage();
+        }
+      },
+      {
+        root: scrollerRef.current,
+        rootMargin: '140px 0px',
+      }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
+
+  return (
+    <section
+      className={`min-w-0 overflow-hidden rounded-2xl border border-sky-100 bg-white transition ${
+        draggingTask && draggingTask.status !== column.key ? 'ring-4 ring-sky-100' : ''
+      }`}
+      onDragOver={(event) => {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'move';
+      }}
+      onDrop={() => onDropTask(column.key)}
+    >
+      <div className={`flex items-center justify-between gap-3 border-b px-4 py-3 ${column.tone}`}>
+        <span className="text-sm font-black">{column.label}</span>
+        <span className="flex items-center gap-2">
+          <span className="rounded-full bg-white/80 px-2.5 py-1 text-xs font-black">
+            {total}
+          </span>
+          {canCreate && (
+            <button
+              type="button"
+              onClick={() => onCreateInStatus?.(column.key)}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white text-sky-600 shadow-sm transition hover:-translate-y-0.5 hover:bg-sky-50"
+              aria-label={`Tạo task ${column.label.toLowerCase()}`}
+              title={`Tạo task ${column.label.toLowerCase()}`}
+            >
+              <Plus size={16} />
+            </button>
+          )}
+        </span>
+      </div>
+
+      <div ref={scrollerRef} className="max-h-[560px] overflow-y-auto">
+        {query.isLoading && (
+          <div className="p-4">
+            <LoadingState message="Đang tải task..." />
+          </div>
+        )}
+
+        {query.error && (
+          <div className="p-4">
+            <ErrorState error={query.error} title={`Không tải được ${column.label.toLowerCase()}`} />
+          </div>
+        )}
+
+        {!query.isLoading && !query.error && tasks.length === 0 && (
+          <p className="px-4 py-8 text-center text-xs font-bold text-slate-400">
+            Không có task
+          </p>
+        )}
+
+        {tasks.length > 0 && (
+          <div className="divide-y divide-sky-50">
+            {tasks.map((task) => (
+              <StatusTaskCard
+                key={task.id}
+                eventId={eventId}
+                task={task}
+                assigneeWorkload={task.assigneeId ? workloadByMemberId[String(task.assigneeId)] : null}
+                disabled={isUpdatingStatus}
+                onDragStart={() => onDragTask(task)}
+                onDragEnd={() => onDragTask(null)}
+              />
+            ))}
+          </div>
+        )}
+
+        <div ref={sentinelRef} className="h-3" />
+
+        {query.isFetchingNextPage && (
+          <p className="border-t border-sky-50 px-4 py-3 text-center text-xs font-black text-sky-600">
+            Đang tải thêm...
+          </p>
+        )}
+      </div>
+    </section>
+  );
+};
+
+const StatusTaskCard = ({
+  eventId,
+  task,
+  assigneeWorkload,
+  disabled,
+  onDragStart,
+  onDragEnd,
+}) => (
+  <Link
+    to={`/events/${eventId}/tasks/${task.id}`}
+    draggable={!disabled}
+    onDragStart={(event) => {
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', String(task.id));
+      onDragStart();
+    }}
+    onDragEnd={onDragEnd}
+    onClick={(event) => {
+      if (disabled) {
+        event.preventDefault();
+      }
+    }}
+    className={`block min-h-[132px] cursor-grab px-4 py-4 text-sm transition hover:bg-sky-50/70 active:cursor-grabbing ${
+      disabled ? 'pointer-events-none opacity-60' : ''
+    }`}
+  >
+    <div className="flex items-start justify-between gap-3">
+      <span className="min-w-0">
+        <span className="line-clamp-2 font-black leading-5 text-slate-950">
+          {task.title}
+        </span>
+        <span className="mt-1 block truncate text-xs font-bold text-slate-500">
+          {task.milestoneName || 'Chưa gán milestone'}
+        </span>
+      </span>
+      <PriorityBadge priority={task.priority} className="shrink-0" />
+    </div>
+
+    <div className="mt-3 space-y-1.5 text-xs font-semibold text-slate-600">
+      <span className="flex min-w-0 items-center gap-2">
+        <Layers3 size={14} className="shrink-0 text-emerald-500" />
+        <span className="truncate">{task.departmentName || 'Chưa gán ban'}</span>
+      </span>
+
+      <span className="flex min-w-0 items-center gap-2">
+        <UserRound size={14} className="shrink-0 text-sky-500" />
+        <span className="truncate">{task.assigneeName || 'Chưa phân công'}</span>
+      </span>
+
+      <span className="flex items-center gap-2 whitespace-nowrap">
+        <CalendarDays size={14} className="text-emerald-500" />
+        {formatDate(task.deadline)}
+      </span>
+    </div>
+
+    {assigneeWorkload && (
+      <p
+        className={`mt-2 truncate text-[11px] font-black ${getWorkloadClassName(
+          assigneeWorkload.workloadStatus
+        )}`}
+        title={`${assigneeWorkload.assignedTasks} task chưa hoàn thành · ${assigneeWorkload.workloadScore}% · ${assigneeWorkload.workloadStatus}`}
+      >
+        Workload: {assigneeWorkload.assignedTasks} task · {assigneeWorkload.workloadStatus}
+      </p>
+    )}
+
+    <div className="mt-3">
+      <ProgressBar value={task.progressPercentage ?? 0} />
+      <span className="mt-1 block text-xs font-black text-slate-500">
+        {task.progressPercentage ?? 0}%
+      </span>
+    </div>
+  </Link>
+);
 
 const inputClassName = 'min-h-11 w-full min-w-0 rounded-2xl border border-sky-100 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:bg-white focus:ring-4 focus:ring-cyan-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500';
 

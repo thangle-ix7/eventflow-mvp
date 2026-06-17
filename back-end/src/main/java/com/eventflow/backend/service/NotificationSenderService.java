@@ -138,7 +138,8 @@ public class NotificationSenderService {
                             "Vui lòng cập nhật trạng thái ngay.\n\n" +
                             "EventFlow - Hệ thống quản lý sự kiện.";
             case TASK_ASSIGNED, TASK_UPDATED, TASK_REVIEW_REQUESTED, TASK_REVIEWED,
-                 CALENDAR_INVITE, CALENDAR_UPDATED, CALENDAR_REMINDER_TOMORROW, CALENDAR_REMINDER_SOON ->
+                 CALENDAR_INVITE, CALENDAR_UPDATED, CALENDAR_REMINDER_TOMORROW, CALENDAR_REMINDER_SOON,
+                 FEEDBACK_REVIEWING, FEEDBACK_RESPONDED, FEEDBACK_CLOSED ->
                     notification.getTitle() != null ? notification.getTitle() : "Bạn có thông báo mới từ EventFlow.";
         };
     }
@@ -180,6 +181,9 @@ public class NotificationSenderService {
             case CALENDAR_UPDATED -> "[EventFlow] Lịch sự kiện vừa được cập nhật";
             case CALENDAR_REMINDER_TOMORROW -> "[EventFlow] Nhắc lịch ngày mai";
             case CALENDAR_REMINDER_SOON -> "[EventFlow] Nhắc lịch sắp diễn ra";
+            case FEEDBACK_REVIEWING -> "[EventFlow] Feedback của bạn đang được xem";
+            case FEEDBACK_RESPONDED -> "[EventFlow] EventFlow đã phản hồi feedback của bạn";
+            case FEEDBACK_CLOSED -> "[EventFlow] Feedback của bạn đã được đóng";
         };
     }
 
@@ -359,6 +363,9 @@ public class NotificationSenderService {
             case CALENDAR_UPDATED -> "Cập nhật lịch";
             case CALENDAR_REMINDER_TOMORROW -> "Nhắc lịch ngày mai";
             case CALENDAR_REMINDER_SOON -> "Nhắc lịch sắp diễn ra";
+            case FEEDBACK_REVIEWING -> "Đang xem feedback";
+            case FEEDBACK_RESPONDED -> "Phản hồi feedback";
+            case FEEDBACK_CLOSED -> "Đã đóng feedback";
         };
     }
 
@@ -385,7 +392,7 @@ public class NotificationSenderService {
             case TASK_REVIEW_REQUESTED -> "#7c3aed";
             case TASK_REVIEWED -> "#059669";
             case CALENDAR_INVITE, CALENDAR_UPDATED -> "#0284c7";
-            case TASK_ASSIGNED, TASK_UPDATED -> "#0891b2";
+            case TASK_ASSIGNED, TASK_UPDATED, FEEDBACK_REVIEWING, FEEDBACK_RESPONDED, FEEDBACK_CLOSED -> "#0891b2";
         };
     }
 
@@ -400,7 +407,7 @@ public class NotificationSenderService {
             case TASK_REVIEW_REQUESTED -> "#f5f3ff";
             case TASK_REVIEWED -> "#ecfdf5";
             case CALENDAR_INVITE, CALENDAR_UPDATED -> "#ecfeff";
-            case TASK_ASSIGNED, TASK_UPDATED -> "#ecfeff";
+            case TASK_ASSIGNED, TASK_UPDATED, FEEDBACK_REVIEWING, FEEDBACK_RESPONDED, FEEDBACK_CLOSED -> "#ecfeff";
         };
     }
 

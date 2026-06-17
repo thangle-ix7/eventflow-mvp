@@ -300,6 +300,26 @@ const TaskDetailPage = ({ user, onLogout }) => {
                 </div>
               </div>
 
+              {canCreateSubtasks && (
+                <InlineTaskCreator
+                  eventId={eventId}
+                  parentTaskId={taskId}
+                  event={event}
+                  departments={departmentsQuery.data || []}
+                  departmentId={task.departmentId || ''}
+                  lockedDepartment
+                  invalidateKeys={[
+                    ['task', taskId],
+                    ['subtasks', String(taskId)],
+                    ['eventWorkload', eventId],
+                    ['departmentWorkload', eventId, task.departmentId ? String(task.departmentId) : ''],
+                  ]}
+                  title="Thêm subtask theo danh sách"
+                  saveLabel="Lưu subtask"
+                  openLabel="Thêm subtask"
+                />
+              )}
+
               {subtasksQuery.error && (
                 <div className="p-5">
                   <ErrorState error={subtasksQuery.error} title="Không tải được subtask" />
@@ -409,46 +429,6 @@ const TaskDetailPage = ({ user, onLogout }) => {
                 </div>
               )}
             </Panel>
-
-            {canCreateSubtasks && (
-              <Panel className="relative overflow-hidden p-0">
-                <div className="border-b border-sky-100 bg-gradient-to-r from-sky-50 via-white to-emerald-50 px-5 py-5">
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-400 text-white shadow-lg shadow-cyan-100">
-                      <Sparkles className="h-5 w-5" strokeWidth={1.8} />
-                    </div>
-
-                    <div>
-                      <h2 className="text-lg font-black text-slate-950">
-                        Thêm nhanh subtask
-                      </h2>
-                      <p className="mt-1 text-sm font-semibold text-slate-500">
-                        Tạo nhiều subtask cùng lúc cho task chính này.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-sky-50/40 p-4">
-                  <InlineTaskCreator
-                    eventId={eventId}
-                    parentTaskId={taskId}
-                    event={event}
-                    departments={departmentsQuery.data || []}
-                    departmentId={task.departmentId || ''}
-                    lockedDepartment
-                    invalidateKeys={[
-                      ['task', taskId],
-                      ['subtasks', String(taskId)],
-                      ['eventWorkload', eventId],
-                      ['departmentWorkload', eventId, task.departmentId ? String(task.departmentId) : ''],
-                    ]}
-                    title="Thêm subtask theo danh sách"
-                    saveLabel="Lưu subtask"
-                  />
-                </div>
-              </Panel>
-            )}
 
             <section className="grid gap-4 md:grid-cols-3">
               {!hasSubtasks && !isSubtask && (

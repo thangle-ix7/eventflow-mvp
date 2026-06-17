@@ -143,11 +143,8 @@ const ProfilePage = ({ user, onLogout, onUserUpdate }) => {
       showTelegramOnboarding={false}
     >
       <div className="mx-auto max-w-6xl space-y-6">
-        <section className="relative overflow-hidden rounded-[2rem] border border-sky-100 bg-white/85 p-6 shadow-xl shadow-sky-100/70 backdrop-blur-xl">
-          <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-sky-100 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-28 left-1/3 h-72 w-72 rounded-full bg-emerald-100/70 blur-3xl" />
-
-          <div className="relative flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+        <header>
+          <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
             <div className="flex min-w-0 flex-col gap-5 sm:flex-row sm:items-center">
               <div className="relative h-28 w-28 shrink-0">
                 <div className="relative flex h-28 w-28 items-center justify-center overflow-hidden rounded-[2rem] border border-sky-100 bg-gradient-to-br from-sky-50 to-emerald-50 text-sky-600 shadow-xl shadow-sky-100">
@@ -180,11 +177,11 @@ const ProfilePage = ({ user, onLogout, onUserUpdate }) => {
               </div>
 
               <div className="min-w-0">
-                <p className="inline-flex rounded-full bg-sky-50 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-sky-600">
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-600">
                   My profile
                 </p>
 
-                <h1 className="mt-3 truncate text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
+                <h1 className="mt-1 truncate text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
                   {profile.name}
                 </h1>
 
@@ -231,24 +228,24 @@ const ProfilePage = ({ user, onLogout, onUserUpdate }) => {
           </div>
 
           {selectedFileName && (
-            <p className="relative mt-5 rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3 text-xs font-black text-slate-500">
+            <p className="mt-4 rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3 text-xs font-black text-slate-500">
               Đang upload: {selectedFileName}
             </p>
           )}
 
           {profileQuery.isLoading && (
-            <div className="relative mt-5 flex items-center gap-2 rounded-2xl border border-sky-100 bg-sky-50 p-4 text-sm font-black text-slate-500">
+            <div className="mt-4 flex items-center gap-2 rounded-2xl border border-sky-100 bg-sky-50 p-4 text-sm font-black text-slate-500">
               <Loader2 size={18} className="animate-spin text-sky-600" />
               Đang tải profile...
             </div>
           )}
 
           {error && (
-            <div className="relative mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold leading-6 text-red-700">
+            <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold leading-6 text-red-700">
               {error.userMessage || error.message || 'Không xử lý được profile'}
             </div>
           )}
-        </section>
+        </header>
 
         <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
           <section className="overflow-hidden rounded-[2rem] border border-sky-100 bg-white shadow-xl shadow-sky-100/70">

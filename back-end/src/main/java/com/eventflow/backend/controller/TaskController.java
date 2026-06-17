@@ -2,6 +2,7 @@ package com.eventflow.backend.controller;
 
 import com.eventflow.backend.dto.DepartmentTasksDTO;
 import com.eventflow.backend.dto.PageResponse;
+import com.eventflow.backend.dto.PriorityUpdateRequest;
 import com.eventflow.backend.dto.StatusUpdateRequest;
 import com.eventflow.backend.dto.TaskAssignmentRequest;
 import com.eventflow.backend.dto.TaskRequestDTO;
@@ -204,6 +205,21 @@ public class TaskController {
 
         taskService.updateStatus(taskId, taskService.parseStatus(request.getStatus()));
         return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/tasks/{taskId}/priority")
+    public ResponseEntity<TaskResponseDTO> updateTaskPriority(
+            @PathVariable Long taskId,
+            @RequestBody PriorityUpdateRequest request,
+            Authentication authentication) {
+
+        Long userId = (Long) authentication.getPrincipal();
+        Long eventId = taskService.getEventIdByTaskId(taskId);
+        if (!eventSecurityService.canManageEvent(eventId, userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        return ResponseEntity.ok(taskService.updatePriority(taskId, taskService.parsePriority(request.getPriority())));
     }
 
     @PatchMapping("/tasks/{taskId}/work-update")

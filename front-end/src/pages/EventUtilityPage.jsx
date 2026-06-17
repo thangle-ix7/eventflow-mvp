@@ -27,7 +27,6 @@ import {
   EmptyState,
   LoadingState,
   MetricCard,
-  PageHeader,
   Panel,
   StatusBadge,
 } from '../components/ui';
@@ -79,15 +78,10 @@ const EVENT_STATUS_LABELS = {
   CANCELLED: 'Đã hủy',
 };
 
-const getUtilityDescription = (fallback) => {
-  return fallback;
-};
-
 const EventUtilityPage = ({ user, onLogout, type }) => {
   const { eventId } = useParams();
   const [searchParams] = useSearchParams();
   const config = PAGE_CONFIG[type] || PAGE_CONFIG.calendar;
-  const Icon = config.icon;
   const [now] = useState(() => Date.now());
   const [calendarDate, setCalendarDate] = useState(() => {
     const queryYear = Number(searchParams.get('year'));
@@ -183,18 +177,6 @@ const EventUtilityPage = ({ user, onLogout, type }) => {
   return (
     <AppLayout user={user} events={event ? [event] : []} selectedEvent={event} onLogout={onLogout}>
       <div className="space-y-6">
-        <PageHeader
-          eyebrow={event?.name || 'Sự kiện'}
-          title={type === 'settings' && event?.role !== 'LEADER' ? 'Thông tin' : config.title}
-          description={getUtilityDescription(config.description)}
-          meta={
-            <span className="inline-flex items-center gap-2">
-              <Icon size={16} />
-              {config.meta}
-            </span>
-          }
-        />
-
         {isLoading && <LoadingState message={`Đang tải ${config.title.toLowerCase()}...`} />}
         {!isLoading && error && (
           <ErrorPage
