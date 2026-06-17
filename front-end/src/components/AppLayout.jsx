@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import userApi from '../api/userApi';
 import { getDepartmentHomePath, getEventPermissions } from '../utils/permissionUtils';
 import LanguageSwitcher from './LanguageSwitcher';
+import ThemeSwitcher from './ThemeSwitcher';
 import { useTranslation } from 'react-i18next';
 import {
   BarChart3,
@@ -406,10 +407,10 @@ const AppLayoutFrame = ({
 
   return (
     <AppLayoutContext.Provider value={true}>
-      <div className="min-h-screen bg-[#F8FCFF] text-slate-950">
+      <div className="min-h-screen bg-[#F8FCFF] text-slate-950 transition-colors dark:bg-slate-950 dark:text-slate-100">
         {showTelegramOnboarding && <TelegramOnboarding userId={user.userId} />}
 
-        <header className="sticky top-0 z-50 border-b border-sky-100/80 bg-white/85 shadow-sm shadow-sky-100/60 backdrop-blur-2xl">
+        <header className="sticky top-0 z-50 border-b border-sky-100/80 bg-white/85 shadow-sm shadow-sky-100/60 backdrop-blur-2xl transition-colors dark:border-slate-800 dark:bg-slate-950/85 dark:shadow-black/20">
           <div className="flex min-h-16 flex-nowrap items-center gap-2 px-3 py-3 sm:gap-3 sm:px-5 lg:h-16 lg:justify-between lg:gap-6 lg:px-6 lg:py-0">
             <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3 lg:flex-none">
               {eventNav.length > 0 && (
@@ -433,7 +434,7 @@ const AppLayoutFrame = ({
                 </span>
 
                 <span className="hidden min-w-0 sm:block">
-                  <span className="block truncate text-xl font-black leading-tight tracking-tight text-slate-950">
+                  <span className="block truncate text-xl font-black leading-tight tracking-tight text-slate-950 dark:text-white">
                     <span>Event</span>
                     <span className="bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 bg-clip-text text-transparent">
                       Flow
@@ -512,7 +513,7 @@ const AppLayoutFrame = ({
                   onClick={() => setFeedbackOpen(true)}
                 >
                   <MessageSquareHeart className="h-5 w-5" strokeWidth={1.8} />
-                  <span className="hidden xl:inline">Góp ý</span>
+                  <span className="hidden xl:inline">{t('common.feedback')}</span>
                 </button>
 
                 <div className="relative" ref={notificationRef}>
@@ -634,7 +635,7 @@ const AppLayoutFrame = ({
                   )}
                 </div>
               </div>
-
+              <ThemeSwitcher />
               <LanguageSwitcher />
 
               <Link

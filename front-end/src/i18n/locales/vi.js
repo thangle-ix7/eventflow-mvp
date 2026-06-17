@@ -33,6 +33,8 @@ const vi = {
       send: 'Gửi',
 
       refresh: 'Làm mới',
+
+      feedback: 'Góp ý',
     },
 
     sidebar: {
@@ -85,36 +87,91 @@ const vi = {
     },
 
     event: {
-      title: 'Sự kiện',
+  title: 'Sự kiện',
 
-      create: 'Tạo sự kiện',
+  create: 'Tạo sự kiện',
 
-      edit: 'Chỉnh sửa sự kiện',
+  edit: 'Chỉnh sửa sự kiện',
 
-      eventName: 'Tên sự kiện',
+  eventName: 'Tên sự kiện',
 
-      description: 'Mô tả',
+  description: 'Mô tả',
 
-      location: 'Địa điểm',
+  location: 'Địa điểm',
 
-      startTime: 'Thời gian bắt đầu',
+  startTime: 'Thời gian bắt đầu',
 
-      endTime: 'Thời gian kết thúc',
+  endTime: 'Thời gian kết thúc',
 
-      status: 'Trạng thái',
+  status: 'Trạng thái',
 
-      active: 'Đang diễn ra',
+  active: 'Đang diễn ra',
 
-      done: 'Hoàn thành',
+  done: 'Hoàn thành',
 
-      cancelled: 'Đã hủy',
+  cancelled: 'Đã hủy',
 
-      members: 'Thành viên',
+  members: 'Thành viên',
 
-      departments: 'Ban tổ chức',
+  departments: 'Ban tổ chức',
 
-      tasks: 'Công việc',
-    },
+  tasks: 'Công việc',
+
+  myEvents: 'Sự kiện của bạn',
+
+  // Bổ sung
+
+  workspace: 'Không gian sự kiện',
+
+  workspaceDescription:
+    'Quản lý các sự kiện bạn tạo hoặc tham gia, mở workspace để theo dõi ban tổ chức, task và dashboard.',
+
+  templateLibrary: 'Thư viện mẫu',
+
+  searchPlaceholder: 'Tìm sự kiện theo tên...',
+
+  draft: 'Bản nháp',
+
+  leader: 'Trưởng nhóm',
+
+  coordinator: 'Bạn điều phối',
+
+  openWorkspace: 'Mở workspace',
+
+  upcoming: 'Gần nhất',
+
+  newest: 'Mới tạo',
+
+  nameAZ: 'Tên A-Z',
+
+  previous: 'Trước',
+
+  next: 'Sau',
+
+  clearFilters: 'Xóa lọc',
+
+  loadingList: 'Đang tải danh sách sự kiện...',
+
+  errorLoading: 'Không tải được danh sách sự kiện',
+
+  notFound: 'Không tìm thấy sự kiện',
+
+  noEvents: 'Bạn chưa có sự kiện nào',
+
+  noEventsFilter: 'Không có sự kiện nào khớp với bộ lọc hiện tại. Hãy thử xóa lọc hoặc đổi từ khóa tìm kiếm.',
+
+  noLocation: 'Chưa cập nhật địa điểm',
+
+  join: 'Bạn tham gia',
+
+  manageTemplates: 'Quản lý Mẫu',
+
+  noEventsDescription: 'Tạo sự kiện đầu tiên để bắt đầu quản lý ban tổ chức, task và dashboard trên EventFlow.',
+
+  sortBy: 'Sắp xếp theo',
+
+  feedback: 'Phản hồi',
+},
 
     department: {
       title: 'Ban tổ chức',
@@ -327,6 +384,61 @@ const vi = {
 
     description: {
       progress: 'Theo dõi tiến độ',
+    },
+
+    header: {
+      features: 'Tính năng',
+      workflow: 'Quy trình',
+      audience: 'Người dùng',
+      value: 'Giá trị',
+      contact: 'Liên hệ',
+      loginBtn: 'Đăng nhập',
+      startBtn: 'Bắt đầu',
+    },
+
+    landing: {
+      title: 'Trợ lý tổ chức sự kiện',
+      subtitle: 'Hỗ trợ tổ chức, điều phối và quản lý sự kiện trên nền tảng số.',
+      start: 'Bắt đầu',
+      login: 'Đăng nhập',
+      features: 'Tính năng',
+      workflow: 'Quy trình',
+      audience: 'Người dùng',
+      value: 'Giá trị',
+    },
+
+    delete: {
+      title: 'Xác nhận xóa',
+      message: 'Bạn có chắc chắn muốn xóa?',
+      cancel: 'Hủy',
+      delete: 'Xóa',
+    },
+
+    modal: {
+      cancel: 'Hủy',
+      save: 'Lưu',
+      create: 'Tạo',
+      confirm: 'Xác nhận',
+    },
+
+    template: {
+      title: 'Mẫu',
+      create: 'Tạo mẫu',
+      instantiate: 'Tạo sự kiện từ template',
+      eventCreatedSuccess: 'Sự kiện sẽ được tạo với {departmentCount} phòng ban và {taskCount} task từ template này.',
+      error: 'Lỗi tạo sự kiện',
+    },
+
+    milestone: {
+      create: 'Tạo cột mốc',
+      suggestion: 'Tạo gợi ý',
+      noNumber: 'Chưa có số người',
+      noScale: 'Chưa có quy mô',
+      created: 'Tạo',
+    },
+
+    planning: {
+      title: 'Kế hoạch',
     },
     
   },

@@ -48,6 +48,8 @@ const en = {
       send: 'Send',
 
       refresh: 'Refresh',
+
+      feedback: 'Feedback',
     },
 
     sidebar: {
@@ -100,36 +102,91 @@ const en = {
     },
 
     event: {
-      title: 'Events',
+  title: 'Events',
 
-      create: 'Create Event',
+  create: 'Create Event',
 
-      edit: 'Edit Event',
+  edit: 'Edit Event',
 
-      eventName: 'Event Name',
+  eventName: 'Event Name',
 
-      description: 'Description',
+  description: 'Description',
 
-      location: 'Location',
+  location: 'Location',
 
-      startTime: 'Start Time',
+  startTime: 'Start Time',
 
-      endTime: 'End Time',
+  endTime: 'End Time',
 
-      status: 'Status',
+  status: 'Status',
 
-      active: 'Active',
+  active: 'Ongoing',
 
-      done: 'Completed',
+  done: 'Completed',
 
-      cancelled: 'Cancelled',
+  cancelled: 'Cancelled',
 
-      members: 'Members',
+  members: 'Members',
 
-      departments: 'Departments',
+  departments: 'Departments',
 
-      tasks: 'Tasks',
-    },
+  tasks: 'Tasks',
+
+  myEvents: 'Your Events',
+
+  // Bổ sung
+
+  workspace: 'Event Workspace',
+
+  workspaceDescription:
+    'Manage the events you created or joined, open a workspace to track departments, tasks and dashboards.',
+
+  templateLibrary: 'Template Library',
+
+  searchPlaceholder: 'Search events by name...',
+
+  draft: 'Draft',
+
+  leader: 'Team Leader',
+
+  coordinator: 'You are the coordinator',
+
+  openWorkspace: 'Open Workspace',
+
+  upcoming: 'Upcoming',
+
+  newest: 'Newest',
+
+  nameAZ: 'Name A-Z',
+
+  previous: 'Previous',
+
+  next: 'Next',
+
+  clearFilters: 'Clear Filters',
+
+  loadingList: 'Loading event list...',
+
+  errorLoading: 'Cannot load event list',
+
+  notFound: 'No events found',
+
+  noEvents: 'You have no events yet',
+
+  noEventsFilter: 'No events match the current filter. Try clearing the filter or changing your search keyword.',
+
+  noLocation: 'Location not updated',
+
+  join: 'You are a member',
+
+  manageTemplates: 'Manage Templates',
+
+  noEventsDescription: 'Create your first event to start managing departments, tasks and dashboards on EventFlow.',
+
+  sortBy: 'Sort By',
+
+  feedback: 'Feedback',
+},
 
     department: {
       title: 'Departments',
@@ -343,6 +400,61 @@ const en = {
 
     description: {
       progress: 'Track work and event progress',
+    },
+
+    header: {
+      features: 'Features',
+      workflow: 'Workflow',
+      audience: 'Users',
+      value: 'Value',
+      contact: 'Contact',
+      loginBtn: 'Login',
+      startBtn: 'Get Started',
+    },
+
+    landing: {
+      title: 'AI Event Planning',
+      subtitle: 'Support organizing, coordinating and managing events on a digital platform.',
+      start: 'Get Started',
+      login: 'Login',
+      features: 'Features',
+      workflow: 'Workflow',
+      audience: 'Users',
+      value: 'Value',
+    },
+
+    delete: {
+      title: 'Confirm Delete',
+      message: 'Are you sure you want to delete?',
+      cancel: 'Cancel',
+      delete: 'Delete',
+    },
+
+    modal: {
+      cancel: 'Cancel',
+      save: 'Save',
+      create: 'Create',
+      confirm: 'Confirm',
+    },
+
+    template: {
+      title: 'Templates',
+      create: 'Create Template',
+      instantiate: 'Create Event from Template',
+      eventCreatedSuccess: 'Event created with {departmentCount} departments and {taskCount} tasks from this template.',
+      error: 'Error creating event',
+    },
+
+    milestone: {
+      create: 'Create Milestone',
+      suggestion: 'Create Suggestion',
+      noNumber: 'No people',
+      noScale: 'No scale',
+      created: 'Created',
+    },
+
+    planning: {
+      title: 'Planning',
     },
     
   },
