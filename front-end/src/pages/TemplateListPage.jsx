@@ -214,6 +214,7 @@ const TemplateListPage = ({ user, onLogout }) => {
         onInstantiate={handleInstantiate}
       />
       <TemplateInstantiationModal
+        key={instantiateTemplate?.id || 'closed'}
         isOpen={Boolean(instantiateTemplate)}
         template={instantiateTemplate}
         onClose={() => setInstantiateTemplate(null)}

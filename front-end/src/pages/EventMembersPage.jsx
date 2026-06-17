@@ -9,7 +9,6 @@ import {
   Mail,
   Search,
   Send,
-  ShieldCheck,
   Trash2,
   UserPlus,
   Users,
@@ -20,7 +19,6 @@ import {
   EmptyState,
   ErrorState,
   LoadingState,
-  PageHeader,
   Panel,
   StatusBadge,
   TextInput,
@@ -83,7 +81,6 @@ const EventMembersPage = ({ user, onLogout }) => {
   const isLeader = event?.role === 'LEADER';
   const members = membersQuery.data || EMPTY_MEMBERS;
   const departments = departmentsQuery.data || EMPTY_DEPARTMENTS;
-  const memberPageTitle = isLeader ? 'Thành viên sự kiện' : 'Thành viên trong phạm vi của bạn';
 
   const filteredMembers = useMemo(() => {
     const keyword = search.trim().toLowerCase();
@@ -120,30 +117,6 @@ const EventMembersPage = ({ user, onLogout }) => {
       onLogout={onLogout}
     >
       <div className="space-y-6">
-        <PageHeader
-          eyebrow={event?.name || 'Sự kiện'}
-          title={memberPageTitle}
-          description="Quản lý thành viên tham gia sự kiện, role, ban phụ trách và trạng thái kết nối Telegram."
-          meta={
-            <>
-              <span className="inline-flex items-center gap-2 rounded-full border border-sky-100 bg-white px-3 py-1.5 font-black text-sky-600 shadow-sm">
-                <Users size={16} />
-                {members.length} thành viên
-              </span>
-
-              <span className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-white px-3 py-1.5 font-black text-emerald-600 shadow-sm">
-                <Building2 size={16} />
-                {departments.length} ban tổ chức
-              </span>
-
-              <span className="inline-flex items-center gap-2 rounded-full border border-cyan-100 bg-white px-3 py-1.5 font-black text-cyan-600 shadow-sm">
-                <ShieldCheck size={16} />
-                {isLeader ? 'Leader permission' : 'Member view'}
-              </span>
-            </>
-          }
-        />
-
         {isLeader && (
           <Panel className="relative overflow-hidden p-5">
             <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-sky-100 blur-3xl" />

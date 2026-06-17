@@ -10,6 +10,7 @@ import {
   TextInput,
 } from '../components/ui';
 import templateApi from '../api/templateApi';
+import { EVENT_TYPE_OPTIONS } from '../utils/eventTypeUtils';
 
 const AdminTemplateCreatePage = ({ user, onLogout }) => {
   const navigate = useNavigate();
@@ -17,9 +18,11 @@ const AdminTemplateCreatePage = ({ user, onLogout }) => {
     name: '',
     description: '',
     status: 'ACTIVE',
-    category: '',
-    startDate: '',
-    endDate: '',
+    eventType: '',
+    objective: '',
+    expectedAttendees: '',
+    scale: '',
+    contextDescription: '',
   });
 
   const createMutation = useMutation({
@@ -37,7 +40,12 @@ const AdminTemplateCreatePage = ({ user, onLogout }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (formData.name.trim()) {
-      createMutation.mutate(formData);
+      createMutation.mutate({
+        ...formData,
+        eventType: formData.eventType || null,
+        expectedAttendees: formData.expectedAttendees ? Number(formData.expectedAttendees) : null,
+        contextDescription: formData.contextDescription || formData.description,
+      });
     }
   };
 
@@ -114,49 +122,82 @@ const AdminTemplateCreatePage = ({ user, onLogout }) => {
             <option value="INACTIVE">Vô hiệu hóa</option>
           </SelectControl>
 
-          {/* Category */}
+          <SelectControl
+            label="Loại sự kiện"
+            name="eventType"
+            value={formData.eventType}
+            onChange={handleChange}
+            disabled={createMutation.isPending}
+          >
+            <option value="">-- Chọn loại sự kiện --</option>
+            {EVENT_TYPE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </SelectControl>
+
           <div className="flex flex-col gap-1">
-            <label htmlFor="category" className="text-sm font-semibold text-slate-700">
-              Danh mục
+            <label htmlFor="objective" className="text-sm font-semibold text-slate-700">
+              Mục tiêu template
             </label>
-            <TextInput
-              id="category"
-              name="category"
-              value={formData.category}
+            <textarea
+              id="objective"
+              name="objective"
+              value={formData.objective}
               onChange={handleChange}
-              placeholder="VD: Hội thảo, Sự kiện nội bộ, v.v"
+              placeholder="Template này giúp user đạt mục tiêu gì?"
               disabled={createMutation.isPending}
+              rows={3}
+              className="resize-y rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
             />
           </div>
 
-          {/* Start Date */}
-          <div className="flex flex-col gap-1">
-            <label htmlFor="startDate" className="text-sm font-semibold text-slate-700">
-              Ngày bắt đầu (mẫu)
-            </label>
-            <TextInput
-              id="startDate"
-              name="startDate"
-              type="date"
-              value={formData.startDate}
-              onChange={handleChange}
-              disabled={createMutation.isPending}
-            />
-            <p className="text-xs text-slate-500">Ngày này sẽ được dùng làm mốc khi tạo sự kiện từ template</p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-1">
+              <label htmlFor="expectedAttendees" className="text-sm font-semibold text-slate-700">
+                Số người dự kiến
+              </label>
+              <TextInput
+                id="expectedAttendees"
+                name="expectedAttendees"
+                type="number"
+                min="0"
+                value={formData.expectedAttendees}
+                onChange={handleChange}
+                placeholder="VD: 200"
+                disabled={createMutation.isPending}
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label htmlFor="scale" className="text-sm font-semibold text-slate-700">
+                Quy mô
+              </label>
+              <TextInput
+                id="scale"
+                name="scale"
+                value={formData.scale}
+                onChange={handleChange}
+                placeholder="VD: 16 đội - 2 ngày"
+                disabled={createMutation.isPending}
+              />
+            </div>
           </div>
 
-          {/* End Date */}
           <div className="flex flex-col gap-1">
-            <label htmlFor="endDate" className="text-sm font-semibold text-slate-700">
-              Ngày kết thúc (mẫu)
+            <label htmlFor="contextDescription" className="text-sm font-semibold text-slate-700">
+              Bối cảnh vận hành
             </label>
-            <TextInput
-              id="endDate"
-              name="endDate"
-              type="date"
-              value={formData.endDate}
+            <textarea
+              id="contextDescription"
+              name="contextDescription"
+              value={formData.contextDescription}
               onChange={handleChange}
+              placeholder="Mô tả bối cảnh, ràng buộc, đối tượng và các hoạt động chính."
               disabled={createMutation.isPending}
+              rows={3}
+              className="resize-y rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
             />
           </div>
 

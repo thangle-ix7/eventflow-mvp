@@ -22,6 +22,11 @@ public class EventResponseDTO {
     private LocalDateTime eventDate;
     private String status;
     private EventNature nature;
+    private String contextDescription;
+    private String eventType;
+    private String objective;
+    private Integer expectedAttendees;
+    private String scale;
     private String role;
     private Long departmentId;
     private String departmentName;

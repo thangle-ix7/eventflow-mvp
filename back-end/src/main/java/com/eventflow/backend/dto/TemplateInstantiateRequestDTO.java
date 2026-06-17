@@ -24,6 +24,20 @@ public class TemplateInstantiateRequestDTO {
     @Size(max = 255, message = "Địa điểm không được vượt quá 255 ký tự")
     private String location;
 
+    @Size(max = 2000, message = "Bối cảnh sự kiện không được vượt quá 2000 ký tự")
+    private String contextDescription;
+
+    @Size(max = 50, message = "Loại sự kiện không được vượt quá 50 ký tự")
+    private String eventType;
+
+    @Size(max = 2000, message = "Mục tiêu sự kiện không được vượt quá 2000 ký tự")
+    private String objective;
+
+    private Integer expectedAttendees;
+
+    @Size(max = 100, message = "Quy mô sự kiện không được vượt quá 100 ký tự")
+    private String scale;
+
     @NotNull(message = "Ngày bắt đầu không được để trống")
     private LocalDateTime startTime;
 

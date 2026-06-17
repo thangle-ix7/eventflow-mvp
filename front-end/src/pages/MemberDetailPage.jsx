@@ -65,11 +65,7 @@ const MemberDetailPage = ({ user, onLogout }) => {
 
         {member && (
           <>
-            <section className="relative overflow-hidden rounded-[2rem] border border-sky-100 bg-white/85 p-6 shadow-xl shadow-sky-100/70 backdrop-blur-xl">
-              <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-sky-100 blur-3xl" />
-              <div className="pointer-events-none absolute -bottom-28 left-1/3 h-72 w-72 rounded-full bg-emerald-100/70 blur-3xl" />
-
-              <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center">
+            <header className="flex flex-col gap-5 sm:flex-row sm:items-center">
                 <UserAvatar
                   userId={member.userId}
                   avatarUrl={member.avatarUrl}
@@ -78,11 +74,11 @@ const MemberDetailPage = ({ user, onLogout }) => {
                 />
 
                 <div className="min-w-0 flex-1">
-                  <p className="inline-flex rounded-full bg-sky-50 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-sky-600">
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-600">
                     Member detail
                   </p>
 
-                  <h2 className="mt-3 break-words text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
+                  <h2 className="mt-1 break-words text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
                     {member.name}
                   </h2>
 
@@ -105,8 +101,7 @@ const MemberDetailPage = ({ user, onLogout }) => {
                     </ProfileBadge>
                   </div>
                 </div>
-              </div>
-            </section>
+            </header>
 
             <section className="overflow-hidden rounded-[2rem] border border-sky-100 bg-white shadow-xl shadow-sky-100/70">
               <div className="flex items-center gap-3 border-b border-sky-100 bg-gradient-to-r from-sky-50 via-white to-emerald-50 px-5 py-5">

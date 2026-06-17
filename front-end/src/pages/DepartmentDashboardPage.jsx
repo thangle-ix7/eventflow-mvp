@@ -12,24 +12,54 @@ import {
   Users,
 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
+import { DepartmentLeaderSnapshotPanel } from '../components/DashboardSnapshotPanels';
 import dashboardApi from '../api/dashboardApi';
 import eventApi from '../api/eventApi';
+import leaderSnapshotApi from '../api/leaderSnapshotApi';
 import taskApi from '../api/taskApi';
 import { PriorityBadge, StatusBadge } from '../components/ui';
 import { formatDate } from '../utils/dateUtils';
-import { getEventPermissions } from '../utils/permissionUtils';
+import { canAccessDepartment, getEventPermissions } from '../utils/permissionUtils';
 
 const PAGE_SIZE = 8;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
-const toDateInput = (date) => date.toISOString().slice(0, 10);
+const pad = (value) => String(value).padStart(2, '0');
+const toDateInput = (value) => {
+  const date = value instanceof Date ? value : new Date(value || Date.now());
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+};
 const addDays = (date, days) => new Date(date.getTime() + days * MS_PER_DAY);
-const getWeekRange = (eventDate, weekIndex) => {
-  const start = new Date(eventDate || Date.now());
+const getDefaultDateRange = (eventStart, eventEnd) => {
+  const start = new Date(eventStart || Date.now());
   start.setHours(0, 0, 0, 0);
-  const from = addDays(start, weekIndex * 7);
-  const to = addDays(from, 6);
+  const from = start;
+  const fallbackTo = addDays(from, 6);
+  const end = eventEnd ? new Date(eventEnd) : null;
+  const to = end && !Number.isNaN(end.getTime()) && end < fallbackTo ? end : fallbackTo;
   return { fromDate: toDateInput(from), toDate: toDateInput(to) };
+};
+const getDateBounds = (event) => ({
+  minDate: toDateInput(event?.startTime || event?.eventDate),
+  maxDate: event?.endTime ? toDateInput(event.endTime) : '',
+});
+
+const normalizeDateRange = (range, changedField) => {
+  let fromDate = range.fromDate;
+  let toDate = range.toDate;
+
+  if (fromDate && toDate && fromDate > toDate) {
+    if (changedField === 'fromDate') {
+      toDate = fromDate;
+    } else {
+      fromDate = toDate;
+    }
+  }
+
+  return { fromDate, toDate };
 };
 
 const DepartmentDashboardPage = ({ user, onLogout }) => {
@@ -37,19 +67,26 @@ const DepartmentDashboardPage = ({ user, onLogout }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [page, setPage] = useState(0);
-  const [weekIndex, setWeekIndex] = useState(0);
+  const [dateRange, setDateRange] = useState(null);
 
   const eventQuery = useQuery({ queryKey: ['event', eventId], queryFn: () => eventApi.getEvent(eventId), enabled: Boolean(eventId) });
   const event = eventQuery.data;
   const permissions = getEventPermissions(event);
-  const canViewDashboard = permissions.canViewDepartmentDashboard;
-  const weekRange = getWeekRange(event?.startTime || event?.eventDate, weekIndex);
+  const canViewDashboard = Boolean(event && permissions.canViewDepartmentDashboard && canAccessDepartment(event, departmentId));
+  const defaultDateRange = getDefaultDateRange(event?.startTime || event?.eventDate, event?.endTime);
+  const dashboardRange = dateRange || defaultDateRange;
+  const dateBounds = getDateBounds(event);
+  const leaderSnapshotQuery = useQuery({
+    queryKey: ['departmentLeaderSnapshot', eventId, departmentId],
+    queryFn: () => leaderSnapshotApi.getDepartmentLeaderSnapshot({ eventId, departmentId }),
+    enabled: Boolean(eventId && departmentId && canViewDashboard),
+  });
   const summaryQuery = useQuery({ queryKey: ['departmentDashboardSummary', eventId, departmentId], queryFn: () => dashboardApi.getDepartmentSummary({ eventId, departmentId }), enabled: Boolean(eventId && departmentId && canViewDashboard) });
-  const trendQuery = useQuery({ queryKey: ['departmentTaskStatusTrend', eventId, departmentId, weekRange.fromDate, weekRange.toDate], queryFn: () => dashboardApi.getDepartmentTaskTrend({ eventId, departmentId, ...weekRange }), enabled: Boolean(eventId && departmentId && canViewDashboard) });
-  const statusQuery = useQuery({ queryKey: ['departmentTasksByStatus', eventId, departmentId, weekRange.fromDate, weekRange.toDate], queryFn: () => dashboardApi.getDepartmentTasksByStatus({ eventId, departmentId, ...weekRange }), enabled: Boolean(eventId && departmentId && canViewDashboard) });
+  const trendQuery = useQuery({ queryKey: ['departmentTaskStatusTrend', eventId, departmentId, dashboardRange.fromDate, dashboardRange.toDate], queryFn: () => dashboardApi.getDepartmentTaskTrend({ eventId, departmentId, ...dashboardRange }), enabled: Boolean(eventId && departmentId && canViewDashboard) });
+  const statusQuery = useQuery({ queryKey: ['departmentTasksByStatus', eventId, departmentId, dashboardRange.fromDate, dashboardRange.toDate], queryFn: () => dashboardApi.getDepartmentTasksByStatus({ eventId, departmentId, ...dashboardRange }), enabled: Boolean(eventId && departmentId && canViewDashboard) });
   const tasksQuery = useQuery({
-    queryKey: ['departmentDashboardTasks', eventId, departmentId, page, weekRange.fromDate, weekRange.toDate],
-    queryFn: () => taskApi.getEventTaskPage({ eventId, departmentId, page, size: PAGE_SIZE, sort: 'deadline', direction: 'asc', ...weekRange }),
+    queryKey: ['departmentDashboardTasks', eventId, departmentId, page, dashboardRange.fromDate, dashboardRange.toDate],
+    queryFn: () => taskApi.getEventTaskPage({ eventId, departmentId, page, size: PAGE_SIZE, sort: 'deadline', direction: 'asc', ...dashboardRange }),
     enabled: Boolean(eventId && departmentId && canViewDashboard),
   });
 
@@ -58,6 +95,20 @@ const DepartmentDashboardPage = ({ user, onLogout }) => {
   const tasks = tasksQuery.data?.content || [];
   const isLoading = eventQuery.isLoading || (canViewDashboard && (summaryQuery.isLoading || trendQuery.isLoading || statusQuery.isLoading || tasksQuery.isLoading));
   const error = eventQuery.error || summaryQuery.error || trendQuery.error || statusQuery.error || tasksQuery.error;
+
+  const handleDateRangeChange = (field, value) => {
+    setPage(0);
+    setDateRange((old) => normalizeDateRange({
+      ...defaultDateRange,
+      ...old,
+      [field]: value,
+    }, field));
+  };
+
+  const resetDateRange = () => {
+    setPage(0);
+    setDateRange(null);
+  };
 
   const openFilteredTasks = ({ status, fromDate, toDate }) => {
     const params = new URLSearchParams();
@@ -108,74 +159,56 @@ const DepartmentDashboardPage = ({ user, onLogout }) => {
   return (
     <AppLayout user={user} events={event ? [event] : []} selectedEvent={event} onEventChange={() => {}} onLogout={onLogout}>
       <div className="min-w-0 space-y-6">
-        <section className="relative overflow-hidden rounded-[2rem] border border-sky-100 bg-white/85 p-6 shadow-xl shadow-sky-100/70 backdrop-blur-xl">
-          <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-sky-100 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-28 left-1/3 h-72 w-72 rounded-full bg-emerald-100/70 blur-3xl" />
+        <section className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
+          <div className="grid grid-cols-2 gap-2 sm:flex">
+            <Link
+              to={`/events/${eventId}/departments/${departmentId}/members`}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-2 text-sm font-black text-emerald-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-white hover:shadow-lg hover:shadow-emerald-100 active:translate-y-px"
+            >
+              <Users size={16} />
+              Member
+            </Link>
 
-          <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-            <div className="min-w-0">
-              <p className="inline-flex rounded-full bg-sky-50 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-sky-600">
-                Department dashboard
-              </p>
-
-              <p className="mt-4 text-sm font-bold text-slate-500">
-                {event?.name || 'Event'} / Department / {summary?.departmentName || 'Dashboard'}
-              </p>
-
-              <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
-                {summary?.departmentName || 'Dashboard ban'}
-              </h2>
-
-              <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-slate-600">
-                Theo dõi tiến độ, trạng thái công việc và danh sách task của ban theo từng tuần.
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-              <div className="grid grid-cols-2 gap-2 sm:flex">
-                <Link
-                  to={`/events/${eventId}/departments/${departmentId}/members`}
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-2 text-sm font-black text-emerald-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-white hover:shadow-lg hover:shadow-emerald-100 active:translate-y-px"
-                >
-                  <Users size={16} />
-                  Member
-                </Link>
-
-                <Link
-                  to={`/events/${eventId}/departments/${departmentId}/tasks`}
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-sky-100 bg-sky-50 px-4 py-2 text-sm font-black text-sky-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-white hover:shadow-lg hover:shadow-sky-100 active:translate-y-px"
-                >
-                  <ClipboardList size={16} />
-                  Task
-                </Link>
-              </div>
-
-              <WeekControl
-                weekIndex={weekIndex}
-                setWeekIndex={(next) => {
-                  setPage(0);
-                  setWeekIndex(next);
-                }}
-                weekRange={weekRange}
-              />
-            </div>
+            <Link
+              to={`/events/${eventId}/departments/${departmentId}/tasks`}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-sky-100 bg-sky-50 px-4 py-2 text-sm font-black text-sky-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-white hover:shadow-lg hover:shadow-sky-100 active:translate-y-px"
+            >
+              <ClipboardList size={16} />
+              Task
+            </Link>
           </div>
+
+          <DateRangeControl
+            range={dashboardRange}
+            minDate={dateBounds.minDate}
+            maxDate={dateBounds.maxDate}
+            onChange={handleDateRangeChange}
+            onReset={resetDateRange}
+          />
         </section>
+
+        <DepartmentLeaderSnapshotPanel
+          eventId={eventId}
+          departmentId={departmentId}
+          snapshot={leaderSnapshotQuery.data}
+          isLoading={leaderSnapshotQuery.isLoading}
+          error={leaderSnapshotQuery.error}
+        />
 
         {canViewDashboard && summary && !error && (
           <>
             <section className="grid gap-5">
-              <ChartPanel icon={<TrendingUp size={18} />} title="Line chart task theo ngày">
+              <ChartPanel icon={<TrendingUp size={18} />} title="Task theo ngày">
                 <StatusLineChart
                   data={trendQuery.data || []}
                   onPointClick={({ status, date }) => openFilteredTasks({ status, fromDate: date, toDate: date })}
                 />
               </ChartPanel>
 
-              <ChartPanel icon={<BarChart3 size={18} />} title="Column chart task theo status">
+              <ChartPanel icon={<BarChart3 size={18} />} title="Task theo trạng thái">
                 <StatusColumnChart
                   data={statusData}
-                  onColumnClick={(status) => openFilteredTasks({ status, fromDate: weekRange.fromDate, toDate: weekRange.toDate })}
+                  onColumnClick={(status) => openFilteredTasks({ status, fromDate: dashboardRange.fromDate, toDate: dashboardRange.toDate })}
                 />
               </ChartPanel>
             </section>
@@ -202,35 +235,44 @@ const normalizeStatusData = (data = []) => STATUS_ORDER.map((status) => ({
   totalTasks: statusValue(data, status),
 }));
 
-const WeekControl = ({ weekIndex, setWeekIndex, weekRange }) => (
-  <div className="min-w-0 rounded-2xl border border-sky-100 bg-white/80 p-3 shadow-sm backdrop-blur">
-    <div className="flex items-center gap-2 text-sm font-black text-slate-700">
-      <CalendarDays className="h-4 w-4 text-sky-500" strokeWidth={1.8} />
-      Tuần {weekIndex + 1}
-    </div>
+const DateRangeControl = ({ range, minDate, maxDate, onChange, onReset }) => (
+  <div className="min-w-0 rounded-2xl border border-sky-100 bg-white/85 p-3 shadow-sm backdrop-blur">
+    <div className="grid gap-3 md:grid-cols-[1fr_1fr_auto] md:items-end">
+      <label className="block">
+        <span className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.14em] text-slate-500">
+          <CalendarDays className="h-4 w-4 text-sky-500" strokeWidth={1.8} />
+          Từ ngày
+        </span>
+        <input
+          type="date"
+          value={range.fromDate}
+          min={minDate || undefined}
+          max={range.toDate || maxDate || undefined}
+          onChange={(event) => onChange('fromDate', event.target.value)}
+          className="mt-2 h-11 w-full rounded-xl border border-sky-100 bg-white px-3 text-sm font-black text-slate-800 outline-none transition focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100"
+        />
+      </label>
 
-    <p className="mt-1 text-xs font-semibold text-slate-500">
-      {weekRange.fromDate} đến {weekRange.toDate}
-    </p>
+      <label className="block">
+        <span className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">
+          Đến ngày
+        </span>
+        <input
+          type="date"
+          value={range.toDate}
+          min={range.fromDate || minDate || undefined}
+          max={maxDate || undefined}
+          onChange={(event) => onChange('toDate', event.target.value)}
+          className="mt-2 h-11 w-full rounded-xl border border-sky-100 bg-white px-3 text-sm font-black text-slate-800 outline-none transition focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100"
+        />
+      </label>
 
-    <div className="mt-3 grid grid-cols-2 gap-2 sm:flex">
       <button
         type="button"
-        onClick={() => setWeekIndex(Math.max(weekIndex - 1, 0))}
-        disabled={weekIndex === 0}
-        className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-2xl border border-sky-100 bg-white px-3 py-2 text-sm font-black text-slate-600 transition hover:bg-sky-50 hover:text-sky-600 disabled:cursor-not-allowed disabled:opacity-50"
+        onClick={onReset}
+        className="inline-flex min-h-11 items-center justify-center rounded-xl border border-sky-100 bg-sky-50 px-4 text-sm font-black text-sky-700 transition hover:bg-white"
       >
-        <ChevronLeft className="h-4 w-4" strokeWidth={1.8} />
-        Tuần trước
-      </button>
-
-      <button
-        type="button"
-        onClick={() => setWeekIndex(weekIndex + 1)}
-        className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-2xl bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 px-3 py-2 text-sm font-black text-white shadow-lg shadow-cyan-100 transition hover:-translate-y-0.5 hover:shadow-xl hover:shadow-cyan-200"
-      >
-        Tuần sau
-        <ChevronRight className="h-4 w-4" strokeWidth={1.8} />
+        Về mặc định
       </button>
     </div>
   </div>
@@ -246,9 +288,6 @@ const ChartPanel = ({ icon, title, children }) => (
 
         <div className="min-w-0">
           <h3 className="font-black text-slate-950">{title}</h3>
-          <p className="mt-1 text-xs font-semibold text-slate-500">
-            Click vào điểm/cột để xem danh sách task tương ứng.
-          </p>
         </div>
       </div>
     </div>
@@ -263,7 +302,7 @@ const StatusLineChart = ({ data, onPointClick }) => {
   const [hoveredPoint, setHoveredPoint] = useState(null);
   if (!data.length) return <EmptyChart message="Chưa có dữ liệu cập nhật status." />;
 
-  const width = 680;
+  const width = Math.max(680, data.length * 76);
   const height = 280;
   const padding = 36;
   const series = [
@@ -311,8 +350,12 @@ const StatusLineChart = ({ data, onPointClick }) => {
         ))}
       </div>
 
-      <div className="overflow-hidden rounded-3xl border border-sky-100 bg-gradient-to-br from-white via-sky-50/40 to-emerald-50/40 p-2">
-        <svg viewBox={`0 0 ${width} ${height}`} className="h-64 w-full sm:h-72">
+      <div className="overflow-x-auto rounded-3xl border border-sky-100 bg-gradient-to-br from-white via-sky-50/40 to-emerald-50/40 p-2">
+        <svg
+          viewBox={`0 0 ${width} ${height}`}
+          className="h-64 max-w-none sm:h-72"
+          style={{ width: `${width}px` }}
+        >
           <defs>
             <filter id="line-glow" x="-50%" y="-50%" width="200%" height="200%">
               <feGaussianBlur stdDeviation="2.5" result="coloredBlur" />

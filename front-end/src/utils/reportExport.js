@@ -213,7 +213,7 @@ export const openPrintableDashboardReport = (report) => {
         <meta charset="utf-8" />
         <title>${escapeHtml(report.event?.name)} - EventFlow report</title>
         <style>
-          body { color: #0f172a; font-family: Inter, Arial, sans-serif; margin: 32px; }
+          body { color: #0f172a; font-family: "Times New Roman", Times, serif; margin: 32px; }
           h1 { font-size: 28px; margin: 0 0 8px; }
           h2 { border-bottom: 1px solid #e2e8f0; font-size: 18px; margin-top: 28px; padding-bottom: 8px; }
           .muted { color: #64748b; }

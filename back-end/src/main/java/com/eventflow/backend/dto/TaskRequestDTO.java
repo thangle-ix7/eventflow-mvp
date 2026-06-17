@@ -27,6 +27,8 @@ public class TaskRequestDTO {
 
     private Long assigneeId;
 
+    private Long milestoneId;
+
     private String status;
 
     private String priority;

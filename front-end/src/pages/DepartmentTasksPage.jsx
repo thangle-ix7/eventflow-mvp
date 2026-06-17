@@ -111,31 +111,26 @@ const DepartmentTasksPage = ({ user, onLogout, onUserUpdate }) => {
 
         {canReadDepartment && (
           <>
-            <section className="relative overflow-hidden rounded-[2rem] border border-sky-100 bg-white/85 p-6 shadow-xl shadow-sky-100/70 backdrop-blur-xl">
-              <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-sky-100 blur-3xl" />
-              <div className="pointer-events-none absolute -bottom-28 left-1/3 h-72 w-72 rounded-full bg-emerald-100/70 blur-3xl" />
-
-              <div className="relative flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+            <section className="space-y-4">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0">
-                  <p className="inline-flex rounded-full bg-sky-50 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-sky-600">
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-600">
                     Department tasks
                   </p>
 
-                  <h2 className="mt-4 flex items-center gap-3 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
-                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-400 text-white shadow-lg shadow-cyan-100">
-                      <ClipboardList size={22} />
-                    </span>
+                  <h2 className="mt-1 flex items-center gap-2 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
+                    <ClipboardList size={24} className="shrink-0 text-sky-600" />
                     <span className="min-w-0 truncate">
                       Task của {department?.name || 'department'}
                     </span>
                   </h2>
 
-                  <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-slate-600">
+                  <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-slate-600">
                     Tìm kiếm, lọc theo trạng thái, độ ưu tiên, deadline và theo dõi tiến độ công việc của ban.
                   </p>
                 </div>
 
-                <div className="grid gap-3 rounded-3xl border border-sky-100 bg-white/80 p-4 shadow-sm sm:min-w-72">
+                <div className="grid gap-3 rounded-2xl border border-sky-100 bg-white p-4 shadow-sm sm:min-w-72">
                   <div className="flex items-center gap-2 text-sm font-black text-slate-700">
                     <SlidersHorizontal className="h-4 w-4 text-sky-500" strokeWidth={1.8} />
                     Thiết lập hiển thị
@@ -166,7 +161,7 @@ const DepartmentTasksPage = ({ user, onLogout, onUserUpdate }) => {
 
               <form
                 onSubmit={handleSearchSubmit}
-                className="relative mt-6 grid gap-3 md:grid-cols-[1fr_150px_150px_150px_150px_auto]"
+                className="grid gap-3 md:grid-cols-[1fr_150px_150px_150px_150px_auto]"
               >
                 <label className="relative">
                   <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-sky-400" />

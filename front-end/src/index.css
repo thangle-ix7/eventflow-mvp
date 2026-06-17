@@ -3,9 +3,9 @@
 @tailwind utilities;
 
 :root {
+  --eventflow-font-family: "Times New Roman", Times, serif;
   font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
+    var(--eventflow-font-family);
   line-height: 1.5;
   font-weight: 400;
   color: #111827;
@@ -16,17 +16,70 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+html,
+body,
+#root {
+  font-family: var(--eventflow-font-family);
+}
+
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
 }
 
+*,
+*::before,
+*::after {
+  font-family: inherit;
+}
+
 button,
 input,
 textarea,
-select {
+select,
+table {
   font: inherit;
+}
+
+textarea {
+  field-sizing: content;
+  min-height: 2.75rem;
+  overflow-y: hidden;
+}
+
+/*
+ * Keep the interface crisp. The app previously leaned heavily on very large
+ * Tailwind radii, which made cards and modals feel overly generated.
+ * Circular affordances still use rounded-full where a true circle is intended.
+ */
+:root {
+  --eventflow-radius-sm: 8px;
+  --eventflow-radius-md: 10px;
+  --eventflow-radius-lg: 12px;
+}
+
+:where(.rounded-xl) {
+  border-radius: var(--eventflow-radius-md) !important;
+}
+
+:where(
+  .rounded-2xl,
+  .rounded-3xl,
+  [class~="rounded-[1.35rem]"],
+  [class~="rounded-[1.5rem]"],
+  [class~="rounded-[2rem]"],
+  [class~="rounded-[2.4rem]"],
+  [class~="rounded-[2.5rem]"],
+  [class~="rounded-[2.75rem]"],
+  [class~="rounded-[3rem]"]
+) {
+  border-radius: var(--eventflow-radius-lg) !important;
+}
+
+:where(.rounded-t-2xl) {
+  border-top-left-radius: var(--eventflow-radius-md) !important;
+  border-top-right-radius: var(--eventflow-radius-md) !important;
 }
 
 .error-dino-scene {

@@ -4,6 +4,17 @@ import { Button, Panel, StatusBadge } from './ui';
 import { formatDate } from '../utils/dateUtils';
 import departmentApi from '../api/departmentApi';
 import taskApi from '../api/taskApi';
+import { getEventTypeLabel } from '../utils/eventTypeUtils';
+
+const toArray = (data) => data?.content || (Array.isArray(data) ? data : []);
+
+const normalizeTasks = (rawTasks) => {
+  if (!rawTasks) return [];
+  if (Array.isArray(rawTasks) && rawTasks.some((item) => Array.isArray(item?.tasks))) {
+    return rawTasks.flatMap((group) => group.tasks || []);
+  }
+  return toArray(rawTasks);
+};
 
 const TemplatePreviewModal = ({ isOpen, template, onClose, onInstantiate }) => {
   // Fetch departments for this template
@@ -20,11 +31,8 @@ const TemplatePreviewModal = ({ isOpen, template, onClose, onInstantiate }) => {
     enabled: !!template?.id && isOpen,
   });
 
-  const departments = departmentsQuery.data || template?.departments || [];
-  const rawTaskData = tasksQuery.data || template?.tasks || [];
-  const tasks = rawTaskData.length > 0 && rawTaskData[0].tasks 
-    ? rawTaskData.flatMap(dept => dept.tasks) 
-    : (rawTaskData.content || rawTaskData);
+  const departments = toArray(departmentsQuery.data || template?.departments || []);
+  const tasks = normalizeTasks(tasksQuery.data || template?.tasks || []);
 
   if (!isOpen || !template) return null;
 
@@ -52,8 +60,8 @@ const TemplatePreviewModal = ({ isOpen, template, onClose, onInstantiate }) => {
           {/* Metadata */}
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <div>
-              <p className="text-xs font-semibold text-slate-500">TRẠNG THÁI</p>
-              <StatusBadge status={template.status || 'ACTIVE'} className="mt-2" />
+              <p className="text-xs font-semibold text-slate-500">LOẠI</p>
+              <p className="mt-2 text-sm font-bold text-slate-900">{getEventTypeLabel(template.eventType)}</p>
             </div>
             <div>
               <p className="text-xs font-semibold text-slate-500">PHÒNG BAN</p>
@@ -64,10 +72,23 @@ const TemplatePreviewModal = ({ isOpen, template, onClose, onInstantiate }) => {
               <p className="mt-2 text-lg font-bold text-slate-900">{tasks.length}</p>
             </div>
             <div>
-              <p className="text-xs font-semibold text-slate-500">TẠO LÚC</p>
-              <p className="mt-2 text-sm text-slate-600">{formatDate(template.createdAt)}</p>
+              <p className="text-xs font-semibold text-slate-500">TRẠNG THÁI</p>
+              <StatusBadge status={template.status || 'ACTIVE'} className="mt-2" />
             </div>
           </div>
+
+          {(template.objective || template.scale || template.expectedAttendees) && (
+            <div className="rounded-xl border border-indigo-100 bg-indigo-50/70 p-4">
+              <p className="text-xs font-semibold text-indigo-700">
+                {template.expectedAttendees ? `${template.expectedAttendees} người dự kiến` : 'Chưa có số người'} · {template.scale || 'Chưa có quy mô'} · Tạo {formatDate(template.createdAt)}
+              </p>
+              {template.objective && (
+                <p className="mt-2 text-sm font-semibold leading-6 text-indigo-950">
+                  {template.objective}
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Departments Section */}
           {departments && departments.length > 0 && (

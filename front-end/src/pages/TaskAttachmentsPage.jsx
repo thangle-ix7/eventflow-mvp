@@ -137,50 +137,42 @@ const TaskAttachmentsPage = ({ user, onLogout }) => {
       onLogout={onLogout}
     >
       <div className="space-y-6">
-        <section className="relative overflow-hidden rounded-[2rem] border border-sky-100 bg-white/85 p-6 shadow-xl shadow-sky-100/70 backdrop-blur-xl">
-          <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-sky-100 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-28 left-1/3 h-72 w-72 rounded-full bg-emerald-100/70 blur-3xl" />
-
-          <div className="relative flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-            <div className="flex items-start gap-4">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-3xl bg-gradient-to-br from-sky-500 to-emerald-400 text-white shadow-lg shadow-cyan-100">
-                <Paperclip size={28} strokeWidth={1.8} />
-              </div>
-
+        <header>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div className="min-w-0">
-                <p className="inline-flex rounded-full bg-sky-50 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-sky-600">
+                <p className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-sky-600">
+                  <Paperclip size={15} strokeWidth={1.8} />
                   Task attachments
                 </p>
 
-                <h2 className="mt-3 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
+                <h2 className="mt-1 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
                   Attachment
                 </h2>
 
-                <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-slate-600">
+                <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-slate-600">
                   {task?.title
                     ? `Quản lý file và link đính kèm cho task: ${task.title}.`
                     : 'Quản lý file và link đính kèm của task.'}
                 </p>
               </div>
-            </div>
 
-            <div className="rounded-3xl border border-sky-100 bg-white/80 p-4 shadow-sm">
+            <div className="rounded-2xl border border-sky-100 bg-sky-50/70 px-4 py-3">
               <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">
                 Tổng attachment
               </p>
-              <p className="mt-1 text-3xl font-black text-slate-950">
+              <p className="mt-1 text-2xl font-black text-slate-950">
                 {attachments.length}
               </p>
             </div>
           </div>
 
           {(eventQuery.isLoading || taskQuery.isLoading) && (
-            <div className="relative mt-5 flex items-center gap-2 rounded-2xl border border-sky-100 bg-sky-50 p-4 text-sm font-black text-slate-500">
+            <div className="mt-4 flex items-center gap-2 rounded-2xl border border-sky-100 bg-sky-50 p-4 text-sm font-black text-slate-500">
               <Loader2 size={18} className="animate-spin text-sky-600" />
               Đang tải thông tin task...
             </div>
           )}
-        </section>
+        </header>
 
         {canAttach && (
           <section className="relative overflow-hidden rounded-[2rem] border border-sky-100 bg-white shadow-xl shadow-sky-100/70">

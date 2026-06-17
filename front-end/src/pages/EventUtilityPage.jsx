@@ -22,12 +22,12 @@ import {
   X,
 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
+import AiSuggestionDetailModal from '../components/AiSuggestionDetailModal';
 import {
   Button,
   EmptyState,
   LoadingState,
   MetricCard,
-  PageHeader,
   Panel,
   StatusBadge,
 } from '../components/ui';
@@ -46,6 +46,7 @@ import {
   openPrintableDashboardReport,
 } from '../utils/reportExport';
 import aiSuggestionApi from '../api/aiSuggestionApi';
+import { stripHiddenSuggestionKeys } from '../utils/aiSuggestionUtils';
 
 const PAGE_CONFIG = {
   calendar: {
@@ -79,15 +80,10 @@ const EVENT_STATUS_LABELS = {
   CANCELLED: 'Đã hủy',
 };
 
-const getUtilityDescription = (fallback) => {
-  return fallback;
-};
-
 const EventUtilityPage = ({ user, onLogout, type }) => {
   const { eventId } = useParams();
   const [searchParams] = useSearchParams();
   const config = PAGE_CONFIG[type] || PAGE_CONFIG.calendar;
-  const Icon = config.icon;
   const [now] = useState(() => Date.now());
   const [calendarDate, setCalendarDate] = useState(() => {
     const queryYear = Number(searchParams.get('year'));
@@ -183,18 +179,6 @@ const EventUtilityPage = ({ user, onLogout, type }) => {
   return (
     <AppLayout user={user} events={event ? [event] : []} selectedEvent={event} onLogout={onLogout}>
       <div className="space-y-6">
-        <PageHeader
-          eyebrow={event?.name || 'Sự kiện'}
-          title={type === 'settings' && event?.role !== 'LEADER' ? 'Thông tin' : config.title}
-          description={getUtilityDescription(config.description)}
-          meta={
-            <span className="inline-flex items-center gap-2">
-              <Icon size={16} />
-              {config.meta}
-            </span>
-          }
-        />
-
         {isLoading && <LoadingState message={`Đang tải ${config.title.toLowerCase()}...`} />}
         {!isLoading && error && (
           <ErrorPage
@@ -412,6 +396,9 @@ const CalendarContent = ({ eventId, event, departments, members, calendar, calen
         suggestions={aiCalendarSuggestions}
         departments={departments}
         toggleSuggestion={toggleAiCalendarSuggestion}
+        updateSuggestion={(key, updater) => setAiCalendarSuggestions((old) => old.map((item) => (
+          item.key === key ? updater(item) : item
+        )))}
         suggestMutation={aiCalendarSuggestionMutation}
         saveMutation={saveAiCalendarItemsMutation}
       />
@@ -683,10 +670,12 @@ const CalendarAiSuggestionPanel = ({
   suggestions,
   departments,
   toggleSuggestion,
+  updateSuggestion,
   suggestMutation,
   saveMutation,
 }) => {
   const selectedCount = suggestions.filter((item) => item.selected).length;
+  const [detailSuggestion, setDetailSuggestion] = useState(null);
 
   return (
     <Panel className="p-4">
@@ -719,35 +708,68 @@ const CalendarAiSuggestionPanel = ({
 
       {suggestions.length > 0 && (
         <div className="mt-4 space-y-3">
-          <div className="grid gap-3 lg:grid-cols-2">
-            {suggestions.map((item) => (
-              <button
-                key={item.key}
-                type="button"
-                onClick={() => toggleSuggestion(item.key)}
-                className={[
-                  'rounded-lg border p-3 text-left transition',
-                  item.selected ? 'border-indigo-200 bg-indigo-50/70' : 'border-slate-200 bg-white hover:bg-slate-50',
-                ].join(' ')}
-              >
-                <div className="flex items-start gap-2">
-                  {item.selected ? <CheckCircle2 size={18} className="mt-0.5 shrink-0 text-indigo-600" /> : <Circle size={18} className="mt-0.5 shrink-0 text-slate-300" />}
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-bold text-slate-950">{item.title}</p>
-                      <StatusBadge status={CALENDAR_TYPE_LABELS[item.type] || item.type || 'Lịch'} />
-                    </div>
-                    <p className="mt-1 text-sm font-semibold text-slate-500">
+          <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+            <table className="w-full min-w-[820px] border-collapse text-left text-sm">
+              <thead className="bg-slate-50 text-xs font-black uppercase tracking-[0.08em] text-slate-500">
+                <tr>
+                  <th className="w-14 px-3 py-3">Chọn</th>
+                  <th className="px-3 py-3">Lịch</th>
+                  <th className="px-3 py-3">Thời gian</th>
+                  <th className="px-3 py-3">Ban / địa điểm</th>
+                  <th className="px-3 py-3">Mô tả</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {suggestions.map((item) => (
+                  <tr
+                    key={item.key}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setDetailSuggestion(item)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        setDetailSuggestion(item);
+                      }
+                    }}
+                    className={[
+                      'cursor-pointer transition hover:bg-indigo-50/60',
+                      item.selected ? 'bg-indigo-50/50' : 'bg-white',
+                    ].join(' ')}
+                  >
+                    <td className="px-3 py-3 align-top">
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          toggleSuggestion(item.key);
+                        }}
+                        className="rounded-full"
+                        aria-label={item.selected ? 'Bỏ chọn gợi ý' : 'Chọn gợi ý'}
+                      >
+                        {item.selected ? <CheckCircle2 size={18} className="text-indigo-600" /> : <Circle size={18} className="text-slate-300" />}
+                      </button>
+                    </td>
+                    <td className="px-3 py-3 align-top">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-bold text-slate-950">{item.title}</span>
+                        <StatusBadge status={CALENDAR_TYPE_LABELS[item.type] || item.type || 'Lịch'} />
+                      </div>
+                      <p className="mt-1 text-xs font-black text-indigo-600">Bấm vào hàng để sửa</p>
+                    </td>
+                    <td className="px-3 py-3 align-top font-semibold leading-6 text-slate-500">
                       {formatDate(item.startTime)} - {formatDate(item.endTime)}
-                    </p>
-                    {item.description && <p className="mt-1 line-clamp-2 text-sm text-slate-600">{item.description}</p>}
-                    <p className="mt-2 text-xs font-semibold text-slate-400">
+                    </td>
+                    <td className="px-3 py-3 align-top font-semibold leading-6 text-slate-500">
                       {departmentNameById(departments, item.departmentId) || 'Ban tổ chức (BTC)'}{item.location ? ` • ${item.location}` : ''}
-                    </p>
-                  </div>
-                </div>
-              </button>
-            ))}
+                    </td>
+                    <td className="px-3 py-3 align-top">
+                      <p className="line-clamp-2 leading-6 text-slate-600">{item.description || 'Chưa có mô tả'}</p>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
             <p className="text-sm font-semibold text-slate-500">Đã chọn {selectedCount}/{suggestions.length}</p>
@@ -758,6 +780,22 @@ const CalendarAiSuggestionPanel = ({
           </div>
         </div>
       )}
+
+      <AiSuggestionDetailModal
+        isOpen={Boolean(detailSuggestion)}
+        title={detailSuggestion?.title || 'Chi tiết lịch gợi ý'}
+        suggestion={detailSuggestion}
+        onSave={(updatedSuggestion) => {
+          const cleaned = stripHiddenSuggestionKeys(updatedSuggestion);
+          updateSuggestion(detailSuggestion.key, (item) => ({
+            ...item,
+            ...cleaned,
+            key: item.key,
+            selected: item.selected,
+          }));
+        }}
+        onClose={() => setDetailSuggestion(null)}
+      />
     </Panel>
   );
 };

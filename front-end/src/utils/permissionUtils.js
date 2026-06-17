@@ -6,7 +6,7 @@ export const getEventPermissions = (event) => {
 
   return {
     canViewEventDashboard: isLeader,
-    canViewDepartmentDashboard: isLeader,
+    canViewDepartmentDashboard: isLeader || hasDepartment,
     canManageEvent: isLeader,
     canManageDepartments: isLeader,
     canManageMembers: isLeader,

@@ -44,6 +44,8 @@ const vi = {
 
       members: 'Thành viên',
 
+      plannings: 'Kế hoạch',
+
       tasks: 'Công việc',
 
       calendar: 'Lịch',
@@ -56,7 +58,7 @@ const vi = {
     },
 
     landing: {
-      title: 'AI Event Planning',
+      title: 'Trợ lý tổ chức sự kiện',
 
       subtitle:
         'Hỗ trợ tổ chức, điều phối và quản lý sự kiện trên nền tảng số.',
@@ -159,7 +161,7 @@ const vi = {
 
       update: 'Cập nhật công việc',
 
-      review: 'Review công việc',
+      review: 'Duyệt công việc',
 
       search: 'Tìm công việc',
 
@@ -182,6 +184,22 @@ const vi = {
       report: 'Báo cáo',
 
       reviewHistory: 'Lịch sử review',
+    },
+
+    terminology: {
+      dashboard: 'Tổng quan',
+      planning: 'Kế hoạch',
+      milestone: 'Cột mốc',
+      task: 'Công việc',
+      subtask: 'Việc con',
+      department: 'Ban',
+      member: 'Thành viên',
+      template: 'Mẫu',
+      deadline: 'Hạn',
+      report: 'Báo cáo',
+      workload: 'Khối lượng việc',
+      preview: 'Xem trước',
+      suggestion: 'Gợi ý',
     },
 
     taskStatus: {

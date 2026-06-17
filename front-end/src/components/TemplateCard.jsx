@@ -4,6 +4,7 @@ import { Button, Panel, StatusBadge } from './ui';
 import { formatDate } from '../utils/dateUtils';
 import departmentApi from '../api/departmentApi';
 import taskApi from '../api/taskApi';
+import { getEventTypeLabel } from '../utils/eventTypeUtils';
 
 const TemplateCard = ({ template, onPreview, onSelect }) => {
   // Fetch departments for this template to count them
@@ -23,7 +24,7 @@ const TemplateCard = ({ template, onPreview, onSelect }) => {
   });
 
   const departmentCount = departmentsQuery.data?.length || template?.departmentCount || 0;
-  const taskCount = tasksQuery.data?.length || template?.taskCount || 0;
+  const taskCount = getTaskCount(tasksQuery.data, template?.taskCount);
 
   return (
     <Panel className="flex flex-col gap-4 p-4 transition hover:shadow-md">
@@ -33,6 +34,16 @@ const TemplateCard = ({ template, onPreview, onSelect }) => {
         {template?.description && (
           <p className="mt-2 text-sm text-slate-600 line-clamp-2">{template.description}</p>
         )}
+        <div className="mt-3 flex flex-wrap gap-2">
+          <span className="inline-flex w-fit rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1 text-xs font-black text-indigo-700">
+            {getEventTypeLabel(template?.eventType)}
+          </span>
+          {template?.scale && (
+            <span className="inline-flex w-fit rounded-full border border-sky-100 bg-sky-50 px-3 py-1 text-xs font-black text-sky-700">
+              {template.scale}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Stats */}
@@ -80,6 +91,14 @@ const TemplateCard = ({ template, onPreview, onSelect }) => {
       </div>
     </Panel>
   );
+};
+
+const getTaskCount = (rawTasks, fallback = 0) => {
+  if (!rawTasks) return fallback || 0;
+  if (Array.isArray(rawTasks) && rawTasks.some((item) => Array.isArray(item?.tasks))) {
+    return rawTasks.flatMap((group) => group.tasks || []).length;
+  }
+  return rawTasks?.content?.length || rawTasks?.length || fallback || 0;
 };
 
 export default TemplateCard;

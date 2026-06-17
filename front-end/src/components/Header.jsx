@@ -59,7 +59,7 @@ const Header = ({
 
         <div className="flex shrink-0 items-center gap-3">
           <a
-            href="mailto:event.flow.corp.vn@gmail.com"
+            href="mailto:support@eventflow.vn"
             className="hidden items-center gap-2 rounded-full px-4 py-2 text-sm font-bold text-slate-600 transition hover:bg-sky-50 hover:text-sky-600 xl:inline-flex"
           >
             <Mail className="h-4 w-4" />

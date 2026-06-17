@@ -1,4 +1,5 @@
 import TelegramOnboarding from './TelegramOnboarding';
+import FeedbackModal from './FeedbackModal';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -15,6 +16,7 @@ import {
   Layers,
   LogOut,
   Menu,
+  MessageSquareHeart,
   Search,
   Settings,
   TrendingUp,
@@ -48,6 +50,7 @@ const AppLayoutFrame = ({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [globalSearch, setGlobalSearch] = useState('');
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(() => {
     if (typeof window === 'undefined') {
@@ -100,7 +103,7 @@ const AppLayoutFrame = ({
   const eventNav = selectedEvent?.id
     ? [
       { to: `/events/${selectedEvent.id}`, label: t('sidebar.dashboard'), icon: Workflow },
-      ...(permissions.canViewEventDashboard ? [{ to: `/events/${selectedEvent.id}/dashboard`, label: 'Dashboard', icon: BarChart3 }] : []),
+      ...(permissions.canViewEventDashboard ? [{ to: `/events/${selectedEvent.id}/dashboard`, label: t('sidebar.dashboard'), icon: BarChart3 }] : []),
       { to: `/events/${selectedEvent.id}/plannings`, label: t('sidebar.plannings'), icon: Layers },
       { to: `/events/${selectedEvent.id}/tasks`, label: t('sidebar.tasks'), icon: ClipboardList },
       ...(departmentHomePath ? [{ to: departmentHomePath, label: t('sidebar.departments'), icon: Users }] : []),
@@ -119,7 +122,7 @@ const AppLayoutFrame = ({
       {
         to: `/events/${selectedEvent.id}/documents`,
         label: t('utility.documents'),
-        description: 'File & link',
+        description: 'Tệp và liên kết',
         icon: FileText,
       },
       {
@@ -146,8 +149,13 @@ const AppLayoutFrame = ({
   const searchSuggestionBase = [
     { label: t('event.title'), description: '', to: '/' },
     { label: t('event.create'), description: '', to: '/events/new' },
-    { label: 'Templates', description: 'Xem templates sẵn có', to: '/events/templates' },
-    ...(user?.systemRole === 'ADMIN' ? [{ label: 'Quản lý Templates', description: 'Admin panel', to: '/admin/templates' }] : []),
+    { label: 'Mẫu sự kiện', description: 'Xem các mẫu có sẵn', to: '/events/templates' },
+    ...(user?.systemRole === 'ADMIN'
+      ? [
+        { label: 'Quản lý mẫu', description: 'Khu quản trị', to: '/admin/templates' },
+        { label: 'Hộp thư góp ý', description: 'Góp ý người dùng', to: '/admin/feedback' },
+      ]
+      : []),
     { label: 'Hồ sơ cá nhân', description: '', to: '/profile' },
     ...events.map((event) => ({
       label: event.name,
@@ -172,7 +180,7 @@ const AppLayoutFrame = ({
     }
 
     if (permissions.canViewEventDashboard) {
-      searchSuggestionBase.push({ label: 'Dashboard sự kiện', description: '', to: `/events/${selectedEvent.id}/dashboard` });
+      searchSuggestionBase.push({ label: 'Tổng quan sự kiện', description: '', to: `/events/${selectedEvent.id}/dashboard` });
     }
   }
 
@@ -496,6 +504,17 @@ const AppLayoutFrame = ({
                   </Link>
                 )}
 
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-2 rounded-2xl px-2.5 py-2 text-sm font-black transition hover:bg-sky-50 hover:text-sky-600"
+                  aria-label="Gửi góp ý cho EventFlow"
+                  title="Gửi góp ý cho EventFlow"
+                  onClick={() => setFeedbackOpen(true)}
+                >
+                  <MessageSquareHeart className="h-5 w-5" strokeWidth={1.8} />
+                  <span className="hidden xl:inline">Góp ý</span>
+                </button>
+
                 <div className="relative" ref={notificationRef}>
                   <button
                     type="button"
@@ -709,10 +728,10 @@ const AppLayoutFrame = ({
                   <p>Đơn vị học thuật: {t('footer.university')}</p>
                   <p>Khu Công nghệ cao Hòa Lạc, Hà Nội</p>
                   <a
-                    href="mailto:event.flow.corp.vn@gmail.com"
+                    href="mailto:support@eventflow.vn"
                     className="block pt-1 font-black text-cyan-300 transition hover:text-emerald-300"
                   >
-                    event.flow.corp.vn@gmail.com
+                    support@eventflow.vn
                   </a>
                 </div>
               </div>
@@ -747,6 +766,13 @@ const AppLayoutFrame = ({
             </div>
           </footer>
         )}
+
+        <FeedbackModal
+          isOpen={feedbackOpen}
+          selectedEvent={selectedEvent}
+          user={user}
+          onClose={() => setFeedbackOpen(false)}
+        />
       </div>
     </AppLayoutContext.Provider>
   );

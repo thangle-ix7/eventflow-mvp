@@ -23,42 +23,37 @@ const baseControl =
   'rounded-2xl border border-sky-100 bg-white px-3 py-2 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400';
 
 export const PageHeader = ({ eyebrow, title, description, actions, meta }) => (
-  <section className="relative overflow-hidden rounded-[2rem] border border-sky-100 bg-white/85 p-6 shadow-xl shadow-sky-100/70 backdrop-blur-xl">
-    <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-sky-100 blur-3xl" />
-    <div className="pointer-events-none absolute -bottom-28 left-1/3 h-64 w-64 rounded-full bg-emerald-100/70 blur-3xl" />
+  <header className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+    <div className="min-w-0">
+      {eyebrow && (
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-600">
+          {eyebrow}
+        </p>
+      )}
 
-    <div className="relative flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-      <div className="min-w-0">
-        {eyebrow && (
-          <p className="inline-flex rounded-full bg-sky-50 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-sky-600">
-            {eyebrow}
-          </p>
-        )}
+      <h2 className={`${eyebrow ? 'mt-1' : ''} text-2xl font-black tracking-tight text-slate-950 sm:text-3xl`}>
+        {title}
+      </h2>
 
-        <h2 className="mt-3 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
-          {title}
-        </h2>
+      {description && (
+        <p className="mt-2 max-w-3xl text-sm font-semibold leading-6 text-slate-600">
+          {description}
+        </p>
+      )}
 
-        {description && (
-          <p className="mt-3 max-w-3xl text-sm font-semibold leading-6 text-slate-600">
-            {description}
-          </p>
-        )}
-
-        {meta && (
-          <div className="mt-4 flex flex-wrap gap-3 text-sm font-semibold text-slate-500">
-            {meta}
-          </div>
-        )}
-      </div>
-
-      {actions && (
-        <div className="flex flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-          {actions}
+      {meta && (
+        <div className="mt-3 flex flex-wrap gap-2 text-sm font-semibold text-slate-500">
+          {meta}
         </div>
       )}
     </div>
-  </section>
+
+    {actions && (
+      <div className="flex flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+        {actions}
+      </div>
+    )}
+  </header>
 );
 
 export const Button = ({ as: Component = 'button', variant = 'primary', className = '', children, ...props }) => {

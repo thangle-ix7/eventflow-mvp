@@ -5,8 +5,10 @@ import {
   CalendarDays,
   ClipboardList,
   FileText,
+  Flag,
   Layers3,
   Loader2,
+  Plus,
   Save,
   Sparkles,
   TrendingUp,
@@ -14,13 +16,17 @@ import {
   Users,
 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
+import AiSuggestionDetailModal from '../components/AiSuggestionDetailModal';
 import aiSuggestionApi from '../api/aiSuggestionApi';
 import departmentApi from '../api/departmentApi';
 import eventApi from '../api/eventApi';
 import eventMemberApi from '../api/eventMemberApi';
+import milestoneApi from '../api/milestoneApi';
 import taskApi from '../api/taskApi';
 import workloadApi from '../api/workloadApi';
+import MilestoneCreateModal from '../components/MilestoneCreateModal';
 import { invalidateDashboardQueries } from '../utils/dashboardQueryUtils';
+import { stripHiddenSuggestionKeys } from '../utils/aiSuggestionUtils';
 
 const pad = (value) => String(value).padStart(2, '0');
 
@@ -51,6 +57,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
     description: '',
     departmentId: initialDepartmentId,
     assigneeId: '',
+    milestoneId: '',
     deadline: '',
     status: 'TODO',
     priority: 'MEDIUM',
@@ -58,6 +65,9 @@ const TaskCreatePage = ({ user, onLogout }) => {
   });
 
   const [suggestionInstruction, setSuggestionInstruction] = useState('');
+  const [suggestedTasks, setSuggestedTasks] = useState([]);
+  const [detailSuggestion, setDetailSuggestion] = useState(null);
+  const [isMilestoneModalOpen, setIsMilestoneModalOpen] = useState(false);
 
   const eventQuery = useQuery({
     queryKey: ['event', eventId],
@@ -74,6 +84,12 @@ const TaskCreatePage = ({ user, onLogout }) => {
   const membersQuery = useQuery({
     queryKey: ['eventMembers', eventId],
     queryFn: () => eventMemberApi.getMembers(eventId),
+    enabled: Boolean(eventId),
+  });
+
+  const milestonesQuery = useQuery({
+    queryKey: ['eventMilestones', eventId],
+    queryFn: () => milestoneApi.getEventMilestones(eventId),
     enabled: Boolean(eventId),
   });
 
@@ -117,6 +133,9 @@ const TaskCreatePage = ({ user, onLogout }) => {
 
   const suggestionMutation = useMutation({
     mutationFn: aiSuggestionApi.suggestTasks,
+    onSuccess: (data) => {
+      setSuggestedTasks(data?.tasks || []);
+    },
   });
 
   const handleChange = (event) => {
@@ -138,6 +157,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
         description: form.description,
         departmentId: form.departmentId ? Number(form.departmentId) : null,
         assigneeId: form.assigneeId ? Number(form.assigneeId) : null,
+        milestoneId: form.milestoneId ? Number(form.milestoneId) : null,
         deadline: form.deadline,
         status: form.status,
         priority: form.priority,
@@ -153,6 +173,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
       description: task.description || '',
       departmentId,
       assigneeId: task.assigneeId ? String(task.assigneeId) : '',
+      milestoneId: task.milestoneId ? String(task.milestoneId) : '',
       deadline: normalizeSuggestedDeadline(task.deadline),
       status: task.status || 'TODO',
       priority: task.priority || 'MEDIUM',
@@ -168,6 +189,11 @@ const TaskCreatePage = ({ user, onLogout }) => {
     });
   };
 
+  const handleMilestoneCreated = (milestone) => {
+    setForm((old) => ({ ...old, milestoneId: String(milestone.id) }));
+    setIsMilestoneModalOpen(false);
+  };
+
   return (
     <AppLayout
       user={user}
@@ -177,32 +203,23 @@ const TaskCreatePage = ({ user, onLogout }) => {
       onLogout={onLogout}
     >
       <div className="mx-auto max-w-6xl space-y-6">
-        <section className="relative overflow-hidden rounded-[2rem] border border-sky-100 bg-white/85 p-6 shadow-xl shadow-sky-100/70 backdrop-blur-xl">
-          <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-sky-100 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-28 left-1/3 h-72 w-72 rounded-full bg-emerald-100/70 blur-3xl" />
-
-          <div className="relative flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-            <div className="flex items-start gap-4">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-3xl bg-gradient-to-br from-sky-500 to-emerald-400 text-white shadow-lg shadow-cyan-100">
-                <ClipboardList size={28} strokeWidth={1.8} />
-              </div>
-
+        <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div className="min-w-0">
-                <p className="inline-flex rounded-full bg-sky-50 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-sky-600">
+                <p className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-sky-600">
+                  <ClipboardList size={15} strokeWidth={1.8} />
                   Task management
                 </p>
 
-                <h2 className="mt-3 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
+                <h2 className="mt-1 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
                   Tạo task mới
                 </h2>
 
-                <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-slate-600">
+                <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-slate-600">
                   Tạo công việc, gán ban phụ trách, phân công thành viên, đặt deadline và theo dõi workload trước khi giao task.
                 </p>
               </div>
-            </div>
 
-            <div className="rounded-3xl border border-sky-100 bg-white/80 p-4 shadow-sm">
+            <div className="rounded-2xl border border-sky-100 bg-sky-50/70 px-4 py-3">
               <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">
                 Event
               </p>
@@ -210,8 +227,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
                 {eventQuery.data?.name || 'Đang tải...'}
               </p>
             </div>
-          </div>
-        </section>
+        </header>
 
         <div className="grid gap-6 lg:grid-cols-[1fr_0.72fr]">
           <form
@@ -226,10 +242,10 @@ const TaskCreatePage = ({ user, onLogout }) => {
 
                 <div>
                   <h3 className="text-lg font-black text-slate-950">
-                    Thông tin task
+                    Thông tin công việc
                   </h3>
                   <p className="mt-1 text-sm font-semibold text-slate-500">
-                    Điền thông tin để tạo task trong sự kiện.
+                    Điền thông tin để tạo công việc trong sự kiện.
                   </p>
                 </div>
               </div>
@@ -243,7 +259,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
               )}
 
               <Field
-                label="Tên task"
+                label="Tên công việc"
                 icon={<ClipboardList className="h-4 w-4" strokeWidth={1.8} />}
               >
                 <input
@@ -253,12 +269,12 @@ const TaskCreatePage = ({ user, onLogout }) => {
                   required
                   maxLength={255}
                   className={inputClassName}
-                  placeholder="Nhập tên task cần thực hiện"
+                  placeholder="Nhập tên công việc cần thực hiện"
                 />
               </Field>
 
               <Field
-                label="Mô tả task"
+                label="Mô tả công việc"
                 icon={<FileText className="h-4 w-4" strokeWidth={1.8} />}
               >
                 <textarea
@@ -272,11 +288,49 @@ const TaskCreatePage = ({ user, onLogout }) => {
                 />
               </Field>
 
+              <Field
+                label="Cột mốc"
+                icon={<Flag className="h-4 w-4" strokeWidth={1.8} />}
+                hint="Không bắt buộc. Gắn công việc vào cột mốc để tổng quan tính tiến độ theo từng chặng."
+              >
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <select
+                    name="milestoneId"
+                    value={form.milestoneId}
+                    onChange={handleChange}
+                    className={inputClassName}
+                  >
+                    <option value="">Chưa gán cột mốc</option>
+                    {milestonesQuery.data?.map((milestone) => (
+                      <option key={milestone.id} value={milestone.id}>
+                        {milestone.name}
+                      </option>
+                    ))}
+                  </select>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsMilestoneModalOpen(true)}
+                    className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-2xl border border-sky-100 bg-white px-4 py-2 text-sm font-black text-sky-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-sky-50 hover:shadow-lg hover:shadow-sky-100"
+                  >
+                    <Plus size={16} />
+                    Tạo cột mốc
+                  </button>
+                </div>
+
+                {milestonesQuery.isLoading && (
+                  <p className="mt-2 flex items-center gap-2 text-xs font-semibold text-slate-500">
+                    <Loader2 size={13} className="animate-spin text-sky-500" />
+                    Đang tải cột mốc...
+                  </p>
+                )}
+              </Field>
+
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field
-                  label="Department"
+                  label="Ban"
                   icon={<Layers3 className="h-4 w-4" strokeWidth={1.8} />}
-                  hint={isDepartmentLocked ? 'Department đã được khóa theo URL hiện tại.' : ''}
+                  hint={isDepartmentLocked ? 'Ban đã được khóa theo URL hiện tại.' : ''}
                 >
                   <select
                     name="departmentId"
@@ -295,7 +349,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
                 </Field>
 
                 <Field
-                  label="Assignee"
+                  label="Người phụ trách"
                   icon={<UserRound className="h-4 w-4" strokeWidth={1.8} />}
                 >
                   <select
@@ -319,7 +373,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
                   {departmentWorkloadQuery.isLoading && (
                     <p className="mt-2 flex items-center gap-2 text-xs font-semibold text-slate-500">
                       <Loader2 size={13} className="animate-spin text-sky-500" />
-                      Đang tải workload thành viên...
+                      Đang tải khối lượng việc của thành viên...
                     </p>
                   )}
 
@@ -331,7 +385,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
                           ? 'border-amber-200 bg-amber-50 text-amber-700'
                           : 'border-sky-100 bg-sky-50 text-slate-600'
                     }`}>
-                      Workload hiện tại: {selectedMemberWorkload.assignedTasks} task chưa hoàn thành · {selectedMemberWorkload.workloadScore}% · {selectedMemberWorkload.workloadStatus}
+                      Khối lượng hiện tại: {selectedMemberWorkload.assignedTasks} công việc chưa hoàn thành · {selectedMemberWorkload.workloadScore}% · {selectedMemberWorkload.workloadStatus}
                     </p>
                   )}
                 </Field>
@@ -339,7 +393,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field
-                  label="Deadline"
+                  label="Hạn"
                   icon={<CalendarDays className="h-4 w-4" strokeWidth={1.8} />}
                 >
                   <input
@@ -372,7 +426,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field
-                  label="Status"
+                  label="Trạng thái"
                   icon={<ClipboardList className="h-4 w-4" strokeWidth={1.8} />}
                 >
                   <select
@@ -381,10 +435,10 @@ const TaskCreatePage = ({ user, onLogout }) => {
                     onChange={handleChange}
                     className={inputClassName}
                   >
-                    <option value="TODO">TODO</option>
-                    <option value="IN_PROGRESS">IN_PROGRESS</option>
-                    <option value="IN_REVIEW">IN_REVIEW</option>
-                    <option value="DONE">DONE</option>
+                    <option value="TODO">Cần làm</option>
+                    <option value="IN_PROGRESS">Đang làm</option>
+                    <option value="IN_REVIEW">Chờ duyệt</option>
+                    <option value="DONE">Hoàn thành</option>
                   </select>
                 </Field>
 
@@ -416,7 +470,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
                 ) : (
                   <Save size={18} />
                 )}
-                Tạo task
+                Tạo công việc
               </button>
             </div>
           </form>
@@ -433,10 +487,10 @@ const TaskCreatePage = ({ user, onLogout }) => {
 
                 <div>
                   <h3 className="text-lg font-black text-slate-950">
-                    AI gợi ý task
+                    AI gợi ý công việc
                   </h3>
                   <p className="mt-1 text-sm font-semibold leading-6 text-slate-500">
-                    Nhập bối cảnh để AI đề xuất danh sách task phù hợp.
+                    Nhập bối cảnh để AI đề xuất danh sách công việc phù hợp.
                   </p>
                 </div>
               </div>
@@ -446,7 +500,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
                   value={suggestionInstruction}
                   onChange={(event) => setSuggestionInstruction(event.target.value)}
                   className={inputClassName}
-                  placeholder="Context cho AI, ví dụ: chuẩn bị workshop 100 người..."
+                  placeholder="Bối cảnh cho AI, ví dụ: chuẩn bị workshop 100 người..."
                 />
 
                 <button
@@ -460,7 +514,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
                   ) : (
                     <Sparkles size={16} />
                   )}
-                  Gợi ý task
+                  Gợi ý công việc
                 </button>
               </div>
 
@@ -470,38 +524,68 @@ const TaskCreatePage = ({ user, onLogout }) => {
                 </div>
               )}
 
-              {suggestionMutation.data?.tasks?.length > 0 && (
+              {suggestedTasks.length > 0 && (
                 <div className="relative mt-4 space-y-3">
-                  {suggestionMutation.data.tasks.map((task, index) => (
-                    <div
-                      key={`${task.title}-${index}`}
-                      className="rounded-3xl border border-sky-100 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:bg-sky-50/60 hover:shadow-lg hover:shadow-sky-100"
-                    >
-                      <div className="flex flex-col gap-3">
-                        <div>
-                          <p className="text-sm font-black text-slate-950">
-                            {task.title}
-                          </p>
-
-                          <p className="mt-1 line-clamp-3 text-xs font-semibold leading-5 text-slate-600">
-                            {task.description || 'Không có mô tả'}
-                          </p>
-
-                          <p className="mt-2 text-xs font-black text-slate-500">
-                            Ưu tiên: {task.priority || 'MEDIUM'} · Deadline: {normalizeSuggestedDeadline(task.deadline) || 'Chưa có'}
-                          </p>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => applySuggestion(task)}
-                          className="inline-flex min-h-10 items-center justify-center rounded-2xl border border-sky-100 bg-sky-50 px-3 py-2 text-xs font-black text-sky-700 transition hover:bg-sky-100"
-                        >
-                          Dùng gợi ý này
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                  <div className="overflow-x-auto rounded-2xl border border-sky-100 bg-white">
+                    <table className="w-full min-w-[780px] border-collapse text-left text-sm">
+                      <thead className="bg-sky-50/70 text-xs font-black uppercase tracking-[0.08em] text-slate-500">
+                        <tr>
+                          <th className="px-3 py-3">Công việc</th>
+                          <th className="px-3 py-3">Hạn</th>
+                          <th className="px-3 py-3">Ưu tiên</th>
+                          <th className="px-3 py-3">Mô tả</th>
+                          <th className="w-32 px-3 py-3 text-right">Áp dụng</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-sky-50">
+                        {suggestedTasks.map((task, index) => (
+                          <tr
+                            key={`${task.title}-${index}`}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => setDetailSuggestion({ ...task, __suggestionIndex: index })}
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter' || event.key === ' ') {
+                                event.preventDefault();
+                                setDetailSuggestion({ ...task, __suggestionIndex: index });
+                              }
+                            }}
+                            className="cursor-pointer bg-white transition hover:bg-sky-50/70"
+                          >
+                            <td className="px-3 py-3 align-top">
+                              <p className="font-black text-slate-950">{task.title}</p>
+                              <p className="mt-1 text-xs font-black text-sky-600">Bấm vào hàng để sửa</p>
+                            </td>
+                            <td className="px-3 py-3 align-top font-semibold text-slate-600">
+                              {normalizeSuggestedDeadline(task.deadline) || 'Chưa có'}
+                            </td>
+                            <td className="px-3 py-3 align-top">
+                              <span className="rounded-full bg-sky-50 px-2.5 py-1 text-xs font-black text-sky-700">
+                                {task.priority || 'MEDIUM'}
+                              </span>
+                            </td>
+                            <td className="px-3 py-3 align-top">
+                              <p className="line-clamp-2 font-semibold leading-6 text-slate-600">
+                                {task.description || 'Không có mô tả'}
+                              </p>
+                            </td>
+                            <td className="px-3 py-3 text-right align-top">
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  applySuggestion(task);
+                                }}
+                                className="inline-flex min-h-9 items-center justify-center rounded-xl border border-sky-100 bg-sky-50 px-3 py-1.5 text-xs font-black text-sky-700 transition hover:bg-sky-100"
+                              >
+                                Dùng
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
             </section>
@@ -513,9 +597,9 @@ const TaskCreatePage = ({ user, onLogout }) => {
                 </div>
 
                 <div>
-                  <h3 className="font-black text-slate-950">Workload hint</h3>
+                  <h3 className="font-black text-slate-950">Gợi ý khối lượng việc</h3>
                   <p className="mt-1 text-sm font-semibold leading-6 text-slate-500">
-                    Chọn department trước để EventFlow tải workload và chỉ hiển thị thành viên thuộc ban đó.
+                    Chọn ban trước để EventFlow tải khối lượng việc và chỉ hiển thị thành viên thuộc ban đó.
                   </p>
                 </div>
               </div>
@@ -523,6 +607,25 @@ const TaskCreatePage = ({ user, onLogout }) => {
           </aside>
         </div>
       </div>
+
+      <MilestoneCreateModal
+        eventId={eventId}
+        isOpen={isMilestoneModalOpen}
+        onCancel={() => setIsMilestoneModalOpen(false)}
+        onCreated={handleMilestoneCreated}
+      />
+      <AiSuggestionDetailModal
+        isOpen={Boolean(detailSuggestion)}
+        title={detailSuggestion?.title || 'Chi tiết công việc gợi ý'}
+        suggestion={detailSuggestion}
+        onSave={(updatedSuggestion) => {
+          const cleaned = stripHiddenSuggestionKeys(updatedSuggestion);
+          setSuggestedTasks((old) => old.map((task, index) => (
+            index === detailSuggestion.__suggestionIndex ? cleaned : task
+          )));
+        }}
+        onClose={() => setDetailSuggestion(null)}
+      />
     </AppLayout>
   );
 };

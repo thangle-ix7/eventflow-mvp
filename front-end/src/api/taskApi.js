@@ -120,6 +120,21 @@ const taskApi = {
     return response.data;
   },
 
+  updateTaskPriority: async ({ taskId, priority }) => {
+    if (!taskId) {
+      throw new Error('taskId không hợp lệ');
+    }
+
+    if (!priority) {
+      throw new Error('priority không hợp lệ');
+    }
+
+    const response = await apiClient.patch(`/tasks/${taskId}/priority`, {
+      priority,
+    });
+    return response.data;
+  },
+
   updateTaskWork: async ({ taskId, status, progressPercentage }) => {
     if (!taskId) {
       throw new Error('taskId không hợp lệ');

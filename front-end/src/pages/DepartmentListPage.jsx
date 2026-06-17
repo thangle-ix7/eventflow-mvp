@@ -15,13 +15,15 @@ import {
   X,
 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
-import { Button, EmptyState, ErrorState, LoadingState, PageHeader, Panel } from '../components/ui';
+import AiSuggestionDetailModal from '../components/AiSuggestionDetailModal';
+import { Button, EmptyState, ErrorState, LoadingState, Panel } from '../components/ui';
 import aiSuggestionApi from '../api/aiSuggestionApi';
 import departmentApi from '../api/departmentApi';
 import eventApi from '../api/eventApi';
 import eventMemberApi from '../api/eventMemberApi';
 import ErrorPage from './ErrorPage';
 import { getDepartmentHomePath, getEventPermissions } from '../utils/permissionUtils';
+import { stripHiddenSuggestionKeys } from '../utils/aiSuggestionUtils';
 
 const DepartmentListPage = ({ user, onLogout }) => {
   const { eventId } = useParams();
@@ -194,39 +196,25 @@ const DepartmentListPage = ({ user, onLogout }) => {
 
         {isLeader && (
           <>
-            <PageHeader
-              eyebrow={event?.name || 'Sự kiện'}
-              title="Ban tổ chức"
-              description="Quản lý danh sách ban, trưởng ban và cơ cấu nhân sự cho sự kiện."
-              actions={isLeader && (
-                <Button
-                  as={Link}
-                  to={`/events/${eventId}/departments/new`}
-                  className="min-h-11 rounded-2xl bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 font-black text-white shadow-xl shadow-cyan-100"
-                >
-                  <Plus size={18} />
-                  Tạo ban
-                </Button>
-              )}
-              meta={
-                <>
-                  <span className="inline-flex items-center gap-2 rounded-full border border-sky-100 bg-white px-3 py-1.5 font-black text-sky-600 shadow-sm">
-                    <Building2 size={16} />
-                    {departments.length} ban tổ chức
-                  </span>
-                  <span className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-white px-3 py-1.5 font-black text-emerald-600 shadow-sm">
-                    <UserRound size={16} />
-                    {members.length} thành viên sự kiện
-                  </span>
-                </>
-              }
-            />
+            <div className="flex justify-end">
+              <Button
+                as={Link}
+                to={`/events/${eventId}/departments/new`}
+                className="min-h-11 rounded-2xl bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 font-black text-white shadow-xl shadow-cyan-100"
+              >
+                <Plus size={18} />
+                Tạo ban
+              </Button>
+            </div>
 
             <DepartmentAiSuggestionPanel
               instruction={aiInstruction}
               setInstruction={setAiInstruction}
               suggestions={aiSuggestions}
               toggleSuggestion={toggleAiSuggestion}
+              updateSuggestion={(key, updater) => setAiSuggestions((old) => old.map((department) => (
+                department.key === key ? updater(department) : department
+              )))}
               suggestMutation={aiSuggestionMutation}
               saveMutation={saveAiDepartmentsMutation}
             />
@@ -241,9 +229,6 @@ const DepartmentListPage = ({ user, onLogout }) => {
                     <h3 className="text-lg font-black text-slate-950">
                       Danh sách ban tổ chức
                     </h3>
-                    <p className="mt-1 text-sm font-semibold text-slate-500">
-                      Click vào một dòng để mở chi tiết ban.
-                    </p>
                   </div>
                 </div>
 
@@ -337,10 +322,12 @@ const DepartmentAiSuggestionPanel = ({
   setInstruction,
   suggestions,
   toggleSuggestion,
+  updateSuggestion,
   suggestMutation,
   saveMutation,
 }) => {
   const selectedCount = suggestions.filter((department) => department.selected).length;
+  const [detailSuggestion, setDetailSuggestion] = useState(null);
 
   return (
     <Panel className="relative overflow-hidden p-5">
@@ -395,37 +382,66 @@ const DepartmentAiSuggestionPanel = ({
 
       {suggestions.length > 0 && (
         <div className="relative mt-5 space-y-4">
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {suggestions.map((department) => (
-              <button
-                key={department.key}
-                type="button"
-                onClick={() => toggleSuggestion(department.key)}
-                className={[
-                  'group rounded-3xl border p-4 text-left shadow-sm transition hover:-translate-y-1 hover:shadow-xl',
-                  department.selected
-                    ? 'border-sky-200 bg-sky-50/80 shadow-sky-100'
-                    : 'border-sky-100 bg-white hover:bg-sky-50/60 hover:shadow-sky-100',
-                ].join(' ')}
-              >
-                <div className="flex items-start gap-3">
-                  {department.selected ? (
-                    <CheckCircle2 size={20} className="mt-0.5 shrink-0 text-sky-600" />
-                  ) : (
-                    <Circle size={20} className="mt-0.5 shrink-0 text-slate-300" />
-                  )}
-
-                  <div className="min-w-0">
-                    <p className="font-black text-slate-950">{department.name}</p>
-                    {department.description && (
-                      <p className="mt-2 line-clamp-3 text-sm font-semibold leading-6 text-slate-600">
-                        {department.description}
+          <div className="overflow-x-auto rounded-2xl border border-sky-100 bg-white">
+            <table className="w-full min-w-[720px] border-collapse text-left text-sm">
+              <thead className="bg-sky-50/70 text-xs font-black uppercase tracking-[0.08em] text-slate-500">
+                <tr>
+                  <th className="w-14 px-4 py-3">Chọn</th>
+                  <th className="px-4 py-3">Department</th>
+                  <th className="px-4 py-3">Mô tả AI gợi ý</th>
+                  <th className="w-36 px-4 py-3 text-right">Chi tiết</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-sky-50">
+                {suggestions.map((department) => (
+                  <tr
+                    key={department.key}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setDetailSuggestion(department)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        setDetailSuggestion(department);
+                      }
+                    }}
+                    className={[
+                      'cursor-pointer transition hover:bg-sky-50/70',
+                      department.selected ? 'bg-sky-50/50' : 'bg-white',
+                    ].join(' ')}
+                  >
+                    <td className="px-4 py-3 align-top">
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          toggleSuggestion(department.key);
+                        }}
+                        className="rounded-full"
+                        aria-label={department.selected ? 'Bỏ chọn gợi ý' : 'Chọn gợi ý'}
+                      >
+                        {department.selected ? (
+                          <CheckCircle2 size={20} className="text-sky-600" />
+                        ) : (
+                          <Circle size={20} className="text-slate-300" />
+                        )}
+                      </button>
+                    </td>
+                    <td className="px-4 py-3 align-top font-black text-slate-950">
+                      {department.name}
+                    </td>
+                    <td className="px-4 py-3 align-top">
+                      <p className="line-clamp-2 font-semibold leading-6 text-slate-600">
+                        {department.description || 'Chưa có mô tả'}
                       </p>
-                    )}
-                  </div>
-                </div>
-              </button>
-            ))}
+                    </td>
+                    <td className="px-4 py-3 text-right align-top text-xs font-black text-cyan-600">
+                      Bấm vào hàng
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-sky-100 pt-4">
@@ -445,6 +461,22 @@ const DepartmentAiSuggestionPanel = ({
           </div>
         </div>
       )}
+
+      <AiSuggestionDetailModal
+        isOpen={Boolean(detailSuggestion)}
+        title={detailSuggestion?.name || 'Chi tiết department gợi ý'}
+        suggestion={detailSuggestion}
+        onSave={(updatedSuggestion) => {
+          const cleaned = stripHiddenSuggestionKeys(updatedSuggestion);
+          updateSuggestion(detailSuggestion.key, (department) => ({
+            ...department,
+            ...cleaned,
+            key: department.key,
+            selected: department.selected,
+          }));
+        }}
+        onClose={() => setDetailSuggestion(null)}
+      />
     </Panel>
   );
 };
