@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   CreditCard,
   Layers3,
+  Percent,
   ShieldCheck,
   UsersRound,
 } from 'lucide-react';
@@ -103,6 +104,7 @@ const PricingPage = ({ user }) => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [manualCheckoutMessage, setManualCheckoutMessage] = useState(null);
+  const [discountCode, setDiscountCode] = useState('');
 
   const paymentMessage = useMemo(() => {
     const payment = searchParams.get('payment');
@@ -141,6 +143,9 @@ const PricingPage = ({ user }) => {
         window.location.assign(response.checkoutUrl);
         return;
       }
+      if (response?.discountAmountVnd > 0) {
+        setDiscountCode('');
+      }
       setManualCheckoutMessage(response?.message || 'Đã ghi nhận yêu cầu nâng cấp.');
     },
   });
@@ -158,19 +163,22 @@ const PricingPage = ({ user }) => {
       navigate('/login');
       return;
     }
-    checkoutMutation.mutate({ planCode: plan.code });
+    checkoutMutation.mutate({
+      planCode: plan.code,
+      discountCode: discountCode.trim() || undefined,
+    });
   };
 
   return (
     <div className="min-h-screen bg-[#F8FCFF] text-slate-950">
       <header className="border-b border-sky-100 bg-white/85 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 lg:px-8">
-          <Link to="/" className="inline-flex items-center gap-3 text-sm font-black text-slate-700 transition hover:text-sky-600">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-3 py-4 sm:px-5 lg:px-8">
+          <Link to="/" className="inline-flex min-w-0 items-center gap-3 text-sm font-black text-slate-700 transition hover:text-sky-600">
             <ArrowLeft className="h-4 w-4" />
-            EventFlow
+            <span className="truncate">EventFlow</span>
           </Link>
 
-          <div className="flex items-center gap-3">
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
             {user ? (
               <Button as={Link} to="/events" variant="secondary">
                 Vào workspace
@@ -184,14 +192,14 @@ const PricingPage = ({ user }) => {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-5 py-12 lg:px-8">
+      <main className="mx-auto max-w-7xl px-4 py-10 sm:px-5 sm:py-12 lg:px-8">
         <section className="grid gap-8 lg:grid-cols-[0.82fr_1.18fr] lg:items-end">
           <div>
             <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-cyan-200 bg-white px-4 py-2 text-sm font-black text-sky-600 shadow-sm">
               <CreditCard className="h-4 w-4" />
               Subscription & Event Pass
             </div>
-            <h1 className="max-w-3xl text-4xl font-black tracking-tight text-slate-950 md:text-5xl">
+            <h1 className="max-w-3xl break-words text-3xl font-black tracking-tight text-slate-950 sm:text-4xl md:text-5xl">
               Chọn gói theo cách team bạn tổ chức sự kiện.
             </h1>
             <p className="mt-5 max-w-2xl text-base font-semibold leading-7 text-slate-600">
@@ -221,6 +229,31 @@ const PricingPage = ({ user }) => {
           <div className="mt-8">
             <ErrorState error={checkoutMutation.error} title="Chưa tạo được yêu cầu nâng cấp" onDismiss={() => checkoutMutation.reset()} />
           </div>
+        )}
+
+        {user && (
+          <section className="mt-8 rounded-2xl border border-sky-100 bg-white p-4 shadow-lg shadow-sky-100/60">
+            <label htmlFor="discount-code" className="text-sm font-black text-slate-800">
+              Mã giảm giá
+            </label>
+            <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="relative min-w-0 flex-1">
+                <Percent className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-sky-500" />
+                <input
+                  id="discount-code"
+                  value={discountCode}
+                  onChange={(event) => setDiscountCode(event.target.value.toUpperCase())}
+                  placeholder="Nhập mã admin cấp cho gói muốn mua"
+                  className="h-12 w-full rounded-2xl border border-sky-100 bg-sky-50/70 px-11 text-sm font-black uppercase tracking-wide text-slate-800 outline-none transition placeholder:normal-case placeholder:font-semibold placeholder:tracking-normal placeholder:text-slate-400 focus:border-cyan-300 focus:bg-white focus:ring-4 focus:ring-cyan-100"
+                />
+              </div>
+              {discountCode && (
+              <Button type="button" variant="secondary" onClick={() => setDiscountCode('')} className="w-full sm:w-auto">
+                Xóa mã
+              </Button>
+              )}
+            </div>
+          </section>
         )}
 
         {
@@ -315,13 +348,13 @@ const PlanCard = ({ plan, highlighted = false, eventPass = false, loading, onAct
       highlighted ? 'border-sky-300 shadow-cyan-100' : 'border-sky-100 shadow-sky-100/70'
     }`}>
       {highlighted && (
-        <div className="absolute right-5 top-5 inline-flex items-center gap-1 rounded-full bg-sky-50 px-3 py-1 text-xs font-black text-sky-700">
+        <div className="mb-4 inline-flex w-fit items-center gap-1 rounded-full bg-sky-50 px-3 py-1 text-xs font-black text-sky-700 sm:absolute sm:right-5 sm:top-5 sm:mb-0">
           <BadgeCheck className="h-3.5 w-3.5" />
           Khuyên dùng
         </div>
       )}
 
-      <div className="pr-24">
+      <div className={highlighted ? 'pr-0 sm:pr-24' : ''}>
         <h3 className="text-xl font-black text-slate-950">{plan.displayName}</h3>
         <p className="mt-2 min-h-12 text-sm font-semibold leading-6 text-slate-500">
           {plan.targetSegment}
@@ -329,7 +362,7 @@ const PlanCard = ({ plan, highlighted = false, eventPass = false, loading, onAct
       </div>
 
       <div className="mt-5">
-        <p className="text-3xl font-black tracking-tight text-slate-950">
+        <p className="break-words text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
           {formatPrice(plan)}
         </p>
         <p className="mt-1 text-sm font-bold text-slate-500">{formatInterval(plan)}</p>

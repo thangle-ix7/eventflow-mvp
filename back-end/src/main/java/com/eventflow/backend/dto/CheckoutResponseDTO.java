@@ -11,6 +11,10 @@ public class CheckoutResponseDTO {
     private String status;
     private String planCode;
     private Long amountVnd;
+    private Long originalAmountVnd;
+    private Long discountAmountVnd;
+    private Long finalAmountVnd;
+    private String discountCode;
     private String checkoutUrl;
     private String changeType;
     private String message;

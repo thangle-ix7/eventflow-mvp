@@ -136,7 +136,7 @@ const DepartmentTasksPage = ({ user, onLogout, onUserUpdate }) => {
                     Thiết lập hiển thị
                   </div>
 
-                  <form onSubmit={handlePageSizeSubmit} className="flex items-center gap-2 text-sm text-slate-600">
+                  <form onSubmit={handlePageSizeSubmit} className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
                     <label htmlFor="department-task-page-size" className="shrink-0 font-black">
                       Số dòng/trang
                     </label>
@@ -161,7 +161,7 @@ const DepartmentTasksPage = ({ user, onLogout, onUserUpdate }) => {
 
               <form
                 onSubmit={handleSearchSubmit}
-                className="grid gap-3 md:grid-cols-[1fr_150px_150px_150px_150px_auto]"
+                className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(220px,1fr)_150px_150px_150px_150px_auto]"
               >
                 <label className="relative">
                   <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-sky-400" />
@@ -227,7 +227,7 @@ const DepartmentTasksPage = ({ user, onLogout, onUserUpdate }) => {
 
                 <button
                   type="submit"
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 px-4 py-2 text-sm font-black text-white shadow-xl shadow-cyan-100 transition hover:-translate-y-0.5 hover:shadow-2xl hover:shadow-cyan-200"
+                  className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 px-4 py-2 text-sm font-black text-white shadow-xl shadow-cyan-100 transition hover:-translate-y-0.5 hover:shadow-2xl hover:shadow-cyan-200 xl:w-auto"
                 >
                   <Filter size={16} />
                   Tìm

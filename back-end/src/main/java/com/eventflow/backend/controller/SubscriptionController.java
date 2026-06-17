@@ -1,6 +1,7 @@
 package com.eventflow.backend.controller;
 
 import com.eventflow.backend.dto.*;
+import com.eventflow.backend.security.AdminSecurityService;
 import com.eventflow.backend.security.EventSecurityService;
 import com.eventflow.backend.service.SubscriptionService;
 import jakarta.validation.Valid;
@@ -20,6 +21,7 @@ public class SubscriptionController {
 
     private final SubscriptionService subscriptionService;
     private final EventSecurityService eventSecurityService;
+    private final AdminSecurityService adminSecurityService;
 
     @GetMapping("/plans")
     public ResponseEntity<List<SubscriptionPlanDTO>> getPlans() {
@@ -51,6 +53,54 @@ public class SubscriptionController {
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(subscriptionService.createCheckout(currentUserId(authentication), request));
+    }
+
+    @GetMapping("/admin/discount-codes")
+    public ResponseEntity<List<DiscountCodeResponseDTO>> getDiscountCodes(Authentication authentication) {
+        Long userId = currentUserId(authentication);
+        if (!adminSecurityService.canManageDiscountCodes(userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        return ResponseEntity.ok(subscriptionService.getDiscountCodes());
+    }
+
+    @PostMapping("/admin/discount-codes")
+    public ResponseEntity<DiscountCodeResponseDTO> createDiscountCode(
+            @Valid @RequestBody DiscountCodeRequestDTO request,
+            Authentication authentication) {
+
+        Long userId = currentUserId(authentication);
+        if (!adminSecurityService.canManageDiscountCodes(userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(subscriptionService.createDiscountCode(userId, request));
+    }
+
+    @PutMapping("/admin/discount-codes/{discountCodeId}")
+    public ResponseEntity<DiscountCodeResponseDTO> updateDiscountCode(
+            @PathVariable Long discountCodeId,
+            @Valid @RequestBody DiscountCodeRequestDTO request,
+            Authentication authentication) {
+
+        Long userId = currentUserId(authentication);
+        if (!adminSecurityService.canManageDiscountCodes(userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        return ResponseEntity.ok(subscriptionService.updateDiscountCode(discountCodeId, request));
+    }
+
+    @DeleteMapping("/admin/discount-codes/{discountCodeId}")
+    public ResponseEntity<Void> deactivateDiscountCode(
+            @PathVariable Long discountCodeId,
+            Authentication authentication) {
+
+        Long userId = currentUserId(authentication);
+        if (!adminSecurityService.canManageDiscountCodes(userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        subscriptionService.deactivateDiscountCode(discountCodeId);
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/payments/payos/webhook")

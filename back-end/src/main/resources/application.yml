@@ -67,6 +67,11 @@ eventflow:
       expire-minutes: ${PAYOS_EXPIRE_MINUTES:15}
   openapi:
     server-url: ${OPENAPI_SERVER_URL:/}
+  bootstrap-admin:
+    enabled: ${EVENTFLOW_BOOTSTRAP_ADMIN_ENABLED:false}
+    email: ${EVENTFLOW_BOOTSTRAP_ADMIN_EMAIL:}
+    password: ${EVENTFLOW_BOOTSTRAP_ADMIN_PASSWORD:}
+    name: ${EVENTFLOW_BOOTSTRAP_ADMIN_NAME:EventFlow Admin}
   security:
     audit:
       enabled: ${AUDIT_LOGGING_ENABLED:true}

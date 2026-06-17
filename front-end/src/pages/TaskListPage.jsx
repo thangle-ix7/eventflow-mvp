@@ -179,7 +179,7 @@ const TaskListPage = ({ user, onLogout }) => {
 
                 <button
                   type="submit"
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-sky-600 px-4 py-2 text-sm font-black text-white shadow-sm transition hover:bg-sky-700 active:translate-y-px"
+                  className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-sky-600 px-4 py-2 text-sm font-black text-white shadow-sm transition hover:bg-sky-700 active:translate-y-px lg:w-auto"
                 >
                   <Search size={18} />
                   Tìm
@@ -190,7 +190,7 @@ const TaskListPage = ({ user, onLogout }) => {
                     type="button"
                     variant={quickCreateStatus ? 'secondary' : 'primary'}
                     onClick={() => setQuickCreateStatus((currentStatus) => (currentStatus ? '' : 'TODO'))}
-                    className="min-h-11 rounded-2xl"
+                    className="min-h-11 w-full rounded-2xl lg:w-auto"
                   >
                     {quickCreateStatus ? <X size={18} /> : <Plus size={18} />}
                     {quickCreateStatus ? 'Đóng tạo nhanh' : 'Tạo task'}
@@ -272,7 +272,7 @@ const TaskListPage = ({ user, onLogout }) => {
                   variant="secondary"
                   onClick={resetFilters}
                   disabled={activeFilterCount === 0}
-                  className="min-h-11 rounded-2xl"
+                  className="min-h-11 w-full rounded-2xl xl:w-auto"
                 >
                   <X size={16} />
                   Xóa lọc
@@ -381,8 +381,8 @@ const StatusTaskBoard = ({
         </div>
       )}
 
-      <div className="overflow-x-auto">
-        <div className={`grid min-w-[1180px] gap-3 ${visibleColumns.length === 1 ? 'grid-cols-1' : 'grid-cols-4'}`}>
+      <div>
+        <div className={`grid min-w-0 gap-3 ${visibleColumns.length === 1 ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-4'}`}>
           {visibleColumns.map((column) => (
             <StatusTaskColumn
               key={column.key}

@@ -24,6 +24,10 @@ Required production values:
 - `APP_BACKEND_URL`: public backend origin used for payment return URLs, for example `https://api.eventflow.example.com`.
 - `OPENAPI_SERVER_URL`: public API origin, for example `https://eventflow.example.com`. For local Docker, use `http://localhost:8080`.
 - `AUTH_REQUIRE_EMAIL_DELIVERY=true`: recommended in production so signup/reset flows fail closed if email cannot be delivered.
+- `EVENTFLOW_BOOTSTRAP_ADMIN_ENABLED=true`: enable only once to create or promote the first production admin account, then set it back to `false` after the account can log in.
+- `EVENTFLOW_BOOTSTRAP_ADMIN_EMAIL`: first admin email. If a user with this email already exists and no admin exists yet, EventFlow promotes that user to `ADMIN`.
+- `EVENTFLOW_BOOTSTRAP_ADMIN_PASSWORD`: strong temporary admin password used for the first bootstrap. Rotate it from the app/login flow after first sign-in and remove it from runtime env.
+- `EVENTFLOW_BOOTSTRAP_ADMIN_NAME`: display name for the bootstrapped admin account.
 - `SUPABASE_STORAGE_ENABLED=true`: store profile images, task reports, and task attachments in Supabase Storage instead of the local upload volume.
 - `SUPABASE_STORAGE_ENDPOINT`: Supabase S3 endpoint, for example `https://<project-ref>.storage.supabase.co/storage/v1/s3`.
 - `SUPABASE_STORAGE_REGION`: region shown in Supabase Storage S3 Configuration.

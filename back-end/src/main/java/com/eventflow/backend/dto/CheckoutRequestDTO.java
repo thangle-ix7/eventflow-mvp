@@ -9,4 +9,6 @@ public class CheckoutRequestDTO {
     private String planCode;
 
     private Long eventId;
+
+    private String discountCode;
 }

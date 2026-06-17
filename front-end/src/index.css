@@ -3,7 +3,13 @@
 @tailwind utilities;
 
 :root {
-  --eventflow-font-family: "Times New Roman", Times, serif;
+  --eventflow-font-family:
+    Inter,
+    "Segoe UI",
+    Roboto,
+    "Helvetica Neue",
+    Arial,
+    sans-serif;
   font-family:
     var(--eventflow-font-family);
   line-height: 1.5;
@@ -16,16 +22,31 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+@supports (font-variation-settings: normal) {
+  :root {
+    --eventflow-font-family:
+      InterVariable,
+      Inter,
+      "Segoe UI",
+      Roboto,
+      "Helvetica Neue",
+      Arial,
+      sans-serif;
+  }
+}
+
 html,
 body,
 #root {
   font-family: var(--eventflow-font-family);
+  max-width: 100%;
 }
 
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  overflow-x: hidden;
 }
 
 *,
@@ -40,6 +61,17 @@ textarea,
 select,
 table {
   font: inherit;
+}
+
+.font-black {
+  font-weight: 800 !important;
+}
+
+img,
+video,
+canvas,
+svg {
+  max-width: 100%;
 }
 
 textarea {

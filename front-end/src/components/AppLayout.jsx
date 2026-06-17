@@ -154,6 +154,7 @@ const AppLayoutFrame = ({
       ? [
         { label: 'Quản lý mẫu', description: 'Khu quản trị', to: '/admin/templates' },
         { label: 'Hộp thư góp ý', description: 'Góp ý người dùng', to: '/admin/feedback' },
+        { label: 'Mã giảm giá', description: 'Ưu đãi theo gói', to: '/admin/discount-codes' },
       ]
       : []),
     { label: 'Hồ sơ cá nhân', description: '', to: '/profile' },
@@ -410,7 +411,7 @@ const AppLayoutFrame = ({
         {showTelegramOnboarding && <TelegramOnboarding userId={user.userId} />}
 
         <header className="sticky top-0 z-50 border-b border-sky-100/80 bg-white/85 shadow-sm shadow-sky-100/60 backdrop-blur-2xl">
-          <div className="flex min-h-16 flex-nowrap items-center gap-2 px-3 py-3 sm:gap-3 sm:px-5 lg:h-16 lg:justify-between lg:gap-6 lg:px-6 lg:py-0">
+          <div className="flex min-h-16 min-w-0 flex-nowrap items-center gap-1.5 px-2 py-3 min-[380px]:gap-2 min-[380px]:px-3 sm:gap-3 sm:px-5 lg:h-16 lg:justify-between lg:gap-6 lg:px-6 lg:py-0">
             <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3 lg:flex-none">
               {eventNav.length > 0 && (
                 <button
@@ -425,10 +426,10 @@ const AppLayoutFrame = ({
               )}
 
               <Link to="/events" className="group flex min-w-0 items-center gap-2 sm:gap-3">
-                <span className="relative flex h-11 w-11 shrink-0 items-center justify-center">
+                <span className="relative flex h-10 w-10 shrink-0 items-center justify-center sm:h-11 sm:w-11">
                   <span className="absolute inset-0 rounded-2xl bg-gradient-to-br from-sky-400 to-emerald-400 opacity-35 blur-md transition group-hover:opacity-70" />
-                  <span className="relative flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl border border-sky-100 bg-white shadow-lg shadow-sky-100">
-                    <img src="/event-flow-logo-mark.png" alt="" className="h-8 w-8 object-contain" />
+                  <span className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-2xl border border-sky-100 bg-white shadow-lg shadow-sky-100 sm:h-11 sm:w-11">
+                    <img src="/event-flow-logo-mark.png" alt="" className="h-7 w-7 object-contain sm:h-8 sm:w-8" />
                   </span>
                 </span>
 
@@ -492,7 +493,7 @@ const AppLayoutFrame = ({
               </form>
             )}
 
-            <div className="ml-auto flex min-w-0 items-center justify-end gap-2 lg:gap-3">
+            <div className="ml-auto flex min-w-0 shrink-0 items-center justify-end gap-1 min-[380px]:gap-2 lg:gap-3">
               <div className="flex items-center gap-1 text-slate-500">
                 {selectedEvent?.id && (
                   <Link
@@ -515,7 +516,7 @@ const AppLayoutFrame = ({
                   <span className="hidden xl:inline">Góp ý</span>
                 </button>
 
-                <div className="relative" ref={notificationRef}>
+                <div className="relative shrink-0" ref={notificationRef}>
                   <button
                     type="button"
                     className="relative rounded-2xl p-2 transition hover:bg-sky-50 hover:text-sky-600"
@@ -678,7 +679,7 @@ const AppLayoutFrame = ({
             </aside>
           )}
 
-          <main className="min-w-0 px-4 py-5 sm:p-6 md:p-8 lg:p-10">
+          <main className="min-w-0 px-3 py-4 sm:p-6 md:p-8 lg:p-10">
             {children}
           </main>
         </div>
