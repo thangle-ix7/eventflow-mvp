@@ -51,6 +51,7 @@ public class TaskAttachmentService {
     private final UserRepository userRepository;
     private final EventMemberRepository eventMemberRepository;
     private final FileStorageService fileStorageService;
+    private final SubscriptionService subscriptionService;
 
     @Transactional(readOnly = true)
     public List<TaskAttachmentResponseDTO> getTaskAttachments(Long taskId, Long currentUserId) {
@@ -91,6 +92,7 @@ public class TaskAttachmentService {
         if (currentTaskBytes + newUploadBytes > MAX_TOTAL_TASK_ATTACHMENT_BYTES) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tổng dung lượng attachment của task không được vượt quá 100 MB");
         }
+        subscriptionService.assertEventStorageAvailable(task.getEvent().getId(), newUploadBytes);
 
         List<TaskAttachmentResponseDTO> uploadedAttachments = uploadFiles.stream()
                 .map(file -> {

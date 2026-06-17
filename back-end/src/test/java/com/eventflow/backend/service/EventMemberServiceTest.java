@@ -49,6 +49,9 @@ class EventMemberServiceTest {
     @Mock
     private AuthEmailService authEmailService;
 
+    @Mock
+    private SubscriptionService subscriptionService;
+
     private EventMemberService eventMemberService;
 
     @BeforeEach
@@ -59,7 +62,8 @@ class EventMemberServiceTest {
                 eventRepository,
                 userRepository,
                 userProfileService,
-                authEmailService);
+                authEmailService,
+                subscriptionService);
         ReflectionTestUtils.setField(eventMemberService, "invitationTokenTtlMinutes", 10080L);
     }
 

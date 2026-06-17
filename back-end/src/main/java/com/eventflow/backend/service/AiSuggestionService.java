@@ -55,12 +55,14 @@ public class AiSuggestionService {
     private final EventSecurityService eventSecurityService;
     private final OpenAiEventflowAssistantClient openAiAssistantClient;
     private final JdbcTemplate jdbcTemplate;
+    private final SubscriptionService subscriptionService;
 
-    @Transactional(readOnly = true)
+    @Transactional
     public AiDepartmentSuggestionResponse suggestDepartments(Long eventId, Long userId, AiSuggestionRequest request) {
         if (!eventSecurityService.isLeaderOfEvent(eventId, userId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Chỉ leader của sự kiện mới được gợi ý phòng ban");
         }
+        subscriptionService.consumeAiCredit(userId, eventId, "SUGGEST_DEPARTMENTS");
 
         Event event = getEvent(eventId);
         List<Department> departments = departmentRepository.findAllByEventIdOrderByNameAsc(eventId);
@@ -78,11 +80,12 @@ public class AiSuggestionService {
                 .build();
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public AiTaskSuggestionResponse suggestTasks(Long eventId, Long userId, AiSuggestionRequest request) {
         if (!canSuggestWorkForEvent(eventId, userId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Chỉ leader của sự kiện hoặc trưởng ban mới được gợi ý task");
         }
+        subscriptionService.consumeAiCredit(userId, eventId, "SUGGEST_TASKS");
 
         Event event = getEvent(eventId);
         List<Department> departments = departmentRepository.findAllByEventIdOrderByNameAsc(eventId);
@@ -101,11 +104,12 @@ public class AiSuggestionService {
                 .build();
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public AiPlanningSuggestionResponse suggestPlanning(Long eventId, Long userId, AiSuggestionRequest request) {
         if (!eventSecurityService.isLeaderOfEvent(eventId, userId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Chỉ leader của sự kiện mới được gợi ý kế hoạch");
         }
+        subscriptionService.consumeAiCredit(userId, eventId, "SUGGEST_PLANNING");
 
         Event event = getEvent(eventId);
         List<Department> departments = departmentRepository.findAllByEventIdOrderByNameAsc(eventId);
@@ -126,11 +130,12 @@ public class AiSuggestionService {
                 .build();
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public AiMilestoneSuggestionResponse suggestMilestones(Long eventId, Long userId, AiSuggestionRequest request) {
         if (!eventSecurityService.isLeaderOfEvent(eventId, userId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Chỉ leader của sự kiện mới được gợi ý milestone");
         }
+        subscriptionService.consumeAiCredit(userId, eventId, "SUGGEST_MILESTONES");
 
         Event event = getEvent(eventId);
         List<Department> departments = departmentRepository.findAllByEventIdOrderByNameAsc(eventId);
@@ -153,11 +158,12 @@ public class AiSuggestionService {
                 .build();
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public AiCalendarSuggestionResponse suggestCalendarItems(Long eventId, Long userId, AiSuggestionRequest request) {
         if (!eventSecurityService.isLeaderOfEvent(eventId, userId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Chỉ leader của sự kiện mới được gợi ý lịch");
         }
+        subscriptionService.consumeAiCredit(userId, eventId, "SUGGEST_CALENDAR");
 
         Event event = getEvent(eventId);
         List<Department> departments = departmentRepository.findAllByEventIdOrderByNameAsc(eventId);
@@ -178,7 +184,7 @@ public class AiSuggestionService {
                 .build();
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public AiSubtaskSuggestionResponse suggestSubtasks(Long taskId, Long userId, AiSuggestionRequest request) {
         Task parentTask = taskRepository.findByIdWithDetails(taskId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy task"));
@@ -186,6 +192,7 @@ public class AiSuggestionService {
         if (!canSuggestWorkForTask(parentTask, userId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Chỉ leader của sự kiện hoặc trưởng ban mới được gợi ý subtask");
         }
+        subscriptionService.consumeAiCredit(userId, eventId, "SUGGEST_SUBTASKS");
 
         List<Department> departments = departmentRepository.findAllByEventIdOrderByNameAsc(eventId);
         int count = resolveCount(request, 5);

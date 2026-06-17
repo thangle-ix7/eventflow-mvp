@@ -34,6 +34,7 @@ public class TaskReportService {
     private final JdbcTemplate jdbcTemplate;
     private final FileStorageService fileStorageService;
     private final TaskService taskService;
+    private final SubscriptionService subscriptionService;
 
     @Transactional(readOnly = true)
     public List<TaskReportResponseDTO> getTaskReports(Long taskId) {
@@ -57,6 +58,9 @@ public class TaskReportService {
         rejectSubtaskReport(task);
         taskService.ensureManualProgressAllowed(taskId);
 
+        if (image != null && !image.isEmpty()) {
+            subscriptionService.assertEventStorageAvailable(task.getEvent().getId(), image.getSize());
+        }
         StoredFile storedImage = image != null && !image.isEmpty()
                 ? fileStorageService.store(image, "task-report/" + taskId, MAX_IMAGE_SIZE_BYTES, ALLOWED_IMAGE_TYPES)
                 : null;
@@ -95,6 +99,7 @@ public class TaskReportService {
         taskService.ensureManualProgressAllowed(report.getTask().getId());
 
         if (image != null && !image.isEmpty()) {
+            subscriptionService.assertEventStorageAvailable(report.getTask().getEvent().getId(), image.getSize());
             fileStorageService.delete(report.getImageStorageProvider(), report.getImageStoragePath());
             StoredFile storedImage = fileStorageService.store(image, "task-report/" + report.getTask().getId(), MAX_IMAGE_SIZE_BYTES, ALLOWED_IMAGE_TYPES);
             report.setImageOriginalName(storedImage.originalName());

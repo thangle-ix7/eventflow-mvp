@@ -30,6 +30,14 @@ public interface TaskAttachmentRepository extends JpaRepository<TaskAttachment, 
     long sumStoredFileSizeByTaskId(@Param("taskId") Long taskId);
 
     @Query("""
+            SELECT COALESCE(SUM(ta.sizeBytes), 0)
+            FROM TaskAttachment ta
+            WHERE ta.task.event.id = :eventId
+              AND UPPER(ta.storageProvider) <> 'LINK'
+            """)
+    long sumStoredFileSizeByEventId(@Param("eventId") Long eventId);
+
+    @Query("""
             SELECT ta FROM TaskAttachment ta
             JOIN FETCH ta.task t
             JOIN FETCH t.event

@@ -99,6 +99,9 @@ const LandingPage = () => {
             <a href="#value" className="transition hover:text-sky-500">
               Giá trị
             </a>
+            <Link to="/pricing" className="transition hover:text-sky-500">
+              Bảng giá
+            </Link>
           </nav>
 
           <div className="flex items-center gap-3">
