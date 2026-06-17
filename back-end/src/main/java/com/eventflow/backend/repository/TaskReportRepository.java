@@ -22,6 +22,15 @@ public interface TaskReportRepository extends JpaRepository<TaskReport, Long> {
     List<TaskReport> findAllByTaskIdWithReporter(@Param("taskId") Long taskId);
 
     @Query("""
+            SELECT COALESCE(SUM(tr.imageSizeBytes), 0)
+            FROM TaskReport tr
+            WHERE tr.task.event.id = :eventId
+              AND tr.imageStoragePath IS NOT NULL
+              AND tr.imageStoragePath <> ''
+            """)
+    long sumImageSizeByEventId(@Param("eventId") Long eventId);
+
+    @Query("""
             SELECT tr FROM TaskReport tr
             JOIN FETCH tr.task t
             JOIN FETCH t.event

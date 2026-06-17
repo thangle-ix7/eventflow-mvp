@@ -1,9 +1,15 @@
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  ArrowRight,
+  Bot,
   CalendarDays,
   Camera,
+  CreditCard,
   Edit3,
+  HardDrive,
+  Layers3,
   Loader2,
   Mail,
   Phone,
@@ -13,11 +19,13 @@ import {
   Sparkles,
   Unlink,
   User,
+  UsersRound,
   X,
 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import { Button } from '../components/ui';
 import { TELEGRAM_REOPEN_EVENT } from '../components/TelegramOnboarding';
+import subscriptionApi from '../api/subscriptionApi';
 import userApi from '../api/userApi';
 import { formatDate } from '../utils/dateUtils';
 
@@ -39,6 +47,15 @@ const ProfilePage = ({ user, onLogout, onUserUpdate }) => {
     queryKey: ['profileAvatar', user.userId, profileQuery.data?.avatarUrl],
     queryFn: () => userApi.getAvatarBlob(user.userId),
     enabled: Boolean(user?.userId && profileQuery.data?.avatarUrl),
+  });
+
+  const subscriptionQuery = useQuery({
+    queryKey: ['subscriptionOverview', user.userId],
+    queryFn: subscriptionApi.getCurrentSubscription,
+    enabled: Boolean(user?.userId),
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   });
 
   const avatarPreviewUrl = useMemo(
@@ -133,7 +150,8 @@ const ProfilePage = ({ user, onLogout, onUserUpdate }) => {
     updateProfileMutation.error ||
     uploadMutation.error ||
     avatarQuery.error ||
-    disconnectTelegramMutation.error;
+    disconnectTelegramMutation.error ||
+    subscriptionQuery.error;
 
   return (
     <AppLayout
@@ -246,6 +264,11 @@ const ProfilePage = ({ user, onLogout, onUserUpdate }) => {
             </div>
           )}
         </header>
+
+        <SubscriptionPanel
+          overview={subscriptionQuery.data}
+          isLoading={subscriptionQuery.isLoading}
+        />
 
         <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
           <section className="overflow-hidden rounded-[2rem] border border-sky-100 bg-white shadow-xl shadow-sky-100/70">
@@ -409,6 +432,146 @@ const ProfilePill = ({ tone = 'slate', children }) => {
   );
 };
 
+const SubscriptionPanel = ({ overview, isLoading }) => {
+  const plan = overview?.plan;
+  const sourceLabel = {
+    SUBSCRIPTION: 'Subscription đang hoạt động',
+    DEFAULT_FREE: 'Gói mặc định',
+  }[overview?.source] || 'Subscription';
+
+  if (isLoading && !overview) {
+    return (
+      <section className="rounded-[2rem] border border-sky-100 bg-white p-5 shadow-xl shadow-sky-100/70">
+        <div className="flex items-center gap-3 text-sm font-black text-slate-500">
+          <Loader2 size={18} className="animate-spin text-sky-600" />
+          Đang tải thông tin gói...
+        </div>
+      </section>
+    );
+  }
+
+  if (!plan) {
+    return null;
+  }
+
+  return (
+    <section className="overflow-hidden rounded-[2rem] border border-sky-100 bg-white shadow-xl shadow-sky-100/70">
+      <div className="flex flex-col gap-4 border-b border-sky-100 bg-gradient-to-r from-sky-50 via-white to-emerald-50 px-5 py-5 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex items-start gap-3">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-400 text-white shadow-lg shadow-cyan-100">
+            <CreditCard className="h-6 w-6" strokeWidth={1.8} />
+          </div>
+
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-600">
+              Gói hiện tại
+            </p>
+            <h2 className="mt-1 text-2xl font-black tracking-tight text-slate-950">
+              {plan.displayName}
+            </h2>
+            <p className="mt-1 text-sm font-semibold text-slate-500">
+              {sourceLabel} · {formatPlanPrice(plan)}
+            </p>
+          </div>
+        </div>
+
+        <Button as={Link} to="/pricing" variant="secondary" className="shrink-0 rounded-2xl">
+          Đổi hoặc nâng cấp gói
+          <ArrowRight size={16} />
+        </Button>
+      </div>
+
+      <div className="grid gap-4 p-5 md:grid-cols-2 xl:grid-cols-4">
+        <QuotaCard
+          icon={Layers3}
+          label="Sự kiện active"
+          value={formatQuota(overview.activeEventsUsed, plan.maxActiveEvents, plan.unlimitedEvents)}
+          hint="Tính các event ACTIVE bạn là leader"
+          tone={isQuotaExceeded(overview.activeEventsUsed, plan.maxActiveEvents, plan.unlimitedEvents) ? 'red' : 'sky'}
+          exceeded={isQuotaExceeded(overview.activeEventsUsed, plan.maxActiveEvents, plan.unlimitedEvents)}
+        />
+        <QuotaCard
+          icon={UsersRound}
+          label="User / event"
+          value={formatQuota(overview.maxMembersUsedInLedEvents, plan.maxUsersPerEvent, plan.unlimitedUsers)}
+          hint="Sự kiện đông member nhất bạn đang lead"
+          tone={isQuotaExceeded(overview.maxMembersUsedInLedEvents, plan.maxUsersPerEvent, plan.unlimitedUsers) ? 'red' : 'emerald'}
+          exceeded={isQuotaExceeded(overview.maxMembersUsedInLedEvents, plan.maxUsersPerEvent, plan.unlimitedUsers)}
+        />
+        <QuotaCard
+          icon={HardDrive}
+          label="Storage / event"
+          value={formatBytesQuota(overview.maxStorageBytesUsedInLedEvents, plan.storageLimitBytes, plan.unlimitedStorage)}
+          hint="Tính file task attachment và ảnh report"
+          tone={isQuotaExceeded(overview.maxStorageBytesUsedInLedEvents, plan.storageLimitBytes, plan.unlimitedStorage) ? 'red' : 'amber'}
+          exceeded={isQuotaExceeded(overview.maxStorageBytesUsedInLedEvents, plan.storageLimitBytes, plan.unlimitedStorage)}
+        />
+        <QuotaCard
+          icon={Bot}
+          label="AI credits"
+          value={formatAiQuota(overview, plan)}
+          hint={overview.aiCreditsRemaining == null ? 'Fair-use/custom' : `Còn ${overview.aiCreditsRemaining} credit trong kỳ`}
+          tone={isQuotaExceeded(overview.aiCreditsUsed, plan.aiCreditsPerMonth, plan.unlimitedAi) ? 'red' : 'violet'}
+          exceeded={isQuotaExceeded(overview.aiCreditsUsed, plan.aiCreditsPerMonth, plan.unlimitedAi)}
+        />
+      </div>
+
+      {overview.overLimit && (
+        <div className="mx-5 mb-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold leading-6 text-red-700">
+          <p className="font-black">Gói hiện tại đang vượt giới hạn</p>
+          <ul className="mt-2 list-disc space-y-1 pl-5">
+            {(overview.limitWarnings || []).map((warning) => (
+              <li key={warning}>{warning}</li>
+            ))}
+          </ul>
+          <p className="mt-3">
+            Hệ thống sẽ không cho tạo thêm hoặc kích hoạt thêm tài nguyên vượt quota. Bạn có thể nâng cấp gói hoặc giảm số event ACTIVE/member/storage.
+          </p>
+        </div>
+      )}
+
+      <div className="border-t border-sky-100 px-5 py-4 text-sm font-semibold leading-6 text-slate-500">
+        {overview.currentPeriodEnd
+          ? `Chu kỳ hiện tại kết thúc: ${formatDate(overview.currentPeriodEnd)}`
+          : 'Gói custom hoặc không có ngày kết thúc chu kỳ.'}
+      </div>
+    </section>
+  );
+};
+
+const QuotaCard = ({ icon: Icon, label, value, hint, tone = 'sky', exceeded = false }) => {
+  const tones = {
+    sky: 'bg-sky-50 text-sky-600',
+    emerald: 'bg-emerald-50 text-emerald-600',
+    amber: 'bg-amber-50 text-amber-600',
+    violet: 'bg-violet-50 text-violet-600',
+    red: 'bg-red-50 text-red-600',
+  };
+
+  return (
+    <div className={`rounded-2xl border p-4 shadow-sm ${exceeded ? 'border-red-200 bg-red-50/60' : 'border-sky-100 bg-sky-50/50'}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">
+            {label}
+          </p>
+          <p className="mt-2 text-xl font-black text-slate-950">
+            {value}
+          </p>
+        </div>
+
+        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${tones[tone] || tones.sky}`}>
+          <Icon size={18} strokeWidth={1.8} />
+        </div>
+      </div>
+
+      <p className="mt-3 text-xs font-semibold leading-5 text-slate-500">
+        {hint}
+      </p>
+    </div>
+  );
+};
+
 const InfoItem = ({ icon: Icon, label, value }) => (
   <div className="rounded-2xl border border-sky-100 bg-sky-50/60 p-4 shadow-sm">
     <div className="flex items-center gap-2 text-sm font-black text-slate-700">
@@ -496,6 +659,64 @@ const SummaryCard = ({ icon, label, value, tone = 'sky' }) => {
       </div>
     </div>
   );
+};
+
+const formatPlanPrice = (plan) => {
+  if (plan.code === 'ENTERPRISE') {
+    return 'Liên hệ sales';
+  }
+  if (!plan.priceVnd) {
+    return '0đ / tháng';
+  }
+
+  const interval = {
+    MONTHLY: '/ tháng',
+    YEARLY: '/ năm',
+    ONE_TIME: '/ sự kiện',
+    CUSTOM: 'theo hợp đồng',
+  }[plan.billingInterval] || '';
+
+  return `${Number(plan.priceVnd).toLocaleString('vi-VN')}đ ${interval}`;
+};
+
+const formatQuota = (used = 0, limit, unlimited) => {
+  if (unlimited || limit == null) {
+    return `${used || 0} / ∞`;
+  }
+  return `${used || 0} / ${limit}`;
+};
+
+const formatBytesQuota = (used = 0, limit, unlimited) => {
+  if (unlimited || limit == null) {
+    return `${formatBytes(used)} / ∞`;
+  }
+  return `${formatBytes(used)} / ${formatBytes(limit)}`;
+};
+
+const formatAiQuota = (overview, plan) => {
+  const used = overview?.aiCreditsUsed || 0;
+  if (plan.unlimitedAi || plan.aiCreditsPerMonth == null) {
+    return `${used} / ∞`;
+  }
+  return `${used} / ${plan.aiCreditsPerMonth}`;
+};
+
+const isQuotaExceeded = (used = 0, limit, unlimited) => {
+  if (unlimited || limit == null) {
+    return false;
+  }
+  return Number(used || 0) > Number(limit);
+};
+
+const formatBytes = (bytes = 0) => {
+  if (!bytes) {
+    return '0 MB';
+  }
+  const gb = bytes / 1024 / 1024 / 1024;
+  if (gb >= 1) {
+    return `${Number.isInteger(gb) ? gb : gb.toFixed(1)} GB`;
+  }
+  return `${Math.ceil(bytes / 1024 / 1024)} MB`;
 };
 
 const inputClassName = 'h-11 rounded-2xl border border-sky-100 bg-sky-50/60 px-4 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:bg-white focus:ring-4 focus:ring-cyan-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500';

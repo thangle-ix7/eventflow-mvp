@@ -30,6 +30,7 @@ public class TemplateInstantiationService {
     private final TaskRepository taskRepository;
     private final EventMemberRepository eventMemberRepository;
     private final UserRepository userRepository;
+    private final SubscriptionService subscriptionService;
 
     /**
      * Nhân bản Template thành Event thực tế (Deep Clone)
@@ -48,6 +49,7 @@ public class TemplateInstantiationService {
         // Validate user
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Người dùng không hợp lệ"));
+        subscriptionService.assertCanCreateEvent(userId);
 
         // 2. Clone Event từ Template sang NORMAL
         Event newEvent = Event.builder()

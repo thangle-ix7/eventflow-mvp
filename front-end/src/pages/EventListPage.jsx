@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowRight,
+  BadgePercent,
   CalendarDays,
   ChevronLeft,
   ChevronRight,
@@ -129,21 +130,25 @@ const EventListPage = ({ user, onLogout }) => {
               </p>
             </div>
 
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-              <Button as={Link} to="/events/templates" variant="secondary" className="w-full sm:w-auto min-h-11 rounded-2xl">
+            <div className="flex w-full min-w-0 flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+              <Button as={Link} to="/events/templates" variant="secondary" className="min-h-11 w-full rounded-2xl sm:w-auto">
                 <LayoutTemplate size={18} />
                 {t('event.templateLibrary')}
               </Button>
 
               {user?.systemRole === 'ADMIN' && (
                 <>
-                  <Button as={Link} to="/admin/feedback" variant="secondary" className="w-full sm:w-auto min-h-11 rounded-2xl">
+                  <Button as={Link} to="/admin/feedback" variant="secondary" className="min-h-11 w-full rounded-2xl sm:w-auto">
                     <MessageSquareHeart size={18} />
                     {t('event.feedback')}
                   </Button>
-                  <Button as={Link} to="/admin/templates" variant="secondary" className="w-full sm:w-auto min-h-11 rounded-2xl">
+                  <Button as={Link} to="/admin/templates" variant="secondary" className="min-h-11 w-full rounded-2xl sm:w-auto">
                     <Settings size={18} />
                     {t('event.manageTemplates')}
+                  </Button>
+                  <Button as={Link} to="/admin/discount-codes" variant="secondary" className="min-h-11 w-full rounded-2xl sm:w-auto">
+                    <BadgePercent size={18} />
+                    Mã giảm giá
                   </Button>
                 </>
               )}
@@ -202,8 +207,8 @@ const EventListPage = ({ user, onLogout }) => {
               ))}
             </div>
 
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-              <label className="relative">
+            <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
+              <label className="relative min-w-0">
                 <SlidersHorizontal
                   className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-sky-400"
                   strokeWidth={1.8}
@@ -214,7 +219,7 @@ const EventListPage = ({ user, onLogout }) => {
                   name="sortMode"
                   value={sortMode}
                   onChange={handleSortModeChange}
-                  className="h-12 min-w-44 rounded-2xl border border-sky-100 bg-white px-10 text-sm font-black text-slate-700 outline-none transition focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100"
+                  className="h-12 w-full min-w-0 rounded-2xl border border-sky-100 bg-white px-10 text-sm font-black text-slate-700 outline-none transition focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100 sm:min-w-44"
                 >
                   <option value="upcoming">{t('event.upcoming')}</option>
                   <option value="newest">{t('event.newest')}</option>

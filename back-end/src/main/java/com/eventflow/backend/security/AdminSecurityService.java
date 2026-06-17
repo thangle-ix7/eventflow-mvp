@@ -28,4 +28,8 @@ public class AdminSecurityService {
     public boolean canManageTemplates(Long userId) {
         return isAdmin(userId);
     }
+
+    public boolean canManageDiscountCodes(Long userId) {
+        return isAdmin(userId);
+    }
 }

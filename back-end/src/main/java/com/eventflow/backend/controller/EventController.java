@@ -71,7 +71,7 @@ public class EventController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
-        return ResponseEntity.ok(eventService.updateEvent(eventId, request));
+        return ResponseEntity.ok(eventService.updateEvent(eventId, request, userId));
     }
 
     @DeleteMapping("/{eventId}")

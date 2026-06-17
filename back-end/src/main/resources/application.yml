@@ -56,8 +56,22 @@ jwt:
 
 eventflow:
   frontend-url: ${APP_FRONTEND_URL:http://localhost:5173}
+  backend-url: ${APP_BACKEND_URL:http://localhost:8080}
+  payment:
+    payos:
+      enabled: ${PAYOS_ENABLED:false}
+      base-url: ${PAYOS_BASE_URL:https://api-merchant.payos.vn}
+      client-id: ${PAYOS_CLIENT_ID:}
+      api-key: ${PAYOS_API_KEY:}
+      checksum-key: ${PAYOS_CHECKSUM_KEY:}
+      expire-minutes: ${PAYOS_EXPIRE_MINUTES:15}
   openapi:
     server-url: ${OPENAPI_SERVER_URL:/}
+  bootstrap-admin:
+    enabled: ${EVENTFLOW_BOOTSTRAP_ADMIN_ENABLED:false}
+    email: ${EVENTFLOW_BOOTSTRAP_ADMIN_EMAIL:}
+    password: ${EVENTFLOW_BOOTSTRAP_ADMIN_PASSWORD:}
+    name: ${EVENTFLOW_BOOTSTRAP_ADMIN_NAME:EventFlow Admin}
   security:
     audit:
       enabled: ${AUDIT_LOGGING_ENABLED:true}

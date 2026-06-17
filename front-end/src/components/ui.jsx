@@ -31,7 +31,7 @@ export const PageHeader = ({ eyebrow, title, description, actions, meta }) => (
         </p>
       )}
 
-      <h2 className={`${eyebrow ? 'mt-1' : ''} text-2xl font-black tracking-tight text-slate-950 sm:text-3xl`}>
+      <h2 className={`${eyebrow ? 'mt-1' : ''} break-words text-2xl font-black tracking-tight text-slate-950 sm:text-3xl`}>
         {title}
       </h2>
 
@@ -49,7 +49,7 @@ export const PageHeader = ({ eyebrow, title, description, actions, meta }) => (
     </div>
 
     {actions && (
-      <div className="flex flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+      <div className="flex w-full min-w-0 flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
         {actions}
       </div>
     )}
@@ -66,7 +66,7 @@ export const Button = ({ as: Component = 'button', variant = 'primary', classNam
 
   return (
     <Component
-      className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-2xl px-4 py-2 text-sm font-black transition hover:-translate-y-0.5 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60 ${variants[variant]} ${className}`}
+      className={`inline-flex min-h-10 min-w-0 items-center justify-center gap-2 rounded-2xl px-4 py-2 text-center text-sm font-black transition hover:-translate-y-0.5 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60 ${variants[variant]} ${className}`}
       {...props}
     >
       {children}
@@ -75,7 +75,7 @@ export const Button = ({ as: Component = 'button', variant = 'primary', classNam
 };
 
 export const Panel = ({ children, className = '' }) => (
-  <section className={`rounded-[2rem] border border-sky-100 bg-white shadow-xl shadow-sky-100/70 ${className}`}>
+  <section className={`min-w-0 max-w-full rounded-[2rem] border border-sky-100 bg-white shadow-xl shadow-sky-100/70 ${className}`}>
     {children}
   </section>
 );
@@ -121,7 +121,7 @@ export const StatusBadge = ({ status, children, className = '' }) => {
   };
 
   return (
-    <span className={`inline-flex w-fit items-center rounded-full border px-3 py-1 text-xs font-black shadow-sm ${meta.className} ${className}`}>
+    <span className={`inline-flex max-w-full items-center rounded-full border px-3 py-1 text-xs font-black shadow-sm ${meta.className} ${className}`}>
       {children || meta.label}
     </span>
   );
@@ -131,7 +131,7 @@ export const PriorityBadge = ({ priority = 'MEDIUM', className = '' }) => {
   const meta = PRIORITY_META[priority] || PRIORITY_META.MEDIUM;
 
   return (
-    <span className={`inline-flex w-fit items-center rounded-full border px-3 py-1 text-xs font-black shadow-sm ${meta.className} ${className}`}>
+    <span className={`inline-flex max-w-full items-center rounded-full border px-3 py-1 text-xs font-black shadow-sm ${meta.className} ${className}`}>
       {meta.label}
     </span>
   );

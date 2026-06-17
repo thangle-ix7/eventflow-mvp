@@ -14,7 +14,7 @@ const Header = ({
 
   return (
     <header className="sticky top-0 z-50 border-b border-sky-100/80 bg-white/80 backdrop-blur-2xl">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-4 lg:px-8">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-3 py-4 sm:px-5 lg:px-8">
         <Link to="/" className="group flex min-w-0 items-center gap-3">
           <div className="relative shrink-0">
             <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-sky-400 to-emerald-400 opacity-35 blur-md transition group-hover:opacity-70" />
@@ -27,7 +27,7 @@ const Header = ({
             </div>
           </div>
 
-          <div className="min-w-0">
+          <div className="min-w-0 max-[380px]:hidden">
             <p className="text-xl font-black leading-none tracking-tight text-slate-950">
               <span>Event</span>
               <span className="bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 bg-clip-text text-transparent">
@@ -57,7 +57,7 @@ const Header = ({
           </nav>
         )}
 
-        <div className="flex shrink-0 items-center gap-3">
+        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           <a
             href="mailto:support@eventflow.vn"
             className="hidden items-center gap-2 rounded-full px-4 py-2 text-sm font-bold text-slate-600 transition hover:bg-sky-50 hover:text-sky-600 xl:inline-flex"
@@ -77,7 +77,7 @@ const Header = ({
 
           <Link
             to={ctaTo}
-            className="group inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 px-5 py-2.5 text-sm font-black text-white shadow-xl shadow-cyan-300/40 transition hover:-translate-y-0.5 hover:shadow-2xl hover:shadow-cyan-300/60"
+            className="group inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 px-4 py-2.5 text-sm font-black text-white shadow-xl shadow-cyan-300/40 transition hover:-translate-y-0.5 hover:shadow-2xl hover:shadow-cyan-300/60 sm:px-5"
           >
             {ctaLabel}
             <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />

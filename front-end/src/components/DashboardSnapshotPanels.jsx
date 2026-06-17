@@ -322,8 +322,8 @@ const PriorityTaskBoard = ({ eventId, milestone, onClearMilestone }) => {
         </div>
       </div>
 
-      <div className="mt-4 overflow-x-auto rounded-2xl border border-slate-100">
-        <div className="grid min-w-[1080px] grid-cols-4 bg-white">
+      <div className="mt-4 rounded-2xl border border-slate-100">
+        <div className="grid grid-cols-1 bg-white sm:grid-cols-2 xl:grid-cols-4">
           {PRIORITIES.map((priority, index) => (
             <PriorityTaskColumn
               key={`${milestone?.milestoneId || 'all'}-${priority}`}
@@ -395,7 +395,7 @@ const PriorityTaskColumn = ({
 
   return (
     <div
-      className={`${isLast ? '' : 'border-r border-slate-100'} min-w-0 transition ${
+      className={`${isLast ? '' : 'xl:border-r xl:border-slate-100'} min-w-0 border-b border-slate-100 transition even:sm:border-r-0 sm:border-r xl:border-b-0 ${
         draggingTask && draggingTask.priority !== priority ? 'bg-sky-50/40' : ''
       }`}
       onDragOver={(event) => {
