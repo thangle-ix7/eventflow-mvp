@@ -109,7 +109,7 @@ const Dashboard = ({ eventId }) => {
             </p>
           </div>
 
-          <div className="grid gap-3 sm:min-w-[360px] sm:grid-cols-2">
+          <div className="grid w-full min-w-0 gap-3 sm:grid-cols-2 lg:max-w-md">
             <MetricCard
               label="Tổng công việc"
               value={summary.totalTasks}

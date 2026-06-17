@@ -31,6 +31,16 @@ public class PaymentTransaction {
     @Column(name = "amount_vnd", nullable = false)
     private Long amountVnd;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "discount_code_id")
+    private DiscountCode discountCode;
+
+    @Column(name = "original_amount_vnd")
+    private Long originalAmountVnd;
+
+    @Column(name = "discount_amount_vnd")
+    private Long discountAmountVnd;
+
     @Column(nullable = false, length = 40)
     @Builder.Default
     private String provider = "MANUAL";

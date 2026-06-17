@@ -81,8 +81,8 @@ const LandingPage = () => {
       </div>
 
       <header className="sticky top-0 z-50 border-b border-sky-100/80 bg-white/75 backdrop-blur-2xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 lg:px-8">
-          <Link to="/" className="group">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-3 py-4 sm:px-5 lg:px-8">
+          <Link to="/" className="group min-w-0">
             <BrandLogo />
           </Link>
 
@@ -104,7 +104,7 @@ const LandingPage = () => {
             </Link>
           </nav>
 
-          <div className="flex items-center gap-3">
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
             <Link
               to="/login"
               className="hidden rounded-full px-5 py-2.5 text-sm font-extrabold text-slate-700 transition hover:bg-sky-50 hover:text-sky-600 sm:inline-flex"
@@ -114,7 +114,7 @@ const LandingPage = () => {
 
             <Link
               to="/login"
-              className="group inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 px-5 py-2.5 text-sm font-black text-white shadow-xl shadow-cyan-300/40 transition hover:-translate-y-0.5 hover:shadow-2xl hover:shadow-cyan-300/60"
+              className="group inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 px-4 py-2.5 text-sm font-black text-white shadow-xl shadow-cyan-300/40 transition hover:-translate-y-0.5 hover:shadow-2xl hover:shadow-cyan-300/60 sm:px-5"
             >
               Bắt đầu
               <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
@@ -124,7 +124,7 @@ const LandingPage = () => {
       </header>
 
       <main className="relative z-10">
-        <section className="mx-auto grid min-h-[calc(100vh-80px)] max-w-7xl items-center gap-14 px-5 py-16 lg:grid-cols-[1.02fr_0.98fr] lg:px-8 lg:py-20">
+        <section className="mx-auto grid min-h-[calc(100vh-80px)] max-w-7xl items-center gap-10 px-4 py-12 sm:px-5 sm:py-16 lg:grid-cols-[1.02fr_0.98fr] lg:px-8 lg:py-20">
           <div>
             <div
               className="mb-7 inline-flex items-center gap-2 rounded-full border border-cyan-200 bg-white/80 px-4 py-2 text-sm font-black text-sky-600 shadow-lg shadow-sky-100/80 backdrop-blur"
@@ -134,7 +134,7 @@ const LandingPage = () => {
               AI tự động đề xuất kế hoạch sự kiện từ ý tưởng ban đầu
             </div>
 
-            <h1 className="max-w-5xl text-5xl font-black leading-[1.04] tracking-tight text-slate-950 md:text-6xl lg:text-7xl">
+            <h1 className="max-w-5xl break-words text-4xl font-black leading-[1.08] tracking-tight text-slate-950 sm:text-5xl md:text-6xl lg:text-7xl">
               Quản lý sự kiện{' '}
               <span className="bg-gradient-to-r from-sky-500 via-cyan-500 to-emerald-400 bg-clip-text text-transparent">
                 mượt hơn,
@@ -147,7 +147,7 @@ const LandingPage = () => {
               theo dõi deadline và phối hợp vận hành sự kiện trong một nền tảng duy nhất.
             </p>
 
-            <div className="mt-9 flex flex-col gap-4 sm:flex-row">
+            <div className="mt-9 flex flex-col gap-4 sm:flex-row sm:flex-wrap">
               <Link
                 to="/login"
                 className="group inline-flex items-center justify-center gap-3 rounded-2xl bg-slate-950 px-7 py-4 text-base font-black text-white shadow-2xl shadow-slate-300/80 transition hover:-translate-y-1 hover:bg-slate-800"
@@ -172,7 +172,7 @@ const LandingPage = () => {
             </div>
           </div>
 
-          <div className="relative">
+          <div className="relative min-w-0">
             <div className="absolute -left-8 top-12 hidden rounded-3xl border border-sky-100 bg-white/90 p-4 shadow-2xl shadow-sky-200/60 backdrop-blur-xl md:block">
               <div className="flex items-center gap-3">
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-400 text-white">
@@ -203,9 +203,9 @@ const LandingPage = () => {
             >
               <div className="absolute inset-0 rounded-[3rem] bg-gradient-to-br from-sky-300/80 via-cyan-200/60 to-emerald-300/70 blur-3xl" />
 
-              <div className="relative rounded-[3rem] border border-white bg-white/70 p-4 shadow-[0_30px_90px_rgba(14,165,233,0.22)] backdrop-blur-2xl">
+              <div className="relative rounded-[2rem] border border-white bg-white/70 p-2 shadow-[0_30px_90px_rgba(14,165,233,0.22)] backdrop-blur-2xl sm:p-4">
                 <div className="overflow-hidden rounded-[2.4rem] border border-sky-100 bg-white">
-                  <div className="flex items-center justify-between border-b border-sky-100 bg-gradient-to-r from-sky-50 to-emerald-50 px-5 py-4">
+                  <div className="flex items-center justify-between gap-3 border-b border-sky-100 bg-gradient-to-r from-sky-50 to-emerald-50 px-3 py-4 sm:px-5">
                     <div className="flex items-center gap-3">
                       <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white shadow-md shadow-sky-100">
                         <img
@@ -220,7 +220,7 @@ const LandingPage = () => {
                       </div>
                     </div>
 
-                    <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-600">
+                    <span className="shrink-0 rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-600">
                       Đang chạy
                     </span>
                   </div>
@@ -236,7 +236,7 @@ const LandingPage = () => {
                       </div>
                     </aside>
 
-                    <div className="p-5">
+                    <div className="p-3 sm:p-5">
                       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div>
                           <p className="text-xs font-black uppercase tracking-[0.22em] text-sky-500">
@@ -323,7 +323,7 @@ const LandingPage = () => {
           </div>
         </section>
 
-        <section id="features" className="mx-auto max-w-7xl px-5 py-24 lg:px-8">
+        <section id="features" className="mx-auto max-w-7xl px-4 py-16 sm:px-5 sm:py-24 lg:px-8">
           <SectionHeading
             eyebrow="Tính năng chính"
             title="Tất cả thứ đội tổ chức sự kiện cần, nằm gọn trong một flow."
@@ -364,10 +364,10 @@ const LandingPage = () => {
           </div>
         </section>
 
-        <section id="workflow" className="relative py-24">
+        <section id="workflow" className="relative py-16 sm:py-24">
           <div className="absolute inset-x-0 top-1/2 h-72 -translate-y-1/2 bg-gradient-to-r from-sky-100 via-cyan-50 to-emerald-100" />
 
-          <div className="relative mx-auto max-w-7xl px-5 lg:px-8">
+          <div className="relative mx-auto max-w-7xl px-4 sm:px-5 lg:px-8">
             <div className="overflow-hidden rounded-[2.5rem] border border-white bg-white/80 p-6 shadow-2xl shadow-sky-100/80 backdrop-blur-2xl md:p-10">
               <div className="grid gap-10 lg:grid-cols-[0.82fr_1.18fr]">
                 <div>
@@ -422,7 +422,7 @@ const LandingPage = () => {
           </div>
         </section>
 
-        <section id="audience" className="mx-auto max-w-7xl px-5 py-24 lg:px-8">
+        <section id="audience" className="mx-auto max-w-7xl px-4 py-16 sm:px-5 sm:py-24 lg:px-8">
           <SectionHeading
             eyebrow="Phù hợp với ai?"
             title="Dành cho những đội nhóm muốn tổ chức sự kiện chuyên nghiệp hơn."
@@ -448,8 +448,8 @@ const LandingPage = () => {
           </div>
         </section>
 
-        <section id="value" className="mx-auto max-w-7xl px-5 py-24 lg:px-8">
-          <div className="relative overflow-hidden rounded-[2.75rem] bg-slate-950 p-8 text-white shadow-2xl shadow-slate-300 md:p-12 lg:p-14">
+        <section id="value" className="mx-auto max-w-7xl px-4 py-16 sm:px-5 sm:py-24 lg:px-8">
+          <div className="relative overflow-hidden rounded-[2rem] bg-slate-950 p-5 text-white shadow-2xl shadow-slate-300 sm:p-8 md:p-12 lg:p-14">
             <div className="absolute -left-28 -top-28 h-80 w-80 rounded-full bg-sky-400/35 blur-3xl" />
             <div className="absolute -bottom-36 right-0 h-96 w-96 rounded-full bg-emerald-400/30 blur-3xl" />
 
@@ -517,8 +517,8 @@ const MARQUEE_ITEMS = [
 ];
 
 const BrandLogo = () => (
-  <div className="flex items-center gap-3">
-    <div className="relative">
+  <div className="flex min-w-0 items-center gap-3">
+    <div className="relative shrink-0">
       <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-sky-400 to-emerald-400 opacity-35 blur-md transition group-hover:opacity-70" />
       <div className="relative flex h-12 w-12 items-center justify-center rounded-2xl border border-sky-100 bg-white shadow-lg shadow-sky-200/60">
         <img
@@ -529,7 +529,7 @@ const BrandLogo = () => (
       </div>
     </div>
 
-    <div>
+    <div className="min-w-0 max-[380px]:hidden">
       <p className="text-xl font-black leading-none tracking-tight text-slate-950">
         <span>Event</span>
         <span className="bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 bg-clip-text text-transparent">
@@ -537,7 +537,7 @@ const BrandLogo = () => (
         </span>
       </p>
 
-      <p className="mt-1 text-xs font-bold uppercase tracking-[0.22em] text-slate-400">
+      <p className="mt-1 truncate text-xs font-bold uppercase tracking-[0.22em] text-slate-400">
         AI Event Planning
       </p>
     </div>
@@ -607,7 +607,7 @@ const SectionHeading = ({ eyebrow, title, description }) => (
     <p className="text-sm font-black uppercase tracking-[0.25em] text-sky-500">
       {eyebrow}
     </p>
-    <h2 className="mt-4 text-4xl font-black tracking-tight text-slate-950 md:text-5xl">
+    <h2 className="mt-4 break-words text-3xl font-black tracking-tight text-slate-950 sm:text-4xl md:text-5xl">
       {title}
     </h2>
     <p className="mt-5 text-lg font-medium leading-8 text-slate-600">
@@ -660,7 +660,7 @@ const AudienceCard = ({ title, description, icon }) => (
 
 const ValueMetric = ({ value, label }) => (
   <div className="rounded-3xl border border-white/10 bg-white/10 p-5 backdrop-blur transition hover:-translate-y-1 hover:bg-white/15">
-    <p className="text-3xl font-black text-white">{value}</p>
+    <p className="text-2xl font-black text-white sm:text-3xl">{value}</p>
     <p className="mt-2 text-sm font-bold leading-6 text-slate-300">{label}</p>
   </div>
 );

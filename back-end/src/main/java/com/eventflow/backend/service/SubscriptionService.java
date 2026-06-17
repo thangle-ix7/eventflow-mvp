@@ -7,16 +7,19 @@ import com.eventflow.backend.entity.*;
 import com.eventflow.backend.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
@@ -27,12 +30,16 @@ public class SubscriptionService {
 
     private static final String FREE_PLAN_CODE = "FREE";
     private static final int AI_CREDIT_COST_PER_REQUEST = 1;
+    private static final SecureRandom DISCOUNT_CODE_RANDOM = new SecureRandom();
+    private static final String DISCOUNT_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
     private final SubscriptionPlanRepository subscriptionPlanRepository;
     private final UserSubscriptionRepository userSubscriptionRepository;
     private final EventPassRepository eventPassRepository;
     private final AiCreditLedgerRepository aiCreditLedgerRepository;
     private final PaymentTransactionRepository paymentTransactionRepository;
+    private final DiscountCodeRepository discountCodeRepository;
+    private final DiscountCodeRedemptionRepository discountCodeRedemptionRepository;
     private final EventRepository eventRepository;
     private final EventMemberRepository eventMemberRepository;
     private final TaskAttachmentRepository taskAttachmentRepository;
@@ -49,6 +56,77 @@ public class SubscriptionService {
         return subscriptionPlanRepository.findAllByOrderByPriorityRankAsc().stream()
                 .map(this::mapPlan)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<DiscountCodeResponseDTO> getDiscountCodes() {
+        return discountCodeRepository.findAll(Sort.by(Sort.Direction.DESC, "createdAt")).stream()
+                .map(this::mapDiscountCode)
+                .toList();
+    }
+
+    @Transactional
+    public DiscountCodeResponseDTO createDiscountCode(Long adminUserId, DiscountCodeRequestDTO request) {
+        SubscriptionPlan targetPlan = resolveRequiredDiscountTargetPlan(request.getTargetPlanCode());
+        String code = normalizeDiscountCode(request.getCode());
+        if (code == null) {
+            code = generateDiscountCode(targetPlan.getCode());
+        } else if (discountCodeRepository.existsByCodeIgnoreCase(code)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Mã giảm giá đã tồn tại");
+        }
+
+        DiscountCode discountCode = DiscountCode.builder()
+                .code(code)
+                .description(blankToNull(request.getDescription()))
+                .active(request.getActive() == null || request.getActive())
+                .discountPercent(request.getDiscountPercent() != null ? request.getDiscountPercent() : 100)
+                .targetPlan(targetPlan)
+                .maxRedemptions(request.getMaxRedemptions())
+                .expiresAt(request.getExpiresAt())
+                .createdBy(userRepository.getReferenceById(adminUserId))
+                .build();
+
+        return mapDiscountCode(discountCodeRepository.save(discountCode));
+    }
+
+    @Transactional
+    public DiscountCodeResponseDTO updateDiscountCode(Long discountCodeId, DiscountCodeRequestDTO request) {
+        DiscountCode discountCode = discountCodeRepository.findById(discountCodeId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy mã giảm giá"));
+
+        String code = normalizeDiscountCode(request.getCode());
+        if (code != null && !discountCode.getCode().equalsIgnoreCase(code)) {
+            if (discountCodeRepository.existsByCodeIgnoreCase(code)) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Mã giảm giá đã tồn tại");
+            }
+            discountCode.setCode(code);
+        }
+        if (request.getDescription() != null) {
+            discountCode.setDescription(blankToNull(request.getDescription()));
+        }
+        if (request.getActive() != null) {
+            discountCode.setActive(request.getActive());
+        }
+        if (request.getDiscountPercent() != null) {
+            discountCode.setDiscountPercent(request.getDiscountPercent());
+        }
+        if (request.getTargetPlanCode() != null) {
+            discountCode.setTargetPlan(resolveRequiredDiscountTargetPlan(request.getTargetPlanCode()));
+        }
+        discountCode.setMaxRedemptions(request.getMaxRedemptions());
+        discountCode.setExpiresAt(request.getExpiresAt());
+        discountCode.setUpdatedAt(LocalDateTime.now());
+
+        return mapDiscountCode(discountCodeRepository.save(discountCode));
+    }
+
+    @Transactional
+    public void deactivateDiscountCode(Long discountCodeId) {
+        DiscountCode discountCode = discountCodeRepository.findById(discountCodeId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy mã giảm giá"));
+        discountCode.setActive(false);
+        discountCode.setUpdatedAt(LocalDateTime.now());
+        discountCodeRepository.save(discountCode);
     }
 
     @Transactional(readOnly = true)
@@ -117,12 +195,18 @@ public class SubscriptionService {
         }
 
         String changeType = resolveChangeType(userId, plan);
-        if (plan.getPriceVnd() == null || plan.getPriceVnd() <= 0 || "CURRENT_PLAN".equals(changeType)) {
+        long originalAmount = plan.getPriceVnd() != null ? plan.getPriceVnd() : 0L;
+        DiscountApplication discount = resolveDiscountApplication(plan, request.getDiscountCode(), originalAmount);
+        long finalAmount = Math.max(0L, originalAmount - discount.discountAmountVnd());
+        if (originalAmount <= 0 || "CURRENT_PLAN".equals(changeType)) {
             return CheckoutResponseDTO.builder()
                     .provider("INTERNAL")
                     .status(CommercialStatus.ACTIVE.name())
                     .planCode(plan.getCode())
-                    .amountVnd(plan.getPriceVnd())
+                    .amountVnd(originalAmount)
+                    .originalAmountVnd(originalAmount)
+                    .discountAmountVnd(0L)
+                    .finalAmountVnd(originalAmount)
                     .changeType(changeType)
                     .message(resolveCheckoutMessage(plan, changeType))
                     .build();
@@ -132,11 +216,34 @@ public class SubscriptionService {
                 .user(user)
                 .event(event)
                 .plan(plan)
-                .amountVnd(plan.getPriceVnd())
-                .provider("PAYOS")
+                .amountVnd(finalAmount)
+                .discountCode(discount.discountCode().orElse(null))
+                .originalAmountVnd(originalAmount)
+                .discountAmountVnd(discount.discountAmountVnd())
+                .provider(finalAmount <= 0 ? "DISCOUNT" : "PAYOS")
                 .status(CommercialStatus.PENDING)
                 .build());
         transaction.setProviderOrderId(String.valueOf(transaction.getId()));
+        if (finalAmount <= 0) {
+            activatePaidTransaction(transaction, Map.of(
+                    "success", true,
+                    "provider", "DISCOUNT",
+                    "discountCode", discount.discountCode().map(DiscountCode::getCode).orElse(null)));
+            return CheckoutResponseDTO.builder()
+                    .transactionId(transaction.getId())
+                    .provider(transaction.getProvider())
+                    .status(CommercialStatus.ACTIVE.name())
+                    .planCode(plan.getCode())
+                    .amountVnd(0L)
+                    .originalAmountVnd(originalAmount)
+                    .discountAmountVnd(discount.discountAmountVnd())
+                    .finalAmountVnd(0L)
+                    .discountCode(discount.discountCode().map(DiscountCode::getCode).orElse(null))
+                    .changeType(changeType)
+                    .message("Mã giảm giá đã được áp dụng. Gói của bạn đã được kích hoạt với số tiền 0đ.")
+                    .build();
+        }
+
         PayOsPaymentService.PayOsCheckout checkout = payOsPaymentService.createPaymentLink(
                 transaction,
                 frontendUrl + "/pricing",
@@ -152,10 +259,14 @@ public class SubscriptionService {
                 .provider(transaction.getProvider())
                 .status(transaction.getStatus().name())
                 .planCode(plan.getCode())
-                .amountVnd(plan.getPriceVnd())
+                .amountVnd(finalAmount)
+                .originalAmountVnd(originalAmount)
+                .discountAmountVnd(discount.discountAmountVnd())
+                .finalAmountVnd(finalAmount)
+                .discountCode(discount.discountCode().map(DiscountCode::getCode).orElse(null))
                 .checkoutUrl(transaction.getCheckoutUrl())
                 .changeType(changeType)
-                .message(resolveCheckoutMessage(plan, changeType))
+                .message(resolveCheckoutMessage(plan, changeType, discount.discountAmountVnd()))
                 .build();
     }
 
@@ -452,10 +563,12 @@ public class SubscriptionService {
 
         if (transaction.getPlan().getPlanType() == PlanType.EVENT_PASS) {
             activateEventPass(transaction, now);
+            recordDiscountRedemption(transaction);
             return;
         }
 
         activateSubscription(transaction, now);
+        recordDiscountRedemption(transaction);
     }
 
     private void activateSubscription(PaymentTransaction transaction, LocalDateTime now) {
@@ -607,13 +720,78 @@ public class SubscriptionService {
         return "DOWNGRADE";
     }
 
+    private DiscountApplication resolveDiscountApplication(SubscriptionPlan plan, String rawCode, long originalAmount) {
+        String code = normalizeDiscountCode(rawCode);
+        if (code == null) {
+            return new DiscountApplication(Optional.empty(), 0L);
+        }
+        if (originalAmount <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Gói miễn phí không cần mã giảm giá");
+        }
+
+        DiscountCode discountCode = discountCodeRepository.findByCodeIgnoreCase(code)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Mã giảm giá không tồn tại"));
+        validateDiscountCode(discountCode, plan);
+
+        long discountAmount = Math.min(originalAmount, (originalAmount * discountCode.getDiscountPercent()) / 100L);
+        return new DiscountApplication(Optional.of(discountCode), discountAmount);
+    }
+
+    private void validateDiscountCode(DiscountCode discountCode, SubscriptionPlan plan) {
+        if (!discountCode.isActive()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mã giảm giá đã bị vô hiệu hóa");
+        }
+        if (discountCode.getExpiresAt() != null && discountCode.getExpiresAt().isBefore(LocalDateTime.now())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mã giảm giá đã hết hạn");
+        }
+        if (discountCode.getMaxRedemptions() != null
+                && discountCode.getRedeemedCount() != null
+                && discountCode.getRedeemedCount() >= discountCode.getMaxRedemptions()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mã giảm giá đã hết lượt sử dụng");
+        }
+        if (discountCode.getTargetPlan() == null
+                || !discountCode.getTargetPlan().getCode().equalsIgnoreCase(plan.getCode())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mã giảm giá không áp dụng cho gói này");
+        }
+    }
+
+    private void recordDiscountRedemption(PaymentTransaction transaction) {
+        DiscountCode discountCode = transaction.getDiscountCode();
+        Long discountAmount = transaction.getDiscountAmountVnd();
+        if (discountCode == null || discountAmount == null || discountAmount <= 0) {
+            return;
+        }
+
+        discountCodeRedemptionRepository.save(DiscountCodeRedemption.builder()
+                .discountCode(discountCode)
+                .user(transaction.getUser())
+                .paymentTransaction(transaction)
+                .plan(transaction.getPlan())
+                .originalAmountVnd(transaction.getOriginalAmountVnd() != null
+                        ? transaction.getOriginalAmountVnd()
+                        : transaction.getAmountVnd())
+                .discountAmountVnd(discountAmount)
+                .finalAmountVnd(transaction.getAmountVnd())
+                .build());
+        discountCode.setRedeemedCount((discountCode.getRedeemedCount() != null ? discountCode.getRedeemedCount() : 0) + 1);
+        discountCode.setUpdatedAt(LocalDateTime.now());
+        discountCodeRepository.save(discountCode);
+    }
+
     private String resolveCheckoutMessage(SubscriptionPlan plan, String changeType) {
+        return resolveCheckoutMessage(plan, changeType, 0L);
+    }
+
+    private String resolveCheckoutMessage(SubscriptionPlan plan, String changeType, long discountAmountVnd) {
+        String discountNote = discountAmountVnd > 0
+                ? " Mã giảm giá đã trừ " + discountAmountVnd + "đ."
+                : "";
         return switch (changeType) {
             case "CURRENT_PLAN" -> "Bạn đang dùng gói " + plan.getDisplayName() + ". Không cần đổi gói.";
             case "DOWNGRADE" -> "Đã ghi nhận yêu cầu đổi xuống " + plan.getDisplayName()
-                    + ". Bạn sẽ được chuyển sang payOS để hoàn tất thanh toán.";
-            case "EVENT_PASS_PURCHASE" -> "Bạn sẽ được chuyển sang payOS để thanh toán Event Pass.";
-            default -> "Bạn sẽ được chuyển sang payOS để nâng cấp lên " + plan.getDisplayName() + ".";
+                    + ". Bạn sẽ được chuyển sang payOS để hoàn tất thanh toán." + discountNote;
+            case "EVENT_PASS_PURCHASE" -> "Bạn sẽ được chuyển sang payOS để thanh toán Event Pass." + discountNote;
+            default -> "Bạn sẽ được chuyển sang payOS để nâng cấp lên " + plan.getDisplayName() + "." + discountNote;
         };
     }
 
@@ -675,6 +853,24 @@ public class SubscriptionService {
         return new ResponseStatusException(HttpStatus.PAYMENT_REQUIRED, message);
     }
 
+    private DiscountCodeResponseDTO mapDiscountCode(DiscountCode discountCode) {
+        SubscriptionPlan targetPlan = discountCode.getTargetPlan();
+        return DiscountCodeResponseDTO.builder()
+                .id(discountCode.getId())
+                .code(discountCode.getCode())
+                .description(discountCode.getDescription())
+                .active(discountCode.isActive())
+                .discountPercent(discountCode.getDiscountPercent())
+                .targetPlanCode(targetPlan != null ? targetPlan.getCode() : null)
+                .targetPlanName(targetPlan != null ? targetPlan.getDisplayName() : null)
+                .maxRedemptions(discountCode.getMaxRedemptions())
+                .redeemedCount(discountCode.getRedeemedCount())
+                .expiresAt(discountCode.getExpiresAt())
+                .createdAt(discountCode.getCreatedAt())
+                .updatedAt(discountCode.getUpdatedAt())
+                .build();
+    }
+
     private SubscriptionPlanDTO mapPlan(SubscriptionPlan plan) {
         return SubscriptionPlanDTO.builder()
                 .code(plan.getCode())
@@ -697,6 +893,49 @@ public class SubscriptionService {
                 .priorityRank(plan.getPriorityRank())
                 .features(parseFeatures(plan.getFeatures()))
                 .build();
+    }
+
+    private SubscriptionPlan resolveRequiredDiscountTargetPlan(String planCode) {
+        if (planCode == null || planCode.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cần chọn gói áp dụng mã giảm giá");
+        }
+        return subscriptionPlanRepository.findById(planCode.trim().toUpperCase(Locale.ROOT))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy gói áp dụng mã giảm giá"));
+    }
+
+    private String normalizeDiscountCode(String code) {
+        if (code == null || code.isBlank()) {
+            return null;
+        }
+        return code.trim().toUpperCase(Locale.ROOT).replaceAll("\\s+", "");
+    }
+
+    private String generateDiscountCode(String planCode) {
+        String prefix = planCode.replaceAll("[^A-Za-z0-9]", "")
+                .toUpperCase(Locale.ROOT);
+        if (prefix.length() > 12) {
+            prefix = prefix.substring(0, 12);
+        }
+
+        for (int attempt = 0; attempt < 12; attempt++) {
+            String code = prefix + "-" + randomCodeSuffix(8);
+            if (!discountCodeRepository.existsByCodeIgnoreCase(code)) {
+                return code;
+            }
+        }
+        throw new ResponseStatusException(HttpStatus.CONFLICT, "Chưa sinh được mã không trùng, vui lòng thử lại");
+    }
+
+    private String randomCodeSuffix(int length) {
+        StringBuilder builder = new StringBuilder(length);
+        for (int index = 0; index < length; index++) {
+            builder.append(DISCOUNT_CODE_ALPHABET.charAt(DISCOUNT_CODE_RANDOM.nextInt(DISCOUNT_CODE_ALPHABET.length())));
+        }
+        return builder.toString();
+    }
+
+    private String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     private List<String> parseFeatures(String features) {
@@ -756,6 +995,11 @@ public class SubscriptionService {
             String source,
             LocalDateTime expiresAt,
             Optional<EventPass> eventPass) {
+    }
+
+    private record DiscountApplication(
+            Optional<DiscountCode> discountCode,
+            long discountAmountVnd) {
     }
 
     private record PaymentCallbackResult(
