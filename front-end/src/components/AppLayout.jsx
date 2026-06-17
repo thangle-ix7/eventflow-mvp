@@ -103,7 +103,7 @@ const AppLayoutFrame = ({
   const eventNav = selectedEvent?.id
     ? [
       { to: `/events/${selectedEvent.id}`, label: t('sidebar.dashboard'), icon: Workflow },
-      ...(permissions.canViewEventDashboard ? [{ to: `/events/${selectedEvent.id}/dashboard`, label: 'Dashboard', icon: BarChart3 }] : []),
+      ...(permissions.canViewEventDashboard ? [{ to: `/events/${selectedEvent.id}/dashboard`, label: t('sidebar.dashboard'), icon: BarChart3 }] : []),
       { to: `/events/${selectedEvent.id}/plannings`, label: t('sidebar.plannings'), icon: Layers },
       { to: `/events/${selectedEvent.id}/tasks`, label: t('sidebar.tasks'), icon: ClipboardList },
       ...(departmentHomePath ? [{ to: departmentHomePath, label: t('sidebar.departments'), icon: Users }] : []),
@@ -122,7 +122,7 @@ const AppLayoutFrame = ({
       {
         to: `/events/${selectedEvent.id}/documents`,
         label: t('utility.documents'),
-        description: 'File & link',
+        description: 'Tệp và liên kết',
         icon: FileText,
       },
       {
@@ -149,11 +149,11 @@ const AppLayoutFrame = ({
   const searchSuggestionBase = [
     { label: t('event.title'), description: '', to: '/' },
     { label: t('event.create'), description: '', to: '/events/new' },
-    { label: 'Templates', description: 'Xem templates sẵn có', to: '/events/templates' },
+    { label: 'Mẫu sự kiện', description: 'Xem các mẫu có sẵn', to: '/events/templates' },
     ...(user?.systemRole === 'ADMIN'
       ? [
-        { label: 'Quản lý Templates', description: 'Admin panel', to: '/admin/templates' },
-        { label: 'Feedback inbox', description: 'Góp ý người dùng', to: '/admin/feedback' },
+        { label: 'Quản lý mẫu', description: 'Khu quản trị', to: '/admin/templates' },
+        { label: 'Hộp thư góp ý', description: 'Góp ý người dùng', to: '/admin/feedback' },
       ]
       : []),
     { label: 'Hồ sơ cá nhân', description: '', to: '/profile' },
@@ -180,7 +180,7 @@ const AppLayoutFrame = ({
     }
 
     if (permissions.canViewEventDashboard) {
-      searchSuggestionBase.push({ label: 'Dashboard sự kiện', description: '', to: `/events/${selectedEvent.id}/dashboard` });
+      searchSuggestionBase.push({ label: 'Tổng quan sự kiện', description: '', to: `/events/${selectedEvent.id}/dashboard` });
     }
   }
 

@@ -59,7 +59,7 @@ const en = {
 
       members: 'Members',
 
-      plannings: 'Planning',
+      plannings: 'Plans',
 
       tasks: 'Tasks',
 
@@ -199,6 +199,22 @@ const en = {
       report: 'Reports',
 
       reviewHistory: 'Review History',
+    },
+
+    terminology: {
+      dashboard: 'Dashboard',
+      planning: 'Plan',
+      milestone: 'Milestone',
+      task: 'Task',
+      subtask: 'Subtask',
+      department: 'Department',
+      member: 'Member',
+      template: 'Template',
+      deadline: 'Deadline',
+      report: 'Report',
+      workload: 'Workload',
+      preview: 'Preview',
+      suggestion: 'Suggestion',
     },
 
     taskStatus: {

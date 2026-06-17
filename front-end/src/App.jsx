@@ -97,6 +97,42 @@ function App() {
   }, [location.pathname, location.search, user?.userId]);
 
   useEffect(() => {
+    const resizeTextarea = (textarea) => {
+      if (!(textarea instanceof HTMLTextAreaElement) || textarea.offsetParent === null) {
+        return;
+      }
+
+      textarea.style.height = 'auto';
+      textarea.style.height = `${textarea.scrollHeight}px`;
+    };
+
+    const resizeAllTextareas = () => {
+      document.querySelectorAll('textarea').forEach(resizeTextarea);
+    };
+
+    const handleTextareaInput = (event) => {
+      resizeTextarea(event.target);
+    };
+
+    const observer = new MutationObserver(() => {
+      requestAnimationFrame(resizeAllTextareas);
+    });
+
+    requestAnimationFrame(resizeAllTextareas);
+    document.addEventListener('input', handleTextareaInput, true);
+    document.addEventListener('change', handleTextareaInput, true);
+    window.addEventListener('resize', resizeAllTextareas);
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    return () => {
+      document.removeEventListener('input', handleTextareaInput, true);
+      document.removeEventListener('change', handleTextareaInput, true);
+      window.removeEventListener('resize', resizeAllTextareas);
+      observer.disconnect();
+    };
+  }, []);
+
+  useEffect(() => {
     if (!user?.userId) {
       return;
     }

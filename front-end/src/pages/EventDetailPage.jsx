@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
 import {
   CalendarDays,
-  ClipboardList,
   Edit,
   Layers,
   MapPin,
@@ -186,110 +185,89 @@ const EventInfoPanel = ({ event, eventId, isLeader }) => {
 
 const PlanningOverview = ({ eventId, plannings, isLoading, error }) => (
   <Panel className="overflow-hidden">
-    <div className="flex flex-col gap-3 border-b border-sky-100 bg-gradient-to-r from-sky-50 via-white to-emerald-50 px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex items-start gap-3">
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-sky-600 shadow-sm">
-          <ClipboardList className="h-5 w-5" strokeWidth={1.8} />
-        </span>
-
-        <div>
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-sky-500">
-            Planning
-          </p>
-          <h3 className="mt-1 text-xl font-black text-slate-950">
-            Kế hoạch triển khai
-          </h3>
-        </div>
-      </div>
-
+    <div className="flex flex-col gap-3 border-b border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+      <h3 className="text-base font-black text-slate-950">Kế hoạch</h3>
       <Button
         as={Link}
         to={`/events/${eventId}/plannings`}
         variant="secondary"
-        className="w-fit"
+        className="min-h-9 w-fit rounded-md px-3 py-2"
       >
-        Xem planning
+        Mở bảng
       </Button>
     </div>
 
-    <div className="p-5">
-      {isLoading && <LoadingState message="Đang tải planning..." />}
+    <div>
+      {isLoading && <LoadingState message="Đang tải kế hoạch..." />}
 
       {!isLoading && error && (
-        <ErrorState error={error} title="Không tải được planning" />
+        <ErrorState error={error} title="Không tải được kế hoạch" />
       )}
 
       {!isLoading && !error && plannings.length === 0 && (
-        <EmptyState
-          icon={Layers}
-          title="Chưa có planning"
-          description="Planning của sự kiện sẽ hiển thị tại đây sau khi được tạo."
-        />
+        <div className="p-4">
+          <EmptyState
+            icon={Layers}
+            title="Chưa có kế hoạch"
+            description="Kế hoạch của sự kiện sẽ hiển thị tại đây sau khi được tạo."
+          />
+        </div>
       )}
 
       {!isLoading && !error && plannings.length > 0 && (
-        <div className="space-y-4">
-          {plannings.map((planning) => (
-            <PlanningSummaryCard key={planning.id} planning={planning} />
-          ))}
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[900px] border-collapse text-left text-sm">
+            <thead className="bg-slate-50 text-xs font-black uppercase tracking-[0.12em] text-slate-500">
+              <tr>
+                <th className={overviewHeadCellClassName}>Kế hoạch</th>
+                <th className={overviewHeadCellClassName}>#</th>
+                <th className={overviewHeadCellClassName}>Giai đoạn</th>
+                <th className={overviewHeadCellClassName}>Mục tiêu</th>
+                <th className={overviewHeadCellClassName}>Mô tả</th>
+              </tr>
+            </thead>
+            <tbody>
+              {plannings.flatMap((planning) => {
+                const phases = planning.phases || [];
+                if (phases.length === 0) {
+                  return [(
+                    <tr key={`${planning.id}-empty`} className="hover:bg-slate-50">
+                      <td className={overviewBodyCellClassName}>
+                        <p className="font-black text-slate-950">{planning.title}</p>
+                        {planning.description && <p className="mt-1 text-xs font-semibold text-slate-500">{planning.description}</p>}
+                      </td>
+                      <td className={overviewIndexCellClassName}>-</td>
+                      <td className={overviewBodyCellClassName}>Chưa có giai đoạn</td>
+                      <td className={overviewBodyCellClassName}>-</td>
+                      <td className={overviewBodyCellClassName}>-</td>
+                    </tr>
+                  )];
+                }
+
+                return phases.map((phase, index) => (
+                  <tr key={phase.id || `${planning.id}-${index}`} className="hover:bg-slate-50">
+                    <td className={overviewBodyCellClassName}>
+                      <p className="font-black text-slate-950">{planning.title}</p>
+                      {index === 0 && planning.description && (
+                        <p className="mt-1 text-xs font-semibold text-slate-500">{planning.description}</p>
+                      )}
+                    </td>
+                    <td className={overviewIndexCellClassName}>{index + 1}</td>
+                    <td className={overviewBodyCellClassName}>
+                      <p className="font-bold text-slate-900">{phase.phaseName}</p>
+                    </td>
+                    <td className={overviewBodyCellClassName}>{phase.objective || '-'}</td>
+                    <td className={overviewBodyCellClassName}>{phase.description || '-'}</td>
+                  </tr>
+                ));
+              })}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
   </Panel>
 );
-
-const PlanningSummaryCard = ({ planning }) => {
-  const phases = planning.phases || [];
-
-  return (
-    <article className="overflow-hidden rounded-2xl border border-sky-100 bg-white">
-      <div className="border-b border-slate-100 p-4">
-        <div className="flex flex-wrap items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-400">
-          <Layers size={14} />
-          {phases.length} phase
-        </div>
-        <h4 className="mt-1 text-lg font-black text-slate-950">{planning.title}</h4>
-        {planning.description && (
-          <p className="mt-2 max-w-4xl text-sm font-semibold leading-6 text-slate-600">
-            {planning.description}
-          </p>
-        )}
-        <p className="mt-3 text-xs font-semibold text-slate-400">
-          Tạo bởi {planning.createdByName || 'Leader'} - {formatDate(planning.createdAt)}
-        </p>
-      </div>
-
-      {phases.length > 0 && (
-        <div className="divide-y divide-slate-100 bg-slate-50/50">
-          {phases.map((phase, index) => (
-            <div key={phase.id || `${planning.id}-${index}`} className="grid gap-3 px-4 py-3 md:grid-cols-[72px_minmax(0,1fr)]">
-              <div className="flex items-center gap-2">
-                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white text-xs font-black text-slate-700 shadow-sm">
-                  {index + 1}
-                </span>
-                <span className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">
-                  Phase
-                </span>
-              </div>
-
-              <div className="min-w-0">
-                <p className="font-black text-slate-950">{phase.phaseName}</p>
-                {phase.objective && (
-                  <p className="mt-1 text-sm font-bold text-sky-700">{phase.objective}</p>
-                )}
-                {phase.description && (
-                  <p className="mt-1 text-sm font-semibold leading-6 text-slate-600">
-                    {phase.description}
-                  </p>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </article>
-  );
-};
 
 const InfoBlock = ({ label, value }) => (
   <div className="rounded-2xl border border-sky-100 bg-white px-4 py-3">
@@ -301,6 +279,10 @@ const InfoBlock = ({ label, value }) => (
     </p>
   </div>
 );
+
+const overviewHeadCellClassName = 'border-b border-slate-200 px-3 py-2';
+const overviewBodyCellClassName = 'border-b border-slate-100 px-3 py-3 align-top font-semibold leading-6 text-slate-600';
+const overviewIndexCellClassName = 'w-14 border-b border-slate-100 px-3 py-3 text-center text-xs font-black text-slate-400';
 
 const formatEventRange = (event) => {
   const start = event?.startTime || event?.eventDate;

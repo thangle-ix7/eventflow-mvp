@@ -26,10 +26,6 @@ const EventPlanningPage = ({ user, onLogout }) => {
   const [draftForm, setDraftForm] = useState(buildEmptyPlanningForm);
   const [aiInstruction, setAiInstruction] = useState('');
   const [aiApplied, setAiApplied] = useState(false);
-  const [editingPlanningId, setEditingPlanningId] = useState(null);
-  const [editingPlanningForm, setEditingPlanningForm] = useState({ title: '', description: '' });
-  const [editingPhaseKey, setEditingPhaseKey] = useState(null);
-  const [editingPhaseForm, setEditingPhaseForm] = useState(buildEmptyPhaseForm);
   const [newPhaseForms, setNewPhaseForms] = useState({});
 
   const eventQuery = useQuery({
@@ -63,11 +59,7 @@ const EventPlanningPage = ({ user, onLogout }) => {
 
   const updatePlanningMutation = useMutation({
     mutationFn: planningApi.updatePlanning,
-    onSuccess: () => {
-      setEditingPlanningId(null);
-      setEditingPlanningForm({ title: '', description: '' });
-      invalidatePlanningQueries();
-    },
+    onSuccess: invalidatePlanningQueries,
   });
 
   const deletePlanningMutation = useMutation({
@@ -88,11 +80,7 @@ const EventPlanningPage = ({ user, onLogout }) => {
 
   const updatePhaseMutation = useMutation({
     mutationFn: planningApi.updatePhase,
-    onSuccess: () => {
-      setEditingPhaseKey(null);
-      setEditingPhaseForm(buildEmptyPhaseForm());
-      invalidatePlanningQueries();
-    },
+    onSuccess: invalidatePlanningQueries,
   });
 
   const deletePhaseMutation = useMutation({
@@ -126,50 +114,11 @@ const EventPlanningPage = ({ user, onLogout }) => {
     createPlanningMutation.mutate({ eventId, payload });
   };
 
-  const startEditingPlanning = (planning) => {
-    setEditingPlanningId(planning.id);
-    setEditingPlanningForm({
-      title: planning.title || '',
-      description: planning.description || '',
-    });
-  };
-
-  const submitPlanningEdit = (planningId) => {
-    const payload = {
-      title: editingPlanningForm.title.trim(),
-      description: editingPlanningForm.description.trim() || null,
-    };
-    if (!payload.title || updatePlanningMutation.isPending) {
-      return;
-    }
-
-    updatePlanningMutation.mutate({ eventId, planningId, payload });
-  };
-
   const handleDeletePlanning = (planning) => {
     const confirmed = window.confirm(`Xóa kế hoạch "${planning.title}"?`);
     if (confirmed) {
       deletePlanningMutation.mutate({ eventId, planningId: planning.id });
     }
-  };
-
-  const startEditingPhase = (phase) => {
-    setEditingPhaseKey(`${phase.planningId}-${phase.id}`);
-    setEditingPhaseForm({
-      phaseName: phase.phaseName || '',
-      description: phase.description || '',
-      objective: phase.objective || '',
-      orderIndex: phase.orderIndex ?? 0,
-    });
-  };
-
-  const submitPhaseEdit = ({ planningId, phaseId }) => {
-    const payload = buildPhasePayload(editingPhaseForm);
-    if (!payload.phaseName || updatePhaseMutation.isPending) {
-      return;
-    }
-
-    updatePhaseMutation.mutate({ eventId, planningId, phaseId, payload });
   };
 
   const submitNewPhase = (planning) => {
@@ -197,13 +146,26 @@ const EventPlanningPage = ({ user, onLogout }) => {
           <ErrorPage
             variant="unexpected"
             title="Không tải được kế hoạch"
-            message={error.userMessage || 'EventFlow chưa thể tải dữ liệu planning. Vui lòng thử lại.'}
+            message={error.userMessage || 'EventFlow chưa thể tải dữ liệu kế hoạch. Vui lòng thử lại.'}
           />
         )}
 
         {!isLoading && !error && (
           <>
-            <div className={isLeader ? 'grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px] xl:items-start' : ''}>
+            <div className="space-y-4">
+              {isLeader && plannings.length === 0 && (
+                <PlanningComposer
+                  form={draftForm}
+                  setForm={setDraftForm}
+                  aiInstruction={aiInstruction}
+                  setAiInstruction={setAiInstruction}
+                  aiApplied={aiApplied}
+                  aiMutation={aiPlanningMutation}
+                  createMutation={createPlanningMutation}
+                  onSubmit={handleCreatePlanning}
+                />
+              )}
+
               <section className="space-y-4">
                 {(createPlanningMutation.error || updatePlanningMutation.error || deletePlanningMutation.error || createPhaseMutation.error || updatePhaseMutation.error || deletePhaseMutation.error) && (
                   <ErrorState
@@ -213,32 +175,22 @@ const EventPlanningPage = ({ user, onLogout }) => {
                 )}
 
                 {plannings.length === 0 ? (
-                  <EmptyState
-                    icon={ClipboardList}
-                    title="Chưa có planning"
-                    description={isLeader ? 'Tạo kế hoạch đầu tiên hoặc dùng AI để lấy khung planning ban đầu.' : 'Leader chưa tạo planning cho sự kiện này.'}
-                  />
+                  !isLeader && (
+                    <EmptyState
+                      icon={ClipboardList}
+                      title="Chưa có kế hoạch"
+                      description="Trưởng nhóm chưa tạo kế hoạch cho sự kiện này."
+                    />
+                  )
                 ) : (
                   plannings.map((planning) => (
                     <PlanningCard
                       key={planning.id}
                       planning={planning}
                       isLeader={isLeader}
-                      editingPlanningId={editingPlanningId}
-                      editingPlanningForm={editingPlanningForm}
-                      setEditingPlanningForm={setEditingPlanningForm}
-                      startEditingPlanning={startEditingPlanning}
-                      cancelEditingPlanning={() => setEditingPlanningId(null)}
-                      submitPlanningEdit={submitPlanningEdit}
                       updatePlanningMutation={updatePlanningMutation}
                       deletePlanningMutation={deletePlanningMutation}
                       handleDeletePlanning={handleDeletePlanning}
-                      editingPhaseKey={editingPhaseKey}
-                      editingPhaseForm={editingPhaseForm}
-                      setEditingPhaseForm={setEditingPhaseForm}
-                      startEditingPhase={startEditingPhase}
-                      cancelEditingPhase={() => setEditingPhaseKey(null)}
-                      submitPhaseEdit={submitPhaseEdit}
                       updatePhaseMutation={updatePhaseMutation}
                       deletePhaseMutation={deletePhaseMutation}
                       handleDeletePhase={handleDeletePhase}
@@ -255,21 +207,6 @@ const EventPlanningPage = ({ user, onLogout }) => {
                   ))
                 )}
               </section>
-
-              {isLeader && (
-                <aside className="xl:sticky xl:top-24">
-                  <PlanningComposer
-                    form={draftForm}
-                    setForm={setDraftForm}
-                    aiInstruction={aiInstruction}
-                    setAiInstruction={setAiInstruction}
-                    aiApplied={aiApplied}
-                    aiMutation={aiPlanningMutation}
-                    createMutation={createPlanningMutation}
-                    onSubmit={handleCreatePlanning}
-                  />
-                </aside>
-              )}
             </div>
           </>
         )}
