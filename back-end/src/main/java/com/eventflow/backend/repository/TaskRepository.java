@@ -231,6 +231,29 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             """)
     long countActiveTasksByEvent(@Param("eventId") Long eventId);
 
+    @Query("""
+            SELECT COUNT(t)
+            FROM Task t
+            WHERE t.event.id = :eventId
+            AND t.milestone.id = :milestoneId
+            AND t.parent IS NULL
+            """)
+    long countParentTasksByEventAndMilestone(
+            @Param("eventId") Long eventId,
+            @Param("milestoneId") Long milestoneId);
+
+    @Query("""
+            SELECT COUNT(t)
+            FROM Task t
+            WHERE t.event.id = :eventId
+            AND t.milestone.id = :milestoneId
+            AND t.parent IS NULL
+            AND t.status = com.eventflow.backend.entity.TaskStatus.DONE
+            """)
+    long countDoneParentTasksByEventAndMilestone(
+            @Param("eventId") Long eventId,
+            @Param("milestoneId") Long milestoneId);
+
     @Modifying
     @Query("UPDATE Task t SET t.department = null WHERE t.department.id = :deptId")
     void clearDepartmentIdByDepartmentId(@Param("deptId") Long deptId);

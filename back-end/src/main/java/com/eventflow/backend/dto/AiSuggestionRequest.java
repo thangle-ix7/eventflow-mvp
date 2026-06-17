@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class AiSuggestionRequest {
 
-    @Size(max = 2000, message = "Yêu cầu gợi ý không được vượt quá 2000 ký tự")
+    @Size(max = 8000, message = "Yêu cầu gợi ý không được vượt quá 8000 ký tự")
     private String instruction;
 
     @Min(value = 1, message = "Số lượng gợi ý tối thiểu là 1")

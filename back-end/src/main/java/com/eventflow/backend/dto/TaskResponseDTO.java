@@ -15,6 +15,8 @@ public class TaskResponseDTO {
     private Long parentId;
     private Long departmentId;
     private String departmentName;
+    private Long milestoneId;
+    private String milestoneName;
     private String title;
     private String description;
     private TaskStatus status;

@@ -48,6 +48,18 @@ const aiSuggestionApi = {
     return response.data;
   },
 
+  suggestMilestones: async ({ eventId, instruction, count = 4 }) => {
+    if (!eventId) {
+      throw new Error('eventId không hợp lệ');
+    }
+
+    const response = await apiClient.post(`/ai-suggestions/events/${eventId}/milestones`, {
+      instruction: instruction || undefined,
+      count,
+    });
+    return response.data;
+  },
+
   suggestSubtasks: async ({ taskId, instruction, count = 5 }) => {
     if (!taskId) {
       throw new Error('taskId không hợp lệ');

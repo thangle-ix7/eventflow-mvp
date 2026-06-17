@@ -10,6 +10,7 @@ import com.eventflow.backend.dto.TaskReviewResponseDTO;
 import com.eventflow.backend.dto.TaskWorkUpdateRequest;
 import com.eventflow.backend.entity.Department;
 import com.eventflow.backend.entity.Event;
+import com.eventflow.backend.entity.Milestone;
 import com.eventflow.backend.entity.Task;
 import com.eventflow.backend.entity.TaskPriority;
 import com.eventflow.backend.entity.TaskReview;
@@ -18,6 +19,7 @@ import com.eventflow.backend.entity.User;
 import com.eventflow.backend.repository.DepartmentRepository;
 import com.eventflow.backend.repository.EventMemberRepository;
 import com.eventflow.backend.repository.EventRepository;
+import com.eventflow.backend.repository.MilestoneRepository;
 import com.eventflow.backend.repository.TaskRepository;
 import com.eventflow.backend.repository.TaskReviewRepository;
 import com.eventflow.backend.repository.UserRepository;
@@ -44,6 +46,7 @@ public class TaskService {
     private final TaskRepository taskRepository;
     private final EventRepository eventRepository;
     private final DepartmentRepository departmentRepository;
+    private final MilestoneRepository milestoneRepository;
     private final UserRepository userRepository;
     private final EventMemberRepository eventMemberRepository;
     private final TaskReviewRepository taskReviewRepository;
@@ -177,6 +180,7 @@ public class TaskService {
 
         Department department = resolveDepartment(eventId, request.getDepartmentId());
         User assignee = resolveAssignee(eventId, request.getAssigneeId(), department);
+        Milestone milestone = resolveMilestone(eventId, request.getMilestoneId());
 
         TaskStatus status = parseStatusOrDefault(request.getStatus(), TaskStatus.TODO);
         TaskPriority priority = parsePriorityOrDefault(request.getPriority(), TaskPriority.MEDIUM);
@@ -186,6 +190,7 @@ public class TaskService {
                 .event(event)
                 .department(department)
                 .assignee(assignee)
+                .milestone(milestone)
                 .title(request.getTitle().trim())
                 .description(normalizeOptionalText(request.getDescription()))
                 .status(status)
@@ -218,6 +223,7 @@ public class TaskService {
                 .parent(parentTask)
                 .department(parentTask.getDepartment())
                 .assignee(assignee)
+                .milestone(parentTask.getMilestone())
                 .title(request.getTitle().trim())
                 .description(normalizeOptionalText(request.getDescription()))
                 .status(status)
@@ -247,11 +253,15 @@ public class TaskService {
                 ? task.getParent().getDepartment()
                 : resolveDepartment(eventId, request.getDepartmentId());
         User assignee = resolveAssignee(eventId, request.getAssigneeId(), department);
+        Milestone milestone = task.getParent() != null
+                ? task.getParent().getMilestone()
+                : resolveMilestone(eventId, request.getMilestoneId());
         validateTaskDeadlineWithinEvent(request.getDeadline(), task.getEvent());
         boolean hasSubtasks = taskRepository.existsByParentId(taskId);
 
         task.setDepartment(department);
         task.setAssignee(assignee);
+        task.setMilestone(milestone);
         task.setTitle(request.getTitle().trim());
         task.setDescription(normalizeOptionalText(request.getDescription()));
         TaskStatus status = hasSubtasks ? task.getStatus() : parseStatusOrDefault(request.getStatus(), task.getStatus());
@@ -324,6 +334,16 @@ public class TaskService {
         }
         recalculateParentProgressIfSubtask(savedTask);
         return savedTask;
+    }
+
+    @Transactional
+    public TaskResponseDTO updatePriority(Long taskId, TaskPriority priority) {
+        Task task = taskRepository.findByIdWithDetails(taskId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy task"));
+
+        task.setPriority(priority);
+        Task savedTask = taskRepository.save(task);
+        return mapToTaskResponse(savedTask);
     }
 
     @Transactional
@@ -441,6 +461,14 @@ public class TaskService {
         return parseStatusOrDefault(status, null);
     }
 
+    public TaskPriority parsePriority(String priority) {
+        if (priority == null || priority.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Độ ưu tiên task không được để trống");
+        }
+
+        return parsePriorityOrDefault(priority, null);
+    }
+
     @Transactional(readOnly = true)
     public void ensureManualProgressAllowed(Long taskId) {
         Task task = taskRepository.findByIdWithDetails(taskId)
@@ -488,6 +516,15 @@ public class TaskService {
         }
 
         return user;
+    }
+
+    private Milestone resolveMilestone(Long eventId, Long milestoneId) {
+        if (milestoneId == null) {
+            return null;
+        }
+
+        return milestoneRepository.findByIdAndEventId(milestoneId, eventId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "milestoneId không thuộc sự kiện"));
     }
 
     private void validateTaskDeadlineWithinEvent(LocalDateTime deadline, Event event) {
@@ -560,6 +597,8 @@ public class TaskService {
                 .parentId(task.getParent() != null ? task.getParent().getId() : null)
                 .departmentId(task.getDepartment() != null ? task.getDepartment().getId() : null)
                 .departmentName(task.getDepartment() != null ? task.getDepartment().getName() : "Chưa gán ban")
+                .milestoneId(task.getMilestone() != null ? task.getMilestone().getId() : null)
+                .milestoneName(task.getMilestone() != null ? task.getMilestone().getName() : "Chưa gán milestone")
                 .title(task.getTitle())
                 .description(task.getDescription())
                 .status(task.getStatus())
