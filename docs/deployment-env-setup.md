@@ -21,6 +21,7 @@ Required production values:
 - `TELEGRAM_BOT_TOKEN`: token from BotFather. Rotate in BotFather first, then update `.env`.
 - `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM`: SMTP sender credentials. For Gmail, use an app password.
 - `APP_FRONTEND_URL`: public frontend origin, for example `https://eventflow.example.com`.
+- `APP_BACKEND_URL`: public backend origin used for payment return URLs, for example `https://api.eventflow.example.com`.
 - `OPENAPI_SERVER_URL`: public API origin, for example `https://eventflow.example.com`. For local Docker, use `http://localhost:8080`.
 - `AUTH_REQUIRE_EMAIL_DELIVERY=true`: recommended in production so signup/reset flows fail closed if email cannot be delivered.
 - `SUPABASE_STORAGE_ENABLED=true`: store profile images, task reports, and task attachments in Supabase Storage instead of the local upload volume.
@@ -28,6 +29,16 @@ Required production values:
 - `SUPABASE_STORAGE_REGION`: region shown in Supabase Storage S3 Configuration.
 - `SUPABASE_STORAGE_ACCESS_KEY` and `SUPABASE_STORAGE_SECRET_KEY`: server-side S3 access keys generated in Supabase. Never expose these in the frontend.
 - `SUPABASE_STORAGE_BUCKET=eventflow-storage`: bucket used by EventFlow. Objects are written under `profile/`, `task-report/`, and `task-attachment/`.
+
+payOS payment values:
+
+- `PAYOS_ENABLED=true`: enable redirect checkout.
+- `PAYOS_BASE_URL=https://api-merchant.payos.vn`: payOS merchant API endpoint.
+- `PAYOS_CLIENT_ID`: client ID from your payOS business account.
+- `PAYOS_API_KEY`: API key from your payOS business account.
+- `PAYOS_CHECKSUM_KEY`: checksum key used for request and webhook HMAC SHA256 signing. Never expose it in the frontend.
+- Configure the payOS webhook URL in the payOS dashboard as `${APP_BACKEND_URL}/api/subscriptions/payments/payos/webhook`.
+- EventFlow sends users back to `${APP_FRONTEND_URL}/pricing` after payment. The backend updates subscriptions and Event Passes only when the signed payOS webhook confirms the payment.
 
 Recommended defaults to keep enabled:
 

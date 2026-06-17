@@ -21,6 +21,7 @@ import InvitationConfirmPage from './pages/InvitationConfirmPage';
 import LandingPage from './pages/LandingPage';
 import MemberDetailPage from './pages/MemberDetailPage';
 import ProfilePage from './pages/ProfilePage';
+import PricingPage from './pages/PricingPage';
 import TaskCreatePage from './pages/TaskCreatePage';
 import TaskAttachmentsPage from './pages/TaskAttachmentsPage';
 import TaskDetailPage from './pages/TaskDetailPage';
@@ -184,6 +185,7 @@ function App() {
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
+      <Route path="/pricing" element={<PricingPage user={user} />} />
 
       <Route
         path="/error"

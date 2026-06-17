@@ -36,6 +36,7 @@ public class EventMemberService {
     private final UserRepository userRepository;
     private final UserProfileService userProfileService;
     private final AuthEmailService authEmailService;
+    private final SubscriptionService subscriptionService;
 
     @Value("${eventflow.invitation.token-ttl-minutes:10080}")
     private long invitationTokenTtlMinutes;
@@ -96,6 +97,7 @@ public class EventMemberService {
         if (eventMemberRepository.existsByEventIdAndUserId(eventId, user.getId())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Người dùng đã là thành viên của sự kiện");
         }
+        subscriptionService.assertCanAddMember(eventId);
 
         LocalDateTime now = LocalDateTime.now();
         eventInvitationRepository.findByEventIdAndInviteeIdAndStatus(eventId, user.getId(), EventInvitationStatus.PENDING)
@@ -136,6 +138,7 @@ public class EventMemberService {
         User user = invitation.getInvitee();
 
         if (!eventMemberRepository.existsByEventIdAndUserId(event.getId(), user.getId())) {
+            subscriptionService.assertCanAddMember(event.getId());
             eventMemberRepository.save(EventMember.builder()
                     .event(event)
                     .user(user)

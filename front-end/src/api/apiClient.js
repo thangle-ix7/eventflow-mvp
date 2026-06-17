@@ -101,6 +101,10 @@ const getFriendlyErrorMessage = (status, error) => {
     return serverMessage || 'Dữ liệu đã thay đổi. Vui lòng tải lại trang và thử lại.';
   }
 
+  if (status === 402) {
+    return serverMessage || 'Gói hiện tại đã chạm giới hạn. Vui lòng nâng cấp để tiếp tục.';
+  }
+
   if (status === 413) {
     return 'Tệp hoặc dữ liệu gửi lên quá lớn. Vui lòng giảm dung lượng và thử lại.';
   }

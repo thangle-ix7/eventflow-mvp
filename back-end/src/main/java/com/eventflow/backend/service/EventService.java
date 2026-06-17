@@ -23,6 +23,7 @@ public class EventService {
     private final UserRepository userRepository;
     private final DepartmentRepository departmentRepository;
     private final TaskRepository taskRepository;
+    private final SubscriptionService subscriptionService;
 
     @Transactional(readOnly = true)
     public PageResponse<EventResponseDTO> getEventsForUser(
@@ -59,6 +60,7 @@ public class EventService {
     public EventResponseDTO createEvent(EventRequestDTO request, Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Người dùng không hợp lệ"));
+        subscriptionService.assertCanCreateEvent(userId);
 
         EventNature nature = request.getNature() != null ? request.getNature() : EventNature.NORMAL;
 
@@ -87,16 +89,22 @@ public class EventService {
     }
 
     @Transactional
-    public EventResponseDTO updateEvent(Long eventId, EventRequestDTO request) {
+    public EventResponseDTO updateEvent(Long eventId, EventRequestDTO request, Long userId) {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy sự kiện"));
+
+        String nextStatus = normalizeStatus(request.getStatus());
+        boolean activatingEvent = !"ACTIVE".equalsIgnoreCase(event.getStatus()) && "ACTIVE".equals(nextStatus);
+        if (activatingEvent) {
+            subscriptionService.assertCanCreateEvent(userId);
+        }
 
         event.setName(request.getName().trim());
         event.setDescription(normalizeOptionalText(request.getDescription()));
         event.setLocation(normalizeOptionalText(request.getLocation()));
         event.setEventDate(resolveStartTime(request));
         event.setEndTime(resolveEndTime(request));
-        event.setStatus(normalizeStatus(request.getStatus()));
+        event.setStatus(nextStatus);
         event.setContextDescription(normalizeOptionalText(request.getContextDescription()));
         event.setEventType(normalizeEventType(request.getEventType()));
         event.setObjective(normalizeOptionalText(request.getObjective()));
