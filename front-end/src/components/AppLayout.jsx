@@ -11,6 +11,7 @@ import {
   BarChart3,
   Bell,
   CalendarDays,
+  ClipboardCheck,
   ClipboardList,
   FileText,
   Layers,
@@ -132,6 +133,12 @@ const AppLayoutFrame = ({
         icon: TrendingUp,
       },
       {
+        to: `/events/${selectedEvent.id}/check-in`,
+        label: 'Check-in',
+        description: 'QR attendee',
+        icon: ClipboardCheck,
+      },
+      {
         to: `/events/${selectedEvent.id}/settings`,
         label: permissions.canManageEvent ? t('utility.settings') : t('common.view'),
         description: 'Thiết lập sự kiện',
@@ -173,6 +180,7 @@ const AppLayoutFrame = ({
       { label: t('utility.calendar'), description: '', to: `/events/${selectedEvent.id}/calendar` },
       { label: t('utility.documents'), description: '', to: `/events/${selectedEvent.id}/documents` },
       { label: t('utility.reports'), description: '', to: `/events/${selectedEvent.id}/reports` },
+      { label: 'Check-in', description: '', to: `/events/${selectedEvent.id}/check-in` },
       { label: permissions.canManageEvent ? t('utility.settings') : t('common.view'), description: '', to: `/events/${selectedEvent.id}/settings` },
     );
 
