@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { CheckCircle2, ClipboardCheck, Plus, QrCode, Search, Trash2, UsersRound } from 'lucide-react';
@@ -52,13 +52,6 @@ const EventCheckInPage = () => {
   const [checkInToken, setCheckInToken] = useState(() => searchParams.get('token') || '');
   const [lastCheckIn, setLastCheckIn] = useState(null);
 
-  useEffect(() => {
-    const token = searchParams.get('token');
-    if (token) {
-      setCheckInToken(token);
-    }
-  }, [searchParams]);
-
   const eventQuery = useQuery({
     queryKey: ['event', eventId],
     queryFn: () => eventApi.getEvent(eventId),
@@ -73,7 +66,7 @@ const EventCheckInPage = () => {
 
   const event = eventQuery.data;
   const canManage = getEventPermissions(event).canManageEvent;
-  const attendees = attendeesQuery.data || [];
+  const attendees = useMemo(() => attendeesQuery.data || [], [attendeesQuery.data]);
   const filteredAttendees = useMemo(() => {
     const needle = search.trim().toLowerCase();
     if (!needle) {
