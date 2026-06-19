@@ -80,7 +80,7 @@ const LandingPage = () => {
         <div className="absolute bottom-[-220px] left-1/2 h-[560px] w-[560px] -translate-x-1/2 rounded-full bg-cyan-300/25 blur-3xl" />
       </div>
 
-      <header className="sticky top-0 z-50 border-b border-sky-100/80 bg-white/75 backdrop-blur-2xl">
+      <header className="sticky top-0 z-50 border-b border-sky-100/80 bg-white/75 backdrop-blur-2xl" >
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-3 py-4 sm:px-5 lg:px-8">
           <Link to="/" className="group min-w-0">
             <BrandLogo />
