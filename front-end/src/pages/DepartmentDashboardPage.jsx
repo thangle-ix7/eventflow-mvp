@@ -198,10 +198,10 @@ const DepartmentDashboardPage = ({ user, onLogout }) => {
         {canViewDashboard && summary && !error && (
           <>
             <section className="grid gap-5">
-              <ChartPanel icon={<TrendingUp size={18} />} title="Task theo ngày">
+              <ChartPanel icon={<TrendingUp size={18} />} title="Cập nhật trạng thái theo ngày">
                 <StatusLineChart
                   data={trendQuery.data || []}
-                  onPointClick={({ status, date }) => openFilteredTasks({ status, fromDate: date, toDate: date })}
+                  onPointClick={({ status }) => openFilteredTasks({ status })}
                 />
               </ChartPanel>
 
@@ -300,16 +300,16 @@ const ChartPanel = ({ icon, title, children }) => (
 
 const StatusLineChart = ({ data, onPointClick }) => {
   const [hoveredPoint, setHoveredPoint] = useState(null);
-  if (!data.length) return <EmptyChart message="Chưa có dữ liệu cập nhật status." />;
+  if (!data.length) return <EmptyChart message="Chưa có dữ liệu cập nhật trạng thái." />;
 
   const width = Math.max(680, data.length * 76);
   const height = 280;
   const padding = 36;
   const series = [
-    { key: 'todoTasks', status: 'TODO', label: 'TODO', color: '#0ea5e9', pointOffset: -9 },
-    { key: 'inProgressTasks', status: 'IN_PROGRESS', label: 'IN_PROGRESS', color: '#f59e0b', pointOffset: -3 },
-    { key: 'inReviewTasks', status: 'IN_REVIEW', label: 'IN_REVIEW', color: '#8b5cf6', pointOffset: 3 },
-    { key: 'completedTasks', status: 'DONE', label: 'DONE', color: '#22c55e', pointOffset: 9 },
+    { key: 'todoTasks', status: 'TODO', label: STATUS_LABELS.TODO, color: '#0ea5e9', pointOffset: -9 },
+    { key: 'inProgressTasks', status: 'IN_PROGRESS', label: STATUS_LABELS.IN_PROGRESS, color: '#f59e0b', pointOffset: -3 },
+    { key: 'inReviewTasks', status: 'IN_REVIEW', label: STATUS_LABELS.IN_REVIEW, color: '#8b5cf6', pointOffset: 3 },
+    { key: 'completedTasks', status: 'DONE', label: STATUS_LABELS.DONE, color: '#22c55e', pointOffset: 9 },
   ];
   const maxValue = Math.max(...data.flatMap((item) => series.map((line) => item[line.key] || 0)), 1);
   const labelStep = Math.max(Math.ceil(data.length / 8), 1);
@@ -447,7 +447,7 @@ const StatusLineChart = ({ data, onPointClick }) => {
                 {hoveredPoint.label}
               </text>
               <text x={Math.min(Math.max(hoveredPoint.x, 86), width - 86)} y={Math.max(hoveredPoint.y - 32, 48)} textAnchor="middle" fill="#475569" className="text-[11px] font-semibold">
-                {hoveredPoint.statusLabel}: {hoveredPoint.value} task
+                {hoveredPoint.statusLabel}: {hoveredPoint.value} lượt cập nhật
               </text>
             </g>
           )}
@@ -599,3 +599,4 @@ const EmptyChart = ({ message }) => (
 );
 
 export default DepartmentDashboardPage;
+

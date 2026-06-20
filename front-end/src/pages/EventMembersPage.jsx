@@ -2,9 +2,11 @@ import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
 import {
+  AlertTriangle,
   Building2,
   CalendarDays,
   CheckCircle2,
+  Clock3,
   Loader2,
   Mail,
   Search,
@@ -12,6 +14,7 @@ import {
   Trash2,
   UserPlus,
   Users,
+  XCircle,
 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import UserAvatar from '../components/UserAvatar';
@@ -30,15 +33,16 @@ import { formatDate } from '../utils/dateUtils';
 
 const EMPTY_MEMBERS = [];
 const EMPTY_DEPARTMENTS = [];
+const EMPTY_INVITATIONS = [];
 
 const EventMembersPage = ({ user, onLogout }) => {
   const { eventId } = useParams();
   const queryClient = useQueryClient();
-  const [form, setForm] = useState({ email: '', role: 'MEMBER' });
+  const [inviteForm, setInviteForm] = useState({ emails: '', role: 'MEMBER' });
+  const [inviteResult, setInviteResult] = useState(null);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('');
-  const [inviteSuccess, setInviteSuccess] = useState('');
 
   const eventQuery = useQuery({
     queryKey: ['event', eventId],
@@ -58,13 +62,33 @@ const EventMembersPage = ({ user, onLogout }) => {
     enabled: Boolean(eventId),
   });
 
-  const addMemberMutation = useMutation({
-    mutationFn: eventMemberApi.addMember,
-    onSuccess: (invitation) => {
-      setForm({ email: '', role: 'MEMBER' });
-      setInviteSuccess(`Đã gửi lời mời tới ${invitation.email}`);
+  const event = eventQuery.data;
+  const isLeader = event?.role === 'LEADER';
+
+  const invitationsQuery = useQuery({
+    queryKey: ['eventInvitations', eventId],
+    queryFn: () => eventMemberApi.getInvitations(eventId),
+    enabled: Boolean(eventId && isLeader),
+  });
+
+  const bulkInviteMutation = useMutation({
+    mutationFn: eventMemberApi.bulkInviteMembers,
+    onSuccess: (result) => {
+      setInviteResult(result);
+      const failedEmails = (result.results || [])
+        .filter((item) => item.status !== 'SENT')
+        .map((item) => item.email)
+        .filter(Boolean)
+        .join('\n');
+      setInviteForm((old) => ({ ...old, emails: failedEmails }));
       queryClient.invalidateQueries({ queryKey: ['eventMembers', eventId] });
+      queryClient.invalidateQueries({ queryKey: ['eventInvitations', eventId] });
     },
+  });
+
+  const cancelInvitationMutation = useMutation({
+    mutationFn: eventMemberApi.cancelInvitation,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['eventInvitations', eventId] }),
   });
 
   const updateRoleMutation = useMutation({
@@ -77,10 +101,9 @@ const EventMembersPage = ({ user, onLogout }) => {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['eventMembers', eventId] }),
   });
 
-  const event = eventQuery.data;
-  const isLeader = event?.role === 'LEADER';
   const members = membersQuery.data || EMPTY_MEMBERS;
   const departments = departmentsQuery.data || EMPTY_DEPARTMENTS;
+  const invitations = invitationsQuery.data || EMPTY_INVITATIONS;
 
   const filteredMembers = useMemo(() => {
     const keyword = search.trim().toLowerCase();
@@ -102,10 +125,21 @@ const EventMembersPage = ({ user, onLogout }) => {
     });
   }, [departmentFilter, members, roleFilter, search]);
 
-  const handleSubmit = (event) => {
-    event.preventDefault();
-    setInviteSuccess('');
-    addMemberMutation.mutate({ eventId, payload: form });
+  const handleInviteSubmit = (submitEvent) => {
+    submitEvent.preventDefault();
+    setInviteResult(null);
+    const emails = parseEmailList(inviteForm.emails);
+    if (!emails.length || bulkInviteMutation.isPending) {
+      return;
+    }
+
+    bulkInviteMutation.mutate({
+      eventId,
+      payload: {
+        emails,
+        role: inviteForm.role,
+      },
+    });
   };
 
   return (
@@ -122,7 +156,7 @@ const EventMembersPage = ({ user, onLogout }) => {
             <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-sky-100 blur-3xl" />
             <div className="pointer-events-none absolute -bottom-28 left-1/3 h-64 w-64 rounded-full bg-emerald-100/70 blur-3xl" />
 
-            <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="relative grid gap-5 xl:grid-cols-[minmax(260px,0.7fr)_minmax(0,1.3fr)]">
               <div className="flex items-start gap-3">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-400 text-white shadow-lg shadow-cyan-100">
                   <UserPlus className="h-6 w-6" strokeWidth={1.8} />
@@ -130,64 +164,67 @@ const EventMembersPage = ({ user, onLogout }) => {
 
                 <div>
                   <h3 className="text-lg font-black text-slate-950">
-                    Mời thành viên mới
+                    Mời thành viên hàng loạt
                   </h3>
                   <p className="mt-1 text-sm font-semibold leading-6 text-slate-500">
-                    Nhập email và chọn role để gửi lời mời tham gia sự kiện.
+                    Dán nhiều email, mỗi email cách nhau bằng dòng mới, dấu phẩy, dấu chấm phẩy hoặc khoảng trắng.
                   </p>
                 </div>
               </div>
 
-              <form
-                onSubmit={handleSubmit}
-                className="grid w-full gap-3 lg:max-w-3xl md:grid-cols-[1fr_150px_auto]"
-              >
-                <input
-                  type="email"
-                  value={form.email}
-                  onChange={(event) => setForm((old) => ({ ...old, email: event.target.value }))}
-                  required
-                  placeholder="member@example.com"
-                  className={inputClassName}
+              <form onSubmit={handleInviteSubmit} className="grid gap-3">
+                <textarea
+                  value={inviteForm.emails}
+                  onChange={(event) => setInviteForm((old) => ({ ...old, emails: event.target.value }))}
+                  rows={5}
+                  placeholder="member1@example.com\nmember2@example.com\nmember3@example.com"
+                  className={`${inputClassName} min-h-32 resize-y leading-6`}
                 />
 
-                <select
-                  value={form.role}
-                  onChange={(event) => setForm((old) => ({ ...old, role: event.target.value }))}
-                  className={inputClassName}
-                >
-                  <option value="MEMBER">MEMBER</option>
-                  <option value="LEADER">LEADER</option>
-                </select>
+                <div className="grid gap-3 sm:grid-cols-[160px_1fr]">
+                  <select
+                    value={inviteForm.role}
+                    onChange={(event) => setInviteForm((old) => ({ ...old, role: event.target.value }))}
+                    className={inputClassName}
+                  >
+                    <option value="MEMBER">MEMBER</option>
+                    <option value="LEADER">LEADER</option>
+                  </select>
 
-                <button
-                  type="submit"
-                  disabled={addMemberMutation.isPending}
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 px-4 py-2 text-sm font-black text-white shadow-xl shadow-cyan-100 transition hover:-translate-y-0.5 hover:shadow-2xl hover:shadow-cyan-200 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {addMemberMutation.isPending ? (
-                    <Loader2 size={18} className="animate-spin" />
-                  ) : (
-                    <UserPlus size={18} />
-                  )}
-                  Gửi lời mời
-                </button>
+                  <button
+                    type="submit"
+                    disabled={!parseEmailList(inviteForm.emails).length || bulkInviteMutation.isPending}
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 px-4 py-2 text-sm font-black text-white shadow-xl shadow-cyan-100 transition hover:-translate-y-0.5 hover:shadow-2xl hover:shadow-cyan-200 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {bulkInviteMutation.isPending ? (
+                      <Loader2 size={18} className="animate-spin" />
+                    ) : (
+                      <Send size={18} />
+                    )}
+                    Gửi lời mời
+                  </button>
+                </div>
               </form>
             </div>
 
-            {inviteSuccess && (
-              <div className="relative mt-4 flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-black text-emerald-700">
-                <CheckCircle2 size={18} className="mt-0.5 shrink-0" />
-                <span>{inviteSuccess}</span>
-              </div>
-            )}
+            {inviteResult && <BulkInviteResult result={inviteResult} />}
 
-            {addMemberMutation.error && (
+            {bulkInviteMutation.error && (
               <div className="relative mt-4">
-                <ErrorState error={addMemberMutation.error} title="Không gửi được lời mời" />
+                <ErrorState error={bulkInviteMutation.error} title="Không gửi được lời mời" />
               </div>
             )}
           </Panel>
+        )}
+
+        {isLeader && (
+          <InvitationPanel
+            invitations={invitations}
+            isLoading={invitationsQuery.isLoading}
+            error={invitationsQuery.error || cancelInvitationMutation.error}
+            cancelInvitationMutation={cancelInvitationMutation}
+            eventId={eventId}
+          />
         )}
 
         <Panel className="overflow-hidden">
@@ -266,7 +303,7 @@ const EventMembersPage = ({ user, onLogout }) => {
               <EmptyState
                 icon={Users}
                 title="Chưa có thành viên"
-                description="Khi gửi lời mời hoặc có thành viên tham gia sự kiện, danh sách sẽ hiển thị tại đây."
+                description="Khi lời mời được xác nhận, thành viên sẽ hiển thị tại đây."
               />
             </div>
           )}
@@ -315,6 +352,138 @@ const EventMembersPage = ({ user, onLogout }) => {
         </Panel>
       </div>
     </AppLayout>
+  );
+};
+
+const BulkInviteResult = ({ result }) => {
+  const failedItems = (result.results || []).filter((item) => item.status !== 'SENT');
+
+  return (
+    <div className="relative mt-4 rounded-2xl border border-sky-100 bg-white/85 p-4 shadow-sm">
+      <div className="flex flex-wrap items-center gap-3 text-sm font-black">
+        <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-emerald-700">
+          <CheckCircle2 size={16} />
+          {result.sentCount || 0} đã gửi
+        </span>
+        <span className="inline-flex items-center gap-2 rounded-full bg-red-50 px-3 py-1.5 text-red-700">
+          <XCircle size={16} />
+          {result.failedCount || 0} lỗi
+        </span>
+      </div>
+
+      {failedItems.length > 0 && (
+        <div className="mt-3 overflow-x-auto rounded-2xl border border-red-100">
+          <table className="w-full min-w-[560px] text-left text-sm">
+            <thead className="bg-red-50 text-xs font-black uppercase tracking-[0.14em] text-red-500">
+              <tr>
+                <th className="px-4 py-3">Email</th>
+                <th className="px-4 py-3">Lỗi</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-red-50 bg-white">
+              {failedItems.map((item, index) => (
+                <tr key={`${item.email}-${index}`}>
+                  <td className="px-4 py-3 font-bold text-slate-800">{item.email || '-'}</td>
+                  <td className="px-4 py-3 font-semibold text-red-600">{item.message}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const InvitationPanel = ({ invitations, isLoading, error, cancelInvitationMutation, eventId }) => (
+  <Panel className="overflow-hidden">
+    <div className="flex items-center gap-3 border-b border-sky-100 bg-gradient-to-r from-sky-50 via-white to-emerald-50 px-5 py-5">
+      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-400 text-white shadow-lg shadow-cyan-100">
+        <Mail className="h-5 w-5" strokeWidth={1.8} />
+      </div>
+      <div>
+        <h2 className="text-lg font-black text-slate-950">Lời mời thành viên</h2>
+        <p className="mt-1 text-sm font-semibold text-slate-500">Theo dõi trạng thái và hủy lời mời đang chờ xác nhận.</p>
+      </div>
+    </div>
+
+    {isLoading && (
+      <div className="p-5">
+        <LoadingState message="Đang tải lời mời..." />
+      </div>
+    )}
+
+    {error && (
+      <div className="p-5">
+        <ErrorState error={error} title="Không thao tác được lời mời" />
+      </div>
+    )}
+
+    {!isLoading && !error && invitations.length === 0 && (
+      <div className="p-5">
+        <EmptyState icon={Mail} title="Chưa có lời mời" description="Các lời mời đã gửi sẽ xuất hiện tại đây để bạn theo dõi trạng thái." />
+      </div>
+    )}
+
+    {!isLoading && invitations.length > 0 && (
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[860px] text-left text-sm">
+          <thead className="bg-sky-50/70 text-xs font-black uppercase tracking-[0.18em] text-slate-500">
+            <tr>
+              <th className="px-5 py-4">Email</th>
+              <th className="px-5 py-4">Role</th>
+              <th className="px-5 py-4">Trạng thái</th>
+              <th className="px-5 py-4">Hết hạn</th>
+              <th className="px-5 py-4 text-right">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-sky-50">
+            {invitations.map((invitation) => {
+              const cancelling = cancelInvitationMutation.isPending
+                && cancelInvitationMutation.variables?.invitationId === invitation.id;
+              return (
+                <tr key={invitation.id} className="transition hover:bg-sky-50/70">
+                  <td className="px-5 py-4 font-bold text-slate-800">{invitation.email}</td>
+                  <td className="px-5 py-4"><StatusBadge status={invitation.role} /></td>
+                  <td className="px-5 py-4"><InvitationStatusBadge status={invitation.status} /></td>
+                  <td className="px-5 py-4 font-semibold text-slate-600">{formatDate(invitation.expiresAt)}</td>
+                  <td className="px-5 py-4 text-right">
+                    {invitation.status === 'PENDING' && (
+                      <button
+                        type="button"
+                        onClick={() => cancelInvitationMutation.mutate({ eventId, invitationId: invitation.id })}
+                        disabled={cancelling}
+                        className="inline-flex items-center justify-center gap-2 rounded-2xl border border-red-100 bg-red-50 px-3 py-2 text-sm font-black text-red-600 shadow-sm transition hover:-translate-y-0.5 hover:border-red-200 hover:bg-red-100 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {cancelling ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                        Hủy
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    )}
+  </Panel>
+);
+
+const InvitationStatusBadge = ({ status }) => {
+  const meta = {
+    PENDING: { label: 'Đang chờ', className: 'border-amber-200 bg-amber-50 text-amber-700', icon: Clock3 },
+    ACCEPTED: { label: 'Đã tham gia', className: 'border-emerald-200 bg-emerald-50 text-emerald-700', icon: CheckCircle2 },
+    CANCELLED: { label: 'Đã hủy', className: 'border-slate-200 bg-slate-50 text-slate-600', icon: XCircle },
+    EXPIRED: { label: 'Hết hạn', className: 'border-red-200 bg-red-50 text-red-700', icon: AlertTriangle },
+  }[status] || { label: status || 'Không rõ', className: 'border-slate-200 bg-slate-50 text-slate-600', icon: AlertTriangle };
+  const Icon = meta.icon;
+
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-black shadow-sm ${meta.className}`}>
+      <Icon size={13} />
+      {meta.label}
+    </span>
   );
 };
 
@@ -423,6 +592,11 @@ const MemberRow = ({
     </tr>
   );
 };
+
+const parseEmailList = (value) => value
+  .split(/[\s,;]+/)
+  .map((email) => email.trim())
+  .filter(Boolean);
 
 const inputClassName = 'min-h-11 w-full min-w-0 rounded-2xl border border-sky-100 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:bg-white focus:ring-4 focus:ring-cyan-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500';
 

@@ -28,6 +28,33 @@ const eventMemberApi = {
     return response.data;
   },
 
+  bulkInviteMembers: async ({ eventId, payload }) => {
+    if (!eventId) {
+      throw new Error('eventId không hợp lệ');
+    }
+
+    const response = await apiClient.post(`/events/${eventId}/members/bulk-invitations`, payload);
+    return response.data;
+  },
+
+  getInvitations: async (eventId) => {
+    if (!eventId) {
+      throw new Error('eventId không hợp lệ');
+    }
+
+    const response = await apiClient.get(`/events/${eventId}/members/invitations`);
+    return response.data;
+  },
+
+  cancelInvitation: async ({ eventId, invitationId }) => {
+    if (!eventId || !invitationId) {
+      throw new Error('eventId/invitationId không hợp lệ');
+    }
+
+    const response = await apiClient.delete(`/events/${eventId}/members/invitations/${invitationId}`);
+    return response.data;
+  },
+
   confirmInvitation: async (token) => {
     if (!token) {
       throw new Error('Token lời mời không hợp lệ');

@@ -102,7 +102,7 @@ const AppLayoutFrame = ({
 
   const eventNav = selectedEvent?.id
     ? [
-      { to: `/events/${selectedEvent.id}`, label: t('sidebar.dashboard'), icon: Workflow },
+      { to: `/events/${selectedEvent.id}`, label: t('sidebar.info'), icon: Workflow },
       ...(permissions.canViewEventDashboard ? [{ to: `/events/${selectedEvent.id}/dashboard`, label: t('sidebar.dashboard'), icon: BarChart3 }] : []),
       { to: `/events/${selectedEvent.id}/plannings`, label: t('sidebar.plannings'), icon: Layers },
       { to: `/events/${selectedEvent.id}/tasks`, label: t('sidebar.tasks'), icon: ClipboardList },

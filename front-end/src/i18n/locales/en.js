@@ -51,6 +51,8 @@ const en = {
     },
 
     sidebar: {
+      info: 'Info',
+
       dashboard: 'Dashboard',
 
       events: 'Events',

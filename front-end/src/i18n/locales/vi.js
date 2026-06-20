@@ -36,6 +36,8 @@ const vi = {
     },
 
     sidebar: {
+      info: 'Thông tin',
+
       dashboard: 'Tổng quan',
 
       events: 'Sự kiện',

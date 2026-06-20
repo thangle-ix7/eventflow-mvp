@@ -124,8 +124,8 @@ const LandingPage = () => {
       </header>
 
       <main className="relative z-10">
-        <section className="mx-auto grid min-h-[calc(100vh-80px)] max-w-7xl items-center gap-10 px-4 py-12 sm:px-5 sm:py-16 lg:grid-cols-[1.02fr_0.98fr] lg:px-8 lg:py-20">
-          <div>
+        <section className="mx-auto grid min-h-[calc(100vh-80px)] max-w-7xl items-center gap-10 px-4 py-12 sm:px-5 sm:py-16 lg:px-8 lg:py-20 xl:grid-cols-[minmax(0,1.02fr)_minmax(0,0.98fr)]">
+          <div className="relative z-10 min-w-0">
             <div
               className="mb-7 inline-flex items-center gap-2 rounded-full border border-cyan-200 bg-white/80 px-4 py-2 text-sm font-black text-sky-600 shadow-lg shadow-sky-100/80 backdrop-blur"
               style={{ animation: 'ef-float-soft 5s ease-in-out infinite' }}
@@ -172,8 +172,8 @@ const LandingPage = () => {
             </div>
           </div>
 
-          <div className="relative min-w-0">
-            <div className="absolute -left-8 top-12 hidden rounded-3xl border border-sky-100 bg-white/90 p-4 shadow-2xl shadow-sky-200/60 backdrop-blur-xl md:block">
+          <div className="relative min-w-0 xl:justify-self-end">
+            <div className="absolute -left-8 top-12 hidden rounded-3xl border border-sky-100 bg-white/90 p-4 shadow-2xl shadow-sky-200/60 backdrop-blur-xl">
               <div className="flex items-center gap-3">
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-400 text-white">
                   <WandSparkles className="h-6 w-6" />
@@ -185,7 +185,7 @@ const LandingPage = () => {
               </div>
             </div>
 
-            <div className="absolute -right-4 bottom-20 hidden rounded-3xl border border-emerald-100 bg-white/90 p-4 shadow-2xl shadow-emerald-200/60 backdrop-blur-xl md:block">
+            <div className="absolute -right-4 bottom-20 hidden rounded-3xl border border-emerald-100 bg-white/90 p-4 shadow-2xl shadow-emerald-200/60 backdrop-blur-xl">
               <div className="flex items-center gap-3">
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-400 text-white">
                   <CheckCircle2 className="h-6 w-6" />
@@ -198,7 +198,7 @@ const LandingPage = () => {
             </div>
 
             <div
-              className="relative mx-auto max-w-[620px]"
+              className="relative mx-auto w-full max-w-[620px] xl:max-w-[560px] 2xl:max-w-[620px]"
               style={{ animation: 'ef-float 7s ease-in-out infinite' }}
             >
               <div className="absolute inset-0 rounded-[3rem] bg-gradient-to-br from-sky-300/80 via-cyan-200/60 to-emerald-300/70 blur-3xl" />
@@ -242,7 +242,7 @@ const LandingPage = () => {
                           <p className="text-xs font-black uppercase tracking-[0.22em] text-sky-500">
                             Upcoming Event
                           </p>
-                          <h2 className="mt-2 text-2xl font-black text-slate-950">
+                          <h2 className="mt-2 break-words text-2xl font-black text-slate-950">
                             FPTU Music Festival
                           </h2>
                         </div>
