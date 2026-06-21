@@ -69,8 +69,10 @@ public class TaskService {
             String search,
             String sort,
             String direction,
+            String deadlineStatus,
             boolean includeSubtasks) {
 
+        LocalDateTime now = LocalDateTime.now();
         List<Task> tasks = taskRepository.findAllByEventIdWithFilters(
                 eventId,
                 parseOptionalStatus(status),
@@ -78,6 +80,8 @@ public class TaskService {
                 departmentId,
                 assigneeId,
                 normalizeSearch(search),
+                normalizeDeadlineStatus(deadlineStatus),
+                now,
                 includeSubtasks,
                 Sort.by(resolveDirection(direction), resolveSort(sort)));
 
@@ -116,6 +120,7 @@ public class TaskService {
             String search,
             LocalDate fromDate,
             LocalDate toDate,
+            String deadlineStatus,
             boolean includeSubtasks) {
 
         var pageable = PageRequest.of(
@@ -126,6 +131,8 @@ public class TaskService {
         TaskStatus parsedStatus = parseOptionalStatus(status);
         TaskPriority parsedPriority = parseOptionalPriority(priority);
         String searchPattern = normalizeSearch(search);
+        String normalizedDeadlineStatus = normalizeDeadlineStatus(deadlineStatus);
+        LocalDateTime now = LocalDateTime.now();
         var taskPage = fromDate != null && toDate != null
                 ? taskRepository.findPageByEventIdWithFiltersAndDeadlineRange(
                         eventId,
@@ -134,6 +141,8 @@ public class TaskService {
                         departmentId,
                         assigneeId,
                         searchPattern,
+                        normalizedDeadlineStatus,
+                        now,
                         includeSubtasks,
                         startOfDay(fromDate),
                         endExclusive(toDate),
@@ -145,6 +154,8 @@ public class TaskService {
                         departmentId,
                         assigneeId,
                         searchPattern,
+                        normalizedDeadlineStatus,
+                        now,
                         includeSubtasks,
                         pageable);
 
@@ -196,6 +207,7 @@ public class TaskService {
                 .status(status)
                 .priority(priority)
                 .deadline(request.getDeadline())
+                .reminderOffsetMinutes(resolveReminderOffsetMinutes(request.getReminderOffsetMinutes()))
                 .progressPercentage(resolveProgress(request.getProgressPercentage(), status, 0))
                 .build();
 
@@ -229,6 +241,7 @@ public class TaskService {
                 .status(status)
                 .priority(priority)
                 .deadline(request.getDeadline())
+                .reminderOffsetMinutes(resolveReminderOffsetMinutes(request.getReminderOffsetMinutes()))
                 .progressPercentage(progressFromSubtaskStatus(status))
                 .build();
 
@@ -268,6 +281,7 @@ public class TaskService {
         task.setStatus(status);
         task.setPriority(parsePriorityOrDefault(request.getPriority(), task.getPriority()));
         task.setDeadline(request.getDeadline());
+        task.setReminderOffsetMinutes(resolveReminderOffsetMinutes(request.getReminderOffsetMinutes()));
         if (task.getParent() != null) {
             task.setProgressPercentage(progressFromSubtaskStatus(status));
         } else if (!hasSubtasks) {
@@ -604,10 +618,55 @@ public class TaskService {
                 .status(task.getStatus())
                 .priority(task.getPriority())
                 .deadline(task.getDeadline())
+                .reminderOffsetMinutes(resolveReminderOffsetMinutes(task.getReminderOffsetMinutes()))
+                .deadlineStatus(resolveDeadlineStatus(task))
+                .minutesUntilDeadline(resolveMinutesUntilDeadline(task.getDeadline()))
                 .progressPercentage(task.getProgressPercentage() != null ? task.getProgressPercentage() : 0)
                 .assigneeId(task.getAssignee() != null ? task.getAssignee().getId() : null)
                 .assigneeName(task.getAssignee() != null ? task.getAssignee().getName() : "Chưa phân công")
                 .build();
+    }
+
+    private Integer resolveReminderOffsetMinutes(Integer requestedOffsetMinutes) {
+        return requestedOffsetMinutes != null ? requestedOffsetMinutes : 1440;
+    }
+
+    private String normalizeDeadlineStatus(String deadlineStatus) {
+        if (deadlineStatus == null || deadlineStatus.isBlank()) {
+            return null;
+        }
+
+        String normalized = deadlineStatus.trim().toUpperCase();
+        if (!List.of("ACTIVE", "OVERDUE").contains(normalized)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Trạng thái deadline không hợp lệ");
+        }
+        return normalized;
+    }
+
+    private String resolveDeadlineStatus(Task task) {
+        if (task.getStatus() == TaskStatus.DONE) {
+            return "COMPLETED";
+        }
+
+        LocalDateTime deadline = task.getDeadline();
+        if (deadline == null) {
+            return "NO_DEADLINE";
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        if (deadline.isBefore(now)) {
+            return "OVERDUE";
+        }
+
+        if (!deadline.isAfter(now.plusMinutes(resolveReminderOffsetMinutes(task.getReminderOffsetMinutes())))) {
+            return "DUE_SOON";
+        }
+
+        return "ON_TRACK";
+    }
+
+    private Long resolveMinutesUntilDeadline(LocalDateTime deadline) {
+        return deadline != null ? java.time.Duration.between(LocalDateTime.now(), deadline).toMinutes() : null;
     }
 
     private Integer resolveProgress(Integer requestedProgress, TaskStatus status, Integer defaultProgress) {
@@ -772,3 +831,4 @@ public class TaskService {
                 task.getStatus().name());
     }
 }
+

@@ -10,6 +10,7 @@ const STATUS_META = {
   LEADER: { label: 'Trưởng nhóm', className: 'border-sky-200 bg-sky-50 text-sky-700' },
   MEMBER: { label: 'Thành viên', className: 'border-slate-200 bg-slate-50 text-slate-700' },
   OVERDUE: { label: 'Quá hạn', className: 'border-red-200 bg-red-50 text-red-700' },
+  DUE_SOON: { label: 'Gần hạn', className: 'border-amber-200 bg-amber-50 text-amber-700' },
 };
 
 const PRIORITY_META = {
@@ -254,3 +255,4 @@ export const ProgressBar = ({ value = 0, tone = 'indigo' }) => {
     </div>
   );
 };
+

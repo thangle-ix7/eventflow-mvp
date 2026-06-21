@@ -175,22 +175,23 @@ public class DashboardService {
     }
 
     private List<ChartPointDTO> getTaskTrend(Long eventId, Long departmentId, LocalDate fromDate, LocalDate toDate) {
-        String departmentClause = departmentId == null ? "" : " AND department_id = ? ";
-        String dateClause = fromDate == null || toDate == null ? "" : " AND deadline >= CAST(? AS date) AND deadline < (CAST(? AS date) + INTERVAL '1 day') ";
+        String departmentClause = departmentId == null ? "" : " AND h.department_id = ? ";
+        String dateClause = fromDate == null || toDate == null ? "" : " AND h.changed_at >= CAST(? AS date) AND h.changed_at < (CAST(? AS date) + INTERVAL '1 day') ";
         Object[] params = buildTrendParams(eventId, departmentId, fromDate, toDate);
 
         return jdbcTemplate.query("""
                 WITH event_start AS (
                     SELECT COALESCE(CAST(? AS date), DATE_TRUNC('day', event_date)::date) AS start_day,
-                           COALESCE(CAST(? AS date), DATE_TRUNC('day', event_date)::date) AS requested_end_day
+                           CAST(? AS date) AS requested_end_day
                     FROM events
                     WHERE id = ?
                 ),
-                filtered_tasks AS (
-                    SELECT deadline, status
-                    FROM tasks
-                    WHERE event_id = ?
-                    AND parent_id IS NULL
+                filtered_status_updates AS (
+                    SELECT h.changed_at, h.status
+                    FROM task_status_history h
+                    JOIN tasks t ON t.id = h.task_id
+                    WHERE h.event_id = ?
+                    AND t.parent_id IS NULL
                     """ + departmentClause + """
                     """ + dateClause + """
                 ),
@@ -199,10 +200,10 @@ public class DashboardService {
                         es.start_day,
                         GREATEST(
                             es.start_day,
-                            COALESCE(es.requested_end_day, DATE_TRUNC('day', MAX(ft.deadline))::date, es.start_day)
+                            COALESCE(es.requested_end_day, DATE_TRUNC('day', MAX(fsu.changed_at))::date, es.start_day)
                         ) AS end_day
                     FROM event_start es
-                    LEFT JOIN filtered_tasks ft ON TRUE
+                    LEFT JOIN filtered_status_updates fsu ON TRUE
                     GROUP BY es.start_day, es.requested_end_day
                 ),
                 days AS (
@@ -210,14 +211,14 @@ public class DashboardService {
                     FROM bounds
                 ),
                 daily_counts AS (
-                    SELECT DATE_TRUNC('day', deadline)::date AS day,
+                    SELECT DATE_TRUNC('day', changed_at)::date AS day,
                            COUNT(*) AS total_tasks,
                            COALESCE(SUM(CASE WHEN status = 'TODO' THEN 1 ELSE 0 END), 0) AS todo_tasks,
                            COALESCE(SUM(CASE WHEN status = 'IN_PROGRESS' THEN 1 ELSE 0 END), 0) AS in_progress_tasks,
                            COALESCE(SUM(CASE WHEN status = 'IN_REVIEW' THEN 1 ELSE 0 END), 0) AS in_review_tasks,
                            COALESCE(SUM(CASE WHEN status = 'DONE' THEN 1 ELSE 0 END), 0) AS completed_tasks
-                    FROM filtered_tasks
-                    GROUP BY DATE_TRUNC('day', deadline)::date
+                    FROM filtered_status_updates
+                    GROUP BY DATE_TRUNC('day', changed_at)::date
                 )
                 SELECT TO_CHAR(d.day, 'YYYY-MM-DD') AS label,
                        COALESCE(dc.total_tasks, 0) AS total_tasks,
@@ -255,35 +256,51 @@ public class DashboardService {
     }
 
     private List<CategoryMetricDTO> getTasksByStatus(Long eventId, Long departmentId, LocalDate fromDate, LocalDate toDate) {
-        String departmentClause = departmentId == null ? "" : " AND department_id = ? ";
-        String dateClause = fromDate == null || toDate == null ? "" : " AND deadline >= CAST(? AS date) AND deadline < (CAST(? AS date) + INTERVAL '1 day') ";
+        boolean hasDateRange = fromDate != null && toDate != null;
+        String tableAlias = hasDateRange ? "h" : "t";
+        String statusColumn = tableAlias + ".status";
+        String departmentClause = departmentId == null ? "" : " AND " + tableAlias + ".department_id = ? ";
+        String dateClause = hasDateRange ? " AND h.changed_at >= CAST(? AS date) AND h.changed_at < (CAST(? AS date) + 1) " : "";
         java.util.ArrayList<Object> params = new java.util.ArrayList<>();
         params.add(eventId);
         if (departmentId != null) {
             params.add(departmentId);
         }
-        if (fromDate != null && toDate != null) {
+        if (hasDateRange) {
             params.add(fromDate);
             params.add(toDate);
         }
 
-        return jdbcTemplate.query("""
-                SELECT status AS label,
+        String sourceQuery = hasDateRange ? """
+                SELECT h.status AS label,
                        COUNT(*) AS total_tasks
-                FROM tasks
-                WHERE event_id = ?
-                AND parent_id IS NULL
-                """ + departmentClause + """
-                """ + dateClause + """
-                GROUP BY status
-                ORDER BY CASE status
+                FROM task_status_history h
+                JOIN tasks t ON t.id = h.task_id
+                WHERE h.event_id = ?
+                AND t.parent_id IS NULL
+                """ : """
+                SELECT t.status AS label,
+                       COUNT(*) AS total_tasks
+                FROM tasks t
+                WHERE t.event_id = ?
+                AND t.parent_id IS NULL
+                """;
+
+        String groupedQuery = """
+                SELECT label, total_tasks
+                FROM (
+                """ + sourceQuery + departmentClause + dateClause + " GROUP BY " + statusColumn + """
+                ) status_counts
+                ORDER BY CASE label
                     WHEN 'TODO' THEN 1
                     WHEN 'IN_PROGRESS' THEN 2
                     WHEN 'IN_REVIEW' THEN 3
                     WHEN 'DONE' THEN 4
                     ELSE 5
                 END
-                """, (rs, rowNum) -> CategoryMetricDTO.builder()
+                """;
+
+        return jdbcTemplate.query(groupedQuery, (rs, rowNum) -> CategoryMetricDTO.builder()
                 .label(rs.getString("label"))
                 .totalTasks(rs.getLong("total_tasks"))
                 .completedTasks(0L)
@@ -314,3 +331,4 @@ public class DashboardService {
         }
     }
 }
+

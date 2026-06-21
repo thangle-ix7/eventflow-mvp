@@ -11,6 +11,7 @@ import DepartmentMembersPage from './pages/DepartmentMembersPage';
 import DepartmentTasksPage from './pages/DepartmentTasksPage';
 import EventCreatePage from './pages/EventCreatePage';
 import EventCheckInPage from './pages/EventCheckInPage';
+import EventCheckInSessionPage from './pages/EventCheckInSessionPage';
 import EventDetailPage from './pages/EventDetailPage';
 import EventEditPage from './pages/EventEditPage';
 import EventListPage from './pages/EventListPage';
@@ -255,6 +256,11 @@ function App() {
           <Route
             path="/events/:eventId/check-in"
             element={<EventCheckInPage {...protectedProps} />}
+          />
+
+          <Route
+            path="/events/:eventId/check-in/sessions/:sessionId"
+            element={<EventCheckInSessionPage {...protectedProps} />}
           />
 
           <Route
@@ -512,3 +518,5 @@ const resolveErrorTitle = (status) => {
 };
 
 export default App;
+
+

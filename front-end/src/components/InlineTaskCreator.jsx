@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Plus, Save, Sparkles, X } from 'lucide-react';
 import aiSuggestionApi from '../api/aiSuggestionApi';
+import milestoneApi from '../api/milestoneApi';
 import AiSuggestionDetailModal from './AiSuggestionDetailModal';
 import eventMemberApi from '../api/eventMemberApi';
 import taskApi from '../api/taskApi';
@@ -31,12 +32,19 @@ const createEmptyRow = (departmentId = '', assigneeId = '', status = 'TODO') => 
   description: '',
   departmentId: departmentId ? String(departmentId) : '',
   assigneeId: assigneeId ? String(assigneeId) : '',
+  milestoneId: '',
   deadline: '',
+  reminderOffsetHours: 24,
   status,
   priority: 'MEDIUM',
 });
 
 const normalizeSuggestedDeadline = (value) => (value ? toDateTimeLocalValue(value) || String(value).slice(0, 16) : '');
+
+const autoResizeTextarea = (element) => {
+  element.style.height = 'auto';
+  element.style.height = `${element.scrollHeight}px`;
+};
 
 const workloadText = (workload) => {
   if (!workload) {
@@ -94,6 +102,12 @@ const InlineTaskCreator = ({
     queryKey: ['eventMembers', eventId],
     queryFn: () => eventMemberApi.getMembers(eventId),
     enabled: Boolean(eventId),
+  });
+
+  const milestonesQuery = useQuery({
+    queryKey: ['eventMilestones', eventId],
+    queryFn: () => milestoneApi.getEventMilestones(eventId),
+    enabled: Boolean(eventId && !parentTaskId),
   });
 
   const getEffectiveDepartmentId = useCallback(
@@ -224,6 +238,7 @@ const InlineTaskCreator = ({
         description: task.description || '',
         departmentId: task.departmentId ? String(task.departmentId) : String(departmentId || ''),
         assigneeId: task.assigneeId ? String(task.assigneeId) : String(assigneeId || ''),
+        milestoneId: task.milestoneId ? String(task.milestoneId) : '',
         deadline: normalizeSuggestedDeadline(task.deadline),
         status: task.status || initialStatus,
         priority: task.priority || 'MEDIUM',
@@ -290,10 +305,11 @@ const InlineTaskCreator = ({
         description: row.description,
         departmentId: effectiveDepartmentId ? Number(effectiveDepartmentId) : null,
         assigneeId: effectiveAssigneeId ? Number(effectiveAssigneeId) : null,
+        milestoneId: !parentTaskId && row.milestoneId ? Number(row.milestoneId) : null,
         status: row.status,
         priority: row.priority,
         deadline: row.deadline || defaultDeadline,
-        progressPercentage: 0,
+        reminderOffsetMinutes: Math.round(Number(row.reminderOffsetHours || 0) * 60),
       };
     }));
   };
@@ -376,7 +392,7 @@ const InlineTaskCreator = ({
                   onChange={(event) => setSuggestionInstruction(event.target.value)}
                   disabled={suggestionMutation.isPending || mutation.isPending}
                   className="min-h-11 w-full min-w-0 rounded-xl border border-sky-100 bg-white px-10 py-2.5 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100 disabled:bg-slate-50 disabled:text-slate-500"
-                  placeholder="Bối cảnh cho AI, ví dụ: sự kiện âm nhạc 200 người, cần chia việc hậu cần..."
+                  placeholder="Bối cảnh AI"
                 />
               </div>
 
@@ -392,14 +408,16 @@ const InlineTaskCreator = ({
             </div>
 
             <div className="min-h-0 flex-1 overflow-auto bg-gradient-to-br from-white via-sky-50/25 to-emerald-50/30">
-              <div className="min-w-[1400px]">
+              <div className="min-w-[1860px]">
                 <div className={taskCreatorGridHeaderClassName}>
                   <span>#</span>
                   <span>Tên công việc</span>
                   <span>Mô tả</span>
                   <span>Ban</span>
                   <span>Phụ trách</span>
+                  <span>Cột mốc</span>
                   <span>Hạn</span>
+                  <span>Cảnh báo (giờ)</span>
                   <span>Ưu tiên</span>
                   <span>Trạng thái</span>
                   <span></span>
@@ -423,25 +441,28 @@ const InlineTaskCreator = ({
                         {index + 1}
                       </span>
 
-                      <input
+                      <textarea
                         value={row.title}
                         onChange={(event) => updateRow(row.id, 'title', event.target.value)}
+                        onInput={(event) => autoResizeTextarea(event.currentTarget)}
                         disabled={mutation.isPending}
                         maxLength={255}
                         placeholder="Tên công việc"
                         aria-label="Tên công việc"
-                        className={taskInputClassName}
+                        rows={1}
+                        className={taskTextareaClassName}
                       />
 
                       <textarea
                         value={row.description}
                         onChange={(event) => updateRow(row.id, 'description', event.target.value)}
+                        onInput={(event) => autoResizeTextarea(event.currentTarget)}
                         disabled={mutation.isPending}
                         maxLength={2000}
-                        placeholder="Ghi chú"
+                        placeholder="Mô tả"
                         aria-label="Mô tả"
                         rows={1}
-                        className={`${taskInputClassName} min-h-10 resize-y py-2 leading-5`}
+                        className={taskTextareaClassName}
                       />
 
                       <select
@@ -492,6 +513,20 @@ const InlineTaskCreator = ({
                         )}
                       </div>
 
+                      <select
+                        value={row.milestoneId}
+                        onChange={(event) => updateRow(row.id, 'milestoneId', event.target.value)}
+                        disabled={parentTaskId || mutation.isPending || milestonesQuery.isLoading}
+                        aria-label="Cột mốc"
+                        className={taskInputClassName}
+                      >
+                        <option value="">Chưa gán cột mốc</option>
+                        {milestonesQuery.data?.map((milestone) => (
+                          <option key={milestone.id} value={milestone.id}>
+                            {milestone.name}
+                          </option>
+                        ))}
+                      </select>
                       <input
                         type="datetime-local"
                         value={row.deadline || defaultDeadline}
@@ -501,6 +536,19 @@ const InlineTaskCreator = ({
                         aria-label="Hạn"
                         className={taskInputClassName}
                       />
+
+                      <input
+                        type="number"
+                        min="0"
+                        max="8760"
+                        step="0.5"
+                        value={row.reminderOffsetHours}
+                        onChange={(event) => updateRow(row.id, 'reminderOffsetHours', event.target.value)}
+                        disabled={mutation.isPending}
+                        aria-label="Cảnh báo vàng trước hạn theo giờ"
+                        className={taskInputClassName}
+                      />
+
 
                       <select
                         value={row.priority}
@@ -607,7 +655,9 @@ const InlineTaskCreator = ({
                 description: cleaned.description || '',
                 departmentId: cleaned.departmentId ? String(cleaned.departmentId) : row.departmentId,
                 assigneeId: cleaned.assigneeId ? String(cleaned.assigneeId) : row.assigneeId,
+                milestoneId: cleaned.milestoneId ? String(cleaned.milestoneId) : row.milestoneId,
                 deadline: normalizeSuggestedDeadline(cleaned.deadline) || row.deadline,
+                reminderOffsetHours: row.reminderOffsetHours || 24,
                 status: cleaned.status || row.status,
                 priority: cleaned.priority || row.priority,
                 aiSuggestion: cleaned,
@@ -621,9 +671,18 @@ const InlineTaskCreator = ({
   );
 };
 
-const taskCreatorGridColumns = 'grid-cols-[36px_minmax(220px,1.05fr)_minmax(280px,1.25fr)_170px_250px_190px_120px_118px_82px]';
-const taskCreatorGridHeaderClassName = `grid min-w-[1400px] ${taskCreatorGridColumns} items-center gap-2 border-b border-sky-100 bg-sky-50/80 px-5 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-slate-500`;
-const taskCreatorGridRowClassName = `grid min-w-[1400px] ${taskCreatorGridColumns} items-start gap-2 border-b border-sky-100/70 bg-white/80 px-5 py-3 transition hover:bg-sky-50/70 last:border-b-0`;
+const taskCreatorGridColumns = 'grid-cols-[36px_minmax(240px,1.05fr)_minmax(320px,1.2fr)_170px_250px_190px_190px_112px_120px_118px_82px]';
+const taskCreatorGridHeaderClassName = `grid min-w-[1860px] ${taskCreatorGridColumns} items-center gap-2 border-b border-sky-100 bg-sky-50/80 px-5 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-slate-500`;
+const taskCreatorGridRowClassName = `grid min-w-[1860px] ${taskCreatorGridColumns} items-start gap-2 border-b border-sky-100/70 bg-white/80 px-5 py-3 transition hover:bg-sky-50/70 last:border-b-0`;
 const taskInputClassName = 'h-10 w-full min-w-0 rounded-xl border border-sky-100 bg-white px-3 text-xs font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100 disabled:bg-slate-50 disabled:text-slate-500';
+const taskTextareaClassName = 'min-h-10 w-full min-w-0 resize-none overflow-hidden rounded-xl border border-sky-100 bg-white px-3 py-2 text-xs font-semibold leading-5 text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100 disabled:bg-slate-50 disabled:text-slate-500';
 
 export default InlineTaskCreator;
+
+
+
+
+
+
+
+

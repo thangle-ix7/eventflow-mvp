@@ -22,6 +22,8 @@ public class EventAttendeeRequest {
 
     private String status;
 
+    private Long sessionId;
+
     @Size(max = 2000, message = "Ghi chu khong duoc vuot qua 2000 ky tu")
     private String note;
 }

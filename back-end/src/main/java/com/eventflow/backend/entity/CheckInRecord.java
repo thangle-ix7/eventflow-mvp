@@ -38,6 +38,10 @@ public class CheckInRecord {
     private EventAttendee attendee;
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "session_id")
+    private CheckInSession session;
+
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "checked_in_by_user_id")
     private User checkedInBy;
 

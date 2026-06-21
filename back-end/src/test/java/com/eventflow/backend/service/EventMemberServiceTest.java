@@ -1,5 +1,6 @@
 package com.eventflow.backend.service;
 
+import com.eventflow.backend.dto.EventMemberBulkInviteRequestDTO;
 import com.eventflow.backend.dto.EventMemberRequestDTO;
 import com.eventflow.backend.entity.Event;
 import com.eventflow.backend.entity.EventInvitation;
@@ -18,6 +19,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -25,6 +27,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -110,6 +113,59 @@ class EventMemberServiceTest {
     }
 
     @Test
+    void bulkInviteMembersReturnsPerEmailResultsAndKeepsValidInvites() {
+        Event event = Event.builder()
+                .id(10L)
+                .name("Workshop")
+                .eventDate(LocalDateTime.now().plusDays(7))
+                .build();
+        User leader = User.builder()
+                .id(1L)
+                .name("Leader")
+                .email("leader@example.com")
+                .build();
+        User invitee = User.builder()
+                .id(2L)
+                .name("Member")
+                .email("member@example.com")
+                .build();
+
+        when(eventRepository.findById(10L)).thenReturn(Optional.of(event));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(leader));
+        when(userRepository.findByEmail("member@example.com")).thenReturn(Optional.of(invitee));
+        when(userRepository.findByEmail("missing@example.com")).thenReturn(Optional.empty());
+        when(eventMemberRepository.existsByEventIdAndUserId(10L, 2L)).thenReturn(false);
+        when(eventInvitationRepository.findByEventIdAndInviteeIdAndStatus(10L, 2L, EventInvitationStatus.PENDING))
+                .thenReturn(Optional.empty());
+        when(eventInvitationRepository.save(any(EventInvitation.class))).thenAnswer(invocation -> {
+            EventInvitation invitation = invocation.getArgument(0);
+            invitation.setId(99L);
+            return invitation;
+        });
+
+        var response = eventMemberService.bulkInviteMembers(
+                10L,
+                new EventMemberBulkInviteRequestDTO(List.of(
+                        "member@example.com",
+                        "missing@example.com",
+                        "bad-email",
+                        "member@example.com"), "MEMBER"),
+                1L);
+
+        assertThat(response.getTotal()).isEqualTo(4);
+        assertThat(response.getSentCount()).isEqualTo(1);
+        assertThat(response.getFailedCount()).isEqualTo(3);
+        assertThat(response.getResults()).extracting("status")
+                .containsExactly("SENT", "FAILED", "FAILED", "FAILED");
+        assertThat(response.getResults()).extracting("message")
+                .containsExactly(
+                        "Đã gửi lời mời",
+                        "Email này chưa có tài khoản EventFlow",
+                        "Email không đúng định dạng",
+                        "Email bị trùng trong danh sách");
+        verify(authEmailService, times(1)).sendEventInvitationEmail(eq("member@example.com"), anyString(), eq("Workshop"), eq("Leader"));
+    }
+    @Test
     void confirmInvitationCreatesMembership() {
         Event event = Event.builder()
                 .id(10L)
@@ -145,3 +201,5 @@ class EventMemberServiceTest {
         verify(eventInvitationRepository).save(invitation);
     }
 }
+
+

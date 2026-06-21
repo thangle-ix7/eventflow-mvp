@@ -40,6 +40,7 @@ public class TaskController {
             @RequestParam(required = false) String search,
             @RequestParam(defaultValue = "deadline") String sort,
             @RequestParam(defaultValue = "asc") String direction,
+            @RequestParam(required = false) String deadlineStatus,
             Authentication authentication) {
 
         Long userId = (Long) authentication.getPrincipal();
@@ -58,6 +59,7 @@ public class TaskController {
                 search,
                 sort,
                 direction,
+                deadlineStatus,
                 isMember && !isLeader));
     }
 
@@ -75,6 +77,7 @@ public class TaskController {
             @RequestParam(required = false) String search,
             @RequestParam(required = false) LocalDate fromDate,
             @RequestParam(required = false) LocalDate toDate,
+            @RequestParam(required = false) String deadlineStatus,
             Authentication authentication) {
 
         Long userId = (Long) authentication.getPrincipal();
@@ -96,6 +99,7 @@ public class TaskController {
                 search,
                 fromDate,
                 toDate,
+                deadlineStatus,
                 !isLeader));
     }
 
@@ -290,3 +294,4 @@ public class TaskController {
                 || eventSecurityService.isTaskAssignee(taskId, userId);
     }
 }
+

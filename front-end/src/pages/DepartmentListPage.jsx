@@ -344,9 +344,7 @@ const DepartmentAiSuggestionPanel = ({
             <div className="text-sm font-black uppercase tracking-[0.18em] text-sky-600">
               AI gợi ý ban tổ chức
             </div>
-            <p className="mt-1 max-w-xl text-sm font-semibold leading-6 text-slate-500">
-              Nhập bối cảnh sự kiện để AI đề xuất các ban phù hợp, sau đó chọn ban cần lưu.
-            </p>
+
           </div>
         </div>
 
@@ -354,7 +352,7 @@ const DepartmentAiSuggestionPanel = ({
           <input
             value={instruction}
             onChange={(event) => setInstruction(event.target.value)}
-            placeholder="Context cho AI, ví dụ: sự kiện âm nhạc 500 người, cần hậu cần, truyền thông..."
+            placeholder="Bối cảnh AI"
             className={inputClassName}
           />
 
@@ -436,7 +434,7 @@ const DepartmentAiSuggestionPanel = ({
                       </p>
                     </td>
                     <td className="px-4 py-3 text-right align-top text-xs font-black text-cyan-600">
-                      Bấm vào hàng
+                      Chi tiết
                     </td>
                   </tr>
                 ))}

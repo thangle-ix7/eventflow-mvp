@@ -6,7 +6,6 @@ import {
   FileText,
   Loader2,
   ShieldCheck,
-  Sparkles,
   Users,
 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
@@ -85,7 +84,7 @@ const DepartmentCreatePage = ({ user, onLogout }) => {
             <PageHeader
               eyebrow={eventQuery.data?.name || 'Sự kiện'}
               title="Tạo ban tổ chức"
-              description="Thiết lập một ban mới, mô tả nhiệm vụ và chọn trưởng ban để quản lý công việc trong sự kiện."
+              description="Tạo ban mới và chọn trưởng ban."
               meta={
                 <>
                   <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-100 bg-white px-3 py-1.5 font-black text-sky-600 shadow-sm">
@@ -100,7 +99,7 @@ const DepartmentCreatePage = ({ user, onLogout }) => {
               }
             />
 
-            <div className="grid gap-6 lg:grid-cols-[1fr_0.72fr]">
+            <div>
               <Panel className="relative overflow-hidden">
                 <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-sky-100 blur-3xl" />
                 <div className="pointer-events-none absolute -bottom-24 left-1/3 h-64 w-64 rounded-full bg-emerald-100/70 blur-3xl" />
@@ -115,9 +114,6 @@ const DepartmentCreatePage = ({ user, onLogout }) => {
                       <h3 className="text-xl font-black text-slate-950">
                         Thông tin ban tổ chức
                       </h3>
-                      <p className="mt-1 text-sm font-semibold leading-6 text-slate-500">
-                        Điền tên ban, mô tả nhiệm vụ và chọn người phụ trách chính.
-                      </p>
                     </div>
                   </div>
 
@@ -139,7 +135,7 @@ const DepartmentCreatePage = ({ user, onLogout }) => {
                       onChange={handleChange}
                       required
                       maxLength={100}
-                      placeholder="Ví dụ: Ban Hậu cần"
+                      placeholder="Tên ban"
                       className={inputClassName}
                     />
                   </Field>
@@ -155,7 +151,7 @@ const DepartmentCreatePage = ({ user, onLogout }) => {
                       onChange={handleChange}
                       maxLength={1000}
                       rows={5}
-                      placeholder="Ví dụ: Phụ trách setup sân khấu, check-in, vật dụng, điều phối khu vực..."
+                      placeholder="Mô tả nhiệm vụ"
                       className={`${inputClassName} min-h-32 resize-y py-3`}
                     />
                   </Field>
@@ -198,50 +194,6 @@ const DepartmentCreatePage = ({ user, onLogout }) => {
                   </Button>
                 </form>
               </Panel>
-
-              <div className="space-y-4">
-                <div className="relative overflow-hidden rounded-[2rem] border border-sky-100 bg-white p-6 shadow-xl shadow-sky-100/70">
-                  <div className="pointer-events-none absolute -right-14 -top-14 h-40 w-40 rounded-full bg-emerald-100 blur-3xl" />
-
-                  <div className="relative">
-                    <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
-                      <Sparkles className="h-6 w-6" strokeWidth={1.8} />
-                    </div>
-
-                    <h3 className="text-lg font-black text-slate-950">
-                      Gợi ý đặt tên ban
-                    </h3>
-
-                    <div className="mt-4 space-y-2">
-                      {['Ban Hậu cần', 'Ban Truyền thông', 'Ban Nhân sự', 'Ban Tài chính'].map((item) => (
-                        <button
-                          key={item}
-                          type="button"
-                          onClick={() => setForm((old) => ({ ...old, name: item }))}
-                          className="block w-full rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-3 text-left text-sm font-black text-slate-700 transition hover:-translate-y-0.5 hover:bg-white hover:text-sky-600 hover:shadow-lg hover:shadow-sky-100"
-                        >
-                          {item}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="rounded-[2rem] border border-sky-100 bg-gradient-to-br from-sky-50 via-white to-emerald-50 p-6 shadow-xl shadow-sky-100/70">
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-sky-500 shadow-sm">
-                      <ShieldCheck className="h-5 w-5" strokeWidth={1.8} />
-                    </div>
-
-                    <div>
-                      <p className="font-black text-slate-950">Lưu ý</p>
-                      <p className="mt-1 text-sm font-semibold leading-6 text-slate-500">
-                        Sau khi tạo ban, bạn có thể thêm thành viên, giao task và theo dõi tiến độ theo từng ban.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
             </div>
           </>
         )}
@@ -250,20 +202,10 @@ const DepartmentCreatePage = ({ user, onLogout }) => {
   );
 };
 
-const Field = ({ label, icon, hint, children }) => (
+const Field = ({ label, children }) => (
   <label className="block">
-    <span className="flex items-center gap-2 text-sm font-black text-slate-700">
-      <span className="text-sky-500">{icon}</span>
-      {label}
-    </span>
-
+    <span className="text-sm font-black text-slate-700">{label}</span>
     <div className="mt-2">{children}</div>
-
-    {hint && (
-      <p className="mt-2 text-xs font-semibold leading-5 text-slate-500">
-        {hint}
-      </p>
-    )}
   </label>
 );
 

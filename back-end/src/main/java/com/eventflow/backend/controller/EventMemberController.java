@@ -1,9 +1,11 @@
 package com.eventflow.backend.controller;
 
+import com.eventflow.backend.dto.EventInvitationResponseDTO;
+import com.eventflow.backend.dto.EventMemberBulkInviteRequestDTO;
+import com.eventflow.backend.dto.EventMemberBulkInviteResponseDTO;
 import com.eventflow.backend.dto.EventMemberRequestDTO;
 import com.eventflow.backend.dto.EventMemberResponseDTO;
 import com.eventflow.backend.dto.EventMemberRoleUpdateRequest;
-import com.eventflow.backend.dto.EventInvitationResponseDTO;
 import com.eventflow.backend.security.EventSecurityService;
 import com.eventflow.backend.service.EventMemberService;
 import jakarta.validation.Valid;
@@ -75,6 +77,45 @@ public class EventMemberController {
         }
 
         return ResponseEntity.status(HttpStatus.CREATED).body(eventMemberService.addMember(eventId, request, currentUserId));
+    }
+
+    @PostMapping("/bulk-invitations")
+    public ResponseEntity<EventMemberBulkInviteResponseDTO> bulkInviteMembers(
+            @PathVariable Long eventId,
+            @Valid @RequestBody EventMemberBulkInviteRequestDTO request,
+            Authentication authentication) {
+
+        Long currentUserId = currentUserId(authentication);
+        if (!eventSecurityService.isLeaderOfEvent(eventId, currentUserId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        return ResponseEntity.ok(eventMemberService.bulkInviteMembers(eventId, request, currentUserId));
+    }
+
+    @GetMapping("/invitations")
+    public ResponseEntity<List<EventInvitationResponseDTO>> getInvitations(
+            @PathVariable Long eventId,
+            Authentication authentication) {
+
+        if (!eventSecurityService.isLeaderOfEvent(eventId, currentUserId(authentication))) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        return ResponseEntity.ok(eventMemberService.getInvitations(eventId));
+    }
+
+    @DeleteMapping("/invitations/{invitationId}")
+    public ResponseEntity<EventInvitationResponseDTO> cancelInvitation(
+            @PathVariable Long eventId,
+            @PathVariable Long invitationId,
+            Authentication authentication) {
+
+        if (!eventSecurityService.isLeaderOfEvent(eventId, currentUserId(authentication))) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        return ResponseEntity.ok(eventMemberService.cancelInvitation(eventId, invitationId));
     }
 
     @PatchMapping("/{userId}/role")

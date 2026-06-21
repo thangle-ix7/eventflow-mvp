@@ -2,11 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import {
-  CalendarDays,
-  Layers3,
   Plus,
   Search,
-  UserRound,
   X,
 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
@@ -16,8 +13,6 @@ import {
   ErrorState,
   LoadingState,
   Panel,
-  PriorityBadge,
-  ProgressBar,
 } from '../components/ui';
 import eventApi from '../api/eventApi';
 import taskApi from '../api/taskApi';
@@ -42,12 +37,103 @@ const getWorkloadClassName = (status) => {
 };
 
 const STATUS_COLUMNS = [
-  { key: 'TODO', label: 'Cần làm', tone: 'border-slate-100 bg-slate-50 text-slate-700' },
-  { key: 'IN_PROGRESS', label: 'Đang làm', tone: 'border-amber-100 bg-amber-50 text-amber-700' },
-  { key: 'IN_REVIEW', label: 'Chờ duyệt', tone: 'border-violet-100 bg-violet-50 text-violet-700' },
-  { key: 'DONE', label: 'Hoàn thành', tone: 'border-emerald-100 bg-emerald-50 text-emerald-700' },
+  {
+    key: 'TODO',
+    label: 'Cần làm',
+    chipClass: 'bg-slate-100 text-slate-700',
+    borderClass: 'border-t-slate-300',
+    dropClass: 'ring-slate-100',
+    statusKey: 'TODO',
+    deadlineStatus: 'ACTIVE',
+  },
+  {
+    key: 'IN_PROGRESS',
+    label: 'Đang làm',
+    chipClass: 'bg-amber-100 text-amber-700',
+    borderClass: 'border-t-amber-400',
+    dropClass: 'ring-amber-100',
+    statusKey: 'IN_PROGRESS',
+    deadlineStatus: 'ACTIVE',
+  },
+  {
+    key: 'IN_REVIEW',
+    label: 'Chờ duyệt',
+    chipClass: 'bg-violet-100 text-violet-700',
+    borderClass: 'border-t-violet-400',
+    dropClass: 'ring-violet-100',
+    statusKey: 'IN_REVIEW',
+    deadlineStatus: 'ACTIVE',
+  },
+  {
+    key: 'DONE',
+    label: 'Hoàn thành',
+    chipClass: 'bg-emerald-100 text-emerald-700',
+    borderClass: 'border-t-emerald-400',
+    dropClass: 'ring-emerald-100',
+    statusKey: 'DONE',
+    deadlineStatus: 'ACTIVE',
+  },
+  {
+    key: 'OVERDUE',
+    label: 'Quá hạn',
+    chipClass: 'bg-red-100 text-red-700',
+    borderClass: 'border-t-red-500',
+    dropClass: 'ring-red-100',
+    statusKey: '',
+    deadlineStatus: 'OVERDUE',
+    readOnly: true,
+  },
 ];
 
+const PRIORITY_CARD_CLASS = {
+  URGENT: 'border-l-rose-500',
+  HIGH: 'border-l-orange-400',
+  MEDIUM: 'border-l-sky-400',
+  LOW: 'border-l-slate-300',
+};
+
+const PRIORITY_LABELS = {
+  URGENT: 'Khẩn cấp',
+  HIGH: 'Cao',
+  MEDIUM: 'Trung bình',
+  LOW: 'Thấp',
+};
+
+const getDeadlineCardClassName = (deadlineStatus) => {
+  if (deadlineStatus === 'OVERDUE') {
+    return 'border-red-300 bg-red-50/90 shadow-red-100';
+  }
+
+  if (deadlineStatus === 'DUE_SOON') {
+    return 'border-amber-300 bg-amber-50/90 shadow-amber-100';
+  }
+
+  return 'bg-white';
+};
+
+const getDeadlineTextClassName = (deadlineStatus) => {
+  if (deadlineStatus === 'OVERDUE') {
+    return 'text-red-700';
+  }
+
+  if (deadlineStatus === 'DUE_SOON') {
+    return 'text-amber-700';
+  }
+
+  return 'text-slate-500';
+};
+
+const getDeadlineLabel = (task) => {
+  if (task.deadlineStatus === 'OVERDUE') {
+    return 'Quá hạn';
+  }
+
+  if (task.deadlineStatus === 'DUE_SOON') {
+    return 'Gần hạn';
+  }
+
+  return 'Hạn';
+};
 const TaskListPage = ({ user, onLogout }) => {
   const { eventId } = useParams();
   const [searchParams] = useSearchParams();
@@ -213,6 +299,7 @@ const TaskListPage = ({ user, onLogout }) => {
                   <option value="IN_PROGRESS">Đang làm</option>
                   <option value="IN_REVIEW">Chờ duyệt</option>
                   <option value="DONE">Hoàn thành</option>
+                  <option value="OVERDUE">Quá hạn</option>
                 </select>
 
                 <select
@@ -381,8 +468,8 @@ const StatusTaskBoard = ({
         </div>
       )}
 
-      <div>
-        <div className={`grid min-w-0 gap-3 ${visibleColumns.length === 1 ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-4'}`}>
+      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-slate-50/70">
+        <div className={`grid ${visibleColumns.length === 1 ? 'min-w-[320px] grid-cols-1' : 'min-w-[1200px] grid-cols-5'}`}>
           {visibleColumns.map((column) => (
             <StatusTaskColumn
               key={column.key}
@@ -444,7 +531,8 @@ const StatusTaskColumn = ({
       size: 4,
       sort: 'deadline',
       direction: 'asc',
-      status: column.key,
+      status: column.statusKey,
+      deadlineStatus: column.deadlineStatus,
       priority,
       departmentId,
       search,
@@ -482,26 +570,28 @@ const StatusTaskColumn = ({
 
   return (
     <section
-      className={`min-w-0 overflow-hidden rounded-2xl border border-sky-100 bg-white transition ${
-        draggingTask && draggingTask.status !== column.key ? 'ring-4 ring-sky-100' : ''
+      className={`min-w-0 border-r border-slate-200 bg-slate-50/70 transition last:border-r-0 ${column.borderClass} ${
+        draggingTask && !column.readOnly && draggingTask.status !== column.key ? `ring-4 ${column.dropClass}` : ''
       }`}
       onDragOver={(event) => {
         event.preventDefault();
-        event.dataTransfer.dropEffect = 'move';
+        event.dataTransfer.dropEffect = column.readOnly ? 'none' : 'move';
       }}
-      onDrop={() => onDropTask(column.key)}
+      onDrop={() => { if (!column.readOnly) onDropTask(column.key); }}
     >
-      <div className={`flex items-center justify-between gap-3 border-b px-4 py-3 ${column.tone}`}>
-        <span className="text-sm font-black">{column.label}</span>
+      <div className="flex min-h-16 items-center justify-between gap-3 border-b border-slate-200 bg-white px-3 py-3 shadow-sm">
+        <span className={`rounded-md px-3 py-1.5 text-xs font-black uppercase ${column.chipClass}`}>
+          {column.label}
+        </span>
         <span className="flex items-center gap-2">
-          <span className="rounded-full bg-white/80 px-2.5 py-1 text-xs font-black">
+          <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-black text-slate-600">
             {total}
           </span>
-          {canCreate && (
+          {canCreate && !column.readOnly && (
             <button
               type="button"
               onClick={() => onCreateInStatus?.(column.key)}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white text-sky-600 shadow-sm transition hover:-translate-y-0.5 hover:bg-sky-50"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-sky-600 shadow-sm transition hover:-translate-y-0.5 hover:bg-sky-50"
               aria-label={`Tạo task ${column.label.toLowerCase()}`}
               title={`Tạo task ${column.label.toLowerCase()}`}
             >
@@ -511,45 +601,41 @@ const StatusTaskColumn = ({
         </span>
       </div>
 
-      <div ref={scrollerRef} className="max-h-[560px] overflow-y-auto">
+      <div ref={scrollerRef} className="max-h-[620px] space-y-3 overflow-y-auto p-3">
         {query.isLoading && (
-          <div className="p-4">
+          <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
             <LoadingState message="Đang tải task..." />
           </div>
         )}
 
         {query.error && (
-          <div className="p-4">
+          <div className="rounded-lg border border-rose-100 bg-rose-50 p-4">
             <ErrorState error={query.error} title={`Không tải được ${column.label.toLowerCase()}`} />
           </div>
         )}
 
         {!query.isLoading && !query.error && tasks.length === 0 && (
-          <p className="px-4 py-8 text-center text-xs font-bold text-slate-400">
+          <p className="rounded-lg border border-dashed border-slate-200 bg-white px-4 py-8 text-center text-xs font-bold text-slate-400">
             Không có task
           </p>
         )}
 
-        {tasks.length > 0 && (
-          <div className="divide-y divide-sky-50">
-            {tasks.map((task) => (
-              <StatusTaskCard
-                key={task.id}
-                eventId={eventId}
-                task={task}
-                assigneeWorkload={task.assigneeId ? workloadByMemberId[String(task.assigneeId)] : null}
-                disabled={isUpdatingStatus}
-                onDragStart={() => onDragTask(task)}
-                onDragEnd={() => onDragTask(null)}
-              />
-            ))}
-          </div>
-        )}
+        {tasks.map((task) => (
+          <StatusTaskCard
+            key={task.id}
+            eventId={eventId}
+            task={task}
+            assigneeWorkload={task.assigneeId ? workloadByMemberId[String(task.assigneeId)] : null}
+            disabled={isUpdatingStatus}
+            onDragStart={() => onDragTask(task)}
+            onDragEnd={() => onDragTask(null)}
+          />
+        ))}
 
         <div ref={sentinelRef} className="h-3" />
 
         {query.isFetchingNextPage && (
-          <p className="border-t border-sky-50 px-4 py-3 text-center text-xs font-black text-sky-600">
+          <p className="border-t border-slate-100 px-4 py-3 text-center text-xs font-black text-sky-600">
             Đang tải thêm...
           </p>
         )}
@@ -565,74 +651,76 @@ const StatusTaskCard = ({
   disabled,
   onDragStart,
   onDragEnd,
-}) => (
-  <Link
-    to={`/events/${eventId}/tasks/${task.id}`}
-    draggable={!disabled}
-    onDragStart={(event) => {
-      event.dataTransfer.effectAllowed = 'move';
-      event.dataTransfer.setData('text/plain', String(task.id));
-      onDragStart();
-    }}
-    onDragEnd={onDragEnd}
-    onClick={(event) => {
-      if (disabled) {
-        event.preventDefault();
-      }
-    }}
-    className={`block min-h-[132px] cursor-grab px-4 py-4 text-sm transition hover:bg-sky-50/70 active:cursor-grabbing ${
-      disabled ? 'pointer-events-none opacity-60' : ''
-    }`}
-  >
-    <div className="flex items-start justify-between gap-3">
-      <span className="min-w-0">
-        <span className="line-clamp-2 font-black leading-5 text-slate-950">
-          {task.title}
+}) => {
+  const priorityClass = PRIORITY_CARD_CLASS[task.priority] || PRIORITY_CARD_CLASS.MEDIUM;
+  const deadlineCardClass = getDeadlineCardClassName(task.deadlineStatus);
+  const deadlineTextClass = getDeadlineTextClassName(task.deadlineStatus);
+
+  return (
+    <Link
+      to={`/events/${eventId}/tasks/${task.id}`}
+      draggable={!disabled}
+      onDragStart={(event) => {
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', String(task.id));
+        onDragStart();
+      }}
+      onDragEnd={onDragEnd}
+      onClick={(event) => {
+        if (disabled) {
+          event.preventDefault();
+        }
+      }}
+      className={`block min-h-[168px] cursor-grab rounded-lg border border-l-4 border-slate-200 p-4 text-sm shadow-sm transition hover:-translate-y-0.5 hover:border-sky-200 hover:shadow-md active:cursor-grabbing ${priorityClass} ${deadlineCardClass} ${
+        disabled ? 'pointer-events-none opacity-60' : ''
+      }`}
+    >
+      <span className="block truncate text-[11px] font-semibold text-slate-400">
+        {task.milestoneName || 'Chưa gán milestone'}
+      </span>
+
+      <span className="mt-1 block line-clamp-2 min-h-10 font-black leading-5 text-slate-950">
+        {task.title}
+      </span>
+
+      <span className="mt-3 flex items-center justify-between gap-3 text-xs font-semibold text-slate-500">
+        <span className={`truncate ${deadlineTextClass}`}>{getDeadlineLabel(task)} · {formatDate(task.deadline)}</span>
+        <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-black text-slate-600">
+          {PRIORITY_LABELS[task.priority] || task.priority || 'Trung bình'}
         </span>
-        <span className="mt-1 block truncate text-xs font-bold text-slate-500">
-          {task.milestoneName || 'Chưa gán milestone'}
+      </span>
+
+      <span className="mt-3 grid gap-1.5 text-xs font-semibold text-slate-600">
+        <span className="grid grid-cols-[72px_minmax(0,1fr)] gap-2">
+          <span className="text-slate-400">Ban</span>
+          <span className="truncate">{task.departmentName || 'Chưa gán ban'}</span>
+        </span>
+        <span className="grid grid-cols-[72px_minmax(0,1fr)] gap-2">
+          <span className="text-slate-400">Phụ trách</span>
+          <span className="truncate">{task.assigneeName || 'Chưa phân công'}</span>
         </span>
       </span>
-      <PriorityBadge priority={task.priority} className="shrink-0" />
-    </div>
 
-    <div className="mt-3 space-y-1.5 text-xs font-semibold text-slate-600">
-      <span className="flex min-w-0 items-center gap-2">
-        <Layers3 size={14} className="shrink-0 text-emerald-500" />
-        <span className="truncate">{task.departmentName || 'Chưa gán ban'}</span>
+      <span className="mt-3 flex items-center justify-between gap-3 text-xs font-semibold text-slate-500">
+        <span>{task.progressPercentage ?? 0}% hoàn thành</span>
+        {assigneeWorkload && (
+          <span
+            className={`truncate text-[11px] font-black ${getWorkloadClassName(
+              assigneeWorkload.workloadStatus
+            )}`}
+            title={`${assigneeWorkload.assignedTasks} task chưa hoàn thành · ${assigneeWorkload.workloadScore}% · ${assigneeWorkload.workloadStatus}`}
+          >
+            {assigneeWorkload.assignedTasks} task
+          </span>
+        )}
       </span>
-
-      <span className="flex min-w-0 items-center gap-2">
-        <UserRound size={14} className="shrink-0 text-sky-500" />
-        <span className="truncate">{task.assigneeName || 'Chưa phân công'}</span>
-      </span>
-
-      <span className="flex items-center gap-2 whitespace-nowrap">
-        <CalendarDays size={14} className="text-emerald-500" />
-        {formatDate(task.deadline)}
-      </span>
-    </div>
-
-    {assigneeWorkload && (
-      <p
-        className={`mt-2 truncate text-[11px] font-black ${getWorkloadClassName(
-          assigneeWorkload.workloadStatus
-        )}`}
-        title={`${assigneeWorkload.assignedTasks} task chưa hoàn thành · ${assigneeWorkload.workloadScore}% · ${assigneeWorkload.workloadStatus}`}
-      >
-        Workload: {assigneeWorkload.assignedTasks} task · {assigneeWorkload.workloadStatus}
-      </p>
-    )}
-
-    <div className="mt-3">
-      <ProgressBar value={task.progressPercentage ?? 0} />
-      <span className="mt-1 block text-xs font-black text-slate-500">
-        {task.progressPercentage ?? 0}%
-      </span>
-    </div>
-  </Link>
-);
+    </Link>
+  );
+};
 
 const inputClassName = 'min-h-11 w-full min-w-0 rounded-2xl border border-sky-100 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:bg-white focus:ring-4 focus:ring-cyan-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500';
 
 export default TaskListPage;
+
+
+

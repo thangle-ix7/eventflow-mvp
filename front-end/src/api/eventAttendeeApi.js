@@ -7,10 +7,25 @@ const requireEventId = (eventId) => {
 };
 
 const eventAttendeeApi = {
-  getAttendees: async ({ eventId, status }) => {
+  getSessions: async (eventId) => {
+    requireEventId(eventId);
+    const response = await apiClient.get(`/events/${eventId}/attendees/sessions`);
+    return response.data;
+  },
+
+  createSession: async ({ eventId, payload }) => {
+    requireEventId(eventId);
+    const response = await apiClient.post(`/events/${eventId}/attendees/sessions`, payload);
+    return response.data;
+  },
+
+  getAttendees: async ({ eventId, status, sessionId }) => {
     requireEventId(eventId);
     const response = await apiClient.get(`/events/${eventId}/attendees`, {
-      params: { status: status || undefined },
+      params: {
+        status: status || undefined,
+        sessionId: sessionId || undefined,
+      },
     });
     return response.data;
   },
@@ -50,9 +65,48 @@ const eventAttendeeApi = {
     return response.data;
   },
 
+  sendAttendeeInvitation: async ({ eventId, attendeeId }) => {
+    requireEventId(eventId);
+    if (!attendeeId) {
+      throw new Error('attendeeId khong hop le');
+    }
+
+    const response = await apiClient.post(`/events/${eventId}/attendees/${attendeeId}/send-invitation`);
+    return response.data;
+  },
+
+  sendSessionInvitations: async ({ eventId, sessionId }) => {
+    requireEventId(eventId);
+    if (!sessionId) {
+      throw new Error('sessionId khong hop le');
+    }
+
+    const response = await apiClient.post(`/events/${eventId}/attendees/sessions/${sessionId}/send-invitations`);
+    return response.data;
+  },
+
   checkIn: async ({ eventId, payload }) => {
     requireEventId(eventId);
     const response = await apiClient.post(`/events/${eventId}/attendees/check-in`, payload);
+    return response.data;
+  },
+
+  downloadImportTemplate: async (eventId) => {
+    requireEventId(eventId);
+    const response = await apiClient.get(`/events/${eventId}/attendees/import-template`, {
+      responseType: 'blob',
+    });
+    return response.data;
+  },
+
+  importAttendees: async ({ eventId, sessionId, file }) => {
+    requireEventId(eventId);
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await apiClient.post(`/events/${eventId}/attendees/import`, formData, {
+      params: { sessionId },
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
     return response.data;
   },
 };
