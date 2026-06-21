@@ -30,7 +30,6 @@ public class TaskReminderScheduler {
         log.info("Starting task reminder scan at {}", LocalDateTime.now());
         
         LocalDateTime now = LocalDateTime.now();
-        LocalDateTime twentyFourHoursLater = now.plusHours(24);
 
         List<Task> tasks = taskRepository.findAllPendingTasksForReminders();
 
@@ -44,7 +43,8 @@ public class TaskReminderScheduler {
             Long taskId = task.getId();
             Long eventId = task.getEvent().getId();
 
-            if (assignee != null && task.getDeadline().isAfter(now) && task.getDeadline().isBefore(twentyFourHoursLater)) {
+            LocalDateTime reminderWindowEnd = now.plusMinutes(resolveReminderOffsetMinutes(task));
+            if (assignee != null && task.getDeadline().isAfter(now) && !task.getDeadline().isAfter(reminderWindowEnd)) {
                 notificationRepository.insertTaskNotification(
                         assignee.getId(), taskId, resolveChannel(assignee), "UPCOMING", "PENDING"
                 );
@@ -166,6 +166,10 @@ public class TaskReminderScheduler {
         return user.getTelegramChatId() != null && !user.getTelegramChatId().isBlank() ? "TELEGRAM" : "EMAIL";
     }
 
+    private long resolveReminderOffsetMinutes(Task task) {
+        return task.getReminderOffsetMinutes() != null ? task.getReminderOffsetMinutes() : 1440L;
+    }
+
     private String formatReminderTime(LocalDateTime value) {
         return value != null ? value.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")) : "chưa có giờ";
     }
@@ -178,3 +182,4 @@ public class TaskReminderScheduler {
             LocalDateTime startTime) {
     }
 }
+

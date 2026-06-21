@@ -3,10 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
 import {
   Building2,
-  Crown,
   Edit,
   Layers,
-  Network,
 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import UserAvatar from '../components/UserAvatar';
@@ -170,24 +168,14 @@ const EventHierarchyPanel = ({ eventId, event, departments, members, isLoading, 
 
   return (
     <Panel className="overflow-hidden">
-      <div className="border-b border-sky-100 bg-gradient-to-r from-slate-950 via-sky-950 to-emerald-950 px-5 py-5 text-white">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-start gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/10 text-cyan-100 ring-1 ring-white/15">
-              <Network className="h-5 w-5" strokeWidth={1.8} />
-            </span>
-            <div className="min-w-0">
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-200">
-                Hệ thống phân cấp
-              </p>
-              <h3 className="mt-1 text-xl font-black tracking-tight">
-                Sơ đồ phân bổ leader theo department
-              </h3>
-              <p className="mt-2 max-w-3xl text-sm font-semibold leading-6 text-slate-300">
-                Event Leader điều phối tổng, các trưởng ban chịu trách nhiệm theo từng department.
-              </p>
-            </div>
-          </div>
+      <div className="border-b border-slate-200 bg-white px-5 py-4">
+        <div className="flex flex-col gap-1">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-600">
+            Hệ thống phân cấp
+          </p>
+          <h3 className="text-lg font-black text-slate-950">
+            Leader và department
+          </h3>
         </div>
       </div>
 
@@ -202,29 +190,23 @@ const EventHierarchyPanel = ({ eventId, event, departments, members, isLoading, 
           <EmptyState
             icon={Building2}
             title="Chưa có department"
-            description="Khi leader tạo department và gán trưởng ban, sơ đồ phân cấp sẽ hiển thị tại đây."
+            description="Department và trưởng ban sẽ hiển thị tại đây."
           />
         </div>
       )}
 
       {!isLoading && !error && departments.length > 0 && (
         <div className="p-5">
-          <div className="overflow-x-auto pb-2">
-            <div className="min-w-[920px] rounded-2xl border border-sky-100 bg-gradient-to-br from-sky-50 via-white to-emerald-50 p-5">
-              <div className="flex justify-center">
-                <HierarchyRoot eventId={eventId} event={event} eventLeaders={hierarchy.eventLeaders} />
-              </div>
+          <div className="grid gap-4">
+            <HierarchyRoot eventId={eventId} event={event} eventLeaders={hierarchy.eventLeaders} />
 
-              <div className="mx-auto h-10 w-px bg-sky-200" />
-
-              <div className="relative pt-6">
-                <div className="absolute left-12 right-12 top-0 h-px bg-sky-200" />
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {hierarchy.departmentNodes.map((department) => (
-                    <DepartmentHierarchyNode key={department.id} eventId={eventId} department={department} />
-                  ))}
-                </div>
-              </div>
+            <div
+              className="grid gap-3"
+              style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 18rem), 1fr))' }}
+            >
+              {hierarchy.departmentNodes.map((department) => (
+                <DepartmentHierarchyNode key={department.id} eventId={eventId} department={department} />
+              ))}
             </div>
           </div>
         </div>
@@ -234,23 +216,22 @@ const EventHierarchyPanel = ({ eventId, event, departments, members, isLoading, 
 };
 
 const HierarchyRoot = ({ eventId, event, eventLeaders }) => (
-  <div className="w-full max-w-xl rounded-2xl border border-sky-200 bg-white p-4 text-center shadow-xl shadow-sky-100/80">
-    <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-400 text-white shadow-lg shadow-cyan-100">
-      <Crown className="h-6 w-6" strokeWidth={1.8} />
+  <div className="rounded-lg border border-sky-100 bg-sky-50/60 p-4">
+    <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
+      <p className="text-xs font-black uppercase tracking-[0.16em] text-sky-600">
+        Event Leader
+      </p>
+      <h4 className="min-w-0 truncate text-base font-black text-slate-950">
+        {event?.name || event?.title || 'Sự kiện'}
+      </h4>
     </div>
-    <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-500">
-      Event Leader
-    </p>
-    <h4 className="mt-1 truncate text-lg font-black text-slate-950">
-      {event?.name || event?.title || 'Sự kiện'}
-    </h4>
 
     <div className="mt-3 grid gap-2 sm:grid-cols-2">
       {eventLeaders.length > 0 ? eventLeaders.map((leader) => (
         <MemberPill key={getMemberKey(leader)} eventId={eventId} member={leader} label="Event Leader" compact />
       )) : (
-        <div className="col-span-full rounded-2xl bg-sky-50 px-3 py-2 text-sm font-bold text-slate-500">
-          Chưa có dữ liệu Event Leader trong danh sách thành viên
+        <div className="col-span-full rounded-lg border border-dashed border-sky-200 bg-white px-3 py-2 text-sm font-bold text-slate-500">
+          Chưa có Event Leader
         </div>
       )}
     </div>
@@ -258,40 +239,28 @@ const HierarchyRoot = ({ eventId, event, eventLeaders }) => (
 );
 
 const DepartmentHierarchyNode = ({ eventId, department }) => (
-  <div className="relative min-w-0 rounded-2xl border border-sky-100 bg-white p-4 shadow-lg shadow-sky-100/70">
-    <div className="absolute left-1/2 top-[-25px] h-6 w-px -translate-x-1/2 bg-sky-200" />
-
-    <div className="flex items-start gap-3">
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-sky-50 text-sky-600 ring-1 ring-sky-100">
-        <Building2 className="h-5 w-5" strokeWidth={1.8} />
-      </span>
-      <div className="min-w-0">
-        <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
-          Department
+  <div className="min-w-0 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="min-w-0">
+      <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-400">
+        Department
+      </p>
+      <h4 className="mt-1 break-words text-base font-black text-slate-950">
+        {department.name}
+      </h4>
+      {department.description && (
+        <p className="mt-1 line-clamp-2 text-xs font-semibold leading-5 text-slate-500">
+          {department.description}
         </p>
-        <h4 className="mt-1 truncate text-base font-black text-slate-950">
-          {department.name}
-        </h4>
-        {department.description && (
-          <p className="mt-1 line-clamp-2 text-xs font-semibold leading-5 text-slate-500">
-            {department.description}
-          </p>
-        )}
-      </div>
+      )}
     </div>
 
-    <div className="my-4 flex items-center gap-2">
-      <span className="h-px flex-1 bg-sky-100" />
-      <span className="rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-black uppercase tracking-[0.12em] text-emerald-600">
-        Trưởng ban
-      </span>
-      <span className="h-px flex-1 bg-sky-100" />
-    </div>
-
+    <p className="mt-4 border-t border-slate-100 pt-3 text-[11px] font-black uppercase tracking-[0.14em] text-emerald-600">
+      Trưởng ban
+    </p>
     {department.leader ? (
       <MemberPill eventId={eventId} member={department.leader} label="Department Leader" highlight />
     ) : (
-      <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-3 py-3 text-sm font-bold text-slate-500">
+      <div className="mt-2 rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-3 text-sm font-bold text-slate-500">
         Chưa phân bổ trưởng ban
       </div>
     )}
@@ -303,7 +272,7 @@ const MemberPill = ({ eventId, member, label, highlight = false, compact = false
   const canOpenDetail = Boolean(eventId && memberId);
 
   return (
-    <div className={`flex min-w-0 items-center gap-2 rounded-2xl border px-3 py-2 ${highlight ? 'border-emerald-100 bg-emerald-50/80' : 'border-sky-100 bg-white'}`}>
+    <div className={`mt-2 flex min-w-0 items-center gap-2 rounded-lg border px-3 py-2 ${highlight ? 'border-emerald-100 bg-emerald-50/80' : 'border-sky-100 bg-white'}`}>
       <UserAvatar
         userId={memberId}
         avatarUrl={member.avatarUrl}

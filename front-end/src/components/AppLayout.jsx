@@ -5,7 +5,6 @@ import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import userApi from '../api/userApi';
 import { getDepartmentHomePath, getEventPermissions } from '../utils/permissionUtils';
-import LanguageSwitcher from './LanguageSwitcher';
 import { useTranslation } from 'react-i18next';
 import {
   BarChart3,
@@ -141,7 +140,7 @@ const AppLayoutFrame = ({
       {
         to: `/events/${selectedEvent.id}/settings`,
         label: permissions.canManageEvent ? t('utility.settings') : t('common.view'),
-        description: 'Thiết lập sự kiện',
+        description: 'Giao diện và ngôn ngữ',
         icon: Settings,
       },
     ]
@@ -644,7 +643,6 @@ const AppLayoutFrame = ({
                 </div>
               </div>
 
-              <LanguageSwitcher />
 
               <Link
                 to="/profile"
@@ -806,3 +804,5 @@ const formatNotificationTime = (value, lang) => {
 };
 
 export default AppLayout;
+
+

@@ -12,8 +12,8 @@ import {
   Search,
   Send,
   Trash2,
-  UserPlus,
   Users,
+  X,
   XCircle,
 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
@@ -38,7 +38,8 @@ const EMPTY_INVITATIONS = [];
 const EventMembersPage = ({ user, onLogout }) => {
   const { eventId } = useParams();
   const queryClient = useQueryClient();
-  const [inviteForm, setInviteForm] = useState({ emails: '', role: 'MEMBER' });
+  const [inviteForm, setInviteForm] = useState({ emails: [], role: 'MEMBER' });
+  const [inviteInput, setInviteInput] = useState('');
   const [inviteResult, setInviteResult] = useState(null);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
@@ -78,9 +79,9 @@ const EventMembersPage = ({ user, onLogout }) => {
       const failedEmails = (result.results || [])
         .filter((item) => item.status !== 'SENT')
         .map((item) => item.email)
-        .filter(Boolean)
-        .join('\n');
-      setInviteForm((old) => ({ ...old, emails: failedEmails }));
+        .filter(Boolean);
+      setInviteForm((old) => ({ ...old, emails: uniqueEmails(failedEmails) }));
+      setInviteInput('');
       queryClient.invalidateQueries({ queryKey: ['eventMembers', eventId] });
       queryClient.invalidateQueries({ queryKey: ['eventInvitations', eventId] });
     },
@@ -125,14 +126,60 @@ const EventMembersPage = ({ user, onLogout }) => {
     });
   }, [departmentFilter, members, roleFilter, search]);
 
+  const addInviteEmails = (value) => {
+    const parsedEmails = parseEmailList(value);
+    if (!parsedEmails.length) {
+      return;
+    }
+
+    setInviteForm((old) => ({
+      ...old,
+      emails: uniqueEmails([...old.emails, ...parsedEmails]),
+    }));
+    setInviteInput('');
+  };
+
+  const removeInviteEmail = (email) => {
+    setInviteForm((old) => ({
+      ...old,
+      emails: old.emails.filter((item) => item !== email),
+    }));
+  };
+
+  const handleInviteKeyDown = (event) => {
+    if (!['Enter', 'Tab', ',', ';', ' '].includes(event.key)) {
+      return;
+    }
+
+    if (!inviteInput.trim()) {
+      return;
+    }
+
+    event.preventDefault();
+    addInviteEmails(inviteInput);
+  };
+
+  const handleInvitePaste = (event) => {
+    const pastedText = event.clipboardData.getData('text');
+    const pastedEmails = parseEmailList(pastedText);
+    if (pastedEmails.length <= 1) {
+      return;
+    }
+
+    event.preventDefault();
+    addInviteEmails(pastedText);
+  };
+
   const handleInviteSubmit = (submitEvent) => {
     submitEvent.preventDefault();
     setInviteResult(null);
-    const emails = parseEmailList(inviteForm.emails);
+    const emails = uniqueEmails([...inviteForm.emails, ...parseEmailList(inviteInput)]);
     if (!emails.length || bulkInviteMutation.isPending) {
       return;
     }
 
+    setInviteForm((old) => ({ ...old, emails }));
+    setInviteInput('');
     bulkInviteMutation.mutate({
       eventId,
       payload: {
@@ -152,36 +199,14 @@ const EventMembersPage = ({ user, onLogout }) => {
     >
       <div className="space-y-6">
         {isLeader && (
-          <Panel className="relative overflow-hidden p-5">
-            <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-sky-100 blur-3xl" />
-            <div className="pointer-events-none absolute -bottom-28 left-1/3 h-64 w-64 rounded-full bg-emerald-100/70 blur-3xl" />
+          <Panel className="p-5">
+            <form onSubmit={handleInviteSubmit} className="grid gap-3">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <h3 className="text-lg font-black text-slate-950">
+                  Mời thành viên
+                </h3>
 
-            <div className="relative grid gap-5 xl:grid-cols-[minmax(260px,0.7fr)_minmax(0,1.3fr)]">
-              <div className="flex items-start gap-3">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-400 text-white shadow-lg shadow-cyan-100">
-                  <UserPlus className="h-6 w-6" strokeWidth={1.8} />
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-black text-slate-950">
-                    Mời thành viên hàng loạt
-                  </h3>
-                  <p className="mt-1 text-sm font-semibold leading-6 text-slate-500">
-                    Dán nhiều email, mỗi email cách nhau bằng dòng mới, dấu phẩy, dấu chấm phẩy hoặc khoảng trắng.
-                  </p>
-                </div>
-              </div>
-
-              <form onSubmit={handleInviteSubmit} className="grid gap-3">
-                <textarea
-                  value={inviteForm.emails}
-                  onChange={(event) => setInviteForm((old) => ({ ...old, emails: event.target.value }))}
-                  rows={5}
-                  placeholder="member1@example.com\nmember2@example.com\nmember3@example.com"
-                  className={`${inputClassName} min-h-32 resize-y leading-6`}
-                />
-
-                <div className="grid gap-3 sm:grid-cols-[160px_1fr]">
+                <div className="grid gap-3 sm:grid-cols-[160px_minmax(180px,1fr)] lg:w-[460px]">
                   <select
                     value={inviteForm.role}
                     onChange={(event) => setInviteForm((old) => ({ ...old, role: event.target.value }))}
@@ -193,7 +218,7 @@ const EventMembersPage = ({ user, onLogout }) => {
 
                   <button
                     type="submit"
-                    disabled={!parseEmailList(inviteForm.emails).length || bulkInviteMutation.isPending}
+                    disabled={(!inviteForm.emails.length && !parseEmailList(inviteInput).length) || bulkInviteMutation.isPending}
                     className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 px-4 py-2 text-sm font-black text-white shadow-xl shadow-cyan-100 transition hover:-translate-y-0.5 hover:shadow-2xl hover:shadow-cyan-200 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {bulkInviteMutation.isPending ? (
@@ -204,13 +229,44 @@ const EventMembersPage = ({ user, onLogout }) => {
                     Gửi lời mời
                   </button>
                 </div>
-              </form>
-            </div>
+              </div>
+
+              <div className="flex min-h-14 flex-wrap items-center gap-2 rounded-2xl border border-sky-100 bg-white px-3 py-2 focus-within:border-cyan-300 focus-within:ring-4 focus-within:ring-cyan-100">
+                {inviteForm.emails.map((email) => (
+                  <span
+                    key={email}
+                    className="inline-flex max-w-full items-center gap-2 rounded-full border border-sky-100 bg-sky-50 px-3 py-1.5 text-sm font-bold text-slate-700"
+                  >
+                    <Mail size={14} className="shrink-0 text-sky-500" />
+                    <span className="max-w-[220px] truncate">{email}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeInviteEmail(email)}
+                      disabled={bulkInviteMutation.isPending}
+                      className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-white hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-60"
+                      aria-label={`Xóa ${email}`}
+                    >
+                      <X size={13} />
+                    </button>
+                  </span>
+                ))}
+
+                <input
+                  value={inviteInput}
+                  onChange={(event) => setInviteInput(event.target.value)}
+                  onKeyDown={handleInviteKeyDown}
+                  onPaste={handleInvitePaste}
+                  disabled={bulkInviteMutation.isPending}
+                  placeholder={inviteForm.emails.length ? '' : 'Email'}
+                  className="min-h-9 min-w-[220px] flex-1 border-0 bg-transparent px-1 text-sm font-semibold text-slate-800 outline-none placeholder:text-slate-400 disabled:cursor-not-allowed disabled:text-slate-500"
+                />
+              </div>
+            </form>
 
             {inviteResult && <BulkInviteResult result={inviteResult} />}
 
             {bulkInviteMutation.error && (
-              <div className="relative mt-4">
+              <div className="mt-4">
                 <ErrorState error={bulkInviteMutation.error} title="Không gửi được lời mời" />
               </div>
             )}
@@ -593,10 +649,12 @@ const MemberRow = ({
   );
 };
 
-const parseEmailList = (value) => value
+const parseEmailList = (value) => String(value || '')
   .split(/[\s,;]+/)
   .map((email) => email.trim())
   .filter(Boolean);
+
+const uniqueEmails = (emails) => [...new Set(emails.map((email) => email.trim()).filter(Boolean))];
 
 const inputClassName = 'min-h-11 w-full min-w-0 rounded-2xl border border-sky-100 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:bg-white focus:ring-4 focus:ring-cyan-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500';
 

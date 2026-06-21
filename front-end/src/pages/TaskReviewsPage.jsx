@@ -152,7 +152,7 @@ const TaskReviewsPage = ({ user, onLogout }) => {
                   onChange={(event) => setReviewForm((old) => ({ ...old, feedback: event.target.value }))}
                   rows={5}
                   maxLength={2000}
-                  placeholder="Ví dụ: cần bổ sung ảnh minh chứng, sửa lại timeline, hoặc task đã đạt yêu cầu..."
+                  placeholder="Nội dung đánh giá"
                   className={`${inputClassName} min-h-36 resize-none py-3`}
                   required
                 />

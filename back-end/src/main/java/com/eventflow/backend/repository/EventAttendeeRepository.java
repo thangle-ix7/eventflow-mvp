@@ -15,7 +15,22 @@ public interface EventAttendeeRepository extends JpaRepository<EventAttendee, Lo
 
     List<EventAttendee> findAllByEventIdAndStatus(Long eventId, AttendeeStatus status, Sort sort);
 
+    List<EventAttendee> findAllByEventIdAndSession_Id(Long eventId, Long sessionId, Sort sort);
+
+    List<EventAttendee> findAllByEventIdAndSession_IdAndStatus(Long eventId, Long sessionId, AttendeeStatus status, Sort sort);
+
     Optional<EventAttendee> findByIdAndEventId(Long id, Long eventId);
 
     Optional<EventAttendee> findByQrToken(String qrToken);
+
+    Optional<EventAttendee> findByInviteCode(String inviteCode);
+
+    boolean existsByInviteCode(String inviteCode);
+
+    List<EventAttendee> findAllByEventIdAndSession_IdAndEmailIsNotNull(Long eventId, Long sessionId, Sort sort);
+
+    long countBySession_Id(Long sessionId);
+
+    long countBySession_IdAndStatus(Long sessionId, AttendeeStatus status);
 }
+

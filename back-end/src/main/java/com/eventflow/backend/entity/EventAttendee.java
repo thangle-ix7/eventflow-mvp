@@ -33,6 +33,10 @@ public class EventAttendee {
     @JoinColumn(name = "event_id", nullable = false)
     private Event event;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "session_id")
+    private CheckInSession session;
+
     @Column(name = "full_name", nullable = false)
     private String fullName;
 
@@ -55,6 +59,9 @@ public class EventAttendee {
     @Column(name = "qr_token", nullable = false, length = 64, unique = true)
     private String qrToken;
 
+    @Column(name = "invite_code", nullable = false, length = 16, unique = true)
+    private String inviteCode;
+
     @Column(columnDefinition = "TEXT")
     private String note;
 
@@ -69,3 +76,4 @@ public class EventAttendee {
     @Builder.Default
     private LocalDateTime updatedAt = LocalDateTime.now();
 }
+

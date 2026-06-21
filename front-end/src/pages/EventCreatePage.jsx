@@ -8,7 +8,6 @@ import {
   FileText,
   Loader2,
   MapPin,
-  ShieldCheck,
   Sparkles,
   Tag,
   Target,
@@ -102,31 +101,11 @@ const EventCreatePage = ({ user, onLogout }) => {
                 <h2 className="mt-1 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
                   Tạo sự kiện mới
                 </h2>
-
-                <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-slate-600">
-                  Bạn sẽ trở thành LEADER của sự kiện và có quyền tạo ban, tạo task,
-                  xem dashboard và quản lý tiến độ.
-                </p>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 px-4 py-3">
-              <div className="flex items-start gap-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-white text-emerald-600">
-                  <ShieldCheck className="h-5 w-5" strokeWidth={1.8} />
-                </div>
-
-                <div>
-                  <p className="text-sm font-black text-slate-950">Leader permission</p>
-                  <p className="mt-1 max-w-xs text-xs font-semibold leading-5 text-slate-500">
-                    Sau khi tạo, bạn có thể thiết lập ban tổ chức, thành viên và kế hoạch công việc.
-                  </p>
-                </div>
               </div>
             </div>
         </header>
 
-        <div className="grid gap-6 lg:grid-cols-[1fr_0.7fr]">
+        <div>
           <form
             onSubmit={handleSubmit}
             className="relative overflow-hidden rounded-[2rem] border border-sky-100 bg-white shadow-xl shadow-sky-100/70"
@@ -138,9 +117,6 @@ const EventCreatePage = ({ user, onLogout }) => {
               <h3 className="text-xl font-black text-slate-950">
                 Thông tin sự kiện
               </h3>
-              <p className="mt-1 text-sm font-semibold leading-6 text-slate-500">
-                Điền thông tin cơ bản để EventFlow tạo không gian quản lý sự kiện.
-              </p>
             </div>
 
             <div className="relative space-y-5 p-6">
@@ -167,7 +143,7 @@ const EventCreatePage = ({ user, onLogout }) => {
                   onChange={handleChange}
                   required
                   maxLength={255}
-                  placeholder="Ví dụ: Lễ tốt nghiệp K8 2026"
+                  placeholder="Tên sự kiện"
                   className={inputClassName}
                 />
               </Field>
@@ -202,7 +178,7 @@ const EventCreatePage = ({ user, onLogout }) => {
                   value={form.description}
                   onChange={handleChange}
                   rows={5}
-                  placeholder="Ví dụ: Sự kiện gồm lễ khai mạc, check-in khách mời, khu vực hậu cần, truyền thông và tổng kết."
+                  placeholder="Mô tả ngắn"
                   className={`${inputClassName} min-h-32 resize-y py-3`}
                 />
               </Field>
@@ -218,7 +194,7 @@ const EventCreatePage = ({ user, onLogout }) => {
                   onChange={handleChange}
                   rows={3}
                   maxLength={2000}
-                  placeholder="Ví dụ: Tổ chức giải đấu công bằng, đúng lịch, an toàn và tạo trải nghiệm tốt cho 16 đội tham gia."
+                  placeholder="Mục tiêu"
                   className={`${inputClassName} min-h-24 resize-y py-3`}
                 />
               </Field>
@@ -234,7 +210,7 @@ const EventCreatePage = ({ user, onLogout }) => {
                     min="0"
                     value={form.expectedAttendees}
                     onChange={handleChange}
-                    placeholder="Ví dụ: 200"
+                    placeholder="200"
                     className={inputClassName}
                   />
                 </Field>
@@ -248,7 +224,7 @@ const EventCreatePage = ({ user, onLogout }) => {
                     value={form.scale}
                     onChange={handleChange}
                     maxLength={100}
-                    placeholder="Ví dụ: 16 đội - 2 ngày"
+                    placeholder="16 đội - 2 ngày"
                     className={inputClassName}
                   />
                 </Field>
@@ -265,7 +241,7 @@ const EventCreatePage = ({ user, onLogout }) => {
                   onChange={handleChange}
                   rows={3}
                   maxLength={2000}
-                  placeholder="Ví dụ: Sự kiện diễn ra trong 2 ngày, có nhiều trận song song, cần cập nhật tỷ số nhanh và có phương án y tế."
+                  placeholder="Ràng buộc chính"
                   className={`${inputClassName} min-h-24 resize-y py-3`}
                 />
               </Field>
@@ -279,7 +255,7 @@ const EventCreatePage = ({ user, onLogout }) => {
                   value={form.location}
                   onChange={handleChange}
                   maxLength={255}
-                  placeholder="Ví dụ: Hội trường A1, Trường Đại học..."
+                  placeholder="Địa điểm"
                   className={inputClassName}
                 />
               </Field>
@@ -351,69 +327,19 @@ const EventCreatePage = ({ user, onLogout }) => {
               </div>
             </div>
           </form>
-
-          <aside className="space-y-4">
-            <div className="relative overflow-hidden rounded-[2rem] border border-sky-100 bg-white p-6 shadow-xl shadow-sky-100/70">
-              <div className="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full bg-sky-100 blur-3xl" />
-
-              <div className="relative">
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-50 text-sky-600">
-                  <Sparkles className="h-6 w-6" strokeWidth={1.8} />
-                </div>
-
-                <h3 className="text-lg font-black text-slate-950">
-                  Sau khi tạo sự kiện
-                </h3>
-
-                <div className="mt-4 space-y-3">
-                  <InfoItem title="1. Tạo ban tổ chức" description="Chia sự kiện thành các ban như Hậu cần, Truyền thông, Nhân sự." />
-                  <InfoItem title="2. Mời thành viên" description="Mời người tham gia, gán role và ban phụ trách để bắt đầu phối hợp." />
-                  <InfoItem title="3. Giao task" description="Tạo công việc, gán người phụ trách, deadline và mức ưu tiên." />
-                  <InfoItem title="4. Theo dõi dashboard" description="Xem tiến độ, task quá hạn và hiệu suất từng ban." />
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-[2rem] border border-emerald-100 bg-gradient-to-br from-sky-50 via-white to-emerald-50 p-6 shadow-xl shadow-sky-100/70">
-              <p className="text-sm font-black uppercase tracking-[0.18em] text-emerald-600">
-                EventFlow AI
-              </p>
-              <p className="mt-3 text-sm font-semibold leading-6 text-slate-600">
-                Sau khi có sự kiện, bạn có thể dùng AI để gợi ý ban tổ chức và danh sách task ban đầu.
-              </p>
-            </div>
-          </aside>
         </div>
       </div>
     </AppLayout>
   );
 };
 
-const Field = ({ label, icon, hint, children }) => (
+const Field = ({ label, children }) => (
   <label className="block">
-    <span className="flex items-center gap-2 text-sm font-black text-slate-700">
-      <span className="text-sky-500">{icon}</span>
-      {label}
-    </span>
-
+    <span className="text-sm font-black text-slate-700">{label}</span>
     <div className="mt-2">{children}</div>
-
-    {hint && (
-      <p className="mt-2 text-xs font-semibold leading-5 text-slate-500">
-        {hint}
-      </p>
-    )}
   </label>
 );
 
-const InfoItem = ({ title, description }) => (
-  <div className="rounded-2xl border border-sky-100 bg-sky-50/60 p-4">
-    <p className="font-black text-slate-950">{title}</p>
-    <p className="mt-1 text-sm font-semibold leading-6 text-slate-500">
-      {description}
-    </p>
-  </div>
-);
 
 const inputClassName = 'w-full rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:bg-white focus:ring-4 focus:ring-cyan-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500';
 

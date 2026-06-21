@@ -23,6 +23,7 @@ const taskApi = {
     search,
     fromDate,
     toDate,
+    deadlineStatus,
   }) => {
     if (!eventId) {
       throw new Error('eventId không hợp lệ');
@@ -41,6 +42,7 @@ const taskApi = {
         search: search || undefined,
         fromDate: fromDate || undefined,
         toDate: toDate || undefined,
+        deadlineStatus: deadlineStatus || undefined,
       },
     });
     return response.data;
@@ -320,3 +322,4 @@ const taskApi = {
 };
 
 export default taskApi;
+

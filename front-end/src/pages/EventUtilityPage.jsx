@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   CalendarDays,
   CheckCircle2,
@@ -38,7 +39,7 @@ import eventUtilityApi from '../api/eventUtilityApi';
 import taskApi from '../api/taskApi';
 import ErrorPage from './ErrorPage';
 import { formatDate } from '../utils/dateUtils';
-import { getDepartmentHomePath, getEventPermissions } from '../utils/permissionUtils';
+import { getEventPermissions } from '../utils/permissionUtils';
 import {
   buildDashboardReport,
   exportDashboardCsv,
@@ -70,16 +71,10 @@ const PAGE_CONFIG = {
   settings: {
     title: 'Cài đặt',
     description: '',
-    meta: 'Thông tin và thiết lập sự kiện',
+    meta: 'Giao diện và ngôn ngữ',
     icon: Settings,
   },
 };
-const EVENT_STATUS_LABELS = {
-  ACTIVE: 'Đang diễn ra',
-  DONE: 'Hoàn thành',
-  CANCELLED: 'Đã hủy',
-};
-
 const EventUtilityPage = ({ user, onLogout, type }) => {
   const { eventId } = useParams();
   const [searchParams] = useSearchParams();
@@ -136,12 +131,12 @@ const EventUtilityPage = ({ user, onLogout, type }) => {
   const departmentsQuery = useQuery({
     queryKey: ['eventDepartments', eventId],
     queryFn: () => departmentApi.getEventDepartments(eventId),
-    enabled: Boolean(eventId && event && type !== 'documents' && (permissions.canManageDepartments || type === 'reports' || type === 'settings')),
+    enabled: Boolean(eventId && event && type !== 'documents' && (permissions.canManageDepartments || type === 'reports')),
   });
   const membersQuery = useQuery({
     queryKey: ['eventMembers', eventId],
     queryFn: () => eventMemberApi.getMembers(eventId),
-    enabled: Boolean(eventId && event && type !== 'documents' && (permissions.canManageMembers || type === 'reports' || type === 'settings')),
+    enabled: Boolean(eventId && event && type !== 'documents' && (permissions.canManageMembers || type === 'reports')),
   });
   const calendarQuery = useQuery({
     queryKey: ['eventCalendar', eventId, calendarDate.year, calendarDate.month],
@@ -193,7 +188,7 @@ const EventUtilityPage = ({ user, onLogout, type }) => {
             {type === 'calendar' && <CalendarContent eventId={eventId} event={event} departments={departments} members={members} calendar={calendarQuery.data} calendarDate={calendarDate} setCalendarDate={setCalendarDate} />}
             {type === 'documents' && <DocumentsContent eventId={eventId} event={event} documents={documentsQuery.data || []} />}
             {type === 'reports' && <ReportsContent event={event} stats={stats} departments={departments} members={members} tasks={tasks} reportsData={reportsQuery.data} reportRange={reportRange} />}
-            {type === 'settings' && <SettingsContent event={event} departments={departments} members={members} />}
+            {type === 'settings' && <SettingsContent />}
           </>
         )}
       </div>
@@ -690,7 +685,7 @@ const CalendarAiSuggestionPanel = ({
           <input
             value={instruction}
             onChange={(event) => setInstruction(event.target.value)}
-            placeholder="Context cho AI"
+            placeholder="Bối cảnh AI"
             className="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
           />
           <Button type="button" variant="secondary" onClick={() => suggestMutation.mutate()} disabled={suggestMutation.isPending}>
@@ -755,7 +750,7 @@ const CalendarAiSuggestionPanel = ({
                         <span className="font-bold text-slate-950">{item.title}</span>
                         <StatusBadge status={CALENDAR_TYPE_LABELS[item.type] || item.type || 'Lịch'} />
                       </div>
-                      <p className="mt-1 text-xs font-black text-indigo-600">Bấm vào hàng để sửa</p>
+
                     </td>
                     <td className="px-3 py-3 align-top font-semibold leading-6 text-slate-500">
                       {formatDate(item.startTime)} - {formatDate(item.endTime)}
@@ -1724,15 +1719,6 @@ const formatFileSize = (sizeBytes) => {
   return `${Math.round(size / 1024 / 102.4) / 10} MB`;
 };
 
-const formatEventRange = (event) => {
-  const start = event?.startTime || event?.eventDate;
-  const end = event?.endTime;
-  if (!end || end === start) {
-    return formatDate(start);
-  }
-  return `${formatDate(start)} - ${formatDate(end)}`;
-};
-
 const ReportsContent = ({ event, stats, departments, members, tasks, reportsData, reportRange }) => {
   const reports = useMemo(() => reportsData?.reports || [], [reportsData]);
   const reportSummary = reportsData?.summary || {};
@@ -1823,201 +1809,71 @@ const ReportDownloadButtons = ({ report }) => (
   </div>
 );
 
-const SettingsContent = ({ event, departments, members }) => {
-  const isLeader = event?.role === 'LEADER';
-  const departmentPath = getDepartmentHomePath(event);
+const SettingsContent = () => {
+  const { i18n } = useTranslation();
+  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
+  const [language, setLanguage] = useState(() => localStorage.getItem('language') || i18n.language || 'vi');
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    document.documentElement.style.colorScheme = theme === 'dark' ? 'dark' : 'light';
+  }, [theme]);
+
+  const applyTheme = (nextTheme) => {
+    setTheme(nextTheme);
+    localStorage.setItem('theme', nextTheme);
+  };
+
+  const applyLanguage = (nextLanguage) => {
+    setLanguage(nextLanguage);
+    localStorage.setItem('language', nextLanguage);
+    i18n.changeLanguage(nextLanguage);
+  };
 
   return (
-    <div className="space-y-6">
-      <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <Panel className="relative overflow-hidden p-0">
-          <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-sky-100 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-28 left-1/3 h-64 w-64 rounded-full bg-emerald-100/70 blur-3xl" />
-
-          <div className="relative border-b border-sky-100 bg-gradient-to-r from-sky-50 via-white to-emerald-50 px-5 py-5">
-            <div className="flex items-start gap-3">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-400 text-white shadow-lg shadow-cyan-100">
-                <Settings size={22} strokeWidth={1.8} />
-              </div>
-
-              <div>
-                <h3 className="text-lg font-black text-slate-950">
-                  Thông tin sự kiện
-                </h3>
-                <p className="mt-1 text-sm font-semibold leading-6 text-slate-500">
-                  Xem các thông tin chính của sự kiện đang được sử dụng trong EventFlow.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <dl className="relative grid gap-4 p-5 sm:grid-cols-2">
-            <InfoItem label="Tên sự kiện" value={event?.name} />
-            <InfoItem
-              label="Trạng thái"
-              value={EVENT_STATUS_LABELS[event?.status] || event?.status || 'Đang diễn ra'}
-            />
-            <InfoItem label="Vai trò của bạn" value={isLeader ? 'Trưởng nhóm' : 'Thành viên'} />
-            <InfoItem label="Thời gian diễn ra" value={formatEventRange(event)} />
-            <InfoItem label="Địa điểm" value={event?.location || 'Chưa có địa điểm'} />
-            <InfoItem label="Mô tả" value={event?.description || 'Chưa có mô tả'} className="sm:col-span-2" />
-          </dl>
-        </Panel>
-
-        <Panel className="relative overflow-hidden p-0">
-          <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-emerald-100/80 blur-3xl" />
-
-          <div className="relative border-b border-sky-100 bg-gradient-to-r from-sky-50 via-white to-emerald-50 px-5 py-5">
-            <div className="flex items-start gap-3">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-400 text-white shadow-lg shadow-cyan-100">
-                <Users size={22} strokeWidth={1.8} />
-              </div>
-
-              <div>
-                <h3 className="text-lg font-black text-slate-950">
-                  Tổng quan
-                </h3>
-                <p className="mt-1 text-sm font-semibold leading-6 text-slate-500">
-                  Quy mô hiện tại của sự kiện.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="relative space-y-3 p-5">
-            <SummaryPill label="Ban tổ chức" value={departments.length} icon={Settings} />
-            <SummaryPill label="Thành viên" value={members.length} icon={Users} />
-
-            <div className="rounded-[1.5rem] border border-cyan-100 bg-cyan-50/60 p-4">
-              <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-cyan-600 shadow-sm">
-                  <CheckCircle2 size={18} strokeWidth={1.8} />
-                </div>
-
-                <div>
-                  <p className="text-xs font-black uppercase tracking-[0.16em] text-cyan-600">
-                    Quyền truy cập
-                  </p>
-                  <p className="mt-1 text-sm font-black text-slate-950">
-                    {isLeader ? 'Leader permission' : 'Member view'}
-                  </p>
-                  <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">
-                    {isLeader
-                      ? 'Bạn có quyền quản lý thông tin, ban và thành viên.'
-                      : 'Bạn đang xem thông tin và các lối tắt được phép truy cập.'}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </Panel>
-      </section>
-
-      <Panel className="relative overflow-hidden p-0">
-        <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-sky-100 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-28 left-1/3 h-64 w-64 rounded-full bg-emerald-100/70 blur-3xl" />
-
-        <div className="relative border-b border-sky-100 bg-gradient-to-r from-sky-50 via-white to-emerald-50 px-5 py-5">
-          <div className="flex items-start gap-3">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-400 text-white shadow-lg shadow-cyan-100">
-              <Sparkles size={22} strokeWidth={1.8} />
-            </div>
-
-            <div>
-              <h3 className="text-lg font-black text-slate-950">
-                {isLeader ? 'Tác vụ quản trị' : 'Lối tắt của bạn'}
-              </h3>
-              <p className="mt-1 text-sm font-semibold leading-6 text-slate-500">
-                Truy cập nhanh những khu vực thường dùng trong sự kiện.
-              </p>
-            </div>
-          </div>
+    <div className="max-w-3xl space-y-5">
+      <Panel className="p-5">
+        <div className="border-b border-slate-100 pb-4">
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-sky-600">Giao diện</p>
+          <h3 className="mt-1 text-lg font-black text-slate-950">Chế độ sáng / tối</h3>
         </div>
 
-        <div className="relative grid gap-4 p-5 md:grid-cols-2 xl:grid-cols-3">
-          {isLeader ? (
-            <>
-              <SettingsActionCard
-                to={`/events/${event?.id}/edit`}
-                icon={Settings}
-                title="Sửa thông tin sự kiện"
-                description="Cập nhật tên, thời gian, địa điểm, mô tả và các thông tin chính."
-              />
-
-              <SettingsActionCard
-                to={`/events/${event?.id}/departments`}
-                icon={Settings}
-                title="Quản lý ban"
-                description="Tạo ban, chỉnh sửa ban và phân chia cấu trúc tổ chức."
-              />
-
-              <SettingsActionCard
-                to={`/events/${event?.id}/members`}
-                icon={Users}
-                title="Quản lý thành viên"
-                description="Mời thành viên, xem role, ban phụ trách và trạng thái kết nối."
-              />
-            </>
-          ) : (
-            <>
-              <SettingsActionCard
-                to={`/events/${event?.id}/tasks`}
-                icon={ClipboardList}
-                title="Công việc của tôi"
-                description="Xem các task được giao và cập nhật tiến độ công việc."
-              />
-
-              <SettingsActionCard
-                to={`/events/${event?.id}/documents`}
-                icon={FileText}
-                title="Tài liệu được xem"
-                description="Truy cập tài liệu, file đính kèm và link được chia sẻ."
-              />
-
-              {departmentPath && (
-                <SettingsActionCard
-                  to={departmentPath}
-                  icon={Users}
-                  title="Thông tin ban"
-                  description="Xem thông tin ban phụ trách và các nội dung liên quan."
-                />
-              )}
-            </>
-          )}
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={() => applyTheme('light')}
+            className={`min-h-12 rounded-lg border px-4 text-sm font-black transition ${theme === 'light' ? 'border-sky-300 bg-sky-50 text-sky-700' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'}`}
+          >
+            Sáng
+          </button>
+          <button
+            type="button"
+            onClick={() => applyTheme('dark')}
+            className={`min-h-12 rounded-lg border px-4 text-sm font-black transition ${theme === 'dark' ? 'border-slate-900 bg-slate-950 text-white' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'}`}
+          >
+            Tối
+          </button>
         </div>
+      </Panel>
+
+      <Panel className="p-5">
+        <div className="border-b border-slate-100 pb-4">
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-sky-600">Ngôn ngữ</p>
+          <h3 className="mt-1 text-lg font-black text-slate-950">Chọn ngôn ngữ</h3>
+        </div>
+
+        <select
+          value={language}
+          onChange={(event) => applyLanguage(event.target.value)}
+          className="mt-4 min-h-12 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-black text-slate-800 outline-none transition focus:border-sky-300 focus:ring-4 focus:ring-sky-100"
+        >
+          <option value="vi">Tiếng Việt</option>
+          <option value="en">English</option>
+        </select>
       </Panel>
     </div>
   );
 };
-
-const SettingsActionCard = ({ to, icon: Icon, title, description }) => (
-  <Link
-    to={to}
-    className="group relative overflow-hidden rounded-[2rem] border border-sky-100 bg-white p-5 shadow-xl shadow-sky-100/70 transition hover:-translate-y-1 hover:shadow-2xl hover:shadow-cyan-100"
-  >
-    <div className="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full bg-sky-100/80 opacity-0 blur-3xl transition group-hover:opacity-100" />
-
-    <div className="relative">
-      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-400 text-white shadow-lg shadow-cyan-100">
-        <Icon size={22} strokeWidth={1.8} />
-      </div>
-
-      <h4 className="mt-4 font-black text-slate-950">
-        {title}
-      </h4>
-
-      <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
-        {description}
-      </p>
-
-      <div className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-3 py-1.5 text-xs font-black text-sky-700 transition group-hover:bg-white">
-        Mở
-        <ExternalLink size={13} />
-      </div>
-    </div>
-  </Link>
-);
-
 const SummaryPill = ({ label, value, icon: Icon }) => (
   <div className="rounded-[1.5rem] border border-sky-100 bg-sky-50/60 p-4">
     <div className="flex items-start gap-3">
@@ -2039,15 +1895,9 @@ const SummaryPill = ({ label, value, icon: Icon }) => (
   </div>
 );
 
-const InfoItem = ({ label, value, className = '' }) => (
-  <div className={`rounded-[1.5rem] border border-sky-100 bg-sky-50/50 p-4 ${className}`}>
-    <dt className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-      {label}
-    </dt>
-    <dd className="mt-2 text-sm font-black leading-6 text-slate-950">
-      {value || 'Không có dữ liệu'}
-    </dd>
-  </div>
-);
-
 export default EventUtilityPage;
+
+
+
+
+

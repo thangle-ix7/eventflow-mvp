@@ -46,6 +46,9 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             AND (:departmentId IS NULL OR t.department.id = :departmentId)
             AND (:assigneeId IS NULL OR t.assignee.id = :assigneeId)
             AND (:searchPattern IS NULL OR LOWER(t.title) LIKE :searchPattern OR LOWER(COALESCE(t.description, '')) LIKE :searchPattern)
+            AND (:deadlineStatus IS NULL
+                OR (:deadlineStatus = 'OVERDUE' AND t.status <> com.eventflow.backend.entity.TaskStatus.DONE AND t.deadline < :now)
+                OR (:deadlineStatus = 'ACTIVE' AND (t.status = com.eventflow.backend.entity.TaskStatus.DONE OR t.deadline IS NULL OR t.deadline >= :now)))
             """)
     List<Task> findAllByEventIdWithFilters(
             @Param("eventId") Long eventId,
@@ -54,8 +57,9 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             @Param("departmentId") Long departmentId,
             @Param("assigneeId") Long assigneeId,
             @Param("searchPattern") String searchPattern,
-            @Param("includeSubtasks") boolean includeSubtasks,
-            org.springframework.data.domain.Sort sort);
+            @Param("deadlineStatus") String deadlineStatus,
+            @Param("now") LocalDateTime now,
+            @Param("includeSubtasks") boolean includeSubtasks,            org.springframework.data.domain.Sort sort);
 
     @Query(value = """
             SELECT t FROM Task t
@@ -70,6 +74,9 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             AND (:departmentId IS NULL OR t.department.id = :departmentId)
             AND (:assigneeId IS NULL OR t.assignee.id = :assigneeId)
             AND (:searchPattern IS NULL OR LOWER(t.title) LIKE :searchPattern OR LOWER(COALESCE(t.description, '')) LIKE :searchPattern)
+            AND (:deadlineStatus IS NULL
+                OR (:deadlineStatus = 'OVERDUE' AND t.status <> com.eventflow.backend.entity.TaskStatus.DONE AND t.deadline < :now)
+                OR (:deadlineStatus = 'ACTIVE' AND (t.status = com.eventflow.backend.entity.TaskStatus.DONE OR t.deadline IS NULL OR t.deadline >= :now)))
             """,
             countQuery = """
             SELECT COUNT(t) FROM Task t
@@ -80,6 +87,9 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             AND (:departmentId IS NULL OR t.department.id = :departmentId)
             AND (:assigneeId IS NULL OR t.assignee.id = :assigneeId)
             AND (:searchPattern IS NULL OR LOWER(t.title) LIKE :searchPattern OR LOWER(COALESCE(t.description, '')) LIKE :searchPattern)
+            AND (:deadlineStatus IS NULL
+                OR (:deadlineStatus = 'OVERDUE' AND t.status <> com.eventflow.backend.entity.TaskStatus.DONE AND t.deadline < :now)
+                OR (:deadlineStatus = 'ACTIVE' AND (t.status = com.eventflow.backend.entity.TaskStatus.DONE OR t.deadline IS NULL OR t.deadline >= :now)))
             """)
     Page<Task> findPageByEventIdWithFilters(
             @Param("eventId") Long eventId,
@@ -88,8 +98,9 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             @Param("departmentId") Long departmentId,
             @Param("assigneeId") Long assigneeId,
             @Param("searchPattern") String searchPattern,
-            @Param("includeSubtasks") boolean includeSubtasks,
-            Pageable pageable);
+            @Param("deadlineStatus") String deadlineStatus,
+            @Param("now") LocalDateTime now,
+            @Param("includeSubtasks") boolean includeSubtasks,            Pageable pageable);
 
     @Query(value = """
             SELECT t FROM Task t
@@ -104,6 +115,9 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             AND (:departmentId IS NULL OR t.department.id = :departmentId)
             AND (:assigneeId IS NULL OR t.assignee.id = :assigneeId)
             AND (:searchPattern IS NULL OR LOWER(t.title) LIKE :searchPattern OR LOWER(COALESCE(t.description, '')) LIKE :searchPattern)
+            AND (:deadlineStatus IS NULL
+                OR (:deadlineStatus = 'OVERDUE' AND t.status <> com.eventflow.backend.entity.TaskStatus.DONE AND t.deadline < :now)
+                OR (:deadlineStatus = 'ACTIVE' AND (t.status = com.eventflow.backend.entity.TaskStatus.DONE OR t.deadline IS NULL OR t.deadline >= :now)))
             AND t.deadline >= :fromDateTime
             AND t.deadline < :toDateTime
             """,
@@ -116,6 +130,9 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             AND (:departmentId IS NULL OR t.department.id = :departmentId)
             AND (:assigneeId IS NULL OR t.assignee.id = :assigneeId)
             AND (:searchPattern IS NULL OR LOWER(t.title) LIKE :searchPattern OR LOWER(COALESCE(t.description, '')) LIKE :searchPattern)
+            AND (:deadlineStatus IS NULL
+                OR (:deadlineStatus = 'OVERDUE' AND t.status <> com.eventflow.backend.entity.TaskStatus.DONE AND t.deadline < :now)
+                OR (:deadlineStatus = 'ACTIVE' AND (t.status = com.eventflow.backend.entity.TaskStatus.DONE OR t.deadline IS NULL OR t.deadline >= :now)))
             AND t.deadline >= :fromDateTime
             AND t.deadline < :toDateTime
             """)
@@ -126,8 +143,9 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             @Param("departmentId") Long departmentId,
             @Param("assigneeId") Long assigneeId,
             @Param("searchPattern") String searchPattern,
-            @Param("includeSubtasks") boolean includeSubtasks,
-            @Param("fromDateTime") LocalDateTime fromDateTime,
+            @Param("deadlineStatus") String deadlineStatus,
+            @Param("now") LocalDateTime now,
+            @Param("includeSubtasks") boolean includeSubtasks,            @Param("fromDateTime") LocalDateTime fromDateTime,
             @Param("toDateTime") LocalDateTime toDateTime,
             Pageable pageable);
 
@@ -258,3 +276,5 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
     @Query("UPDATE Task t SET t.department = null WHERE t.department.id = :deptId")
     void clearDepartmentIdByDepartmentId(@Param("deptId") Long deptId);
 }
+
+

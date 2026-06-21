@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
+  Bell,
   CalendarDays,
   ClipboardList,
   FileText,
@@ -13,7 +14,6 @@ import {
   Sparkles,
   TrendingUp,
   UserRound,
-  Users,
 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import AiSuggestionDetailModal from '../components/AiSuggestionDetailModal';
@@ -59,6 +59,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
     assigneeId: '',
     milestoneId: '',
     deadline: '',
+    reminderOffsetHours: 24,
     status: 'TODO',
     priority: 'MEDIUM',
     progressPercentage: 0,
@@ -159,6 +160,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
         assigneeId: form.assigneeId ? Number(form.assigneeId) : null,
         milestoneId: form.milestoneId ? Number(form.milestoneId) : null,
         deadline: form.deadline,
+        reminderOffsetMinutes: Math.round(Number(form.reminderOffsetHours || 0) * 60),
         status: form.status,
         priority: form.priority,
         progressPercentage: Number(form.progressPercentage),
@@ -175,6 +177,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
       assigneeId: task.assigneeId ? String(task.assigneeId) : '',
       milestoneId: task.milestoneId ? String(task.milestoneId) : '',
       deadline: normalizeSuggestedDeadline(task.deadline),
+      reminderOffsetHours: 24,
       status: task.status || 'TODO',
       priority: task.priority || 'MEDIUM',
       progressPercentage: task.progressPercentage ?? 0,
@@ -214,9 +217,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
                   Tạo task mới
                 </h2>
 
-                <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-slate-600">
-                  Tạo công việc, gán ban phụ trách, phân công thành viên, đặt deadline và theo dõi workload trước khi giao task.
-                </p>
+  
               </div>
 
             <div className="rounded-2xl border border-sky-100 bg-sky-50/70 px-4 py-3">
@@ -244,9 +245,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
                   <h3 className="text-lg font-black text-slate-950">
                     Thông tin công việc
                   </h3>
-                  <p className="mt-1 text-sm font-semibold text-slate-500">
-                    Điền thông tin để tạo công việc trong sự kiện.
-                  </p>
+
                 </div>
               </div>
             </div>
@@ -269,7 +268,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
                   required
                   maxLength={255}
                   className={inputClassName}
-                  placeholder="Nhập tên công việc cần thực hiện"
+                  placeholder="Tên công việc"
                 />
               </Field>
 
@@ -284,7 +283,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
                   maxLength={2000}
                   rows={5}
                   className={`${inputClassName} min-h-32 resize-none py-3`}
-                  placeholder="Mô tả chi tiết công việc, yêu cầu đầu ra, ghi chú..."
+                  placeholder="Mô tả"
                 />
               </Field>
 
@@ -408,6 +407,26 @@ const TaskCreatePage = ({ user, onLogout }) => {
                 </Field>
 
                 <Field
+                  label="Cảnh báo vàng trước hạn (giờ)"
+                  icon={<Bell className="h-4 w-4" strokeWidth={1.8} />}
+                >
+                  <input
+                    name="reminderOffsetHours"
+                    type="number"
+                    min="0"
+                    max="8760"
+                    step="0.5"
+                    value={form.reminderOffsetHours}
+                    onChange={handleChange}
+                    required
+                    className={inputClassName}
+                  />
+                </Field>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+
+                <Field
                   label="Tiến độ (%)"
                   icon={<TrendingUp className="h-4 w-4" strokeWidth={1.8} />}
                 >
@@ -489,9 +508,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
                   <h3 className="text-lg font-black text-slate-950">
                     AI gợi ý công việc
                   </h3>
-                  <p className="mt-1 text-sm font-semibold leading-6 text-slate-500">
-                    Nhập bối cảnh để AI đề xuất danh sách công việc phù hợp.
-                  </p>
+
                 </div>
               </div>
 
@@ -500,7 +517,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
                   value={suggestionInstruction}
                   onChange={(event) => setSuggestionInstruction(event.target.value)}
                   className={inputClassName}
-                  placeholder="Bối cảnh cho AI, ví dụ: chuẩn bị workshop 100 người..."
+                  placeholder="Bối cảnh AI"
                 />
 
                 <button
@@ -554,7 +571,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
                           >
                             <td className="px-3 py-3 align-top">
                               <p className="font-black text-slate-950">{task.title}</p>
-                              <p className="mt-1 text-xs font-black text-sky-600">Bấm vào hàng để sửa</p>
+
                             </td>
                             <td className="px-3 py-3 align-top font-semibold text-slate-600">
                               {normalizeSuggestedDeadline(task.deadline) || 'Chưa có'}
@@ -589,21 +606,6 @@ const TaskCreatePage = ({ user, onLogout }) => {
                 </div>
               )}
             </section>
-
-            <section className="rounded-[2rem] border border-sky-100 bg-white p-5 shadow-xl shadow-sky-100/70">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-50 text-sky-600">
-                  <Users size={20} strokeWidth={1.8} />
-                </div>
-
-                <div>
-                  <h3 className="font-black text-slate-950">Gợi ý khối lượng việc</h3>
-                  <p className="mt-1 text-sm font-semibold leading-6 text-slate-500">
-                    Chọn ban trước để EventFlow tải khối lượng việc và chỉ hiển thị thành viên thuộc ban đó.
-                  </p>
-                </div>
-              </div>
-            </section>
           </aside>
         </div>
       </div>
@@ -630,23 +632,14 @@ const TaskCreatePage = ({ user, onLogout }) => {
   );
 };
 
-const Field = ({ label, icon, hint, children }) => (
+const Field = ({ label, children }) => (
   <label className="block">
-    <span className="flex items-center gap-2 text-sm font-black text-slate-700">
-      <span className="text-sky-500">{icon}</span>
-      {label}
-    </span>
-
+    <span className="text-sm font-black text-slate-700">{label}</span>
     <div className="mt-2">{children}</div>
-
-    {hint && (
-      <p className="mt-2 text-xs font-semibold leading-5 text-slate-500">
-        {hint}
-      </p>
-    )}
   </label>
 );
 
 const inputClassName = 'min-h-11 w-full min-w-0 rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-2.5 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:bg-white focus:ring-4 focus:ring-cyan-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500';
 
 export default TaskCreatePage;
+

@@ -22,7 +22,11 @@ public class TaskResponseDTO {
     private TaskStatus status;
     private TaskPriority priority;
     private LocalDateTime deadline;
+    private Integer reminderOffsetMinutes;
+    private String deadlineStatus;
+    private Long minutesUntilDeadline;
     private Integer progressPercentage;
     private Long assigneeId;
     private String assigneeName;
 }
+

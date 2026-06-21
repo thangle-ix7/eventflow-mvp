@@ -113,11 +113,17 @@ const getFriendlyErrorMessage = (status, error) => {
     return 'Bạn thao tác hơi nhanh. Vui lòng chờ một chút rồi thử lại.';
   }
 
+  if (status === 503) {
+    return serverMessage || 'Dịch vụ đang tạm thời chưa sẵn sàng. Vui lòng thử lại sau.';
+  }
+
   if (status >= 500) {
-    return 'Hệ thống đang gặp sự cố tạm thời. Vui lòng thử lại sau.';
+    return serverMessage || 'Hệ thống đang gặp sự cố tạm thời. Vui lòng thử lại sau.';
   }
 
   return serverMessage || 'Có lỗi xảy ra. Vui lòng thử lại.';
 };
 
 export default apiClient;
+
+

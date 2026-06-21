@@ -5,7 +5,6 @@ import {
   ArrowRight,
   CheckCircle2,
   Clock3,
-  Gauge,
   ListTodo,
   MessageSquareWarning,
   Plus,
@@ -17,7 +16,42 @@ import leaderSnapshotApi from '../api/leaderSnapshotApi';
 import taskApi from '../api/taskApi';
 import { formatDate } from '../utils/dateUtils';
 
-const PRIORITIES = ['URGENT', 'HIGH', 'MEDIUM', 'LOW'];
+const PRIORITIES = [
+  {
+    key: 'URGENT',
+    label: 'Khẩn cấp',
+    chipClass: 'bg-rose-100 text-rose-700',
+    borderClass: 'border-t-rose-400',
+    cardClass: 'border-l-rose-500',
+    dropClass: 'ring-rose-100',
+  },
+  {
+    key: 'HIGH',
+    label: 'Cao',
+    chipClass: 'bg-orange-100 text-orange-700',
+    borderClass: 'border-t-orange-400',
+    cardClass: 'border-l-orange-400',
+    dropClass: 'ring-orange-100',
+  },
+  {
+    key: 'MEDIUM',
+    label: 'Trung bình',
+    chipClass: 'bg-sky-100 text-sky-700',
+    borderClass: 'border-t-sky-400',
+    cardClass: 'border-l-sky-400',
+    dropClass: 'ring-sky-100',
+  },
+  {
+    key: 'LOW',
+    label: 'Thấp',
+    chipClass: 'bg-slate-100 text-slate-600',
+    borderClass: 'border-t-slate-300',
+    cardClass: 'border-l-slate-300',
+    dropClass: 'ring-slate-100',
+  },
+];
+
+const getPriorityMeta = (priority) => PRIORITIES.find((item) => item.key === priority) || PRIORITIES[2];
 
 export const EventLeaderSnapshotPanel = ({ eventId, snapshot, isLoading, error }) => {
   const [isMilestoneModalOpen, setIsMilestoneModalOpen] = useState(false);
@@ -41,25 +75,19 @@ export const EventLeaderSnapshotPanel = ({ eventId, snapshot, isLoading, error }
 
   if (!snapshot) return null;
 
-  const metrics = snapshot.metrics || {};
   const milestones = snapshot.milestoneProgress || [];
 
   return (
     <>
     <Panel className="overflow-hidden">
       <div className="flex flex-col gap-3 border-b border-sky-100 bg-gradient-to-r from-sky-50 via-white to-emerald-50 px-5 py-5 xl:flex-row xl:items-start xl:justify-between">
-        <div className="flex items-start gap-3">
-          <IconShell>
-            <Gauge className="h-5 w-5" strokeWidth={1.8} />
-          </IconShell>
-          <div>
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-sky-500">
-              Tổng quan trưởng nhóm
-            </p>
-            <h2 className="mt-1 text-xl font-black text-slate-950">
-              Tiến độ cột mốc và công việc ưu tiên
-            </h2>
-          </div>
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-sky-500">
+            Tổng quan trưởng nhóm
+          </p>
+          <h2 className="mt-1 text-xl font-black text-slate-950">
+            Tiến độ cột mốc và công việc ưu tiên
+          </h2>
         </div>
 
         <button
@@ -73,12 +101,6 @@ export const EventLeaderSnapshotPanel = ({ eventId, snapshot, isLoading, error }
       </div>
 
       <div className="space-y-5 p-5">
-        <div className="grid gap-3 sm:grid-cols-3">
-          <SnapshotMetric icon={ListTodo} label="Tổng tiến độ công việc" value={`${snapshot.overallProgress ?? 0}%`} detail={`${metrics.completedTasks || 0}/${metrics.totalTasks || 0} công việc hoàn thành`} tone="sky" />
-          <SnapshotMetric icon={Gauge} label="Cột mốc" value={milestones.length} detail="Chặng triển khai của sự kiện" tone="emerald" />
-          <SnapshotMetric icon={Clock3} label="Quá hạn" value={metrics.overdueTasks || 0} detail={`${metrics.dueSoonTasks || 0} công việc sát hạn`} tone="rose" />
-        </div>
-
         <MilestoneProgressBoard
           milestones={milestones}
           selectedMilestone={selectedMilestone}
@@ -322,17 +344,16 @@ const PriorityTaskBoard = ({ eventId, milestone, onClearMilestone }) => {
         </div>
       </div>
 
-      <div className="mt-4 rounded-2xl border border-slate-100">
-        <div className="grid grid-cols-1 bg-white sm:grid-cols-2 xl:grid-cols-4">
-          {PRIORITIES.map((priority, index) => (
+      <div className="mt-4 overflow-x-auto rounded-xl border border-slate-200 bg-slate-50/70">
+        <div className="grid min-w-[960px] grid-cols-4">
+          {PRIORITIES.map((priority) => (
             <PriorityTaskColumn
-              key={`${milestone?.milestoneId || 'all'}-${priority}`}
+              key={`${milestone?.milestoneId || 'all'}-${priority.key}`}
               eventId={eventId}
-              priority={priority}
+              priority={priority.key}
               milestoneId={milestone?.milestoneId}
               draggingTask={draggingTask}
               isUpdatingPriority={updatePriorityMutation.isPending}
-              isLast={index === PRIORITIES.length - 1}
               onDragTask={setDraggingTask}
               onDropTask={handleDropTask}
             />
@@ -349,12 +370,12 @@ const PriorityTaskColumn = ({
   milestoneId,
   draggingTask,
   isUpdatingPriority,
-  isLast,
   onDragTask,
   onDropTask,
 }) => {
   const scrollerRef = useRef(null);
   const sentinelRef = useRef(null);
+  const meta = getPriorityMeta(priority);
   const query = useInfiniteQuery({
     queryKey: ['leaderPriorityTasks', eventId, priority, milestoneId || 'all'],
     queryFn: ({ pageParam = 0 }) => leaderSnapshotApi.getPriorityTasks({
@@ -394,9 +415,9 @@ const PriorityTaskColumn = ({
   }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
   return (
-    <div
-      className={`${isLast ? '' : 'xl:border-r xl:border-slate-100'} min-w-0 border-b border-slate-100 transition even:sm:border-r-0 sm:border-r xl:border-b-0 ${
-        draggingTask && draggingTask.priority !== priority ? 'bg-sky-50/40' : ''
+    <section
+      className={`min-w-0 border-r border-slate-200 last:border-r-0 transition ${meta.borderClass} ${
+        draggingTask && draggingTask.priority !== priority ? `bg-white ring-4 ${meta.dropClass}` : 'bg-slate-50/40'
       }`}
       onDragOver={(event) => {
         event.preventDefault();
@@ -404,51 +425,48 @@ const PriorityTaskColumn = ({
       }}
       onDrop={() => onDropTask(priority)}
     >
-      <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-slate-100 bg-slate-50 px-3 py-3">
-        <span className={`rounded-full px-2.5 py-1 text-xs font-black ${priorityTone(priority)}`}>
-          {priorityLabel(priority)}
+      <div className="sticky top-0 z-10 flex min-h-16 items-center justify-between gap-3 border-b border-slate-200 bg-white px-3 py-3 shadow-sm">
+        <span className={`rounded-md px-3 py-1.5 text-xs font-black uppercase ${meta.chipClass}`}>
+          {meta.label}
         </span>
-        <span className="text-xs font-black text-slate-400">{total}</span>
+        <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-black text-slate-600">
+          {total}
+        </span>
       </div>
 
-      <div ref={scrollerRef} className="max-h-[520px] overflow-y-auto">
+      <div ref={scrollerRef} className="max-h-[560px] space-y-3 overflow-y-auto p-3">
         {query.isLoading && (
-          <div className="divide-y divide-slate-100">
-            {Array.from({ length: 4 }).map((_, index) => (
-              <div key={index} className="px-3 py-3">
-                <div className="h-4 w-4/5 animate-pulse rounded bg-slate-100" />
-                <div className="mt-2 h-3 w-3/5 animate-pulse rounded bg-slate-100" />
-              </div>
-            ))}
-          </div>
+          Array.from({ length: 3 }).map((_, index) => (
+            <div key={index} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="h-3 w-3/5 animate-pulse rounded bg-slate-100" />
+              <div className="mt-3 h-4 w-4/5 animate-pulse rounded bg-slate-100" />
+              <div className="mt-3 h-3 w-1/2 animate-pulse rounded bg-slate-100" />
+            </div>
+          ))
         )}
 
         {query.error && (
-          <p className="px-3 py-4 text-sm font-semibold text-rose-600">
-            Không tải được công việc {priorityLabel(priority).toLowerCase()}.
+          <p className="rounded-lg border border-rose-100 bg-rose-50 px-3 py-4 text-sm font-semibold text-rose-600">
+            Không tải được công việc {meta.label.toLowerCase()}.
           </p>
         )}
 
         {!query.isLoading && !query.error && tasks.length === 0 && (
-          <p className="px-3 py-8 text-center text-xs font-bold text-slate-400">
+          <p className="rounded-lg border border-dashed border-slate-200 bg-white px-3 py-8 text-center text-xs font-bold text-slate-400">
             Không có công việc
           </p>
         )}
 
-        {tasks.length > 0 && (
-          <div className="divide-y divide-slate-100">
-            {tasks.map((item) => (
-              <PriorityTaskRow
-                key={item.taskId}
-                eventId={eventId}
-                item={item}
-                disabled={isUpdatingPriority}
-                onDragStart={() => onDragTask(item)}
-                onDragEnd={() => onDragTask(null)}
-              />
-            ))}
-          </div>
-        )}
+        {tasks.map((item) => (
+          <PriorityTaskRow
+            key={item.taskId}
+            eventId={eventId}
+            item={item}
+            disabled={isUpdatingPriority}
+            onDragStart={() => onDragTask(item)}
+            onDragEnd={() => onDragTask(null)}
+          />
+        ))}
 
         <div ref={sentinelRef} className="h-3" />
 
@@ -458,54 +476,65 @@ const PriorityTaskColumn = ({
           </p>
         )}
       </div>
-    </div>
+    </section>
   );
 };
 
-const PriorityTaskRow = ({ eventId, item, disabled, onDragStart, onDragEnd }) => (
-  <Link
-    to={`/events/${eventId}/tasks/${item.taskId}`}
-    draggable={!disabled}
-    onDragStart={(event) => {
-      event.dataTransfer.effectAllowed = 'move';
-      event.dataTransfer.setData('text/plain', String(item.taskId));
-      onDragStart();
-    }}
-    onDragEnd={onDragEnd}
-    onClick={(event) => {
-      if (disabled) {
-        event.preventDefault();
-      }
-    }}
-    className={`grid min-h-[92px] cursor-grab grid-cols-[1fr_auto] gap-3 px-3 py-3 text-sm transition hover:bg-sky-50 active:cursor-grabbing ${
-      disabled ? 'pointer-events-none opacity-60' : ''
-    }`}
-  >
-    <span className="min-w-0">
-      <span className="line-clamp-2 font-black leading-5 text-slate-950">{item.title}</span>
-      <span className="mt-1 block truncate text-xs font-bold text-slate-500">
+const PriorityTaskRow = ({ eventId, item, disabled, onDragStart, onDragEnd }) => {
+  const meta = getPriorityMeta(item.priority);
+
+  return (
+    <Link
+      to={`/events/${eventId}/tasks/${item.taskId}`}
+      draggable={!disabled}
+      onDragStart={(event) => {
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', String(item.taskId));
+        onDragStart();
+      }}
+      onDragEnd={onDragEnd}
+      onClick={(event) => {
+        if (disabled) {
+          event.preventDefault();
+        }
+      }}
+      className={`block min-h-[148px] cursor-grab rounded-lg border border-l-4 border-slate-200 bg-white p-4 text-sm shadow-sm transition hover:-translate-y-0.5 hover:border-sky-200 hover:shadow-md active:cursor-grabbing ${meta.cardClass} ${
+        disabled ? 'pointer-events-none opacity-60' : ''
+      }`}
+    >
+      <span className="block truncate text-[11px] font-semibold text-slate-400">
         {item.milestoneName || 'Chưa gán cột mốc'}
       </span>
-      <span className="mt-1 block truncate text-xs font-semibold text-slate-500">
-        {item.departmentName || 'Chưa gán ban'} · {item.assigneeName || 'Chưa phân công'}
+      <span className="mt-1 block line-clamp-2 min-h-10 font-black leading-5 text-slate-950">
+        {item.title}
       </span>
-    </span>
 
-    <span className="flex min-w-[92px] flex-col items-end gap-1 text-right">
-      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-black text-slate-600">
-        {item.status}
+      <span className="mt-3 flex items-center justify-between gap-3 text-xs font-semibold text-slate-500">
+        <span className="truncate">{item.deadline ? formatDate(item.deadline) : 'Chưa có hạn'}</span>
+        <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-black text-slate-600">
+          {item.status || 'TODO'}
+        </span>
       </span>
+
+      <span className="mt-3 grid gap-1.5 text-xs font-semibold text-slate-600">
+        <span className="grid grid-cols-[72px_minmax(0,1fr)] gap-2">
+          <span className="text-slate-400">Ban</span>
+          <span className="truncate">{item.departmentName || 'Chưa gán ban'}</span>
+        </span>
+        <span className="grid grid-cols-[72px_minmax(0,1fr)] gap-2">
+          <span className="text-slate-400">Phụ trách</span>
+          <span className="truncate">{item.assigneeName || 'Chưa phân công'}</span>
+        </span>
+      </span>
+
       {item.reason && item.reason !== 'OPEN' && (
-        <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-black text-rose-600">
+        <span className="mt-3 inline-flex rounded-full bg-rose-50 px-2.5 py-1 text-[11px] font-black text-rose-600">
           {item.reason}
         </span>
       )}
-      <span className="mt-auto text-[11px] font-bold text-slate-400">
-        {item.deadline ? formatDate(item.deadline) : 'Chưa có hạn'}
-      </span>
-    </span>
-  </Link>
-);
+    </Link>
+  );
+};
 
 const ProgressLine = ({ label, value, detail }) => (
   <div>
@@ -668,9 +697,3 @@ const priorityTone = (priority) => {
   return 'bg-slate-100 text-slate-600';
 };
 
-const priorityLabel = (priority) => {
-  if (priority === 'URGENT') return 'Khẩn cấp';
-  if (priority === 'HIGH') return 'Cao';
-  if (priority === 'MEDIUM') return 'Trung bình';
-  return 'Thấp';
-};
