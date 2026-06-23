@@ -61,8 +61,6 @@ const en = {
 
       members: 'Members',
 
-      plannings: 'Plans',
-
       tasks: 'Tasks',
 
       calendar: 'Calendar',
@@ -205,7 +203,6 @@ const en = {
 
     terminology: {
       dashboard: 'Dashboard',
-      planning: 'Plan',
       milestone: 'Milestone',
       task: 'Task',
       subtask: 'Subtask',

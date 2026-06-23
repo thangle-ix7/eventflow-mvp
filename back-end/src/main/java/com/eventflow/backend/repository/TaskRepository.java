@@ -44,6 +44,7 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             AND (:status IS NULL OR t.status = :status)
             AND (:priority IS NULL OR t.priority = :priority)
             AND (:departmentId IS NULL OR t.department.id = :departmentId)
+            AND (:milestoneId IS NULL OR t.milestone.id = :milestoneId)
             AND (:assigneeId IS NULL OR t.assignee.id = :assigneeId)
             AND (:searchPattern IS NULL OR LOWER(t.title) LIKE :searchPattern OR LOWER(COALESCE(t.description, '')) LIKE :searchPattern)
             AND (:deadlineStatus IS NULL
@@ -55,6 +56,7 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             @Param("status") TaskStatus status,
             @Param("priority") TaskPriority priority,
             @Param("departmentId") Long departmentId,
+            @Param("milestoneId") Long milestoneId,
             @Param("assigneeId") Long assigneeId,
             @Param("searchPattern") String searchPattern,
             @Param("deadlineStatus") String deadlineStatus,
@@ -72,6 +74,7 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             AND (:status IS NULL OR t.status = :status)
             AND (:priority IS NULL OR t.priority = :priority)
             AND (:departmentId IS NULL OR t.department.id = :departmentId)
+            AND (:milestoneId IS NULL OR t.milestone.id = :milestoneId)
             AND (:assigneeId IS NULL OR t.assignee.id = :assigneeId)
             AND (:searchPattern IS NULL OR LOWER(t.title) LIKE :searchPattern OR LOWER(COALESCE(t.description, '')) LIKE :searchPattern)
             AND (:deadlineStatus IS NULL
@@ -85,6 +88,7 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             AND (:status IS NULL OR t.status = :status)
             AND (:priority IS NULL OR t.priority = :priority)
             AND (:departmentId IS NULL OR t.department.id = :departmentId)
+            AND (:milestoneId IS NULL OR t.milestone.id = :milestoneId)
             AND (:assigneeId IS NULL OR t.assignee.id = :assigneeId)
             AND (:searchPattern IS NULL OR LOWER(t.title) LIKE :searchPattern OR LOWER(COALESCE(t.description, '')) LIKE :searchPattern)
             AND (:deadlineStatus IS NULL
@@ -96,6 +100,7 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             @Param("status") TaskStatus status,
             @Param("priority") TaskPriority priority,
             @Param("departmentId") Long departmentId,
+            @Param("milestoneId") Long milestoneId,
             @Param("assigneeId") Long assigneeId,
             @Param("searchPattern") String searchPattern,
             @Param("deadlineStatus") String deadlineStatus,
@@ -113,6 +118,7 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             AND (:status IS NULL OR t.status = :status)
             AND (:priority IS NULL OR t.priority = :priority)
             AND (:departmentId IS NULL OR t.department.id = :departmentId)
+            AND (:milestoneId IS NULL OR t.milestone.id = :milestoneId)
             AND (:assigneeId IS NULL OR t.assignee.id = :assigneeId)
             AND (:searchPattern IS NULL OR LOWER(t.title) LIKE :searchPattern OR LOWER(COALESCE(t.description, '')) LIKE :searchPattern)
             AND (:deadlineStatus IS NULL
@@ -128,6 +134,7 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             AND (:status IS NULL OR t.status = :status)
             AND (:priority IS NULL OR t.priority = :priority)
             AND (:departmentId IS NULL OR t.department.id = :departmentId)
+            AND (:milestoneId IS NULL OR t.milestone.id = :milestoneId)
             AND (:assigneeId IS NULL OR t.assignee.id = :assigneeId)
             AND (:searchPattern IS NULL OR LOWER(t.title) LIKE :searchPattern OR LOWER(COALESCE(t.description, '')) LIKE :searchPattern)
             AND (:deadlineStatus IS NULL
@@ -141,6 +148,7 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             @Param("status") TaskStatus status,
             @Param("priority") TaskPriority priority,
             @Param("departmentId") Long departmentId,
+            @Param("milestoneId") Long milestoneId,
             @Param("assigneeId") Long assigneeId,
             @Param("searchPattern") String searchPattern,
             @Param("deadlineStatus") String deadlineStatus,
@@ -276,5 +284,6 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
     @Query("UPDATE Task t SET t.department = null WHERE t.department.id = :deptId")
     void clearDepartmentIdByDepartmentId(@Param("deptId") Long deptId);
 }
+
 
 

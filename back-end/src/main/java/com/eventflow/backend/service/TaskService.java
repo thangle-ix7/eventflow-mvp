@@ -65,6 +65,7 @@ public class TaskService {
             String status,
             String priority,
             Long departmentId,
+            Long milestoneId,
             Long assigneeId,
             String search,
             String sort,
@@ -78,6 +79,7 @@ public class TaskService {
                 parseOptionalStatus(status),
                 parseOptionalPriority(priority),
                 departmentId,
+                milestoneId,
                 assigneeId,
                 normalizeSearch(search),
                 normalizeDeadlineStatus(deadlineStatus),
@@ -116,6 +118,7 @@ public class TaskService {
             String status,
             String priority,
             Long departmentId,
+            Long milestoneId,
             Long assigneeId,
             String search,
             LocalDate fromDate,
@@ -139,6 +142,7 @@ public class TaskService {
                         parsedStatus,
                         parsedPriority,
                         departmentId,
+                        milestoneId,
                         assigneeId,
                         searchPattern,
                         normalizedDeadlineStatus,
@@ -152,6 +156,7 @@ public class TaskService {
                         parsedStatus,
                         parsedPriority,
                         departmentId,
+                        milestoneId,
                         assigneeId,
                         searchPattern,
                         normalizedDeadlineStatus,
@@ -831,4 +836,5 @@ public class TaskService {
                 task.getStatus().name());
     }
 }
+
 

@@ -216,7 +216,7 @@ const LandingPage = () => {
                       </div>
                       <div>
                         <p className="text-sm font-black text-slate-950">Event Dashboard</p>
-                        <p className="text-xs font-bold text-slate-400">AI planning workspace</p>
+                        <p className="text-xs font-bold text-slate-400">AI event workspace</p>
                       </div>
                     </div>
 

@@ -193,7 +193,7 @@ const EventEditForm = ({ event, eventId, mutation }) => {
       <Field
         label="Loại sự kiện"
         icon={<Tag className="h-4 w-4" strokeWidth={1.8} />}
-        hint="Phân loại này sẽ được dùng cho template, AI planning và leader snapshot sau beta."
+        hint="Phân loại này sẽ được dùng cho template, AI và leader snapshot sau beta."
       >
         <select
           name="eventType"
@@ -377,7 +377,7 @@ const validateEventForm = (form) => {
     return 'Vui lòng chọn thời gian bắt đầu.';
   }
 
-  if (form.endTime && form.endTime < form.startTime) {
+  if (form.endTime && form.endTime <= form.startTime) {
     return 'Thời gian kết thúc phải sau thời gian bắt đầu.';
   }
 

@@ -418,7 +418,7 @@ public class EventService {
         if (endTime == null) {
             return startTime;
         }
-        if (endTime.isBefore(startTime)) {
+        if (!endTime.isAfter(startTime)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Thời gian kết thúc sự kiện phải sau thời gian bắt đầu");
         }
         return endTime;

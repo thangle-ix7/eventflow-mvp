@@ -4,7 +4,6 @@ import { Link, useParams } from 'react-router-dom';
 import {
   Building2,
   Edit,
-  Layers,
 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import UserAvatar from '../components/UserAvatar';
@@ -18,12 +17,10 @@ import {
 import departmentApi from '../api/departmentApi';
 import eventApi from '../api/eventApi';
 import eventMemberApi from '../api/eventMemberApi';
-import planningApi from '../api/planningApi';
 import { formatDate } from '../utils/dateUtils';
 import { getEventTypeLabel } from '../utils/eventTypeUtils';
 import { getEventPermissions } from '../utils/permissionUtils';
 
-const EMPTY_PLANNINGS = [];
 const EMPTY_DEPARTMENTS = [];
 const EMPTY_MEMBERS = [];
 
@@ -40,11 +37,6 @@ const EventDetailPage = ({ user, onLogout }) => {
   const permissions = getEventPermissions(event);
   const isLeader = permissions.canManageEvent;
 
-  const planningsQuery = useQuery({
-    queryKey: ['eventPlannings', eventId],
-    queryFn: () => planningApi.getPlannings(eventId),
-    enabled: Boolean(eventId && event),
-  });
 
   const departmentsQuery = useQuery({
     queryKey: ['eventDepartments', eventId],
@@ -58,7 +50,6 @@ const EventDetailPage = ({ user, onLogout }) => {
     enabled: Boolean(eventId && event),
   });
 
-  const plannings = useMemo(() => planningsQuery.data || EMPTY_PLANNINGS, [planningsQuery.data]);
   const departments = useMemo(() => departmentsQuery.data || EMPTY_DEPARTMENTS, [departmentsQuery.data]);
   const members = useMemo(() => membersQuery.data || EMPTY_MEMBERS, [membersQuery.data]);
 
@@ -88,13 +79,6 @@ const EventDetailPage = ({ user, onLogout }) => {
               members={members}
               isLoading={departmentsQuery.isLoading || membersQuery.isLoading}
               error={departmentsQuery.error || membersQuery.error}
-            />
-
-            <PlanningOverview
-              eventId={eventId}
-              plannings={plannings}
-              isLoading={planningsQuery.isLoading}
-              error={planningsQuery.error}
             />
           </>
         )}
@@ -300,92 +284,6 @@ const MemberPill = ({ eventId, member, label, highlight = false, compact = false
   );
 };
 
-const PlanningOverview = ({ eventId, plannings, isLoading, error }) => (
-  <Panel className="overflow-hidden">
-    <div className="flex flex-col gap-3 border-b border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-      <h3 className="text-base font-black text-slate-950">Kế hoạch</h3>
-      <Button
-        as={Link}
-        to={`/events/${eventId}/plannings`}
-        variant="secondary"
-        className="min-h-9 w-fit rounded-md px-3 py-2"
-      >
-        Mở bảng
-      </Button>
-    </div>
-
-    <div>
-      {isLoading && <LoadingState message="Đang tải kế hoạch..." />}
-
-      {!isLoading && error && (
-        <ErrorState error={error} title="Không tải được kế hoạch" />
-      )}
-
-      {!isLoading && !error && plannings.length === 0 && (
-        <div className="p-4">
-          <EmptyState
-            icon={Layers}
-            title="Chưa có kế hoạch"
-            description="Kế hoạch của sự kiện sẽ hiển thị tại đây sau khi được tạo."
-          />
-        </div>
-      )}
-
-      {!isLoading && !error && plannings.length > 0 && (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] border-collapse text-left text-sm">
-            <thead className="bg-slate-50 text-xs font-black uppercase tracking-[0.12em] text-slate-500">
-              <tr>
-                <th className={overviewHeadCellClassName}>Kế hoạch</th>
-                <th className={overviewHeadCellClassName}>#</th>
-                <th className={overviewHeadCellClassName}>Giai đoạn</th>
-                <th className={overviewHeadCellClassName}>Mục tiêu</th>
-                <th className={overviewHeadCellClassName}>Mô tả</th>
-              </tr>
-            </thead>
-            <tbody>
-              {plannings.flatMap((planning) => {
-                const phases = planning.phases || [];
-                if (phases.length === 0) {
-                  return [(
-                    <tr key={`${planning.id}-empty`} className="hover:bg-slate-50">
-                      <td className={overviewBodyCellClassName}>
-                        <p className="font-black text-slate-950">{planning.title}</p>
-                        {planning.description && <p className="mt-1 text-xs font-semibold text-slate-500">{planning.description}</p>}
-                      </td>
-                      <td className={overviewIndexCellClassName}>-</td>
-                      <td className={overviewBodyCellClassName}>Chưa có giai đoạn</td>
-                      <td className={overviewBodyCellClassName}>-</td>
-                      <td className={overviewBodyCellClassName}>-</td>
-                    </tr>
-                  )];
-                }
-
-                return phases.map((phase, index) => (
-                  <tr key={phase.id || `${planning.id}-${index}`} className="hover:bg-slate-50">
-                    <td className={overviewBodyCellClassName}>
-                      <p className="font-black text-slate-950">{planning.title}</p>
-                      {index === 0 && planning.description && (
-                        <p className="mt-1 text-xs font-semibold text-slate-500">{planning.description}</p>
-                      )}
-                    </td>
-                    <td className={overviewIndexCellClassName}>{index + 1}</td>
-                    <td className={overviewBodyCellClassName}>
-                      <p className="font-bold text-slate-900">{phase.phaseName}</p>
-                    </td>
-                    <td className={overviewBodyCellClassName}>{phase.objective || '-'}</td>
-                    <td className={overviewBodyCellClassName}>{phase.description || '-'}</td>
-                  </tr>
-                ));
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  </Panel>
-);
-
 const InfoRow = ({ label, value }) => (
   <div className="px-5 py-3 text-sm leading-6 text-slate-700">
     <span className="font-black text-slate-950">{label}: </span>
@@ -393,9 +291,6 @@ const InfoRow = ({ label, value }) => (
   </div>
 );
 
-const overviewHeadCellClassName = 'border-b border-slate-200 px-3 py-2';
-const overviewBodyCellClassName = 'border-b border-slate-100 px-3 py-3 align-top font-semibold leading-6 text-slate-600';
-const overviewIndexCellClassName = 'w-14 border-b border-slate-100 px-3 py-3 text-center text-xs font-black text-slate-400';
 
 const buildHierarchy = ({ departments, members }) => {
   const memberById = new Map(

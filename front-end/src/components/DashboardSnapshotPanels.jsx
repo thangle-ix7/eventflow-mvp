@@ -7,11 +7,9 @@ import {
   Clock3,
   ListTodo,
   MessageSquareWarning,
-  Plus,
   Radio,
 } from 'lucide-react';
 import { ErrorState, LoadingState, Panel } from './ui';
-import MilestoneCreateModal from './MilestoneCreateModal';
 import leaderSnapshotApi from '../api/leaderSnapshotApi';
 import taskApi from '../api/taskApi';
 import { formatDate } from '../utils/dateUtils';
@@ -54,9 +52,6 @@ const PRIORITIES = [
 const getPriorityMeta = (priority) => PRIORITIES.find((item) => item.key === priority) || PRIORITIES[2];
 
 export const EventLeaderSnapshotPanel = ({ eventId, snapshot, isLoading, error }) => {
-  const [isMilestoneModalOpen, setIsMilestoneModalOpen] = useState(false);
-  const [selectedMilestone, setSelectedMilestone] = useState(null);
-
   if (isLoading) {
     return (
       <Panel className="p-5">
@@ -75,10 +70,9 @@ export const EventLeaderSnapshotPanel = ({ eventId, snapshot, isLoading, error }
 
   if (!snapshot) return null;
 
-  const milestones = snapshot.milestoneProgress || [];
+  const milestones = [...(snapshot.milestoneProgress || [])].sort(compareSnapshotMilestonesByDate);
 
   return (
-    <>
     <Panel className="overflow-hidden">
       <div className="flex flex-col gap-3 border-b border-sky-100 bg-gradient-to-r from-sky-50 via-white to-emerald-50 px-5 py-5 xl:flex-row xl:items-start xl:justify-between">
         <div>
@@ -89,38 +83,18 @@ export const EventLeaderSnapshotPanel = ({ eventId, snapshot, isLoading, error }
             Tiến độ cột mốc và công việc ưu tiên
           </h2>
         </div>
-
-        <button
-          type="button"
-          onClick={() => setIsMilestoneModalOpen(true)}
-          className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-2xl border border-sky-100 bg-white px-4 py-2 text-sm font-black text-sky-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-sky-50 hover:shadow-lg hover:shadow-sky-100"
-        >
-          <Plus size={16} />
-          Tạo cột mốc
-        </button>
       </div>
 
       <div className="space-y-5 p-5">
         <MilestoneProgressBoard
+          eventId={eventId}
           milestones={milestones}
-          selectedMilestone={selectedMilestone}
-          onSelectMilestone={setSelectedMilestone}
         />
         <PriorityTaskBoard
           eventId={eventId}
-          milestone={selectedMilestone}
-          onClearMilestone={() => setSelectedMilestone(null)}
         />
       </div>
     </Panel>
-
-    <MilestoneCreateModal
-      eventId={eventId}
-      isOpen={isMilestoneModalOpen}
-      onCancel={() => setIsMilestoneModalOpen(false)}
-      onCreated={() => setIsMilestoneModalOpen(false)}
-    />
-    </>
   );
 };
 
@@ -224,21 +198,24 @@ const SnapshotMetric = ({ icon: Icon, label, value, detail, tone }) => {
   );
 };
 
-const MilestoneProgressBoard = ({ milestones, selectedMilestone, onSelectMilestone }) => (
+const MilestoneProgressBoard = ({ eventId, milestones }) => (
   <section className="rounded-2xl border border-sky-100 bg-white p-4">
     <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div>
-        <h3 className="font-black text-slate-950">Tiến độ cột mốc</h3>
+        <h3 className="font-black text-slate-950">Lộ trình cột mốc</h3>
+        <p className="mt-1 text-sm font-semibold text-slate-500">
+          Sắp xếp theo thứ tự ngày để nhìn road vận hành nhanh hơn.
+        </p>
       </div>
-      {selectedMilestone && (
-        <button
-          type="button"
-          onClick={() => onSelectMilestone(null)}
+      <div className="flex flex-wrap items-center gap-2">
+        <Link
+          to={`/events/${eventId}/milestones`}
           className="inline-flex min-h-10 items-center justify-center rounded-2xl border border-sky-100 bg-white px-3 py-2 text-xs font-black text-sky-700 transition hover:bg-sky-50"
         >
-          Xem toàn bộ sự kiện
-        </button>
-      )}
+          Xem lộ trình
+        </Link>
+
+      </div>
     </div>
 
     {milestones.length === 0 ? (
@@ -246,48 +223,73 @@ const MilestoneProgressBoard = ({ milestones, selectedMilestone, onSelectMilesto
         Chưa có cột mốc.
       </p>
     ) : (
-      <div className="mt-4 grid gap-3 lg:grid-cols-2">
-        {milestones.map((milestone) => (
-          <button
-            key={milestone.milestoneId}
-            type="button"
-            onClick={() => onSelectMilestone(milestone)}
-            className={`rounded-2xl border p-4 text-left transition hover:-translate-y-0.5 hover:border-sky-200 hover:bg-sky-50 hover:shadow-lg hover:shadow-sky-100 ${
-              selectedMilestone?.milestoneId === milestone.milestoneId
-                ? 'border-sky-300 bg-sky-50 shadow-lg shadow-sky-100'
-                : 'border-slate-100 bg-slate-50'
-            }`}
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="truncate font-black text-slate-950">{milestone.name}</p>
-                <p className="mt-1 text-xs font-bold text-slate-500">
-                  {milestone.expectedDeadline ? formatDate(milestone.expectedDeadline) : 'Chưa có hạn'} · {milestone.status}
-                </p>
-              </div>
-              <span className={`rounded-full px-2.5 py-1 text-xs font-black ${priorityTone(milestone.priority)}`}>
-                {milestone.priority || 'MEDIUM'}
-              </span>
-            </div>
+      <div className="mt-5 overflow-x-auto pb-2">
+        <div className="relative flex min-w-[720px] gap-4 px-1">
+          <div className="absolute left-6 right-6 top-7 h-1 rounded-full bg-sky-100" />
+          {milestones.map((milestone, index) => {            const progress = milestone.progress || 0;
 
-            <div className="mt-4">
-              <ProgressLine
-                label={`${milestone.progress || 0}%`}
-                value={milestone.progress || 0}
-                detail={`${milestone.completedTasks || 0}/${milestone.totalTasks || 0} công việc hoàn thành`}
-              />
-            </div>
+            return (
+              <Link
+                key={milestone.milestoneId}
+                to={`/events/${eventId}/tasks?milestoneId=${milestone.milestoneId}`}
+                className="group relative flex min-w-[220px] flex-1 flex-col rounded-2xl border border-slate-100 bg-white p-4 pt-16 text-left transition hover:-translate-y-0.5 hover:border-sky-200 hover:bg-sky-50 hover:shadow-lg hover:shadow-sky-100"
+              >
+                <span className="absolute left-4 top-4 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white text-xs font-black text-sky-700 shadow ring-4 ring-sky-100">
+                  {index + 1}
+                </span>
+                <span className={`absolute left-10 right-4 top-[1.9rem] h-1 rounded-full ${progress >= 100 ? 'bg-emerald-400' : 'bg-sky-300'}`} />
 
-            <p className="mt-3 text-xs font-bold text-slate-500">
-              {milestone.openTasks || 0} công việc mở · {milestone.overdueTasks || 0} quá hạn
-            </p>
-          </button>
-        ))}
+                <span className="flex items-start justify-between gap-3">
+                  <span className="min-w-0">
+                    <span className="block truncate font-black text-slate-950">{milestone.name}</span>
+                    <span className="mt-1 block text-xs font-bold text-slate-500">
+                      {milestone.status || 'TODO'}
+                    </span>
+                  </span>
+                  <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-black ${priorityTone(milestone.priority)}`}>
+                    {milestone.priority || 'MEDIUM'}
+                  </span>
+                </span>
+
+                <span className="mt-4 block">
+                  <ProgressLine
+                    label={`${progress}%`}
+                    value={progress}
+                    detail={`${milestone.completedTasks || 0}/${milestone.totalTasks || 0} việc`}
+                  />
+                </span>
+
+                <span className="mt-3 block text-xs font-bold text-slate-500">
+                  {milestone.openTasks || 0} việc mở · {milestone.overdueTasks || 0} quá hạn
+                </span>
+              </Link>
+            );
+          })}
+        </div>
       </div>
     )}
   </section>
 );
 
+const compareSnapshotMilestonesByDate = (a, b) => {
+  const dateA = toSnapshotMilestoneTime(a.expectedDeadline);
+  const dateB = toSnapshotMilestoneTime(b.expectedDeadline);
+
+  if (dateA !== dateB) {
+    return dateA - dateB;
+  }
+
+  return (a.milestoneId || 0) - (b.milestoneId || 0);
+};
+
+const toSnapshotMilestoneTime = (value) => {
+  if (!value) {
+    return Number.MAX_SAFE_INTEGER;
+  }
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? Number.MAX_SAFE_INTEGER : date.getTime();
+};
 const PriorityTaskBoard = ({ eventId, milestone, onClearMilestone }) => {
   const queryClient = useQueryClient();
   const [draggingTask, setDraggingTask] = useState(null);
@@ -696,4 +698,11 @@ const priorityTone = (priority) => {
   if (priority === 'MEDIUM') return 'bg-sky-100 text-sky-700';
   return 'bg-slate-100 text-slate-600';
 };
+
+
+
+
+
+
+
 

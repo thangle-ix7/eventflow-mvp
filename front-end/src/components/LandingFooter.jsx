@@ -32,7 +32,7 @@ const LandingFooter = () => {
             </p>
 
             <div className="mt-6 flex flex-wrap gap-3">
-              <FooterBadge icon={<Sparkles className="h-4 w-4" />} label="AI Planning" />
+              <FooterBadge icon={<Sparkles className="h-4 w-4" />} label="AI Assistance" />
               <FooterBadge icon={<ShieldCheck className="h-4 w-4" />} label="Clear Workflow" />
               <FooterBadge icon={<Rocket className="h-4 w-4" />} label="Fast Execution" />
             </div>

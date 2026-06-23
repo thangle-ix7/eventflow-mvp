@@ -16,7 +16,8 @@ import EventDetailPage from './pages/EventDetailPage';
 import EventEditPage from './pages/EventEditPage';
 import EventListPage from './pages/EventListPage';
 import EventMembersPage from './pages/EventMembersPage';
-import EventPlanningPage from './pages/EventPlanningPage';
+import EventMilestonePage from './pages/EventMilestonePage';
+import EventMilestoneCreatePage from './pages/EventMilestoneCreatePage';
 import EventUtilityPage from './pages/EventUtilityPage';
 import ErrorPage from './pages/ErrorPage';
 import InvitationConfirmPage from './pages/InvitationConfirmPage';
@@ -272,10 +273,13 @@ function App() {
             path="/events/:eventId/members"
             element={<EventMembersPage {...protectedProps} />}
           />
-
           <Route
-            path="/events/:eventId/plannings"
-            element={<EventPlanningPage {...protectedProps} />}
+            path="/events/:eventId/milestones"
+            element={<EventMilestonePage {...protectedProps} />}
+          />
+          <Route
+            path="/events/:eventId/milestones/new"
+            element={<EventMilestoneCreatePage {...protectedProps} />}
           />
 
           <Route
@@ -518,5 +522,10 @@ const resolveErrorTitle = (status) => {
 };
 
 export default App;
+
+
+
+
+
 
 

@@ -36,6 +36,7 @@ public class TaskController {
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String priority,
             @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) Long milestoneId,
             @RequestParam(required = false) Long assigneeId,
             @RequestParam(required = false) String search,
             @RequestParam(defaultValue = "deadline") String sort,
@@ -55,6 +56,7 @@ public class TaskController {
                 status,
                 priority,
                 departmentId,
+                milestoneId,
                 (isLeader || !isMember) ? assigneeId : userId,
                 search,
                 sort,
@@ -73,6 +75,7 @@ public class TaskController {
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String priority,
             @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) Long milestoneId,
             @RequestParam(required = false) Long assigneeId,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) LocalDate fromDate,
@@ -95,6 +98,7 @@ public class TaskController {
                 status,
                 priority,
                 departmentId,
+                milestoneId,
                 isLeader ? assigneeId : userId,
                 search,
                 fromDate,
@@ -294,4 +298,5 @@ public class TaskController {
                 || eventSecurityService.isTaskAssignee(taskId, userId);
     }
 }
+
 

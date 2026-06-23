@@ -349,7 +349,7 @@ const validateEventForm = (form) => {
     return 'Vui lòng chọn thời gian bắt đầu.';
   }
 
-  if (form.endTime && form.endTime < form.startTime) {
+  if (form.endTime && form.endTime <= form.startTime) {
     return 'Thời gian kết thúc phải sau thời gian bắt đầu.';
   }
 
