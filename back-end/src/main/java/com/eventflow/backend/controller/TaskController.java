@@ -160,7 +160,7 @@ public class TaskController {
 
         Long userId = (Long) authentication.getPrincipal();
         Long eventId = taskService.getEventIdByTaskId(taskId);
-        if (!eventSecurityService.canManageEvent(eventId, userId)) {
+        if (!canManageTask(taskId, eventId, userId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
@@ -176,7 +176,7 @@ public class TaskController {
 
         Long userId = (Long) authentication.getPrincipal();
         Long eventId = taskService.getEventIdByTaskId(taskId);
-        if (!eventSecurityService.canManageEvent(eventId, userId)) {
+        if (!canManageTask(taskId, eventId, userId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
@@ -223,7 +223,7 @@ public class TaskController {
 
         Long userId = (Long) authentication.getPrincipal();
         Long eventId = taskService.getEventIdByTaskId(taskId);
-        if (!eventSecurityService.canManageEvent(eventId, userId)) {
+        if (!canManageTask(taskId, eventId, userId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
@@ -254,7 +254,7 @@ public class TaskController {
 
         Long userId = (Long) authentication.getPrincipal();
         Long eventId = taskService.getEventIdByTaskId(taskId);
-        if (!eventSecurityService.isLeaderOfEvent(eventId, userId)) {
+        if (!canManageTask(taskId, eventId, userId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
@@ -283,7 +283,7 @@ public class TaskController {
 
         Long userId = (Long) authentication.getPrincipal();
         Long eventId = taskService.getEventIdByTaskId(taskId);
-        if (!eventSecurityService.isLeaderOfEvent(eventId, userId)) {
+        if (!canManageTask(taskId, eventId, userId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
@@ -294,9 +294,12 @@ public class TaskController {
         if (!eventSecurityService.isMemberOfEvent(eventId, userId)) {
             return false;
         }
-        return eventSecurityService.isLeaderOfEvent(eventId, userId)
+        return canManageTask(taskId, eventId, userId)
                 || eventSecurityService.isTaskAssignee(taskId, userId);
     }
+
+    private boolean canManageTask(Long taskId, Long eventId, Long userId) {
+        return eventSecurityService.isLeaderOfEvent(eventId, userId)
+                || eventSecurityService.isDepartmentLeaderOfTask(taskId, userId);
+    }
 }
-
-

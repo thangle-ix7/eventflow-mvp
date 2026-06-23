@@ -4,7 +4,7 @@ const valueOf = (item, key) => Number(item?.[key] || 0);
 const remainingOf = (item) => valueOf(item, 'todoTasks') + valueOf(item, 'inProgressTasks') + valueOf(item, 'inReviewTasks');
 const formatAxisLabel = (label) => label?.slice(5) || label;
 
-const BurndownChart = ({ data = [], onPointClick }) => {
+const BurndownChart = ({ data = [] }) => {
   const [hoveredPoint, setHoveredPoint] = useState(null);
   const chartData = useMemo(() => data.filter((item) => item?.label), [data]);
 
@@ -70,12 +70,10 @@ const BurndownChart = ({ data = [], onPointClick }) => {
                 cy={point.y}
                 r="14"
                 fill="transparent"
-                className="cursor-pointer"
                 onMouseEnter={() => setHoveredPoint(point)}
                 onMouseLeave={() => setHoveredPoint(null)}
                 onFocus={() => setHoveredPoint(point)}
                 onBlur={() => setHoveredPoint(null)}
-                onClick={() => onPointClick?.({ date: point.label })}
               />
             </g>
           ))}

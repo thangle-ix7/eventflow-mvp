@@ -1,22 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import {
-  Building2,
-  CheckCircle2,
-  Circle,
-  Edit3,
-  Loader2,
-  Plus,
-  Save,
-  Sparkles,
-  Trash2,
-  UserRound,
-  X,
-} from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import AiSuggestionDetailModal from '../components/AiSuggestionDetailModal';
-import { Button, EmptyState, ErrorState, LoadingState, Panel } from '../components/ui';
+import { Button, ErrorState, LoadingState, Panel } from '../components/ui';
 import aiSuggestionApi from '../api/aiSuggestionApi';
 import departmentApi from '../api/departmentApi';
 import eventApi from '../api/eventApi';
@@ -33,6 +20,7 @@ const DepartmentListPage = ({ user, onLogout }) => {
   const [editingForm, setEditingForm] = useState({ name: '', description: '', leaderUserId: '' });
   const [aiInstruction, setAiInstruction] = useState('');
   const [aiSuggestions, setAiSuggestions] = useState([]);
+  const [isBulkCreateOpen, setIsBulkCreateOpen] = useState(false);
 
   const eventQuery = useQuery({
     queryKey: ['event', eventId],
@@ -74,6 +62,23 @@ const DepartmentListPage = ({ user, onLogout }) => {
     mutationFn: departmentApi.deleteDepartment,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['eventDepartments', eventId] });
+    },
+  });
+
+  const assignLeaderMutation = useMutation({
+    mutationFn: ({ department, leaderUserId }) => departmentApi.updateDepartment({
+      eventId,
+      departmentId: department.id,
+      payload: {
+        name: department.name,
+        description: department.description || '',
+        leaderUserId: leaderUserId ? Number(leaderUserId) : null,
+      },
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['eventDepartments', eventId] });
+      queryClient.invalidateQueries({ queryKey: ['eventMembers', eventId] });
+      queryClient.invalidateQueries({ queryKey: ['leaderSnapshot', eventId] });
     },
   });
 
@@ -196,16 +201,32 @@ const DepartmentListPage = ({ user, onLogout }) => {
 
         {isLeader && (
           <>
-            <div className="flex justify-end">
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button
+                type="button"
+                onClick={() => setIsBulkCreateOpen((old) => !old)}
+                variant="secondary"
+                className="min-h-11 rounded-2xl border-sky-100 bg-white font-black text-sky-700 shadow-sm"
+              >
+                Tạo nhiều ban
+              </Button>
               <Button
                 as={Link}
                 to={`/events/${eventId}/departments/new`}
                 className="min-h-11 rounded-2xl bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 font-black text-white shadow-xl shadow-cyan-100"
               >
-                <Plus size={18} />
-                Tạo ban
+                Tạo 1 ban
               </Button>
             </div>
+
+            {isBulkCreateOpen && (
+              <DepartmentBulkCreatePanel
+                eventId={eventId}
+                members={members}
+                queryClient={queryClient}
+                onClose={() => setIsBulkCreateOpen(false)}
+              />
+            )}
 
             <DepartmentAiSuggestionPanel
               instruction={aiInstruction}
@@ -220,17 +241,10 @@ const DepartmentListPage = ({ user, onLogout }) => {
             />
 
             <Panel className="overflow-hidden">
-              <div className="flex flex-col gap-3 border-b border-sky-100 bg-gradient-to-r from-sky-50 via-white to-emerald-50 px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-400 text-white shadow-lg shadow-cyan-100">
-                    <Building2 className="h-5 w-5" strokeWidth={1.8} />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-black text-slate-950">
-                      Danh sách ban tổ chức
-                    </h3>
-                  </div>
-                </div>
+              <div className="flex flex-col gap-3 border-b border-sky-100 bg-white px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
+                <h3 className="text-lg font-black text-slate-950">
+                  Danh sách ban tổ chức
+                </h3>
 
                 <span className="inline-flex w-fit items-center rounded-full border border-sky-100 bg-white px-3 py-1.5 text-xs font-black text-sky-600 shadow-sm">
                   {departments.length} phòng ban
@@ -249,10 +263,10 @@ const DepartmentListPage = ({ user, onLogout }) => {
                 </div>
               )}
 
-              {(updateDepartmentMutation.error || deleteDepartmentMutation.error) && (
+              {(updateDepartmentMutation.error || deleteDepartmentMutation.error || assignLeaderMutation.error) && (
                 <div className="p-5">
                   <ErrorState
-                    error={updateDepartmentMutation.error || deleteDepartmentMutation.error}
+                    error={updateDepartmentMutation.error || deleteDepartmentMutation.error || assignLeaderMutation.error}
                     title="Không cập nhật được ban"
                   />
                 </div>
@@ -260,17 +274,15 @@ const DepartmentListPage = ({ user, onLogout }) => {
 
               {!departmentsQuery.isLoading && departments.length === 0 && (
                 <div className="p-5">
-                  <EmptyState
-                    icon={Building2}
-                    title="Chưa có ban tổ chức"
-                    description="Bạn có thể tạo thủ công hoặc dùng AI để gợi ý nhanh các ban phù hợp với sự kiện."
-                    actions={
-                      <Button as={Link} to={`/events/${eventId}/departments/new`}>
-                        <Plus size={16} />
-                        Tạo ban đầu tiên
-                      </Button>
-                    }
-                  />
+                  <div className="rounded-2xl border border-dashed border-sky-100 bg-sky-50/40 px-5 py-8 text-center">
+                    <h4 className="text-base font-black text-slate-950">Chưa có ban tổ chức</h4>
+                    <p className="mx-auto mt-2 max-w-xl text-sm font-semibold leading-6 text-slate-500">
+                      Bạn có thể tạo thủ công hoặc dùng AI để gợi ý nhanh các ban phù hợp với sự kiện.
+                    </p>
+                    <Button as={Link} to={`/events/${eventId}/departments/new`} className="mt-4">
+                      Tạo ban đầu tiên
+                    </Button>
+                  </div>
                 </div>
               )}
 
@@ -282,7 +294,7 @@ const DepartmentListPage = ({ user, onLogout }) => {
                         <th className="px-5 py-4">Ban</th>
                         <th className="px-5 py-4">Trưởng ban</th>
                         <th className="px-5 py-4">Mô tả</th>
-                        {isLeader && <th className="px-5 py-4 text-right">Thao tác</th>}
+                        <th className="px-5 py-4 text-right">Thao tác</th>
                       </tr>
                     </thead>
 
@@ -291,7 +303,6 @@ const DepartmentListPage = ({ user, onLogout }) => {
                         <DepartmentRow
                           key={department.id}
                           department={department}
-                          isLeader={isLeader}
                           isEditing={editingDepartmentId === department.id}
                           editingForm={editingForm}
                           setEditingForm={setEditingForm}
@@ -301,6 +312,7 @@ const DepartmentListPage = ({ user, onLogout }) => {
                           submitEditing={submitEditing}
                           handleDelete={handleDelete}
                           updateDepartmentMutation={updateDepartmentMutation}
+                          assignLeaderMutation={assignLeaderMutation}
                           deleteDepartmentMutation={deleteDepartmentMutation}
                           onOpen={openDepartment}
                         />
@@ -317,6 +329,126 @@ const DepartmentListPage = ({ user, onLogout }) => {
   );
 };
 
+const createEmptyDepartmentRow = () => ({
+  id: crypto.randomUUID(),
+  name: '',
+  description: '',
+  leaderUserId: '',
+});
+
+const DepartmentBulkCreatePanel = ({ eventId, members, queryClient, onClose }) => {
+  const [rows, setRows] = useState([createEmptyDepartmentRow()]);
+  const [localError, setLocalError] = useState('');
+
+  const createMutation = useMutation({
+    mutationFn: async (filledRows) => Promise.all(filledRows.map((row) => departmentApi.createDepartment({
+      eventId,
+      payload: {
+        name: row.name.trim(),
+        description: row.description,
+        leaderUserId: row.leaderUserId ? Number(row.leaderUserId) : null,
+      },
+    }))),
+    onSuccess: () => {
+      setRows([createEmptyDepartmentRow()]);
+      setLocalError('');
+      queryClient.invalidateQueries({ queryKey: ['eventDepartments', eventId] });
+      queryClient.invalidateQueries({ queryKey: ['eventMembers', eventId] });
+      queryClient.invalidateQueries({ queryKey: ['leaderSnapshot', eventId] });
+      onClose();
+    },
+  });
+
+  const updateRow = (rowId, field, value) => {
+    setLocalError('');
+    setRows((old) => old.map((row) => (row.id === rowId ? { ...row, [field]: value } : row)));
+  };
+
+  const addRow = () => setRows((old) => [...old, createEmptyDepartmentRow()]);
+
+  const removeRow = (rowId) => {
+    setRows((old) => (old.length === 1 ? [createEmptyDepartmentRow()] : old.filter((row) => row.id !== rowId)));
+  };
+
+  const saveRows = () => {
+    const filledRows = rows.filter((row) => row.name.trim());
+    if (filledRows.length === 0) {
+      setLocalError('Cần nhập ít nhất một tên ban.');
+      return;
+    }
+    createMutation.mutate(filledRows);
+  };
+
+  return (
+    <Panel className="overflow-hidden p-0">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-sky-100 bg-white px-5 py-4">
+        <div>
+          <h3 className="text-lg font-black text-slate-950">Tạo ban theo danh sách</h3>
+          <p className="mt-1 text-sm font-semibold text-slate-500">Nhập nhiều dòng giống tạo task nhanh.</p>
+        </div>
+        <div className="flex gap-2">
+          <button type="button" onClick={addRow} disabled={createMutation.isPending} className="rounded-2xl border border-sky-100 bg-white px-3 py-2 text-sm font-black text-sky-700 shadow-sm hover:bg-sky-50 disabled:opacity-60">
+            Thêm dòng
+          </button>
+          <button type="button" onClick={onClose} disabled={createMutation.isPending} className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-600 shadow-sm hover:bg-slate-50 disabled:opacity-60">
+            Đóng
+          </button>
+        </div>
+      </div>
+
+      {(localError || createMutation.error) && (
+        <div className="p-5">
+          <ErrorState error={localError || createMutation.error} title="Không tạo được ban" />
+        </div>
+      )}
+
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[900px] text-left text-sm">
+          <thead className="bg-sky-50/70 text-xs font-black uppercase tracking-[0.14em] text-slate-500">
+            <tr>
+              <th className="w-14 px-5 py-3">#</th>
+              <th className="px-5 py-3">Tên ban</th>
+              <th className="px-5 py-3">Trưởng ban</th>
+              <th className="px-5 py-3">Mô tả</th>
+              <th className="w-24 px-5 py-3 text-right">Xóa</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-sky-50">
+            {rows.map((row, index) => (
+              <tr key={row.id} className="bg-white">
+                <td className="px-5 py-3 font-black text-slate-500">{index + 1}</td>
+                <td className="px-5 py-3">
+                  <input value={row.name} onChange={(event) => updateRow(row.id, 'name', event.target.value)} disabled={createMutation.isPending} className={inputClassName} placeholder="Tên ban" />
+                </td>
+                <td className="px-5 py-3">
+                  <select value={row.leaderUserId} onChange={(event) => updateRow(row.id, 'leaderUserId', event.target.value)} disabled={createMutation.isPending} className={inputClassName}>
+                    <option value="">Chưa chọn</option>
+                    {members.map((member) => <option key={member.userId} value={member.userId}>{member.name}</option>)}
+                  </select>
+                </td>
+                <td className="px-5 py-3">
+                  <textarea value={row.description} onChange={(event) => updateRow(row.id, 'description', event.target.value)} disabled={createMutation.isPending} rows={1} className={`${inputClassName} min-h-11 resize-y py-3`} placeholder="Mô tả" />
+                </td>
+                <td className="px-5 py-3 text-right">
+                  <button type="button" onClick={() => removeRow(row.id)} disabled={createMutation.isPending} className="rounded-xl px-3 py-2 text-sm font-black text-red-600 hover:bg-red-50 disabled:opacity-60">
+                    Xóa
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-sky-100 bg-white px-5 py-4">
+        <span className="text-sm font-black text-slate-500">{rows.length} dòng đang nhập</span>
+        <button type="button" onClick={saveRows} disabled={createMutation.isPending} className="rounded-2xl bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 px-4 py-2 text-sm font-black text-white shadow-lg shadow-cyan-100 disabled:opacity-60">
+          {createMutation.isPending ? 'Đang tạo...' : 'Lưu danh sách ban'}
+        </button>
+      </div>
+    </Panel>
+  );
+};
 const DepartmentAiSuggestionPanel = ({
   instruction,
   setInstruction,
@@ -330,21 +462,11 @@ const DepartmentAiSuggestionPanel = ({
   const [detailSuggestion, setDetailSuggestion] = useState(null);
 
   return (
-    <Panel className="relative overflow-hidden p-5">
-      <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-sky-100 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-28 left-1/3 h-64 w-64 rounded-full bg-emerald-100/70 blur-3xl" />
-
-      <div className="relative flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div className="flex items-start gap-3">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-400 text-white shadow-lg shadow-cyan-100">
-            <Sparkles size={22} strokeWidth={1.8} />
-          </div>
-
-          <div>
-            <div className="text-sm font-black uppercase tracking-[0.18em] text-sky-600">
-              AI gợi ý ban tổ chức
-            </div>
-
+    <Panel className="overflow-hidden p-5">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <div className="text-sm font-black uppercase tracking-[0.18em] text-sky-600">
+            AI gợi ý ban tổ chức
           </div>
         </div>
 
@@ -363,14 +485,13 @@ const DepartmentAiSuggestionPanel = ({
             disabled={suggestMutation.isPending}
             className="shrink-0 rounded-2xl border-sky-100 bg-white font-black text-sky-600 shadow-sm hover:bg-sky-50"
           >
-            {suggestMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-            Gợi ý
+            {suggestMutation.isPending ? 'Đang gợi ý...' : 'Gợi ý'}
           </Button>
         </div>
       </div>
 
       {(suggestMutation.error || saveMutation.error) && (
-        <div className="relative mt-4">
+        <div className="mt-4">
           <ErrorState
             error={suggestMutation.error || saveMutation.error}
             title="Không xử lý được gợi ý AI"
@@ -379,13 +500,13 @@ const DepartmentAiSuggestionPanel = ({
       )}
 
       {suggestions.length > 0 && (
-        <div className="relative mt-5 space-y-4">
+        <div className="mt-5 space-y-4">
           <div className="overflow-x-auto rounded-2xl border border-sky-100 bg-white">
             <table className="w-full min-w-[720px] border-collapse text-left text-sm">
               <thead className="bg-sky-50/70 text-xs font-black uppercase tracking-[0.08em] text-slate-500">
                 <tr>
                   <th className="w-14 px-4 py-3">Chọn</th>
-                  <th className="px-4 py-3">Department</th>
+                  <th className="px-4 py-3">Ban</th>
                   <th className="px-4 py-3">Mô tả AI gợi ý</th>
                   <th className="w-36 px-4 py-3 text-right">Chi tiết</th>
                 </tr>
@@ -409,21 +530,17 @@ const DepartmentAiSuggestionPanel = ({
                     ].join(' ')}
                   >
                     <td className="px-4 py-3 align-top">
-                      <button
-                        type="button"
-                        onClick={(event) => {
+                      <input
+                        type="checkbox"
+                        checked={department.selected}
+                        onChange={(event) => {
                           event.stopPropagation();
                           toggleSuggestion(department.key);
                         }}
-                        className="rounded-full"
+                        onClick={(event) => event.stopPropagation()}
+                        className="h-4 w-4 rounded border-sky-200 text-sky-600 focus:ring-sky-200"
                         aria-label={department.selected ? 'Bỏ chọn gợi ý' : 'Chọn gợi ý'}
-                      >
-                        {department.selected ? (
-                          <CheckCircle2 size={20} className="text-sky-600" />
-                        ) : (
-                          <Circle size={20} className="text-slate-300" />
-                        )}
-                      </button>
+                      />
                     </td>
                     <td className="px-4 py-3 align-top font-black text-slate-950">
                       {department.name}
@@ -453,8 +570,7 @@ const DepartmentAiSuggestionPanel = ({
               disabled={selectedCount === 0 || saveMutation.isPending}
               className="rounded-2xl bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 font-black text-white shadow-xl shadow-cyan-100"
             >
-              {saveMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-              Lưu đã chọn
+              {saveMutation.isPending ? 'Đang lưu...' : 'Lưu đã chọn'}
             </Button>
           </div>
         </div>
@@ -481,7 +597,6 @@ const DepartmentAiSuggestionPanel = ({
 
 const DepartmentRow = ({
   department,
-  isLeader,
   isEditing,
   editingForm,
   setEditingForm,
@@ -491,6 +606,7 @@ const DepartmentRow = ({
   submitEditing,
   handleDelete,
   updateDepartmentMutation,
+  assignLeaderMutation,
   deleteDepartmentMutation,
   onOpen,
 }) => {
@@ -520,14 +636,9 @@ const DepartmentRow = ({
             className={inputClassName}
           />
         ) : (
-          <div className="flex min-w-0 items-center gap-3 rounded-2xl p-1.5 transition hover:bg-white hover:shadow-sm">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-400 text-white shadow-lg shadow-cyan-100">
-              <Building2 size={19} />
-            </span>
-            <span className="min-w-0 truncate font-black text-slate-950">
-              {department.name}
-            </span>
-          </div>
+          <span className="block min-w-0 truncate font-black text-slate-950">
+            {department.name}
+          </span>
         )}
       </td>
 
@@ -547,21 +658,26 @@ const DepartmentRow = ({
             ))}
           </select>
         ) : (
-          <div className="flex min-w-0 items-center gap-3 text-slate-700">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-sky-50 text-sky-500">
-              <UserRound size={17} />
-            </span>
-
-            <span className="min-w-0">
-              <span className="block truncate font-black text-slate-800">
-                {department.leaderName || 'Chưa có trưởng ban'}
+          <div className="min-w-0 space-y-1.5" onClick={(event) => event.stopPropagation()}>
+            <select
+              value={department.leaderUserId ? String(department.leaderUserId) : ''}
+              onChange={(event) => assignLeaderMutation.mutate({ department, leaderUserId: event.target.value })}
+              disabled={assignLeaderMutation.isPending || members.length === 0}
+              className={inputClassName}
+              aria-label={`Gán trưởng ban cho ${department.name}`}
+            >
+              <option value="">Chưa chọn trưởng ban</option>
+              {members.map((member) => (
+                <option key={member.userId} value={member.userId}>
+                  {member.name}
+                </option>
+              ))}
+            </select>
+            {department.leaderEmail && (
+              <span className="block truncate text-xs font-semibold text-slate-500">
+                {department.leaderEmail}
               </span>
-              {department.leaderEmail && (
-                <span className="block truncate text-xs font-semibold text-slate-500">
-                  {department.leaderEmail}
-                </span>
-              )}
-            </span>
+            )}
           </div>
         )}
       </td>
@@ -583,67 +699,61 @@ const DepartmentRow = ({
         )}
       </td>
 
-      {isLeader && (
-        <td className="px-5 py-4">
-          <div className="flex justify-end gap-2">
-            {isEditing ? (
-              <>
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    submitEditing(department.id);
-                  }}
-                  disabled={!editingForm.name.trim() || updateDepartmentMutation.isPending}
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 px-3 py-2 text-sm font-black text-white shadow-lg shadow-emerald-100 transition hover:-translate-y-0.5 hover:shadow-xl active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {updateDepartmentMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                  Lưu
-                </button>
+      <td className="px-5 py-4">
+        <div className="flex justify-end gap-2">
+          {isEditing ? (
+            <>
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  submitEditing(department.id);
+                }}
+                disabled={!editingForm.name.trim() || updateDepartmentMutation.isPending}
+                className="inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 px-3 py-2 text-sm font-black text-white shadow-lg shadow-emerald-100 transition hover:-translate-y-0.5 hover:shadow-xl active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {updateDepartmentMutation.isPending ? 'Đang lưu...' : 'Lưu'}
+              </button>
 
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    cancelEditing();
-                  }}
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-sky-100 bg-white px-3 py-2 text-sm font-black text-slate-600 shadow-sm transition hover:bg-sky-50 hover:text-sky-600 active:translate-y-px"
-                >
-                  <X size={16} />
-                  Hủy
-                </button>
-              </>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    startEditing(department);
-                  }}
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-sky-100 bg-sky-50 px-3 py-2 text-sm font-black text-sky-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-white hover:shadow-lg hover:shadow-sky-100 active:translate-y-px"
-                >
-                  <Edit3 size={16} />
-                  Sửa
-                </button>
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  cancelEditing();
+                }}
+                className="inline-flex items-center justify-center rounded-2xl border border-sky-100 bg-white px-3 py-2 text-sm font-black text-slate-600 shadow-sm transition hover:bg-sky-50 hover:text-sky-600 active:translate-y-px"
+              >
+                Hủy
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  startEditing(department);
+                }}
+                className="inline-flex items-center justify-center rounded-2xl border border-sky-100 bg-sky-50 px-3 py-2 text-sm font-black text-sky-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-white hover:shadow-lg hover:shadow-sky-100 active:translate-y-px"
+              >
+                Sửa
+              </button>
 
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    handleDelete(department);
-                  }}
-                  disabled={deletingThisDepartment}
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-red-100 bg-red-50 px-3 py-2 text-sm font-black text-red-600 shadow-sm transition hover:-translate-y-0.5 hover:border-red-200 hover:bg-red-100 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {deletingThisDepartment ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
-                  Xóa
-                </button>
-              </>
-            )}
-          </div>
-        </td>
-      )}
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleDelete(department);
+                }}
+                disabled={deletingThisDepartment}
+                className="inline-flex items-center justify-center rounded-2xl border border-red-100 bg-red-50 px-3 py-2 text-sm font-black text-red-600 shadow-sm transition hover:-translate-y-0.5 hover:border-red-200 hover:bg-red-100 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {deletingThisDepartment ? 'Đang xóa...' : 'Xóa'}
+              </button>
+            </>
+          )}
+        </div>
+      </td>
     </tr>
   );
 };

@@ -200,6 +200,9 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
     @Query("SELECT COUNT(t) > 0 FROM Task t WHERE t.id = :taskId AND t.assignee.id = :userId")
     boolean existsByIdAndAssigneeId(@Param("taskId") Long taskId, @Param("userId") Long userId);
 
+    @Query("SELECT COUNT(t) > 0 FROM Task t WHERE t.id = :taskId AND t.department.leader.id = :userId")
+    boolean existsByIdAndDepartmentLeaderId(@Param("taskId") Long taskId, @Param("userId") Long userId);
+
     /**
      * Đếm số task chưa DONE đang được assign cho 1 member trong 1 event.
      * Đây là currentAssignedTasks trong công thức workload.

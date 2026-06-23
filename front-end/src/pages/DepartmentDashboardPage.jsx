@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
   BarChart3,
-  CalendarDays,
   ChevronLeft,
   ChevronRight,
   ClipboardList,
@@ -35,33 +34,22 @@ const toDateInput = (value) => {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 };
 const addDays = (date, days) => new Date(date.getTime() + days * MS_PER_DAY);
-const getDefaultDateRange = (eventStart, eventEnd) => {
-  const start = new Date(eventStart || Date.now());
-  start.setHours(0, 0, 0, 0);
-  const from = start;
-  const fallbackTo = addDays(from, 6);
+const getLatestWeekDateRange = (eventStart, eventEnd) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const start = eventStart ? new Date(eventStart) : null;
   const end = eventEnd ? new Date(eventEnd) : null;
-  const to = end && !Number.isNaN(end.getTime()) && end < fallbackTo ? end : fallbackTo;
+  const hasStart = start && !Number.isNaN(start.getTime());
+  const hasEnd = end && !Number.isNaN(end.getTime());
+  const to = hasEnd && end < today ? end : today;
+  to.setHours(0, 0, 0, 0);
+
+  const latestFrom = addDays(to, -6);
+  const from = hasStart && start > latestFrom ? start : latestFrom;
+  from.setHours(0, 0, 0, 0);
+
   return { fromDate: toDateInput(from), toDate: toDateInput(to) };
-};
-const getDateBounds = (event) => ({
-  minDate: toDateInput(event?.startTime || event?.eventDate),
-  maxDate: event?.endTime ? toDateInput(event.endTime) : '',
-});
-
-const normalizeDateRange = (range, changedField) => {
-  let fromDate = range.fromDate;
-  let toDate = range.toDate;
-
-  if (fromDate && toDate && fromDate > toDate) {
-    if (changedField === 'fromDate') {
-      toDate = fromDate;
-    } else {
-      fromDate = toDate;
-    }
-  }
-
-  return { fromDate, toDate };
 };
 
 const DepartmentDashboardPage = ({ user, onLogout }) => {
@@ -69,15 +57,12 @@ const DepartmentDashboardPage = ({ user, onLogout }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [page, setPage] = useState(0);
-  const [dateRange, setDateRange] = useState(null);
 
   const eventQuery = useQuery({ queryKey: ['event', eventId], queryFn: () => eventApi.getEvent(eventId), enabled: Boolean(eventId) });
   const event = eventQuery.data;
   const permissions = getEventPermissions(event);
   const canViewDashboard = Boolean(event && permissions.canViewDepartmentDashboard && canAccessDepartment(event, departmentId));
-  const defaultDateRange = getDefaultDateRange(event?.startTime || event?.eventDate, event?.endTime);
-  const dashboardRange = dateRange || defaultDateRange;
-  const dateBounds = getDateBounds(event);
+  const dashboardRange = getLatestWeekDateRange(event?.startTime || event?.eventDate, event?.endTime);
   const leaderSnapshotQuery = useQuery({
     queryKey: ['departmentLeaderSnapshot', eventId, departmentId],
     queryFn: () => leaderSnapshotApi.getDepartmentLeaderSnapshot({ eventId, departmentId }),
@@ -95,27 +80,10 @@ const DepartmentDashboardPage = ({ user, onLogout }) => {
   const tasks = tasksQuery.data?.content || [];
   const isLoading = eventQuery.isLoading || (canViewDashboard && (summaryQuery.isLoading || trendQuery.isLoading || tasksQuery.isLoading));
   const error = eventQuery.error || summaryQuery.error || trendQuery.error || tasksQuery.error;
-
-  const handleDateRangeChange = (field, value) => {
-    setPage(0);
-    setDateRange((old) => normalizeDateRange({
-      ...defaultDateRange,
-      ...old,
-      [field]: value,
-    }, field));
-  };
-
-  const resetDateRange = () => {
-    setPage(0);
-    setDateRange(null);
-  };
-
-  const openFilteredTasks = ({ status, deadlineStatus, fromDate, toDate }) => {
+  const openFilteredTasks = ({ status, deadlineStatus }) => {
     const params = new URLSearchParams();
     if (status) params.set('status', status);
     if (deadlineStatus) params.set('deadlineStatus', deadlineStatus);
-    if (fromDate) params.set('fromDate', fromDate);
-    if (toDate) params.set('toDate', toDate);
     navigate(`/events/${eventId}/departments/${departmentId}/tasks?${params.toString()}`);
   };
 
@@ -179,13 +147,6 @@ const DepartmentDashboardPage = ({ user, onLogout }) => {
             </Link>
           </div>
 
-          <DateRangeControl
-            range={dashboardRange}
-            minDate={dateBounds.minDate}
-            maxDate={dateBounds.maxDate}
-            onChange={handleDateRangeChange}
-            onReset={resetDateRange}
-          />
         </section>
 
         <DepartmentLeaderSnapshotPanel
@@ -200,16 +161,13 @@ const DepartmentDashboardPage = ({ user, onLogout }) => {
           <>
             <section className="grid gap-5">
               <ChartPanel icon={<TrendingUp size={18} />} title="Burndown Chart">
-                <BurndownChart
-                  data={trendQuery.data || []}
-                  onPointClick={({ date }) => openFilteredTasks({ fromDate: date, toDate: date })}
-                />
+                <BurndownChart data={trendQuery.data || []} />
               </ChartPanel>
 
               <ChartPanel icon={<BarChart3 size={18} />} title="Cumulative Flow">
                 <CumulativeFlowChart
                   data={trendQuery.data || []}
-                  onStatusClick={({ status, deadlineStatus, date }) => openFilteredTasks({ status, deadlineStatus, fromDate: date, toDate: date })}
+                  onStatusClick={({ status, deadlineStatus }) => openFilteredTasks({ status, deadlineStatus })}
                 />
               </ChartPanel>
             </section>
@@ -221,49 +179,6 @@ const DepartmentDashboardPage = ({ user, onLogout }) => {
     </AppLayout>
   );
 };
-
-const DateRangeControl = ({ range, minDate, maxDate, onChange, onReset }) => (
-  <div className="min-w-0 rounded-2xl border border-sky-100 bg-white/85 p-3 shadow-sm backdrop-blur">
-    <div className="grid gap-3 md:grid-cols-[1fr_1fr_auto] md:items-end">
-      <label className="block">
-        <span className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.14em] text-slate-500">
-          <CalendarDays className="h-4 w-4 text-sky-500" strokeWidth={1.8} />
-          Từ ngày
-        </span>
-        <input
-          type="date"
-          value={range.fromDate}
-          min={minDate || undefined}
-          max={range.toDate || maxDate || undefined}
-          onChange={(event) => onChange('fromDate', event.target.value)}
-          className="mt-2 h-11 w-full rounded-xl border border-sky-100 bg-white px-3 text-sm font-black text-slate-800 outline-none transition focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100"
-        />
-      </label>
-
-      <label className="block">
-        <span className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">
-          Đến ngày
-        </span>
-        <input
-          type="date"
-          value={range.toDate}
-          min={range.fromDate || minDate || undefined}
-          max={maxDate || undefined}
-          onChange={(event) => onChange('toDate', event.target.value)}
-          className="mt-2 h-11 w-full rounded-xl border border-sky-100 bg-white px-3 text-sm font-black text-slate-800 outline-none transition focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100"
-        />
-      </label>
-
-      <button
-        type="button"
-        onClick={onReset}
-        className="inline-flex min-h-11 items-center justify-center rounded-xl border border-sky-100 bg-sky-50 px-4 text-sm font-black text-sky-700 transition hover:bg-white"
-      >
-        Về mặc định
-      </button>
-    </div>
-  </div>
-);
 
 const ChartPanel = ({ icon, title, children }) => (
   <section className="min-w-0 overflow-hidden rounded-[2rem] border border-sky-100 bg-white shadow-xl shadow-sky-100/70">
@@ -293,7 +208,7 @@ const TaskListSection = ({ tasks, page, setPage, pageData, eventId }) => (
       </div>
       <div>
         <h3 className="font-black text-slate-950">Danh sách công việc</h3>
-        <p className="mt-1 text-xs font-semibold text-slate-500">Các task trong khoảng thời gian đang chọn.</p>
+        <p className="mt-1 text-xs font-semibold text-slate-500">Các task trong tuần gần nhất.</p>
       </div>
     </div>
 

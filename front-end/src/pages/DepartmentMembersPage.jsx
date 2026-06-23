@@ -20,7 +20,6 @@ import {
   LoadingState,
   PageHeader,
   Panel,
-  StatusBadge,
   TextInput,
 } from '../components/ui';
 import departmentApi from '../api/departmentApi';
@@ -98,15 +97,16 @@ const DepartmentMembersPage = ({ user, onLogout }) => {
       const searchable = [
         member.name,
         member.email,
-        member.role,
+        String(member.userId) === String(department?.leaderUserId) ? 'team leader trưởng ban' : 'thành viên member',
         member.telegramLinked ? 'telegram da ket noi' : 'telegram chua ket noi',
       ].filter(Boolean).join(' ').toLowerCase();
       const matchesKeyword = !keyword || searchable.includes(keyword);
-      const matchesRole = !roleFilter || member.role === roleFilter;
+      const memberDepartmentRole = String(member.userId) === String(department?.leaderUserId) ? 'TEAM_LEADER' : 'MEMBER';
+      const matchesRole = !roleFilter || memberDepartmentRole === roleFilter;
 
       return matchesKeyword && matchesRole;
     });
-  }, [departmentMembers, roleFilter, search]);
+  }, [department?.leaderUserId, departmentMembers, roleFilter, search]);
 
   const assignableMembers = useMemo(() => {
     const assignedIds = new Set(departmentMembers.map((member) => member.userId));
@@ -256,8 +256,8 @@ const DepartmentMembersPage = ({ user, onLogout }) => {
                       className={inputClassName}
                     >
                       <option value="">Tất cả role</option>
-                      <option value="LEADER">LEADER</option>
-                      <option value="MEMBER">MEMBER</option>
+                      <option value="TEAM_LEADER">Team leader</option>
+                      <option value="MEMBER">Thành viên</option>
                     </select>
                   )}
                 </div>
@@ -317,6 +317,7 @@ const DepartmentMembersPage = ({ user, onLogout }) => {
                           departmentId={departmentId}
                           member={member}
                           isLeader={isLeader}
+                          departmentLeaderUserId={department?.leaderUserId}
                           removeMemberMutation={removeMemberMutation}
                         />
                       ))}
@@ -332,8 +333,9 @@ const DepartmentMembersPage = ({ user, onLogout }) => {
   );
 };
 
-const DepartmentMemberRow = ({ eventId, departmentId, member, isLeader, removeMemberMutation }) => {
+const DepartmentMemberRow = ({ eventId, departmentId, member, isLeader, departmentLeaderUserId, removeMemberMutation }) => {
   const removingThisMember = removeMemberMutation.isPending && removeMemberMutation.variables?.userId === member.userId;
+  const isDepartmentLeader = String(member.userId) === String(departmentLeaderUserId);
 
   return (
     <tr className="transition hover:bg-sky-50/70">
@@ -357,7 +359,7 @@ const DepartmentMemberRow = ({ eventId, departmentId, member, isLeader, removeMe
       </td>
 
       <td className="px-5 py-4">
-        <StatusBadge status={member.role} />
+        <DepartmentRoleBadge isLeader={isDepartmentLeader} />
       </td>
 
       <td className="px-5 py-4">
@@ -401,6 +403,17 @@ const DepartmentMemberRow = ({ eventId, departmentId, member, isLeader, removeMe
   );
 };
 
+const DepartmentRoleBadge = ({ isLeader }) => (
+  <span
+    className={`inline-flex rounded-full border px-3 py-1.5 text-xs font-black shadow-sm ${
+      isLeader
+        ? 'border-sky-200 bg-sky-50 text-sky-700'
+        : 'border-slate-200 bg-slate-50 text-slate-700'
+    }`}
+  >
+    {isLeader ? 'Team leader' : 'Thành viên'}
+  </span>
+);
 const inputClassName = 'min-h-11 w-full min-w-0 rounded-2xl border border-sky-100 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:bg-white focus:ring-4 focus:ring-cyan-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500';
 
 export default DepartmentMembersPage;

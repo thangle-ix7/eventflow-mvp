@@ -20,7 +20,6 @@ import {
   LoadingState,
   PageHeader,
   Panel,
-  StatusBadge,
 } from '../components/ui';
 import departmentApi from '../api/departmentApi';
 import eventApi from '../api/eventApi';
@@ -243,7 +242,7 @@ const DepartmentDetailPage = ({ user, onLogout }) => {
                           </td>
 
                           <td className="px-5 py-4">
-                            <StatusBadge status={member.role} />
+                            <DepartmentRoleBadge isLeader={String(member.userId) === String(department.leaderUserId)} />
                           </td>
 
                           <td className="px-5 py-4">
@@ -290,6 +289,17 @@ const DepartmentDetailPage = ({ user, onLogout }) => {
   );
 };
 
+const DepartmentRoleBadge = ({ isLeader }) => (
+  <span
+    className={`inline-flex rounded-full border px-3 py-1.5 text-xs font-black shadow-sm ${
+      isLeader
+        ? 'border-sky-200 bg-sky-50 text-sky-700'
+        : 'border-slate-200 bg-slate-50 text-slate-700'
+    }`}
+  >
+    {isLeader ? 'Team leader' : 'Thành viên'}
+  </span>
+);
 const SummaryCard = ({ icon, label, value, tone }) => {
   const toneClass = {
     sky: 'bg-sky-50 text-sky-600',

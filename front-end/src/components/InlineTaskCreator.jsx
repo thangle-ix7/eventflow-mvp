@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Plus, Save, Sparkles, X } from 'lucide-react';
+import { Loader2, Paperclip, Plus, Save, Sparkles, X } from 'lucide-react';
 import aiSuggestionApi from '../api/aiSuggestionApi';
 import milestoneApi from '../api/milestoneApi';
 import AiSuggestionDetailModal from './AiSuggestionDetailModal';
@@ -26,6 +26,13 @@ const toDateTimeLocalValue = (value) => {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 };
 
+const createEmptyAttachmentDraft = () => ({
+  files: [],
+  linkUrl: '',
+  linkTitle: '',
+  visibility: 'TASK_ONLY',
+});
+
 const createEmptyRow = (departmentId = '', assigneeId = '', status = 'TODO') => ({
   id: crypto.randomUUID(),
   title: '',
@@ -37,13 +44,14 @@ const createEmptyRow = (departmentId = '', assigneeId = '', status = 'TODO') => 
   reminderOffsetHours: 24,
   status,
   priority: 'MEDIUM',
+  attachmentDraft: createEmptyAttachmentDraft(),
 });
 
 const normalizeSuggestedDeadline = (value) => (value ? toDateTimeLocalValue(value) || String(value).slice(0, 16) : '');
 
 const autoResizeTextarea = (element) => {
   element.style.height = 'auto';
-  element.style.height = `${element.scrollHeight}px`;
+  element.style.height = `${Math.max(32, element.scrollHeight)}px`;
 };
 
 const workloadText = (workload) => {
@@ -198,11 +206,26 @@ const InlineTaskCreator = ({
   };
 
   const mutation = useMutation({
-    mutationFn: async (payloads) => Promise.all(payloads.map((payload) => (
-      parentTaskId
-        ? taskApi.createSubtask({ taskId: parentTaskId, payload })
-        : taskApi.createTask({ eventId, payload })
-    ))),
+    mutationFn: async (items) => {
+      const createdItems = await Promise.all(items.map(async ({ payload, attachmentDraft }) => {
+        const task = parentTaskId
+          ? await taskApi.createSubtask({ taskId: parentTaskId, payload })
+          : await taskApi.createTask({ eventId, payload });
+        return { task, payload, attachmentDraft };
+      }));
+
+      await Promise.all(createdItems
+        .filter(({ attachmentDraft }) => attachmentDraft.files.length > 0 || attachmentDraft.linkUrl.trim())
+        .map(({ task, payload, attachmentDraft }) => taskApi.uploadTaskAttachments({
+          taskId: task.id,
+          files: attachmentDraft.files,
+          linkUrl: attachmentDraft.linkUrl,
+          linkTitle: attachmentDraft.linkTitle,
+          visibility: attachmentDraft.visibility === 'DEPARTMENT' && !payload.departmentId ? 'TASK_ONLY' : attachmentDraft.visibility,
+        })));
+
+      return createdItems.map(({ task }) => task);
+    },
     onSuccess: () => {
       setRows([createEmptyRow(departmentId, assigneeId, initialStatus)]);
       setLocalError('');
@@ -241,7 +264,9 @@ const InlineTaskCreator = ({
         milestoneId: task.milestoneId ? String(task.milestoneId) : '',
         deadline: normalizeSuggestedDeadline(task.deadline),
         status: task.status || initialStatus,
+        reminderOffsetHours: 24,
         priority: task.priority || 'MEDIUM',
+        attachmentDraft: createEmptyAttachmentDraft(),
         aiSuggestion: task,
       })));
     },
@@ -260,6 +285,22 @@ const InlineTaskCreator = ({
         ...(name === 'departmentId' ? { assigneeId: lockedAssignee ? String(assigneeId || '') : '' } : {}),
       };
     }));
+  };
+
+  const updateRowAttachment = (rowId, name, value) => {
+    setRows((old) => old.map((row) => (
+      row.id === rowId
+        ? { ...row, attachmentDraft: { ...row.attachmentDraft, [name]: value } }
+        : row
+    )));
+  };
+
+  const updateRowAttachmentFiles = (rowId, updater) => {
+    setRows((old) => old.map((row) => (
+      row.id === rowId
+        ? { ...row, attachmentDraft: { ...row.attachmentDraft, files: updater(row.attachmentDraft.files) } }
+        : row
+    )));
   };
 
   const addRow = () => {
@@ -301,15 +342,18 @@ const InlineTaskCreator = ({
       const effectiveAssigneeId = getEffectiveAssigneeId(row);
 
       return {
-        title: row.title.trim(),
-        description: row.description,
-        departmentId: effectiveDepartmentId ? Number(effectiveDepartmentId) : null,
-        assigneeId: effectiveAssigneeId ? Number(effectiveAssigneeId) : null,
-        milestoneId: !parentTaskId && row.milestoneId ? Number(row.milestoneId) : null,
-        status: row.status,
-        priority: row.priority,
-        deadline: row.deadline || defaultDeadline,
-        reminderOffsetMinutes: Math.round(Number(row.reminderOffsetHours || 0) * 60),
+        payload: {
+          title: row.title.trim(),
+          description: row.description,
+          departmentId: effectiveDepartmentId ? Number(effectiveDepartmentId) : null,
+          assigneeId: effectiveAssigneeId ? Number(effectiveAssigneeId) : null,
+          milestoneId: !parentTaskId && row.milestoneId ? Number(row.milestoneId) : null,
+          status: row.status,
+          priority: row.priority,
+          deadline: row.deadline || defaultDeadline,
+          reminderOffsetMinutes: Math.round(Number(row.reminderOffsetHours || 0) * 60),
+        },
+        attachmentDraft: row.attachmentDraft,
       };
     }));
   };
@@ -349,7 +393,7 @@ const InlineTaskCreator = ({
 
       {isOpen && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/55 p-3 backdrop-blur-sm sm:p-5">
-          <div className="flex max-h-[92vh] w-full max-w-[1500px] flex-col overflow-hidden rounded-2xl border border-sky-100 bg-white shadow-2xl shadow-slate-950/20">
+          <div className="flex h-[96vh] w-full max-w-[calc(100vw-24px)] flex-col overflow-hidden rounded-2xl border border-sky-100 bg-white shadow-2xl shadow-slate-950/20">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-sky-100 bg-white px-5 py-4">
               <div className="min-w-0">
                 <p className="text-xs font-black uppercase tracking-[0.16em] text-sky-600">
@@ -408,7 +452,7 @@ const InlineTaskCreator = ({
             </div>
 
             <div className="min-h-0 flex-1 overflow-auto bg-gradient-to-br from-white via-sky-50/25 to-emerald-50/30">
-              <div className="min-w-[1860px]">
+              <div className="min-w-[2040px]">
                 <div className={taskCreatorGridHeaderClassName}>
                   <span>#</span>
                   <span>Tên công việc</span>
@@ -420,6 +464,7 @@ const InlineTaskCreator = ({
                   <span>Cảnh báo (giờ)</span>
                   <span>Ưu tiên</span>
                   <span>Trạng thái</span>
+                  <span>Tài liệu</span>
                   <span></span>
                 </div>
 
@@ -575,14 +620,21 @@ const InlineTaskCreator = ({
                         <option value="IN_REVIEW">Chờ duyệt</option>
                         <option value="DONE">Hoàn thành</option>
                       </select>
+                      <RowAttachmentDraft
+                        row={row}
+                        onChange={updateRowAttachment}
+                        onFilesChange={updateRowAttachmentFiles}
+                        hasDepartment={Boolean(effectiveDepartmentId)}
+                        disabled={mutation.isPending}
+                      />
 
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-stretch gap-1">
                         {row.aiSuggestion && (
                           <button
                             type="button"
                             onClick={() => setDetailSuggestion({ ...row.aiSuggestion, __rowId: row.id })}
                             disabled={mutation.isPending}
-                            className="inline-flex h-10 w-9 items-center justify-center rounded-xl text-sky-500 transition hover:bg-sky-50 hover:text-sky-700 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="inline-flex h-full min-h-8 w-8 items-center justify-center rounded-lg text-sky-500 transition hover:bg-sky-50 hover:text-sky-700 disabled:cursor-not-allowed disabled:opacity-60"
                             aria-label="Xem chi tiết gợi ý AI"
                           >
                             <Sparkles size={15} />
@@ -592,7 +644,7 @@ const InlineTaskCreator = ({
                           type="button"
                           onClick={() => removeRow(row.id)}
                           disabled={mutation.isPending}
-                          className="inline-flex h-10 w-9 items-center justify-center rounded-xl text-slate-400 transition hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-60"
+                          className="inline-flex h-full min-h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-60"
                           aria-label="Xóa dòng công việc"
                         >
                           <X size={16} />
@@ -633,7 +685,7 @@ const InlineTaskCreator = ({
                   className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 px-4 py-2 text-sm font-black text-white shadow-lg shadow-cyan-100 transition hover:shadow-xl hover:shadow-cyan-200 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {mutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                  {saveLabel}
+                  {mutation.isPending && rows.some((row) => row.attachmentDraft.files.length > 0 || row.attachmentDraft.linkUrl.trim()) ? 'Đang lưu và tải tài liệu...' : saveLabel}
                 </button>
               </div>
             </div>
@@ -671,11 +723,84 @@ const InlineTaskCreator = ({
   );
 };
 
-const taskCreatorGridColumns = 'grid-cols-[36px_minmax(240px,1.05fr)_minmax(320px,1.2fr)_170px_250px_190px_190px_112px_120px_118px_82px]';
-const taskCreatorGridHeaderClassName = `grid min-w-[1860px] ${taskCreatorGridColumns} items-center gap-2 border-b border-sky-100 bg-sky-50/80 px-5 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-slate-500`;
-const taskCreatorGridRowClassName = `grid min-w-[1860px] ${taskCreatorGridColumns} items-start gap-2 border-b border-sky-100/70 bg-white/80 px-5 py-3 transition hover:bg-sky-50/70 last:border-b-0`;
-const taskInputClassName = 'h-10 w-full min-w-0 rounded-xl border border-sky-100 bg-white px-3 text-xs font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100 disabled:bg-slate-50 disabled:text-slate-500';
-const taskTextareaClassName = 'min-h-10 w-full min-w-0 resize-none overflow-hidden rounded-xl border border-sky-100 bg-white px-3 py-2 text-xs font-semibold leading-5 text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100 disabled:bg-slate-50 disabled:text-slate-500';
+const RowAttachmentDraft = ({ row, onChange, onFilesChange, hasDepartment, disabled }) => {
+  const { files, linkUrl, linkTitle, visibility } = row.attachmentDraft;
+
+  const handleFilesChange = (event) => {
+    const pickedFiles = Array.from(event.target.files || []);
+    if (pickedFiles.length === 0) return;
+    onFilesChange(row.id, (old) => [...old, ...pickedFiles]);
+    event.target.value = '';
+  };
+
+  const summary = [
+    files.length > 0 ? `${files.length} file` : '',
+    linkUrl.trim() ? '1 link' : '',
+  ].filter(Boolean).join(' + ');
+
+  return (
+    <div className="grid gap-1.5">
+      <label className="flex h-10 cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-dashed border-sky-200 bg-sky-50/50 px-2 text-[11px] font-black text-sky-700 transition hover:bg-sky-50">
+        <input type="file" multiple onChange={handleFilesChange} disabled={disabled} className="sr-only" />
+        <Paperclip size={13} />
+        <span className="truncate">{summary || 'Tài liệu'}</span>
+      </label>
+
+      <input
+        value={linkUrl}
+        onChange={(event) => onChange(row.id, 'linkUrl', event.target.value)}
+        disabled={disabled}
+        className={taskCompactInputClassName}
+        placeholder="Link"
+        type="url"
+      />
+
+      <input
+        value={linkTitle}
+        onChange={(event) => onChange(row.id, 'linkTitle', event.target.value)}
+        disabled={disabled || !linkUrl.trim()}
+        className={taskCompactInputClassName}
+        placeholder="Tên link"
+      />
+
+      <select
+        value={visibility}
+        onChange={(event) => onChange(row.id, 'visibility', event.target.value)}
+        disabled={disabled}
+        className={taskCompactInputClassName}
+        aria-label="Phạm vi hiển thị tài liệu"
+      >
+        <option value="TASK_ONLY">Chỉ task</option>
+        <option value="DEPARTMENT" disabled={!hasDepartment}>Cả ban</option>
+        <option value="EVENT_PUBLIC">Toàn sự kiện</option>
+      </select>
+
+      {files.length > 0 && (
+        <div className="flex max-h-16 flex-wrap gap-1 overflow-auto">
+          {files.map((file, index) => (
+            <button
+              key={`${file.name}-${file.size}-${index}`}
+              type="button"
+              onClick={() => onFilesChange(row.id, (old) => old.filter((_, itemIndex) => itemIndex !== index))}
+              disabled={disabled}
+              className="max-w-full truncate rounded-lg border border-sky-100 bg-white px-2 py-1 text-[10px] font-black text-slate-600 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-60"
+              title="Bấm để bỏ file"
+            >
+              {file.name}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const taskCreatorGridColumns = 'grid-cols-[36px_minmax(240px,1.05fr)_minmax(320px,1.2fr)_170px_250px_190px_190px_112px_120px_118px_170px_82px]';
+const taskCreatorGridHeaderClassName = `grid min-w-[2040px] ${taskCreatorGridColumns} items-center gap-2 border-b border-sky-100 bg-sky-50/80 px-5 py-2.5 text-[10px] font-black uppercase tracking-[0.18em] text-slate-500`;
+const taskCreatorGridRowClassName = `grid min-w-[2040px] ${taskCreatorGridColumns} items-stretch gap-2 border-b border-sky-100/70 bg-white/80 px-5 py-2 transition hover:bg-sky-50/70 last:border-b-0`;
+const taskInputClassName = 'h-full min-h-8 w-full min-w-0 rounded-lg border border-sky-100 bg-white px-2.5 text-xs font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:ring-2 focus:ring-cyan-100 disabled:bg-slate-50 disabled:text-slate-500';
+const taskCompactInputClassName = 'min-h-7 w-full min-w-0 rounded-lg border border-sky-100 bg-white px-2 py-1 text-[11px] font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:ring-2 focus:ring-cyan-100 disabled:bg-slate-50 disabled:text-slate-500';
+const taskTextareaClassName = 'min-h-8 w-full min-w-0 resize-none overflow-hidden rounded-lg border border-sky-100 bg-white px-2.5 py-1.5 text-xs font-semibold leading-5 text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:ring-2 focus:ring-cyan-100 disabled:bg-slate-50 disabled:text-slate-500';
 
 export default InlineTaskCreator;
 
