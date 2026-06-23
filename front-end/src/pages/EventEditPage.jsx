@@ -139,8 +139,9 @@ const EventEditForm = ({ event, eventId, mutation }) => {
 
   const handleSubmit = (submitEvent) => {
     submitEvent.preventDefault();
-    if (form.endTime && form.startTime && form.endTime < form.startTime) {
-      setLocalError('Thời gian kết thúc phải sau thời gian bắt đầu.');
+    const validationMessage = validateEventForm(form);
+    if (validationMessage) {
+      setLocalError(validationMessage);
       return;
     }
 
@@ -163,7 +164,7 @@ const EventEditForm = ({ event, eventId, mutation }) => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="relative space-y-5 p-6">
+    <form noValidate onSubmit={handleSubmit} className="relative space-y-5 p-6">
       {(localError || mutation.error) && (
         <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-red-600 shadow-sm">
@@ -184,7 +185,6 @@ const EventEditForm = ({ event, eventId, mutation }) => {
           name="name"
           value={form.name}
           onChange={handleChange}
-          required
           maxLength={255}
           className={inputClassName}
         />
@@ -306,7 +306,6 @@ const EventEditForm = ({ event, eventId, mutation }) => {
             type="datetime-local"
             value={form.startTime}
             onChange={handleChange}
-            required
             className={inputClassName}
           />
         </Field>
@@ -367,6 +366,22 @@ const EventEditForm = ({ event, eventId, mutation }) => {
       </div>
     </form>
   );
+};
+
+const validateEventForm = (form) => {
+  if (!form.name.trim()) {
+    return 'Vui lòng nhập tên sự kiện.';
+  }
+
+  if (!form.startTime) {
+    return 'Vui lòng chọn thời gian bắt đầu.';
+  }
+
+  if (form.endTime && form.endTime < form.startTime) {
+    return 'Thời gian kết thúc phải sau thời gian bắt đầu.';
+  }
+
+  return '';
 };
 
 const Field = ({ label, children }) => (

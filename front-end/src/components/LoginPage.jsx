@@ -16,6 +16,9 @@ import authApi from '../api/authApi';
 import Header from '../components/Header';
 import LandingFooter from '../components/LandingFooter';
 
+const EMAIL_PATTERN = /^[A-Za-z0-9._%+-]+@(?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,63}$/;
+const EMAIL_FORMAT_MESSAGE = 'Email không đúng định dạng';
+
 const LoginPage = ({ onLoginSuccess }) => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -92,14 +95,22 @@ const LoginPage = ({ onLoginSuccess }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
     setError('');
     setMessage('');
+
+    const normalizedEmail = form.email.trim().toLowerCase();
+    const validationError = validateAuthForm(mode, form, normalizedEmail);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    setLoading(true);
 
     try {
       if (mode === 'login') {
         const data = await authApi.login({
-          email: form.email,
+          email: normalizedEmail,
           password: form.password,
         });
         onLoginSuccess(data, redirectAfterLogin);
@@ -108,8 +119,8 @@ const LoginPage = ({ onLoginSuccess }) => {
 
       if (mode === 'signup') {
         const data = await authApi.signup({
-          name: form.name,
-          email: form.email,
+          name: form.name.trim(),
+          email: normalizedEmail,
           password: form.password,
         });
         setMessage(data.message || 'Đăng ký thành công. Vui lòng kiểm tra email.');
@@ -118,7 +129,7 @@ const LoginPage = ({ onLoginSuccess }) => {
       }
 
       if (mode === 'forgot') {
-        const data = await authApi.forgotPassword(form.email);
+        const data = await authApi.forgotPassword(normalizedEmail);
         setMessage(data.message || 'Nếu email tồn tại, hệ thống sẽ gửi link đặt lại mật khẩu.');
         return;
       }
@@ -140,8 +151,14 @@ const LoginPage = ({ onLoginSuccess }) => {
   };
 
   const handleResendVerification = async () => {
-    if (!form.email) {
+    const normalizedEmail = form.email.trim().toLowerCase();
+    if (!normalizedEmail) {
       setError('Vui lòng nhập email để gửi lại link xác thực');
+      return;
+    }
+
+    if (!isValidEmail(normalizedEmail)) {
+      setError(EMAIL_FORMAT_MESSAGE);
       return;
     }
 
@@ -150,7 +167,7 @@ const LoginPage = ({ onLoginSuccess }) => {
     setMessage('');
 
     try {
-      const data = await authApi.resendVerification(form.email);
+      const data = await authApi.resendVerification(normalizedEmail);
       setMessage(data.message || 'Nếu email tồn tại, hệ thống sẽ gửi lại link xác thực.');
     } catch (err) {
       setError(err.userMessage || err.message || 'Không thể gửi lại link xác thực');
@@ -325,7 +342,7 @@ const LoginPage = ({ onLoginSuccess }) => {
                     </div>
                   )}
 
-                  <form onSubmit={handleSubmit} className="space-y-4">
+                  <form onSubmit={handleSubmit} className="space-y-4" noValidate>
                     {mode === 'signup' && (
                       <div>
                         <label htmlFor="name" className="mb-2 block text-sm font-bold text-slate-700">
@@ -344,7 +361,6 @@ const LoginPage = ({ onLoginSuccess }) => {
                             onChange={handleChange}
                             placeholder="Nguyễn Văn A"
                             autoComplete="name"
-                            required
                             className="min-h-12 w-full rounded-2xl border border-sky-100 bg-sky-50/60 px-11 py-3 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:bg-white focus:ring-4 focus:ring-cyan-100"
                           />
                         </div>
@@ -363,13 +379,13 @@ const LoginPage = ({ onLoginSuccess }) => {
                           />
                           <input
                             id="email"
-                            type="email"
+                            type="text"
+                            inputMode="email"
                             name="email"
                             value={form.email}
                             onChange={handleChange}
                             placeholder="email@example.com"
                             autoComplete="email"
-                            required
                             className="min-h-12 w-full rounded-2xl border border-sky-100 bg-sky-50/60 px-11 py-3 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:bg-white focus:ring-4 focus:ring-cyan-100"
                           />
                         </div>
@@ -396,8 +412,6 @@ const LoginPage = ({ onLoginSuccess }) => {
                             onChange={handleChange}
                             placeholder="••••••••"
                             autoComplete={mode === 'reset' || mode === 'signup' ? 'new-password' : 'current-password'}
-                            required
-                            minLength={6}
                             className="min-h-12 w-full rounded-2xl border border-sky-100 bg-sky-50/60 px-11 py-3 pr-12 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:bg-white focus:ring-4 focus:ring-cyan-100"
                           />
 
@@ -479,6 +493,36 @@ const LoginPage = ({ onLoginSuccess }) => {
     </div>
   );
 };
+
+const validateAuthForm = (mode, form, normalizedEmail) => {
+  if (mode === "signup" && !form.name.trim()) {
+    return "Tên không được để trống";
+  }
+
+  if (mode !== "reset") {
+    if (!normalizedEmail) {
+      return "Email không được để trống";
+    }
+
+    if (!isValidEmail(normalizedEmail)) {
+      return EMAIL_FORMAT_MESSAGE;
+    }
+  }
+
+  if (mode !== "forgot") {
+    if (!form.password) {
+      return "Mật khẩu không được để trống";
+    }
+
+    if (form.password.length < 6 || form.password.length > 72) {
+      return "Mật khẩu phải từ 6 đến 72 ký tự";
+    }
+  }
+
+  return "";
+};
+
+const isValidEmail = (email) => EMAIL_PATTERN.test(email);
 
 const InfoCard = ({ icon, title, description }) => (
   <div className="rounded-3xl border border-sky-100 bg-white/80 p-4 shadow-xl shadow-sky-100/70 backdrop-blur transition hover:-translate-y-1 hover:shadow-2xl hover:shadow-cyan-100">
