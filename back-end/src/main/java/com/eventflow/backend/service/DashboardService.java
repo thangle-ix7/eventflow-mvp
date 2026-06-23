@@ -187,7 +187,7 @@ public class DashboardService {
                     WHERE id = ?
                 ),
                 filtered_status_updates AS (
-                    SELECT h.changed_at, h.status
+                    SELECT h.changed_at, h.status, t.deadline
                     FROM task_status_history h
                     JOIN tasks t ON t.id = h.task_id
                     WHERE h.event_id = ?
@@ -216,7 +216,8 @@ public class DashboardService {
                            COALESCE(SUM(CASE WHEN status = 'TODO' THEN 1 ELSE 0 END), 0) AS todo_tasks,
                            COALESCE(SUM(CASE WHEN status = 'IN_PROGRESS' THEN 1 ELSE 0 END), 0) AS in_progress_tasks,
                            COALESCE(SUM(CASE WHEN status = 'IN_REVIEW' THEN 1 ELSE 0 END), 0) AS in_review_tasks,
-                           COALESCE(SUM(CASE WHEN status = 'DONE' THEN 1 ELSE 0 END), 0) AS completed_tasks
+                           COALESCE(SUM(CASE WHEN status = 'DONE' THEN 1 ELSE 0 END), 0) AS completed_tasks,
+                           COALESCE(SUM(CASE WHEN deadline < (DATE_TRUNC('day', changed_at)::date + INTERVAL '1 day') AND status != 'DONE' THEN 1 ELSE 0 END), 0) AS overdue_tasks
                     FROM filtered_status_updates
                     GROUP BY DATE_TRUNC('day', changed_at)::date
                 )
@@ -225,7 +226,8 @@ public class DashboardService {
                        COALESCE(dc.todo_tasks, 0) AS todo_tasks,
                        COALESCE(dc.in_progress_tasks, 0) AS in_progress_tasks,
                        COALESCE(dc.in_review_tasks, 0) AS in_review_tasks,
-                       COALESCE(dc.completed_tasks, 0) AS completed_tasks
+                       COALESCE(dc.completed_tasks, 0) AS completed_tasks,
+                       COALESCE(dc.overdue_tasks, 0) AS overdue_tasks
                 FROM days d
                 LEFT JOIN daily_counts dc ON dc.day = d.day
                 ORDER BY d.day
@@ -236,6 +238,7 @@ public class DashboardService {
                 .inProgressTasks(rs.getLong("in_progress_tasks"))
                 .inReviewTasks(rs.getLong("in_review_tasks"))
                 .completedTasks(rs.getLong("completed_tasks"))
+                .overdueTasks(rs.getLong("overdue_tasks"))
                 .build(), params);
     }
 
@@ -331,4 +334,3 @@ public class DashboardService {
         }
     }
 }
-
