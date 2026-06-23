@@ -37,17 +37,6 @@ const aiSuggestionApi = {
     return response.data;
   },
 
-  suggestPlanning: async ({ eventId, instruction }) => {
-    if (!eventId) {
-      throw new Error('eventId không hợp lệ');
-    }
-
-    const response = await apiClient.post(`/ai-suggestions/events/${eventId}/planning`, {
-      instruction: instruction || undefined,
-    });
-    return response.data;
-  },
-
   suggestMilestones: async ({ eventId, instruction, count = 4 }) => {
     if (!eventId) {
       throw new Error('eventId không hợp lệ');

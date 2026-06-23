@@ -46,8 +46,6 @@ const vi = {
 
       members: 'Thành viên',
 
-      plannings: 'Kế hoạch',
-
       tasks: 'Công việc',
 
       calendar: 'Lịch',
@@ -190,7 +188,6 @@ const vi = {
 
     terminology: {
       dashboard: 'Tổng quan',
-      planning: 'Kế hoạch',
       milestone: 'Cột mốc',
       task: 'Công việc',
       subtask: 'Việc con',

@@ -446,7 +446,7 @@ public class EventUtilityService {
     }
 
     private void validateCalendarRequest(Long eventId, EventCalendarItemRequest request) {
-        if (request.getEndTime().isBefore(request.getStartTime())) {
+        if (!request.getEndTime().isAfter(request.getStartTime())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Thời gian kết thúc phải sau thời gian bắt đầu");
         }
         if (request.getDepartmentId() != null && !departmentBelongsToEvent(eventId, request.getDepartmentId())) {

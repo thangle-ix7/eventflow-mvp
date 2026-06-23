@@ -3,26 +3,19 @@ package com.eventflow.backend.service;
 import com.eventflow.backend.dto.AiCalendarSuggestionResponse;
 import com.eventflow.backend.dto.AiDepartmentSuggestionResponse;
 import com.eventflow.backend.dto.AiMilestoneSuggestionResponse;
-import com.eventflow.backend.dto.AiPlanningSuggestionResponse;
 import com.eventflow.backend.dto.AiSubtaskSuggestionResponse;
 import com.eventflow.backend.dto.AiSuggestionRequest;
 import com.eventflow.backend.dto.AiTaskSuggestionResponse;
 import com.eventflow.backend.dto.DepartmentRequestDTO;
 import com.eventflow.backend.dto.EventCalendarItemRequest;
 import com.eventflow.backend.dto.MilestoneRequestDTO;
-import com.eventflow.backend.dto.PlanningPhaseRequestDTO;
-import com.eventflow.backend.dto.PlanningRequestDTO;
 import com.eventflow.backend.dto.TaskRequestDTO;
 import com.eventflow.backend.entity.Department;
 import com.eventflow.backend.entity.Event;
-import com.eventflow.backend.entity.Planning;
-import com.eventflow.backend.entity.PlanningPhase;
 import com.eventflow.backend.entity.Task;
 import com.eventflow.backend.entity.TaskPriority;
 import com.eventflow.backend.repository.DepartmentRepository;
 import com.eventflow.backend.repository.EventRepository;
-import com.eventflow.backend.repository.PlanningPhaseRepository;
-import com.eventflow.backend.repository.PlanningRepository;
 import com.eventflow.backend.repository.TaskRepository;
 import com.eventflow.backend.security.EventSecurityService;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -50,8 +43,6 @@ public class AiSuggestionService {
     private final EventRepository eventRepository;
     private final DepartmentRepository departmentRepository;
     private final TaskRepository taskRepository;
-    private final PlanningRepository planningRepository;
-    private final PlanningPhaseRepository planningPhaseRepository;
     private final EventSecurityService eventSecurityService;
     private final OpenAiEventflowAssistantClient openAiAssistantClient;
     private final JdbcTemplate jdbcTemplate;
@@ -105,32 +96,6 @@ public class AiSuggestionService {
     }
 
     @Transactional
-    public AiPlanningSuggestionResponse suggestPlanning(Long eventId, Long userId, AiSuggestionRequest request) {
-        if (!eventSecurityService.isLeaderOfEvent(eventId, userId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Chỉ leader của sự kiện mới được gợi ý kế hoạch");
-        }
-        subscriptionService.consumeAiCredit(userId, eventId, "SUGGEST_PLANNING");
-
-        Event event = getEvent(eventId);
-        List<Department> departments = departmentRepository.findAllByEventIdOrderByNameAsc(eventId);
-        List<Task> existingTasks = taskRepository.findAllByEventIdWithDetails(eventId);
-        int phaseCount = resolveCount(request, 4);
-        Map<String, Object> input = baseInput(event, departments, existingTasks, request);
-        input.put("existingPlannings", loadPlanningInputs(eventId));
-
-        Optional<JsonNode> aiJson = openAiAssistantClient.generateJson(
-                planningInstructions(phaseCount),
-                input);
-
-        return AiPlanningSuggestionResponse.builder()
-                .planning(aiJson
-                        .map(json -> parsePlanning(json.path("planning"), phaseCount))
-                        .filter(planning -> planning.getTitle() != null && !planning.getTitle().isBlank())
-                        .orElseGet(() -> fallbackPlanning(event, phaseCount)))
-                .build();
-    }
-
-    @Transactional
     public AiMilestoneSuggestionResponse suggestMilestones(Long eventId, Long userId, AiSuggestionRequest request) {
         if (!eventSecurityService.isLeaderOfEvent(eventId, userId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Chỉ leader của sự kiện mới được gợi ý milestone");
@@ -142,7 +107,6 @@ public class AiSuggestionService {
         List<Task> existingTasks = taskRepository.findAllByEventIdWithDetails(eventId);
         int count = resolveCount(request, 4);
         Map<String, Object> input = baseInput(event, departments, existingTasks, request);
-        input.put("existingPlannings", loadPlanningInputs(eventId));
         input.put("existingMilestones", loadMilestoneInputs(eventId));
 
         Set<String> usedNames = existingMilestoneNames(input);
@@ -250,7 +214,7 @@ public class AiSuggestionService {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("rawText", userInstruction);
         data.put("hasExplicitContext", userInstruction != null && !userInstruction.isBlank());
-        data.put("priority", "User context is the strongest signal. Use event/planning/task data to ground it, not to override it.");
+        data.put("priority", "User context is the strongest signal. Use event/task data to ground it, not to override it.");
         data.put("antiTemplateRule", "Do not use generic event templates unless the user context is missing or asks for a generic structure.");
         return data;
     }
@@ -300,33 +264,13 @@ public class AiSuggestionService {
         return data;
     }
 
-    private Map<String, Object> planningInput(Planning planning) {
-        Map<String, Object> data = new LinkedHashMap<>();
-        data.put("id", planning.getId());
-        data.put("title", planning.getTitle());
-        data.put("description", planning.getDescription());
-        data.put("phases", planningPhaseRepository.findAllByPlanningIdOrderByOrderIndexAscIdAsc(planning.getId()).stream()
-                .map(this::planningPhaseInput)
-                .toList());
-        return data;
-    }
-
-    private Map<String, Object> planningPhaseInput(PlanningPhase phase) {
-        Map<String, Object> data = new LinkedHashMap<>();
-        data.put("id", phase.getId());
-        data.put("phaseName", phase.getPhaseName());
-        data.put("description", phase.getDescription());
-        data.put("objective", phase.getObjective());
-        data.put("orderIndex", phase.getOrderIndex());
-        return data;
-    }
 
     private String departmentInstructions(int count) {
         return """
                 Bạn là AI gợi ý dữ liệu cho EventFlow. Chỉ trả JSON object, không markdown.
                 %s
                 Dựa trên thông tin event và các department hiện có, gợi ý tối đa %d department mới.
-                Không tạo planning, milestone hoặc trường ngoài database hiện tại.
+                Không tạo milestone hoặc trường ngoài database hiện tại.
                 Nếu userContext.hasExplicitContext=true, tên và mô tả department phải bám sát ngôn ngữ, mục tiêu, ràng buộc và vai trò user đã nêu.
                 Không tự thêm các ban mẫu như Nội dung, Truyền thông, Hậu cần nếu context không cần những mảng đó.
                 Đây là gợi ý để user chọn lưu hàng loạt, nên cần bao phủ đúng khoảng trống tổ chức thật sự đang thiếu.
@@ -344,7 +288,7 @@ public class AiSuggestionService {
                 Dựa trên event, department hiện có, task hiện có và userContext, gợi ý tối đa %d task có thể lưu bằng API hiện tại.
                 Nếu userContext.hasExplicitContext=true, mỗi task phải là việc cụ thể xuất phát trực tiếp từ text user đưa, không chuyển về checklist sự kiện chung.
                 Description của task phải nêu cách làm cụ thể: các bước chính, đầu ra cần bàn giao, tiêu chí hoàn thành hoặc lưu ý phối hợp.
-                Không dùng planning, milestoneName, phaseName hoặc trường ngoài database hiện tại.
+                Không dùng milestoneName hoặc trường ngoài database hiện tại.
                 Nếu chọn department thì departmentId phải lấy từ existingDepartments; nếu không chắc thì để null.
                 assigneeId để null. status mặc định TODO. progressPercentage mặc định 0.
                 deadline là ISO local datetime, nằm trong khoảng event.startTime đến event.endTime.
@@ -355,35 +299,17 @@ public class AiSuggestionService {
                 """.formatted(contextualSuggestionRules(), count);
     }
 
-    private String planningInstructions(int phaseCount) {
-        return """
-                Bạn là AI gợi ý dữ liệu cho EventFlow. Chỉ trả JSON object, không markdown.
-                %s
-                Dựa trên thông tin event, department hiện có, task hiện có và planning hiện có, hãy gợi ý 1 planning tổng thể.
-                Planning là kế hoạch vận hành/giai đoạn triển khai, không phải milestone.
-                Không tạo milestone, không tạo task, không gán assignee, không dùng trường ngoài API Planning CRUD hiện tại.
-                Gợi ý tối đa %d phase. Nếu event đã có planning, tránh trùng nội dung với existingPlannings.
-                Nếu userContext.hasExplicitContext=true, planning phải phản ánh đúng thứ tự, phạm vi, ràng buộc, thời gian và thuật ngữ trong context user đưa.
-                Không tự tạo chuỗi khởi động/chuẩn bị/triển khai/tổng kết nếu context user đang mô tả một luồng khác.
-                Mỗi phase phải có objective đo được và description nêu việc cần làm ở phase đó.
-                JSON phải có dạng:
-                {"planning":{"title":"...", "description":"...", "phases":[{"phaseName":"...", "description":"...", "objective":"...", "orderIndex":0}]}}
-                title và phaseName tối đa 255 ký tự. description và objective tối đa 2000 ký tự.
-                orderIndex bắt đầu từ 0, tăng dần theo thứ tự thực hiện.
-                """.formatted(contextualSuggestionRules(), phaseCount);
-    }
-
     private String milestoneInstructions(int count) {
         return """
                 Bạn là AI gợi ý dữ liệu cho EventFlow. Chỉ trả JSON object, không markdown.
                 %s
-                Dựa trên event, department hiện có, task hiện có, planning hiện có và milestone hiện có, gợi ý tối đa %d milestone.
-                Milestone là chặng kiểm soát tiến độ hoặc điểm nghiệm thu quan trọng của event, khác với planning phase và khác với task.
+                Dựa trên event, department hiện có, task hiện có, milestone hiện có, gợi ý tối đa %d milestone.
+                Milestone là chặng kiểm soát tiến độ hoặc điểm nghiệm thu quan trọng của event, khác với task.
                 Dùng các trường có thể lưu bằng API Milestone hiện tại: name, description, expectedDeadline, expectedResult, priority, status.
-                Không tạo task, không tạo planning, không dùng departmentId, assigneeId, phaseName hoặc trường ngoài API Milestone CRUD hiện tại.
+                Không tạo task, không dùng departmentId, assigneeId hoặc trường ngoài API Milestone CRUD hiện tại.
                 expectedDeadline là ISO local datetime, nằm trong khoảng event.startTime đến event.endTime nếu có.
                 Tránh trùng hoặc gần trùng name với existingMilestones.
-                Nếu userContext.hasExplicitContext=true, milestone phải được suy ra từ mốc nghiệm thu thật trong context user đưa và task/planning hiện có.
+                Nếu userContext.hasExplicitContext=true, milestone phải được suy ra từ mốc nghiệm thu thật trong context user đưa và task hiện có.
                 Không mặc định dùng các mốc setup/rehearsal/tổng kết nếu event hoặc userContext không nhắc tới.
                 Description phải giải thích milestone này kiểm soát điều gì; expectedResult phải là kết quả nghiệm thu cụ thể.
                 JSON phải có dạng:
@@ -399,7 +325,7 @@ public class AiSuggestionService {
                 %s
                 Dựa trên parentTask, chia thành tối đa %d subtask có thể lưu bằng API tạo subtask hiện tại.
                 Nếu userContext.hasExplicitContext=true, hãy dùng context đó để chia nhỏ đúng cách làm user muốn, không chia theo checklist chung.
-                Không dùng planning, milestone hoặc trường ngoài database hiện tại.
+                Không dùng milestone hoặc trường ngoài database hiện tại.
                 departmentId và assigneeId để null vì backend sẽ kế thừa từ task cha.
                 status mặc định TODO, progressPercentage mặc định 0, priority kế thừa hoặc phù hợp với task cha.
                 deadline là ISO local datetime, không trước event.startTime và không sau parentTask.deadline.
@@ -414,7 +340,7 @@ public class AiSuggestionService {
                 Bạn là AI gợi ý dữ liệu cho EventFlow. Chỉ trả JSON object, không markdown.
                 %s
                 Dựa trên event, department và task hiện có, gợi ý tối đa %d lịch có thể lưu bằng API calendar hiện tại.
-                Không dùng planning, milestone hoặc trường ngoài database hiện tại.
+                Không dùng milestone hoặc trường ngoài database hiện tại.
                 Nếu userContext.hasExplicitContext=true, lịch phải bám sát thời điểm, người/ban, địa điểm và mục đích user nêu.
                 Không tự trải đều các mốc họp/setup/rehearsal/check-in nếu context không cần.
                 Không đề xuất lịch trùng hoặc gần trùng title + thời gian với existingCalendarItems.
@@ -433,7 +359,7 @@ public class AiSuggestionService {
                 - userContext.rawText là ưu tiên cao nhất khi không mâu thuẫn với dữ liệu event hoặc API.
                 - Nếu userContext.rawText có chi tiết cụ thể, dùng chính chi tiết đó để đặt tên, mô tả, deadline, priority và phạm vi gợi ý.
                 - Không bịa dữ liệu không có trong input; nếu thiếu dữ liệu thì để null hoặc chọn giá trị an toàn được API cho phép.
-                - Không trả gợi ý chung chung theo template. Mỗi gợi ý phải gắn với event, existingDepartments, existingTasks, existingPlannings hoặc userContext.
+                - Không trả gợi ý chung chung theo template. Mỗi gợi ý phải gắn với event, existingDepartments, existingTasks hoặc userContext.
                 - Tránh lặp lại item đã tồn tại; ưu tiên lấp khoảng trống thực tế trong dữ liệu hiện có.
                 """;
     }
@@ -453,34 +379,6 @@ public class AiSuggestionService {
                 .filter(item -> item.getName() != null && !item.getName().isBlank())
                 .filter(item -> usedNames.add(normalizeName(item.getName())))
                 .limit(count)
-                .toList();
-    }
-
-    private PlanningRequestDTO parsePlanning(JsonNode planning, int phaseCount) {
-        if (!planning.isObject()) {
-            return null;
-        }
-
-        PlanningRequestDTO request = new PlanningRequestDTO();
-        request.setTitle(limitText(planning.path("title").asText(""), 255));
-        request.setDescription(limitText(planning.path("description").asText(null), 2000));
-        request.setPhases(parsePlanningPhases(planning.path("phases"), phaseCount));
-        return request;
-    }
-
-    private List<PlanningPhaseRequestDTO> parsePlanningPhases(JsonNode phases, int phaseCount) {
-        if (!phases.isArray()) {
-            return List.of();
-        }
-
-        return streamJson(phases)
-                .limit(phaseCount)
-                .map(item -> new PlanningPhaseRequestDTO(
-                        limitText(item.path("phaseName").asText(""), 255),
-                        limitText(item.path("description").asText(null), 2000),
-                        limitText(item.path("objective").asText(null), 2000),
-                        resolveOrderIndex(item.path("orderIndex"))))
-                .filter(item -> item.getPhaseName() != null && !item.getPhaseName().isBlank())
                 .toList();
     }
 
@@ -741,35 +639,6 @@ public class AiSuggestionService {
         return suggestions.stream().limit(count).toList();
     }
 
-    private PlanningRequestDTO fallbackPlanning(Event event, int phaseCount) {
-        List<PlanningPhaseRequestDTO> phases = List.of(
-                new PlanningPhaseRequestDTO(
-                        "Giai đoạn khởi động",
-                        "Làm rõ mục tiêu, phạm vi, nhân sự tham gia và cách phối hợp trong event.",
-                        "Đảm bảo team hiểu cùng một mục tiêu và có kế hoạch vận hành ban đầu.",
-                        0),
-                new PlanningPhaseRequestDTO(
-                        "Giai đoạn chuẩn bị",
-                        "Chuẩn bị nội dung, nguồn lực, checklist công việc và các hạng mục cần thiết.",
-                        "Hoàn tất các đầu việc nền tảng trước khi bước vào triển khai chính.",
-                        1),
-                new PlanningPhaseRequestDTO(
-                        "Giai đoạn triển khai",
-                        "Theo dõi tiến độ, điều phối các department và xử lý phát sinh trong quá trình thực hiện.",
-                        "Đảm bảo event vận hành đúng tiến độ và các task quan trọng được kiểm soát.",
-                        2),
-                new PlanningPhaseRequestDTO(
-                        "Giai đoạn tổng kết",
-                        "Tổng hợp kết quả, ghi nhận vấn đề, đánh giá hiệu quả và rút kinh nghiệm.",
-                        "Có dữ liệu tổng kết để cải thiện các event tiếp theo.",
-                        3));
-
-        return new PlanningRequestDTO(
-                "Kế hoạch vận hành " + event.getName(),
-                "Kế hoạch tổng thể giúp điều phối các giai đoạn chính của event từ khởi động đến tổng kết.",
-                phases.stream().limit(phaseCount).toList());
-    }
-
     private List<MilestoneRequestDTO> fallbackMilestones(Event event, Set<String> usedNames, int count) {
         LocalDateTime start = event.getEventDate() != null
                 ? event.getEventDate()
@@ -926,11 +795,6 @@ public class AiSuggestionService {
                 """, eventId);
     }
 
-    private List<Map<String, Object>> loadPlanningInputs(Long eventId) {
-        return planningRepository.findAllByEventIdOrderByCreatedAtAsc(eventId).stream()
-                .map(this::planningInput)
-                .toList();
-    }
 
     private Set<String> existingMilestoneNames(Map<String, Object> input) {
         Set<String> names = new HashSet<>();

@@ -20,6 +20,7 @@ import { EVENT_TYPE_OPTIONS } from '../utils/eventTypeUtils';
 const EventCreatePage = ({ user, onLogout }) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [localError, setLocalError] = useState('');
   const [form, setForm] = useState({
     name: '',
     description: '',
@@ -45,11 +46,18 @@ const EventCreatePage = ({ user, onLogout }) => {
 
   const handleChange = (event) => {
     const { name, value } = event.target;
+    setLocalError('');
     setForm((old) => ({ ...old, [name]: value }));
   };
 
   const handleSubmit = (event) => {
     event.preventDefault();
+    const validationMessage = validateEventForm(form);
+    if (validationMessage) {
+      setLocalError(validationMessage);
+      return;
+    }
+
     createEventMutation.mutate({
       name: form.name,
       description: form.description,
@@ -107,6 +115,7 @@ const EventCreatePage = ({ user, onLogout }) => {
 
         <div>
           <form
+            noValidate
             onSubmit={handleSubmit}
             className="relative overflow-hidden rounded-[2rem] border border-sky-100 bg-white shadow-xl shadow-sky-100/70"
           >
@@ -120,14 +129,14 @@ const EventCreatePage = ({ user, onLogout }) => {
             </div>
 
             <div className="relative space-y-5 p-6">
-              {createEventMutation.error && (
+              {(localError || createEventMutation.error) && (
                 <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-red-600 shadow-sm">
                     <AlertCircle size={18} />
                   </div>
                   <span className="leading-6">
-                    {createEventMutation.error.userMessage ||
-                      createEventMutation.error.message}
+                    {localError || createEventMutation.error?.userMessage ||
+                      createEventMutation.error?.message}
                   </span>
                 </div>
               )}
@@ -141,7 +150,6 @@ const EventCreatePage = ({ user, onLogout }) => {
                   name="name"
                   value={form.name}
                   onChange={handleChange}
-                  required
                   maxLength={255}
                   placeholder="Tên sự kiện"
                   className={inputClassName}
@@ -270,7 +278,6 @@ const EventCreatePage = ({ user, onLogout }) => {
                     type="datetime-local"
                     value={form.startTime}
                     onChange={handleChange}
-                    required
                     className={inputClassName}
                   />
                 </Field>
@@ -331,6 +338,22 @@ const EventCreatePage = ({ user, onLogout }) => {
       </div>
     </AppLayout>
   );
+};
+
+const validateEventForm = (form) => {
+  if (!form.name.trim()) {
+    return 'Vui lòng nhập tên sự kiện.';
+  }
+
+  if (!form.startTime) {
+    return 'Vui lòng chọn thời gian bắt đầu.';
+  }
+
+  if (form.endTime && form.endTime <= form.startTime) {
+    return 'Thời gian kết thúc phải sau thời gian bắt đầu.';
+  }
+
+  return '';
 };
 
 const Field = ({ label, children }) => (

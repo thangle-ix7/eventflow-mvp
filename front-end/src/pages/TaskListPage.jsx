@@ -18,6 +18,7 @@ import eventApi from '../api/eventApi';
 import taskApi from '../api/taskApi';
 import departmentApi from '../api/departmentApi';
 import workloadApi from '../api/workloadApi';
+import milestoneApi from '../api/milestoneApi';
 import { formatDate } from '../utils/dateUtils';
 
 const getWorkloadClassName = (status) => {
@@ -148,6 +149,7 @@ const TaskListPage = ({ user, onLogout }) => {
   const [departmentId, setDepartmentId] = useState(
     () => searchParams.get('departmentId') || ''
   );
+  const [milestoneId, setMilestoneId] = useState(() => searchParams.get('milestoneId') || '');
 
   const eventQuery = useQuery({
     queryKey: ['event', eventId],
@@ -161,8 +163,15 @@ const TaskListPage = ({ user, onLogout }) => {
     enabled: Boolean(eventId),
   });
 
+  const milestonesQuery = useQuery({
+    queryKey: ['eventMilestones', eventId],
+    queryFn: () => milestoneApi.getEventMilestones(eventId),
+    enabled: Boolean(eventId),
+  });
+
   const event = eventQuery.data;
   const departments = departmentsQuery.data || [];
+  const milestones = milestonesQuery.data || [];
   const isLeader = event?.role === 'LEADER';
 
   /*
@@ -216,8 +225,8 @@ const TaskListPage = ({ user, onLogout }) => {
   };
 
   const activeFilterCount = useMemo(
-    () => [search, status, priority, departmentId, fromDate, toDate].filter(Boolean).length,
-    [departmentId, fromDate, priority, search, status, toDate]
+    () => [search, status, priority, departmentId, milestoneId, fromDate, toDate].filter(Boolean).length,
+    [departmentId, fromDate, milestoneId, priority, search, status, toDate]
   );
 
   const resetFilters = () => {
@@ -226,6 +235,7 @@ const TaskListPage = ({ user, onLogout }) => {
     setStatus('');
     setPriority('');
     setDepartmentId('');
+    setMilestoneId('');
     setFromDate('');
     setToDate('');
   };
@@ -284,7 +294,7 @@ const TaskListPage = ({ user, onLogout }) => {
                 )}
               </div>
 
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[150px_150px_minmax(190px,1fr)_150px_150px_auto]">
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[150px_150px_minmax(170px,1fr)_minmax(170px,1fr)_150px_150px_auto]">
                 <select
                   aria-label="Lọc trạng thái công việc"
                   name="status"
@@ -334,6 +344,23 @@ const TaskListPage = ({ user, onLogout }) => {
                   ))}
                 </select>
 
+                <select
+                  aria-label="Lọc theo cột mốc"
+                  name="milestoneId"
+                  value={milestoneId}
+                  onChange={(event) => {
+                    setMilestoneId(event.target.value);
+                  }}
+                  disabled={milestonesQuery.isLoading}
+                  className={inputClassName}
+                >
+                  <option value="">Tất cả cột mốc</option>
+                  {milestones.map((milestone) => (
+                    <option key={milestone.id} value={milestone.id}>
+                      {milestone.name}
+                    </option>
+                  ))}
+                </select>
                 <input
                   type="date"
                   aria-label="Từ ngày"
@@ -406,6 +433,7 @@ const TaskListPage = ({ user, onLogout }) => {
             status={status}
             priority={priority}
             departmentId={departmentId}
+            milestoneId={milestoneId}
             fromDate={fromDate}
             toDate={toDate}
             workloadByMemberId={workloadByMemberId}
@@ -424,6 +452,7 @@ const StatusTaskBoard = ({
   status,
   priority,
   departmentId,
+  milestoneId,
   fromDate,
   toDate,
   workloadByMemberId,
@@ -478,6 +507,7 @@ const StatusTaskBoard = ({
               search={search}
               priority={priority}
               departmentId={departmentId}
+              milestoneId={milestoneId}
               fromDate={fromDate}
               toDate={toDate}
               workloadByMemberId={workloadByMemberId}
@@ -501,6 +531,7 @@ const StatusTaskColumn = ({
   search,
   priority,
   departmentId,
+  milestoneId,
   fromDate,
   toDate,
   workloadByMemberId,
@@ -522,6 +553,7 @@ const StatusTaskColumn = ({
       search,
       priority,
       departmentId,
+      milestoneId,
       fromDate,
       toDate,
     ],
@@ -535,6 +567,7 @@ const StatusTaskColumn = ({
       deadlineStatus: column.deadlineStatus,
       priority,
       departmentId,
+      milestoneId,
       search,
       fromDate,
       toDate,
@@ -721,6 +754,11 @@ const StatusTaskCard = ({
 const inputClassName = 'min-h-11 w-full min-w-0 rounded-2xl border border-sky-100 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:bg-white focus:ring-4 focus:ring-cyan-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500';
 
 export default TaskListPage;
+
+
+
+
+
 
 
 

@@ -3,7 +3,6 @@ package com.eventflow.backend.controller;
 import com.eventflow.backend.dto.AiCalendarSuggestionResponse;
 import com.eventflow.backend.dto.AiDepartmentSuggestionResponse;
 import com.eventflow.backend.dto.AiMilestoneSuggestionResponse;
-import com.eventflow.backend.dto.AiPlanningSuggestionResponse;
 import com.eventflow.backend.dto.AiSubtaskSuggestionResponse;
 import com.eventflow.backend.dto.AiSuggestionRequest;
 import com.eventflow.backend.dto.AiTaskSuggestionResponse;
@@ -40,18 +39,6 @@ public class AiSuggestionController {
             Authentication authentication) {
 
         return ResponseEntity.ok(aiSuggestionService.suggestTasks(
-                eventId,
-                currentUserId(authentication),
-                request != null ? request : new AiSuggestionRequest()));
-    }
-
-    @PostMapping("/events/{eventId}/planning")
-    public ResponseEntity<AiPlanningSuggestionResponse> suggestPlanning(
-            @PathVariable Long eventId,
-            @Valid @RequestBody(required = false) AiSuggestionRequest request,
-            Authentication authentication) {
-
-        return ResponseEntity.ok(aiSuggestionService.suggestPlanning(
                 eventId,
                 currentUserId(authentication),
                 request != null ? request : new AiSuggestionRequest()));
