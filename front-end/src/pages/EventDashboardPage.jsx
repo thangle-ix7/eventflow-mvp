@@ -28,40 +28,28 @@ const toDateInput = (value) => {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 };
 const addDays = (date, days) => new Date(date.getTime() + days * MS_PER_DAY);
-const getDefaultDateRange = (eventStart, eventEnd) => {
-  const start = new Date(eventStart || Date.now());
-  start.setHours(0, 0, 0, 0);
-  const from = start;
-  const fallbackTo = addDays(from, 6);
+const getLatestWeekDateRange = (eventStart, eventEnd) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const start = eventStart ? new Date(eventStart) : null;
   const end = eventEnd ? new Date(eventEnd) : null;
-  const to = end && !Number.isNaN(end.getTime()) && end < fallbackTo ? end : fallbackTo;
+  const hasStart = start && !Number.isNaN(start.getTime());
+  const hasEnd = end && !Number.isNaN(end.getTime());
+  const to = hasEnd && end < today ? end : today;
+  to.setHours(0, 0, 0, 0);
+
+  const latestFrom = addDays(to, -6);
+  const from = hasStart && start > latestFrom ? start : latestFrom;
+  from.setHours(0, 0, 0, 0);
+
   return { fromDate: toDateInput(from), toDate: toDateInput(to) };
-};
-const getDateBounds = (event) => ({
-  minDate: toDateInput(event?.startTime || event?.eventDate),
-  maxDate: event?.endTime ? toDateInput(event.endTime) : '',
-});
-
-const normalizeDateRange = (range, changedField) => {
-  let fromDate = range.fromDate;
-  let toDate = range.toDate;
-
-  if (fromDate && toDate && fromDate > toDate) {
-    if (changedField === 'fromDate') {
-      toDate = fromDate;
-    } else {
-      fromDate = toDate;
-    }
-  }
-
-  return { fromDate, toDate };
 };
 
 const EventDashboardPage = ({ user, onLogout }) => {
   const { eventId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const [dateRange, setDateRange] = useState(null);
   const [departmentId, setDepartmentId] = useState('');
 
   const eventQuery = useQuery({
@@ -80,12 +68,10 @@ const EventDashboardPage = ({ user, onLogout }) => {
     enabled: Boolean(eventId && canViewDashboard),
   });
 
-  const defaultDateRange = useMemo(
-    () => getDefaultDateRange(event?.startTime || event?.eventDate, event?.endTime),
+  const dashboardRange = useMemo(
+    () => getLatestWeekDateRange(event?.startTime || event?.eventDate, event?.endTime),
     [event?.endTime, event?.eventDate, event?.startTime]
   );
-  const dashboardRange = dateRange || defaultDateRange;
-  const dateBounds = useMemo(() => getDateBounds(event), [event]);
 
   const selectedDepartmentId = departmentId || null;
 
@@ -130,21 +116,11 @@ const EventDashboardPage = ({ user, onLogout }) => {
     setDepartmentId(event.target.value);
   };
 
-  const handleDateRangeChange = (field, value) => {
-    setDateRange((old) => normalizeDateRange({
-      ...defaultDateRange,
-      ...old,
-      [field]: value,
-    }, field));
-  };
-
-  const openFilteredTasks = ({ status, deadlineStatus, fromDate, toDate }) => {
+  const openFilteredTasks = ({ status, deadlineStatus }) => {
     const params = new URLSearchParams();
     if (status) params.set('status', status);
     if (deadlineStatus) params.set('deadlineStatus', deadlineStatus);
     if (selectedDepartmentId) params.set('departmentId', selectedDepartmentId);
-    if (fromDate) params.set('fromDate', fromDate);
-    if (toDate) params.set('toDate', toDate);
     navigate(`/events/${eventId}/tasks?${params.toString()}`);
   };
 
@@ -206,9 +182,8 @@ const EventDashboardPage = ({ user, onLogout }) => {
         />
 
         <Panel className="p-5">
-          <div className="grid gap-4 xl:grid-cols-[minmax(220px,0.8fr)_minmax(0,1.4fr)] xl:items-end">
-            <div>
-              <SelectControl
+          <div className="max-w-sm">
+            <SelectControl
                 label="Ban tổ chức"
                 name="departmentId"
                 value={departmentId}
@@ -222,15 +197,6 @@ const EventDashboardPage = ({ user, onLogout }) => {
                   </option>
                 ))}
               </SelectControl>
-            </div>
-
-            <DateRangeControl
-              range={dashboardRange}
-              minDate={dateBounds.minDate}
-              maxDate={dateBounds.maxDate}
-              onChange={handleDateRangeChange}
-              onReset={() => setDateRange(null)}
-            />
           </div>
         </Panel>
 
@@ -245,16 +211,13 @@ const EventDashboardPage = ({ user, onLogout }) => {
 
             <section className="grid gap-5">
               <ChartPanel title="Burndown Chart">
-                <BurndownChart
-                  data={trendQuery.data || []}
-                  onPointClick={({ date }) => openFilteredTasks({ fromDate: date, toDate: date })}
-                />
+                <BurndownChart data={trendQuery.data || []} />
               </ChartPanel>
 
               <ChartPanel title="Cumulative Flow">
                 <CumulativeFlowChart
                   data={trendQuery.data || []}
-                  onStatusClick={({ status, deadlineStatus, date }) => openFilteredTasks({ status, deadlineStatus, fromDate: date, toDate: date })}
+                  onStatusClick={({ status, deadlineStatus }) => openFilteredTasks({ status, deadlineStatus })}
                 />
               </ChartPanel>
             </section>
@@ -264,48 +227,6 @@ const EventDashboardPage = ({ user, onLogout }) => {
     </AppLayout>
   );
 };
-
-const DateRangeControl = ({ range, minDate, maxDate, onChange, onReset }) => (
-  <div className="rounded-2xl border border-sky-100 bg-white/85 p-3 shadow-sm backdrop-blur">
-    <div className="grid gap-3 md:grid-cols-[1fr_1fr_auto] md:items-end">
-      <label className="block">
-        <span className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">
-          Từ ngày
-        </span>
-        <input
-          type="date"
-          value={range.fromDate}
-          min={minDate || undefined}
-          max={range.toDate || maxDate || undefined}
-          onChange={(event) => onChange('fromDate', event.target.value)}
-          className="mt-2 h-11 w-full rounded-xl border border-sky-100 bg-white px-3 text-sm font-black text-slate-800 outline-none transition focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100"
-        />
-      </label>
-
-      <label className="block">
-        <span className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">
-          Đến ngày
-        </span>
-        <input
-          type="date"
-          value={range.toDate}
-          min={range.fromDate || minDate || undefined}
-          max={maxDate || undefined}
-          onChange={(event) => onChange('toDate', event.target.value)}
-          className="mt-2 h-11 w-full rounded-xl border border-sky-100 bg-white px-3 text-sm font-black text-slate-800 outline-none transition focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100"
-        />
-      </label>
-
-      <button
-        type="button"
-        onClick={onReset}
-        className="inline-flex min-h-11 items-center justify-center rounded-xl border border-sky-100 bg-sky-50 px-4 text-sm font-black text-sky-700 transition hover:bg-white"
-      >
-        Về mặc định
-      </button>
-    </div>
-  </div>
-);
 
 const ChartPanel = ({ icon, title, children }) => (
   <Panel className="min-w-0 overflow-hidden">

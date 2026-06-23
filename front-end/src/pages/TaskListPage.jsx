@@ -141,10 +141,11 @@ const TaskListPage = ({ user, onLogout }) => {
 
   const [searchInput, setSearchInput] = useState(() => searchParams.get('search') || '');
   const [search, setSearch] = useState(() => searchParams.get('search') || '');
-  const [status, setStatus] = useState(() => searchParams.get('status') || '');
+  const [selectedStatuses, setSelectedStatuses] = useState(() => {
+    const initialStatus = searchParams.get('status');
+    return initialStatus ? [initialStatus] : [];
+  });
   const [priority, setPriority] = useState(() => searchParams.get('priority') || '');
-  const [fromDate, setFromDate] = useState(() => searchParams.get('fromDate') || '');
-  const [toDate, setToDate] = useState(() => searchParams.get('toDate') || '');
   const [quickCreateStatus, setQuickCreateStatus] = useState('');
   const [departmentId, setDepartmentId] = useState(
     () => searchParams.get('departmentId') || ''
@@ -225,19 +226,17 @@ const TaskListPage = ({ user, onLogout }) => {
   };
 
   const activeFilterCount = useMemo(
-    () => [search, status, priority, departmentId, milestoneId, fromDate, toDate].filter(Boolean).length,
-    [departmentId, fromDate, milestoneId, priority, search, status, toDate]
+    () => [search, priority, departmentId, milestoneId].filter(Boolean).length + (selectedStatuses.length ? 1 : 0),
+    [departmentId, milestoneId, priority, search, selectedStatuses.length]
   );
 
   const resetFilters = () => {
     setSearchInput('');
     setSearch('');
-    setStatus('');
+    setSelectedStatuses([]);
     setPriority('');
     setDepartmentId('');
     setMilestoneId('');
-    setFromDate('');
-    setToDate('');
   };
 
   return (
@@ -294,24 +293,17 @@ const TaskListPage = ({ user, onLogout }) => {
                 )}
               </div>
 
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[150px_150px_minmax(170px,1fr)_minmax(170px,1fr)_150px_150px_auto]">
-                <select
-                  aria-label="Lọc trạng thái công việc"
-                  name="status"
-                  value={status}
-                  onChange={(event) => {
-                    setStatus(event.target.value);
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[220px_150px_minmax(170px,1fr)_minmax(170px,1fr)_auto]">
+                <StatusFilterBoxes
+                  selectedStatuses={selectedStatuses}
+                  onToggleStatus={(nextStatus) => {
+                    setSelectedStatuses((currentStatuses) => (
+                      currentStatuses.includes(nextStatus)
+                        ? currentStatuses.filter((item) => item !== nextStatus)
+                        : [...currentStatuses, nextStatus]
+                    ));
                   }}
-                  className={inputClassName}
-                >
-                  <option value="">Tất cả trạng thái</option>
-                  <option value="TODO">Cần làm</option>
-                  <option value="IN_PROGRESS">Đang làm</option>
-                  <option value="IN_REVIEW">Chờ duyệt</option>
-                  <option value="DONE">Hoàn thành</option>
-                  <option value="OVERDUE">Quá hạn</option>
-                </select>
-
+                />
                 <select
                   aria-label="Lọc ưu tiên công việc"
                   name="priority"
@@ -361,25 +353,6 @@ const TaskListPage = ({ user, onLogout }) => {
                     </option>
                   ))}
                 </select>
-                <input
-                  type="date"
-                  aria-label="Từ ngày"
-                  value={fromDate}
-                  onChange={(event) => {
-                    setFromDate(event.target.value);
-                  }}
-                  className={inputClassName}
-                />
-
-                <input
-                  type="date"
-                  aria-label="Đến ngày"
-                  value={toDate}
-                  onChange={(event) => {
-                    setToDate(event.target.value);
-                  }}
-                  className={inputClassName}
-                />
 
                 <Button
                   type="button"
@@ -430,12 +403,10 @@ const TaskListPage = ({ user, onLogout }) => {
           <StatusTaskBoard
             eventId={eventId}
             search={search}
-            status={status}
+            selectedStatuses={selectedStatuses}
             priority={priority}
             departmentId={departmentId}
             milestoneId={milestoneId}
-            fromDate={fromDate}
-            toDate={toDate}
             workloadByMemberId={workloadByMemberId}
             canCreate={isLeader}
             onCreateInStatus={setQuickCreateStatus}
@@ -446,15 +417,13 @@ const TaskListPage = ({ user, onLogout }) => {
   );
 };
 
-const StatusTaskBoard = ({
+export const StatusTaskBoard = ({
   eventId,
   search,
-  status,
+  selectedStatuses,
   priority,
   departmentId,
   milestoneId,
-  fromDate,
-  toDate,
   workloadByMemberId,
   canCreate,
   onCreateInStatus,
@@ -462,14 +431,17 @@ const StatusTaskBoard = ({
   const queryClient = useQueryClient();
   const [draggingTask, setDraggingTask] = useState(null);
   const visibleColumns = useMemo(
-    () => (status ? STATUS_COLUMNS.filter((column) => column.key === status) : STATUS_COLUMNS),
-    [status]
+    () => (selectedStatuses?.length ? STATUS_COLUMNS.filter((column) => selectedStatuses.includes(column.key)) : STATUS_COLUMNS),
+    [selectedStatuses]
   );
 
   const updateStatusMutation = useMutation({
     mutationFn: taskApi.updateTaskStatus,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['eventTaskPage', eventId] });
+      if (departmentId) {
+        queryClient.invalidateQueries({ queryKey: ['departmentTaskPage', eventId, departmentId] });
+      }
       queryClient.invalidateQueries({ queryKey: ['eventWorkload', eventId] });
       queryClient.invalidateQueries({ queryKey: ['leaderSnapshot', eventId] });
       queryClient.invalidateQueries({ queryKey: ['leaderPriorityTasks', eventId] });
@@ -508,8 +480,6 @@ const StatusTaskBoard = ({
               priority={priority}
               departmentId={departmentId}
               milestoneId={milestoneId}
-              fromDate={fromDate}
-              toDate={toDate}
               workloadByMemberId={workloadByMemberId}
               draggingTask={draggingTask}
               isUpdatingStatus={updateStatusMutation.isPending}
@@ -532,8 +502,6 @@ const StatusTaskColumn = ({
   priority,
   departmentId,
   milestoneId,
-  fromDate,
-  toDate,
   workloadByMemberId,
   draggingTask,
   isUpdatingStatus,
@@ -554,8 +522,6 @@ const StatusTaskColumn = ({
       priority,
       departmentId,
       milestoneId,
-      fromDate,
-      toDate,
     ],
     queryFn: ({ pageParam = 0 }) => taskApi.getEventTaskPage({
       eventId,
@@ -569,8 +535,6 @@ const StatusTaskColumn = ({
       departmentId,
       milestoneId,
       search,
-      fromDate,
-      toDate,
     }),
     initialPageParam: 0,
     getNextPageParam: (lastPage) => (lastPage.last ? undefined : lastPage.page + 1),
@@ -751,6 +715,56 @@ const StatusTaskCard = ({
   );
 };
 
+export const StatusFilterBoxes = ({ selectedStatuses, onToggleStatus }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const selectedLabels = STATUS_COLUMNS
+    .filter((column) => selectedStatuses.includes(column.key))
+    .map((column) => column.label);
+
+  return (
+    <div className="relative min-w-0">
+      <button
+        type="button"
+        onClick={() => setIsOpen((old) => !old)}
+        className="flex h-9 w-full items-center justify-between gap-2 rounded-xl border border-sky-100 bg-white px-3 text-left text-xs font-black text-slate-700 outline-none transition hover:bg-sky-50 focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100"
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+      >
+        <span className="min-w-0 truncate">
+          {selectedLabels.length ? selectedLabels.join(', ') : 'Tất cả trạng thái'}
+        </span>
+        <span className="shrink-0 text-[11px] font-black text-sky-600">
+          {selectedLabels.length ? `${selectedLabels.length} chọn` : 'Lọc'}
+        </span>
+      </button>
+
+      {isOpen && (
+        <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-30 overflow-hidden rounded-xl border border-sky-100 bg-white shadow-lg shadow-sky-100">
+          <div className="max-h-60 overflow-y-auto p-1.5">
+            {STATUS_COLUMNS.map((column) => {
+              const isSelected = selectedStatuses.includes(column.key);
+              return (
+                <label
+                  key={column.key}
+                  className="flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2 text-sm font-black text-slate-700 transition hover:bg-sky-50"
+                >
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => onToggleStatus(column.key)}
+                    className="h-4 w-4 rounded border-sky-200 text-sky-600 focus:ring-sky-200"
+                  />
+                  <span className={`h-2.5 w-2.5 rounded-full ${column.chipClass.split(' ')[0]}`} />
+                  <span>{column.label}</span>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 const inputClassName = 'min-h-11 w-full min-w-0 rounded-2xl border border-sky-100 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:bg-white focus:ring-4 focus:ring-cyan-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500';
 
 export default TaskListPage;

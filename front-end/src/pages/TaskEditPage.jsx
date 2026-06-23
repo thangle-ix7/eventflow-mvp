@@ -13,7 +13,6 @@ import { Button, ErrorState, LoadingState, PageHeader, Panel, PriorityBadge, Sta
 import { invalidateDashboardQueries } from '../utils/dashboardQueryUtils';
 
 const toDatetimeLocal = (value) => (value ? value.slice(0, 16) : '');
-const progressFromStatus = (status) => (status === 'DONE' ? 100 : 0);
 
 const autoResizeTextarea = (element) => {
   element.style.height = 'auto';
@@ -125,7 +124,6 @@ const TaskEditForm = ({ task, event, departments, members, mutation, taskId, eve
     reminderOffsetHours: Number(((task.reminderOffsetMinutes ?? 1440) / 60).toFixed(2)),
     status: task.status || 'TODO',
     priority: task.priority || 'MEDIUM',
-    progressPercentage: task.progressPercentage ?? 0,
   });
 
   const departmentWorkloadQuery = useQuery({
@@ -146,7 +144,6 @@ const TaskEditForm = ({ task, event, departments, members, mutation, taskId, eve
       ...old,
       [name]: value,
       ...(name === 'departmentId' ? { assigneeId: '' } : {}),
-      ...(name === 'status' && value === 'DONE' ? { progressPercentage: 100 } : {}),
     }));
   };
 
@@ -179,7 +176,6 @@ const TaskEditForm = ({ task, event, departments, members, mutation, taskId, eve
         reminderOffsetMinutes: Math.round(Number(form.reminderOffsetHours || 0) * 60),
         status: form.status,
         priority: form.priority,
-        progressPercentage: isSubtask ? progressFromStatus(form.status) : Number(form.progressPercentage),
       },
     });
   };
@@ -356,20 +352,6 @@ const TaskEditForm = ({ task, event, departments, members, mutation, taskId, eve
                 </select>
               </Field>
 
-              {!isSubtask && (
-                <Field label="Tiến độ (%)">
-                  <input
-                    name="progressPercentage"
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={form.progressPercentage}
-                    onChange={handleChange}
-                    required
-                    className={inputClassName}
-                  />
-                </Field>
-              )}
             </div>
 
             <Button type="submit" disabled={mutation.isPending} className="w-full">

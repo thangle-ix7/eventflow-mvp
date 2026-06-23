@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 
 const SERIES = [
   { key: 'completedTasks', status: 'DONE', label: 'Hoàn thành', color: '#22c55e', track: '#dcfce7' },
@@ -9,10 +9,8 @@ const SERIES = [
 ];
 
 const valueOf = (item, key) => Number(item?.[key] || 0);
-const formatAxisLabel = (label) => label?.slice(5) || label;
 
 const CumulativeFlowChart = ({ data = [], onStatusClick }) => {
-  const [hoveredBar, setHoveredBar] = useState(null);
   const chartData = useMemo(() => data.filter((item) => item?.label), [data]);
 
   const rows = useMemo(() => {
@@ -25,7 +23,6 @@ const CumulativeFlowChart = ({ data = [], onStatusClick }) => {
       const previousValue = previous ? valueOf(previous, series.key) : value;
       return {
         ...series,
-        date: latest.label,
         value,
         change: value - previousValue,
       };
@@ -36,7 +33,6 @@ const CumulativeFlowChart = ({ data = [], onStatusClick }) => {
 
   const maxValue = Math.max(...rows.map((row) => row.value), 1);
   const ticks = Array.from({ length: 5 }, (_, index) => Math.round((maxValue / 4) * index));
-  const latestLabel = formatAxisLabel(chartData[chartData.length - 1]?.label);
 
   return (
     <div className="min-w-0">
@@ -49,9 +45,6 @@ const CumulativeFlowChart = ({ data = [], onStatusClick }) => {
             </span>
           ))}
         </div>
-        <span className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">
-          Ngày {latestLabel}
-        </span>
       </div>
 
       <div className="rounded-3xl border border-sky-100 bg-gradient-to-br from-white via-sky-50/40 to-emerald-50/40 p-4">
@@ -65,16 +58,12 @@ const CumulativeFlowChart = ({ data = [], onStatusClick }) => {
                 key={row.key}
                 type="button"
                 className="grid min-w-0 grid-cols-[96px_minmax(0,1fr)_48px] items-center gap-3 text-left"
-                onMouseEnter={() => setHoveredBar(row)}
-                onMouseLeave={() => setHoveredBar(null)}
-                onFocus={() => setHoveredBar(row)}
-                onBlur={() => setHoveredBar(null)}
-                onClick={() => onStatusClick?.({ status: row.status, deadlineStatus: row.deadlineStatus, date: row.date })}
+                onClick={() => onStatusClick?.({ status: row.status, deadlineStatus: row.deadlineStatus })}
               >
                 <span className="truncate text-xs font-black text-slate-700">{row.label}</span>
                 <span
                   className="relative block h-8 overflow-hidden rounded-xl border border-white bg-white shadow-inner"
-                  style={{ backgroundColor: row.track }}
+                  style={{ backgroundColor: '#f8fafc' }}
                 >
                   <span
                     className="absolute inset-y-0 left-0 rounded-xl transition-all duration-300"
@@ -99,14 +88,6 @@ const CumulativeFlowChart = ({ data = [], onStatusClick }) => {
             </span>
           ))}
         </div>
-
-        {hoveredBar && (
-          <div className="mt-4 rounded-2xl border border-sky-100 bg-white px-4 py-3 text-xs font-bold text-slate-600 shadow-sm">
-            <span className="font-black text-slate-900">{hoveredBar.label}</span>
-            <span> có {hoveredBar.value} task</span>
-            <span className="text-slate-400"> · chênh lệch ngày trước {hoveredBar.change > 0 ? `+${hoveredBar.change}` : hoveredBar.change}</span>
-          </div>
-        )}
       </div>
     </div>
   );

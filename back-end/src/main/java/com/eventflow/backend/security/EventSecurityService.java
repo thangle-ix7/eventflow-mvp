@@ -70,6 +70,16 @@ public class EventSecurityService {
     }
 
     /**
+     * Check user có phải Department Leader của department đang giữ task hay không.
+     */
+    public boolean isDepartmentLeaderOfTask(Long taskId, Long userId) {
+        if (taskId == null || userId == null) {
+            return false;
+        }
+        return taskRepository.existsByIdAndDepartmentLeaderId(taskId, userId);
+    }
+
+    /**
      * Kiểm tra user có quyền quản lý event/template không
      * - Nếu là template: ADMIN có thể quản lý
      * - Nếu là event: LEADER có thể quản lý
