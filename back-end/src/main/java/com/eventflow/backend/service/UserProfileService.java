@@ -1,11 +1,14 @@
 package com.eventflow.backend.service;
 
+import com.eventflow.backend.dto.PageResponse;
 import com.eventflow.backend.dto.UserProfileDTO;
 import com.eventflow.backend.dto.UserProfileUpdateRequest;
 import com.eventflow.backend.dto.UserPreferencesRequest;
 import com.eventflow.backend.entity.User;
 import com.eventflow.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +32,28 @@ public class UserProfileService {
 
     @Transactional(readOnly = true)
     public UserProfileDTO getProfile(Long userId) {
+        return mapToProfile(findUser(userId));
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<UserProfileDTO> getUsersForAdmin(
+            int page,
+            int size,
+            String sort,
+            String direction,
+            String search) {
+
+        var pageable = PageRequest.of(
+                normalizePage(page),
+                normalizeSize(size),
+                Sort.by(resolveDirection(direction), resolveSort(sort)));
+
+        return PageResponse.from(userRepository.findAllForAdmin(normalizeSearch(search), pageable)
+                .map(this::mapToProfile));
+    }
+
+    @Transactional(readOnly = true)
+    public UserProfileDTO getUserForAdmin(Long userId) {
         return mapToProfile(findUser(userId));
     }
 
@@ -121,6 +146,33 @@ public class UserProfileService {
                 user.getAvatarStoragePath());
     }
 
+    private int normalizePage(int page) {
+        return Math.max(page, 0);
+    }
+
+    private int normalizeSize(int size) {
+        return Math.min(Math.max(size, 1), 100);
+    }
+
+    private String normalizeSearch(String search) {
+        return search == null ? "" : search.trim();
+    }
+
+    private Sort.Direction resolveDirection(String direction) {
+        return "asc".equalsIgnoreCase(direction) ? Sort.Direction.ASC : Sort.Direction.DESC;
+    }
+
+    private String resolveSort(String sort) {
+        if (sort == null || sort.isBlank()) {
+            return "createdAt";
+        }
+
+        return switch (sort) {
+            case "name", "email", "createdAt", "systemRole" -> sort;
+            default -> "createdAt";
+        };
+    }
+
     private UserProfileDTO mapToProfile(User user) {
         return new UserProfileDTO(
                 user.getId(),
@@ -142,3 +194,4 @@ public class UserProfileService {
             long sizeBytes) {
     }
 }
+

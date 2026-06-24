@@ -1,7 +1,6 @@
 package com.eventflow.backend.security;
 
 import com.eventflow.backend.entity.SystemRole;
-import com.eventflow.backend.entity.User;
 import com.eventflow.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -30,6 +29,14 @@ public class AdminSecurityService {
     }
 
     public boolean canManageDiscountCodes(Long userId) {
+        return isAdmin(userId);
+    }
+
+    public boolean canViewUsers(Long userId) {
+        return isAdmin(userId);
+    }
+
+    public boolean canSendUserEmails(Long userId) {
         return isAdmin(userId);
     }
 }

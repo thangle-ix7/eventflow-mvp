@@ -162,6 +162,7 @@ const AppLayoutFrame = ({
         { label: 'Quản lý mẫu', description: 'Khu quản trị', to: '/admin/templates' },
         { label: 'Hộp thư góp ý', description: 'Góp ý người dùng', to: '/admin/feedback' },
         { label: 'Mã giảm giá', description: 'Ưu đãi theo gói', to: '/admin/discount-codes' },
+        { label: 'Quản lý user', description: 'Tài khoản hệ thống', to: '/admin/users' },
       ]
       : []),
     { label: 'Hồ sơ cá nhân', description: '', to: '/profile' },
@@ -809,6 +810,7 @@ const formatNotificationTime = (value, lang) => {
 };
 
 export default AppLayout;
+
 
 
 

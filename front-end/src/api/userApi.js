@@ -128,6 +128,30 @@ const userApi = {
     });
     return response.data;
   },
+
+  getAdminUsers: async ({ page = 0, size = 10, search = '', sort = 'createdAt', direction = 'desc' } = {}) => {
+    const params = { page, size, sort, direction };
+    if (search) params.search = search;
+
+    const response = await apiClient.get('/admin/users', { params });
+    return response.data;
+  },
+
+  getAdminUser: async (userId) => {
+    if (!userId) {
+      throw new Error('userId không hợp lệ');
+    }
+
+    const response = await apiClient.get(`/admin/users/${userId}`);
+    return response.data;
+  },
+
+  sendAdminEmail: async (payload) => {
+    const response = await apiClient.post('/admin/users/email', payload);
+    return response.data;
+  },
 };
 
 export default userApi;
+
+
