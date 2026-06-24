@@ -97,14 +97,12 @@ const EventListPage = ({ user, onLogout }) => {
   };
  const { t } = useTranslation();
   const STATUS_OPTIONS = [
-    { value: '', label: t('common.all') },
-
-    { value: 'ACTIVE', label: t('event.active') },
-
-    { value: 'DONE', label: t('event.done') },
-
-    { value: 'CANCELLED', label: t('event.cancelled') },
-  ];
+  { value: '', label: t('common.all') },
+  { value: 'ACTIVE', label: t('event.active') },
+  { value: 'DRAFT', label: t('event.draft') },
+  { value: 'DONE', label: t('event.done') },
+  { value: 'CANCELLED', label: t('event.cancelled') },
+];
 
   return (
     <AppLayout
