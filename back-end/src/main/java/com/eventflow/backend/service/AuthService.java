@@ -9,6 +9,7 @@ import com.eventflow.backend.dto.SignupRequest;
 import com.eventflow.backend.dto.TokenRequest;
 import com.eventflow.backend.entity.User;
 import com.eventflow.backend.repository.UserRepository;
+import com.eventflow.backend.util.EmailFormat;
 import com.eventflow.backend.util.JwtUtil;
 import com.eventflow.backend.util.SecureTokenUtil;
 import lombok.RequiredArgsConstructor;
@@ -53,6 +54,7 @@ public class AuthService {
     @Transactional
     public AuthMessageResponse signup(SignupRequest request) {
         String email = normalizeEmail(request.getEmail());
+        validateEmailFormat(email);
         if (userRepository.existsByEmail(email)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email đã được sử dụng");
         }
@@ -72,7 +74,10 @@ public class AuthService {
 
     @Transactional
     public AuthResponse login(LoginRequest request) {
-        User user = userRepository.findByEmail(normalizeEmail(request.getEmail()))
+        String email = normalizeEmail(request.getEmail());
+        validateEmailFormat(email);
+
+        User user = userRepository.findByEmail(email)
                 .orElseThrow(this::invalidCredentials);
 
         LocalDateTime now = LocalDateTime.now();
@@ -119,7 +124,10 @@ public class AuthService {
 
     @Transactional
     public AuthMessageResponse resendVerificationEmail(EmailRequest request) {
-        userRepository.findByEmail(normalizeEmail(request.getEmail()))
+        String email = normalizeEmail(request.getEmail());
+        validateEmailFormat(email);
+
+        userRepository.findByEmail(email)
                 .filter(user -> !user.isEmailVerified())
                 .ifPresent(this::createAndSendVerificationToken);
 
@@ -128,7 +136,10 @@ public class AuthService {
 
     @Transactional
     public AuthMessageResponse forgotPassword(EmailRequest request) {
-        userRepository.findByEmail(normalizeEmail(request.getEmail()))
+        String email = normalizeEmail(request.getEmail());
+        validateEmailFormat(email);
+
+        userRepository.findByEmail(email)
                 .filter(User::isEmailVerified)
                 .ifPresent(this::createAndSendPasswordResetToken);
 
@@ -191,6 +202,12 @@ public class AuthService {
 
     private ResponseStatusException invalidCredentials() {
         return new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Email hoặc mật khẩu không đúng");
+    }
+
+    private void validateEmailFormat(String email) {
+        if (!EmailFormat.PATTERN.matcher(email).matches()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, EmailFormat.MESSAGE);
+        }
     }
 
     private String normalizeEmail(String email) {

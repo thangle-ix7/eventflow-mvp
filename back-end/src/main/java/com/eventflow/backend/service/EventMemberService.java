@@ -1,10 +1,13 @@
 package com.eventflow.backend.service;
 
+import com.eventflow.backend.dto.EventInvitationConfirmResponse;
+import com.eventflow.backend.dto.EventInvitationResponseDTO;
+import com.eventflow.backend.dto.EventMemberBulkInviteItemDTO;
+import com.eventflow.backend.dto.EventMemberBulkInviteRequestDTO;
+import com.eventflow.backend.dto.EventMemberBulkInviteResponseDTO;
 import com.eventflow.backend.dto.EventMemberRequestDTO;
 import com.eventflow.backend.dto.EventMemberResponseDTO;
 import com.eventflow.backend.dto.EventMemberRoleUpdateRequest;
-import com.eventflow.backend.dto.EventInvitationConfirmResponse;
-import com.eventflow.backend.dto.EventInvitationResponseDTO;
 import com.eventflow.backend.entity.Event;
 import com.eventflow.backend.entity.EventInvitation;
 import com.eventflow.backend.entity.EventInvitationStatus;
@@ -24,11 +27,17 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
 public class EventMemberService {
+
+    private static final Pattern EMAIL_PATTERN = Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
 
     private final EventMemberRepository eventMemberRepository;
     private final EventInvitationRepository eventInvitationRepository;
@@ -86,44 +95,74 @@ public class EventMemberService {
 
     @Transactional
     public EventInvitationResponseDTO addMember(Long eventId, EventMemberRequestDTO request, Long invitedByUserId) {
-        Event event = eventRepository.findById(eventId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy sự kiện"));
+        Event event = getEventOrThrow(eventId);
+        User invitedBy = getInviterOrThrow(invitedByUserId);
+        return mapInvitationToResponse(createInvitation(event, normalizeEmail(request.getEmail()), request.getRole(), invitedBy));
+    }
 
-        User user = userRepository.findByEmail(normalizeEmail(request.getEmail()))
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email này chưa có tài khoản EventFlow"));
-        User invitedBy = userRepository.findById(invitedByUserId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy người gửi lời mời"));
+    @Transactional
+    public EventMemberBulkInviteResponseDTO bulkInviteMembers(Long eventId, EventMemberBulkInviteRequestDTO request, Long invitedByUserId) {
+        Event event = getEventOrThrow(eventId);
+        User invitedBy = getInviterOrThrow(invitedByUserId);
+        UserRole role = parseRoleOrDefault(request.getRole(), UserRole.MEMBER);
+        Set<String> seenEmails = new LinkedHashSet<>();
+        List<EventMemberBulkInviteItemDTO> results = new ArrayList<>();
 
-        if (eventMemberRepository.existsByEventIdAndUserId(eventId, user.getId())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Người dùng đã là thành viên của sự kiện");
+        for (String rawEmail : request.getEmails()) {
+            String email = normalizeEmail(rawEmail);
+            if (email.isBlank()) {
+                results.add(failedInvite(rawEmail, "Email không được để trống"));
+                continue;
+            }
+            if (!EMAIL_PATTERN.matcher(email).matches() || email.length() > 100) {
+                results.add(failedInvite(email, "Email không đúng định dạng"));
+                continue;
+            }
+            if (!seenEmails.add(email)) {
+                results.add(failedInvite(email, "Email bị trùng trong danh sách"));
+                continue;
+            }
+
+            try {
+                EventInvitation invitation = createInvitation(event, email, role.name(), invitedBy);
+                results.add(EventMemberBulkInviteItemDTO.builder()
+                        .email(email)
+                        .status("SENT")
+                        .message("Đã gửi lời mời")
+                        .invitation(mapInvitationToResponse(invitation))
+                        .build());
+            } catch (ResponseStatusException ex) {
+                results.add(failedInvite(email, ex.getReason() != null ? ex.getReason() : "Không gửi được lời mời"));
+            } catch (RuntimeException ex) {
+                results.add(failedInvite(email, "Không gửi được lời mời"));
+            }
         }
-        subscriptionService.assertCanAddMember(eventId);
 
-        LocalDateTime now = LocalDateTime.now();
-        eventInvitationRepository.findByEventIdAndInviteeIdAndStatus(eventId, user.getId(), EventInvitationStatus.PENDING)
-                .ifPresent(invitation -> {
-                    if (invitation.getExpiresAt().isAfter(now)) {
-                        throw new ResponseStatusException(HttpStatus.CONFLICT, "Lời mời đang chờ xác nhận");
-                    }
-                    invitation.setStatus(EventInvitationStatus.CANCELLED);
-                    eventInvitationRepository.save(invitation);
-                });
+        int sentCount = (int) results.stream().filter(result -> "SENT".equals(result.getStatus())).count();
+        return EventMemberBulkInviteResponseDTO.builder()
+                .total(results.size())
+                .sentCount(sentCount)
+                .failedCount(results.size() - sentCount)
+                .results(results)
+                .build();
+    }
 
-        String token = SecureTokenUtil.generateToken();
-        EventInvitation invitation = eventInvitationRepository.save(EventInvitation.builder()
-                .event(event)
-                .invitee(user)
-                .invitedBy(invitedBy)
-                .email(user.getEmail())
-                .role(parseRoleOrDefault(request.getRole(), UserRole.MEMBER))
-                .status(EventInvitationStatus.PENDING)
-                .tokenHash(SecureTokenUtil.sha256Hex(token))
-                .expiresAt(now.plusMinutes(invitationTokenTtlMinutes))
-                .build());
+    @Transactional(readOnly = true)
+    public List<EventInvitationResponseDTO> getInvitations(Long eventId) {
+        return eventInvitationRepository.findAllByEventIdWithUsers(eventId).stream()
+                .map(this::mapInvitationToResponse)
+                .toList();
+    }
 
-        authEmailService.sendEventInvitationEmail(user.getEmail(), token, event.getName(), invitedBy.getName());
-
-        return mapInvitationToResponse(invitation);
+    @Transactional
+    public EventInvitationResponseDTO cancelInvitation(Long eventId, Long invitationId) {
+        EventInvitation invitation = eventInvitationRepository.findByEventIdAndIdWithUsers(eventId, invitationId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy lời mời"));
+        if (invitation.getStatus() != EventInvitationStatus.PENDING) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chỉ có thể hủy lời mời đang chờ xác nhận");
+        }
+        invitation.setStatus(EventInvitationStatus.CANCELLED);
+        return mapInvitationToResponse(eventInvitationRepository.save(invitation));
     }
 
     @Transactional
@@ -177,6 +216,60 @@ public class EventMemberService {
         eventMemberRepository.delete(member);
     }
 
+    private Event getEventOrThrow(Long eventId) {
+        return eventRepository.findById(eventId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy sự kiện"));
+    }
+
+    private User getInviterOrThrow(Long invitedByUserId) {
+        return userRepository.findById(invitedByUserId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy người gửi lời mời"));
+    }
+
+    private EventInvitation createInvitation(Event event, String email, String role, User invitedBy) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email này chưa có tài khoản EventFlow"));
+
+        Long eventId = event.getId();
+        if (eventMemberRepository.existsByEventIdAndUserId(eventId, user.getId())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Người dùng đã là thành viên của sự kiện");
+        }
+        subscriptionService.assertCanAddMember(eventId);
+
+        LocalDateTime now = LocalDateTime.now();
+        eventInvitationRepository.findByEventIdAndInviteeIdAndStatus(eventId, user.getId(), EventInvitationStatus.PENDING)
+                .ifPresent(invitation -> {
+                    if (invitation.getExpiresAt().isAfter(now)) {
+                        throw new ResponseStatusException(HttpStatus.CONFLICT, "Lời mời đang chờ xác nhận");
+                    }
+                    invitation.setStatus(EventInvitationStatus.CANCELLED);
+                    eventInvitationRepository.save(invitation);
+                });
+
+        String token = SecureTokenUtil.generateToken();
+        EventInvitation invitation = EventInvitation.builder()
+                .event(event)
+                .invitee(user)
+                .invitedBy(invitedBy)
+                .email(user.getEmail())
+                .role(parseRoleOrDefault(role, UserRole.MEMBER))
+                .status(EventInvitationStatus.PENDING)
+                .tokenHash(SecureTokenUtil.sha256Hex(token))
+                .expiresAt(now.plusMinutes(invitationTokenTtlMinutes))
+                .build();
+
+        authEmailService.sendEventInvitationEmail(user.getEmail(), token, event.getName(), invitedBy.getName());
+        return eventInvitationRepository.save(invitation);
+    }
+
+    private EventMemberBulkInviteItemDTO failedInvite(String email, String message) {
+        return EventMemberBulkInviteItemDTO.builder()
+                .email(email == null ? "" : email.trim())
+                .status("FAILED")
+                .message(message)
+                .build();
+    }
+
     private EventMemberResponseDTO mapToResponse(EventMember member) {
         User user = member.getUser();
         return EventMemberResponseDTO.builder()
@@ -203,13 +296,22 @@ public class EventMemberService {
                 .inviteeUserId(invitation.getInvitee().getId())
                 .email(invitation.getEmail())
                 .role(invitation.getRole().name())
-                .status(invitation.getStatus().name())
+                .status(resolveInvitationStatus(invitation))
                 .expiresAt(invitation.getExpiresAt())
                 .build();
     }
 
     private String normalizeEmail(String email) {
-        return email.trim().toLowerCase();
+        return email == null ? "" : email.trim().toLowerCase();
+    }
+
+    private String resolveInvitationStatus(EventInvitation invitation) {
+        if (invitation.getStatus() == EventInvitationStatus.PENDING
+                && invitation.getExpiresAt() != null
+                && !invitation.getExpiresAt().isAfter(LocalDateTime.now())) {
+            return "EXPIRED";
+        }
+        return invitation.getStatus().name();
     }
 
     private UserRole parseRoleOrDefault(String role, UserRole defaultRole) {
@@ -233,3 +335,4 @@ public class EventMemberService {
         }
     }
 }
+

@@ -9,7 +9,6 @@ import {
   Loader2,
   MapPin,
   Save,
-  ShieldCheck,
   Sparkles,
   Tag,
   Target,
@@ -79,7 +78,7 @@ const EventEditPage = ({ user, onLogout }) => {
         )}
 
         {!eventQuery.isLoading && eventQuery.data && isLeader && (
-          <div className="grid gap-6 lg:grid-cols-[1fr_0.72fr]">
+          <div>
             <Panel className="relative overflow-hidden">
               <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-sky-100 blur-3xl" />
               <div className="pointer-events-none absolute -bottom-28 left-1/3 h-72 w-72 rounded-full bg-emerald-100/70 blur-3xl" />
@@ -98,10 +97,6 @@ const EventEditPage = ({ user, onLogout }) => {
                     <h2 className="mt-3 truncate text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
                       {title}
                     </h2>
-
-                    <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-slate-600">
-                      Cập nhật thông tin cơ bản, thời gian, địa điểm và trạng thái của sự kiện.
-                    </p>
                   </div>
                 </div>
               </div>
@@ -113,43 +108,6 @@ const EventEditPage = ({ user, onLogout }) => {
                 mutation={updateEventMutation}
               />
             </Panel>
-
-            <aside className="space-y-4">
-              <div className="relative overflow-hidden rounded-[2rem] border border-sky-100 bg-white p-6 shadow-xl shadow-sky-100/70">
-                <div className="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full bg-sky-100 blur-3xl" />
-
-                <div className="relative">
-                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-50 text-sky-600">
-                    <ShieldCheck className="h-6 w-6" strokeWidth={1.8} />
-                  </div>
-
-                  <h3 className="text-lg font-black text-slate-950">
-                    Quyền chỉnh sửa
-                  </h3>
-
-                  <p className="mt-3 text-sm font-semibold leading-6 text-slate-600">
-                    Chỉ leader của sự kiện mới được cập nhật thông tin. Sau khi lưu,
-                    EventFlow sẽ đồng bộ lại danh sách sự kiện và trang chi tiết.
-                  </p>
-                </div>
-              </div>
-
-              <div className="rounded-[2rem] border border-emerald-100 bg-gradient-to-br from-sky-50 via-white to-emerald-50 p-6 shadow-xl shadow-sky-100/70">
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
-                  <Sparkles className="h-6 w-6" strokeWidth={1.8} />
-                </div>
-
-                <h3 className="text-lg font-black text-slate-950">
-                  Lưu ý khi sửa
-                </h3>
-
-                <div className="mt-4 space-y-3">
-                  <InfoItem title="Thời gian" description="Thời gian kết thúc phải sau thời gian bắt đầu." />
-                  <InfoItem title="Trạng thái" description="ACTIVE, DONE hoặc CANCELLED sẽ ảnh hưởng đến cách hiển thị sự kiện." />
-                  <InfoItem title="Thông tin" description="Tên, mô tả và địa điểm nên rõ ràng để thành viên dễ theo dõi." />
-                </div>
-              </div>
-            </aside>
           </div>
         )}
       </div>
@@ -181,8 +139,9 @@ const EventEditForm = ({ event, eventId, mutation }) => {
 
   const handleSubmit = (submitEvent) => {
     submitEvent.preventDefault();
-    if (form.endTime && form.startTime && form.endTime < form.startTime) {
-      setLocalError('Thời gian kết thúc phải sau thời gian bắt đầu.');
+    const validationMessage = validateEventForm(form);
+    if (validationMessage) {
+      setLocalError(validationMessage);
       return;
     }
 
@@ -205,7 +164,7 @@ const EventEditForm = ({ event, eventId, mutation }) => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="relative space-y-5 p-6">
+    <form noValidate onSubmit={handleSubmit} className="relative space-y-5 p-6">
       {(localError || mutation.error) && (
         <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-red-600 shadow-sm">
@@ -226,7 +185,6 @@ const EventEditForm = ({ event, eventId, mutation }) => {
           name="name"
           value={form.name}
           onChange={handleChange}
-          required
           maxLength={255}
           className={inputClassName}
         />
@@ -235,7 +193,7 @@ const EventEditForm = ({ event, eventId, mutation }) => {
       <Field
         label="Loại sự kiện"
         icon={<Tag className="h-4 w-4" strokeWidth={1.8} />}
-        hint="Phân loại này sẽ được dùng cho template, AI planning và leader snapshot sau beta."
+        hint="Phân loại này sẽ được dùng cho template, AI và leader snapshot sau beta."
       >
         <select
           name="eventType"
@@ -348,7 +306,6 @@ const EventEditForm = ({ event, eventId, mutation }) => {
             type="datetime-local"
             value={form.startTime}
             onChange={handleChange}
-            required
             className={inputClassName}
           />
         </Field>
@@ -411,31 +368,29 @@ const EventEditForm = ({ event, eventId, mutation }) => {
   );
 };
 
-const Field = ({ label, icon, hint, children }) => (
+const validateEventForm = (form) => {
+  if (!form.name.trim()) {
+    return 'Vui lòng nhập tên sự kiện.';
+  }
+
+  if (!form.startTime) {
+    return 'Vui lòng chọn thời gian bắt đầu.';
+  }
+
+  if (form.endTime && form.endTime <= form.startTime) {
+    return 'Thời gian kết thúc phải sau thời gian bắt đầu.';
+  }
+
+  return '';
+};
+
+const Field = ({ label, children }) => (
   <label className="block">
-    <span className="flex items-center gap-2 text-sm font-black text-slate-700">
-      <span className="text-sky-500">{icon}</span>
-      {label}
-    </span>
-
+    <span className="text-sm font-black text-slate-700">{label}</span>
     <div className="mt-2">{children}</div>
-
-    {hint && (
-      <p className="mt-2 text-xs font-semibold leading-5 text-slate-500">
-        {hint}
-      </p>
-    )}
   </label>
 );
 
-const InfoItem = ({ title, description }) => (
-  <div className="rounded-2xl border border-sky-100 bg-white/70 p-4">
-    <p className="font-black text-slate-950">{title}</p>
-    <p className="mt-1 text-sm font-semibold leading-6 text-slate-500">
-      {description}
-    </p>
-  </div>
-);
 
 const inputClassName = 'w-full rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:bg-white focus:ring-4 focus:ring-cyan-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500';
 

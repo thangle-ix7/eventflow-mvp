@@ -19,10 +19,12 @@ const taskApi = {
     status,
     priority,
     departmentId,
+    milestoneId,
     assigneeId,
     search,
     fromDate,
     toDate,
+    deadlineStatus,
   }) => {
     if (!eventId) {
       throw new Error('eventId không hợp lệ');
@@ -37,10 +39,12 @@ const taskApi = {
         status: status || undefined,
         priority: priority || undefined,
         departmentId: departmentId || undefined,
+        milestoneId: milestoneId || undefined,
         assigneeId: assigneeId || undefined,
         search: search || undefined,
         fromDate: fromDate || undefined,
         toDate: toDate || undefined,
+        deadlineStatus: deadlineStatus || undefined,
       },
     });
     return response.data;
@@ -320,3 +324,5 @@ const taskApi = {
 };
 
 export default taskApi;
+
+

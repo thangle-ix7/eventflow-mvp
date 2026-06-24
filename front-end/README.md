@@ -1,16 +1,26 @@
-# React + Vite
+# EventFlow Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React + Vite frontend for EventFlow.
 
-Currently, two official plugins are available:
+## Development
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```bash
+npm install
+npm run dev
+npm run lint
+npm run build
+```
 
-## React Compiler
+## UX Rules
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Before creating or changing frontend screens, read and follow:
 
-## Expanding the ESLint configuration
+- [Frontend UX Rules](../docs/frontend-ux-rules.md)
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Key guardrails:
+
+- Keep CRUD screens compact and action-focused.
+- Do not add instruction panels, contextual help, or long placeholder text by default.
+- Use icons for actions/status only, not for every label or decorative repetition.
+- Keep AI suggestion UI to title, short input, action, and results.
+- Run the UX copy scan and lint before merging frontend changes.

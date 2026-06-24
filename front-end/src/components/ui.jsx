@@ -286,3 +286,4 @@ export const ProgressBar = ({ value = 0, tone = 'indigo' }) => {
     </div>
   );
 };
+

@@ -58,6 +58,10 @@ public class Task {
     @Column
     private LocalDateTime deadline;
 
+    @Column(name = "reminder_offset_minutes", nullable = false)
+    @Builder.Default
+    private Integer reminderOffsetMinutes = 1440;
+
     @Column(name = "progress_percentage", nullable = false)
     @Builder.Default
     private Integer progressPercentage = 0;
@@ -66,3 +70,4 @@ public class Task {
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 }
+

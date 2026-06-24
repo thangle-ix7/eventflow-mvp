@@ -2,16 +2,11 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
 import {
-  CalendarDays,
+  Building2,
   Edit,
-  Layers,
-  MapPin,
-  Sparkles,
-  Tag,
-  Target,
-  UsersRound,
 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
+import UserAvatar from '../components/UserAvatar';
 import {
   Button,
   EmptyState,
@@ -19,13 +14,15 @@ import {
   LoadingState,
   Panel,
 } from '../components/ui';
+import departmentApi from '../api/departmentApi';
 import eventApi from '../api/eventApi';
-import planningApi from '../api/planningApi';
+import eventMemberApi from '../api/eventMemberApi';
 import { formatDate } from '../utils/dateUtils';
 import { getEventTypeLabel } from '../utils/eventTypeUtils';
 import { getEventPermissions } from '../utils/permissionUtils';
 
-const EMPTY_PLANNINGS = [];
+const EMPTY_DEPARTMENTS = [];
+const EMPTY_MEMBERS = [];
 
 const EventDetailPage = ({ user, onLogout }) => {
   const { eventId } = useParams();
@@ -40,13 +37,21 @@ const EventDetailPage = ({ user, onLogout }) => {
   const permissions = getEventPermissions(event);
   const isLeader = permissions.canManageEvent;
 
-  const planningsQuery = useQuery({
-    queryKey: ['eventPlannings', eventId],
-    queryFn: () => planningApi.getPlannings(eventId),
+
+  const departmentsQuery = useQuery({
+    queryKey: ['eventDepartments', eventId],
+    queryFn: () => departmentApi.getEventDepartments(eventId),
     enabled: Boolean(eventId && event),
   });
 
-  const plannings = useMemo(() => planningsQuery.data || EMPTY_PLANNINGS, [planningsQuery.data]);
+  const membersQuery = useQuery({
+    queryKey: ['eventMembers', eventId],
+    queryFn: () => eventMemberApi.getMembers(eventId),
+    enabled: Boolean(eventId && event),
+  });
+
+  const departments = useMemo(() => departmentsQuery.data || EMPTY_DEPARTMENTS, [departmentsQuery.data]);
+  const members = useMemo(() => membersQuery.data || EMPTY_MEMBERS, [membersQuery.data]);
 
   return (
     <AppLayout
@@ -67,11 +72,13 @@ const EventDetailPage = ({ user, onLogout }) => {
           <>
             <EventInfoPanel event={event} eventId={eventId} isLeader={isLeader} />
 
-            <PlanningOverview
+            <EventHierarchyPanel
               eventId={eventId}
-              plannings={plannings}
-              isLoading={planningsQuery.isLoading}
-              error={planningsQuery.error}
+              event={event}
+              departments={departments}
+              members={members}
+              isLoading={departmentsQuery.isLoading || membersQuery.isLoading}
+              error={departmentsQuery.error || membersQuery.error}
             />
           </>
         )}
@@ -81,32 +88,21 @@ const EventDetailPage = ({ user, onLogout }) => {
 };
 
 const EventInfoPanel = ({ event, eventId, isLeader }) => {
-  const infoItems = [
+  const infoRows = [
     {
-      icon: <Tag className="h-5 w-5" strokeWidth={1.8} />,
-      label: 'Loại sự kiện',
-      value: getEventTypeLabel(event.eventType),
+      label: 'Mục tiêu',
+      value: event.objective || 'Chưa có mục tiêu. Leader có thể bổ sung để ban tổ chức thống nhất tiêu chí hoàn thành.',
     },
+    ...(event.contextDescription ? [{ label: 'Bối cảnh', value: event.contextDescription }] : []),
+    ...(event.description ? [{ label: 'Mô tả', value: event.description }] : []),
+    { label: 'Loại sự kiện', value: getEventTypeLabel(event.eventType) },
     {
-      icon: <UsersRound className="h-5 w-5" strokeWidth={1.8} />,
       label: 'Số người dự kiến',
       value: event.expectedAttendees ? `${event.expectedAttendees} người` : 'Chưa nhập',
     },
-    {
-      icon: <Sparkles className="h-5 w-5" strokeWidth={1.8} />,
-      label: 'Quy mô',
-      value: event.scale || 'Chưa nhập',
-    },
-    {
-      icon: <CalendarDays className="h-5 w-5" strokeWidth={1.8} />,
-      label: 'Thời gian',
-      value: formatEventRange(event),
-    },
-    {
-      icon: <MapPin className="h-5 w-5" strokeWidth={1.8} />,
-      label: 'Địa điểm',
-      value: event.location || 'Chưa có địa điểm',
-    },
+    { label: 'Quy mô', value: event.scale || 'Chưa nhập' },
+    { label: 'Thời gian', value: formatEventRange(event) },
+    { label: 'Địa điểm', value: event.location || 'Chưa có địa điểm' },
   ];
 
   return (
@@ -114,9 +110,6 @@ const EventInfoPanel = ({ event, eventId, isLeader }) => {
       <div className="border-b border-sky-100 bg-gradient-to-r from-sky-50 via-white to-emerald-50 px-5 py-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-start gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-sky-600 shadow-sm">
-              <Target className="h-5 w-5" strokeWidth={1.8} />
-            </span>
 
             <div className="min-w-0">
               <p className="text-xs font-black uppercase tracking-[0.16em] text-sky-500">
@@ -142,147 +135,213 @@ const EventInfoPanel = ({ event, eventId, isLeader }) => {
         </div>
       </div>
 
-      <div className="grid gap-5 p-5 lg:grid-cols-[minmax(0,1fr)_0.95fr]">
-        <div className="space-y-4">
-          <InfoBlock
-            label="Mục tiêu"
-            value={event.objective || 'Chưa có mục tiêu. Leader có thể bổ sung để ban tổ chức thống nhất tiêu chí hoàn thành.'}
-          />
-
-          {event.contextDescription && (
-            <InfoBlock label="Bối cảnh" value={event.contextDescription} />
-          )}
-
-          {event.description && (
-            <InfoBlock label="Mô tả" value={event.description} />
-          )}
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-          {infoItems.map((item) => (
-            <div
-              key={item.label}
-              className="flex min-w-0 items-center gap-3 rounded-2xl border border-sky-100 bg-sky-50/50 px-4 py-3"
-            >
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-sky-600 shadow-sm">
-                {item.icon}
-              </span>
-              <span className="min-w-0">
-                <span className="block text-xs font-black uppercase tracking-[0.14em] text-slate-400">
-                  {item.label}
-                </span>
-                <span className="mt-1 block truncate text-sm font-black text-slate-800">
-                  {item.value}
-                </span>
-              </span>
-            </div>
-          ))}
-        </div>
+      <div className="divide-y divide-sky-50">
+        {infoRows.map((item) => (
+          <InfoRow key={item.label} {...item} />
+        ))}
       </div>
     </Panel>
   );
 };
 
-const PlanningOverview = ({ eventId, plannings, isLoading, error }) => (
-  <Panel className="overflow-hidden">
-    <div className="flex flex-col gap-3 border-b border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-      <h3 className="text-base font-black text-slate-950">Kế hoạch</h3>
-      <Button
-        as={Link}
-        to={`/events/${eventId}/plannings`}
-        variant="secondary"
-        className="min-h-9 w-fit rounded-md px-3 py-2"
-      >
-        Mở bảng
-      </Button>
-    </div>
+const EventHierarchyPanel = ({ eventId, event, departments, members, isLoading, error }) => {
+  const hierarchy = useMemo(
+    () => buildHierarchy({ departments, members }),
+    [departments, members]
+  );
 
-    <div>
-      {isLoading && <LoadingState message="Đang tải kế hoạch..." />}
+  return (
+    <Panel className="overflow-hidden">
+      <div className="border-b border-slate-200 bg-white px-5 py-4">
+        <div className="flex flex-col gap-1">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-600">
+            Hệ thống phân cấp
+          </p>
+          <h3 className="text-lg font-black text-slate-950">
+            Leader và department
+          </h3>
+        </div>
+      </div>
+
+      {isLoading && <LoadingState message="Đang tải sơ đồ phân cấp..." />}
 
       {!isLoading && error && (
-        <ErrorState error={error} title="Không tải được kế hoạch" />
+        <ErrorState error={error} title="Không tải được sơ đồ phân cấp" />
       )}
 
-      {!isLoading && !error && plannings.length === 0 && (
-        <div className="p-4">
+      {!isLoading && !error && departments.length === 0 && (
+        <div className="p-5">
           <EmptyState
-            icon={Layers}
-            title="Chưa có kế hoạch"
-            description="Kế hoạch của sự kiện sẽ hiển thị tại đây sau khi được tạo."
+            icon={Building2}
+            title="Chưa có department"
+            description="Department và trưởng ban sẽ hiển thị tại đây."
           />
         </div>
       )}
 
-      {!isLoading && !error && plannings.length > 0 && (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] border-collapse text-left text-sm">
-            <thead className="bg-slate-50 text-xs font-black uppercase tracking-[0.12em] text-slate-500">
-              <tr>
-                <th className={overviewHeadCellClassName}>Kế hoạch</th>
-                <th className={overviewHeadCellClassName}>#</th>
-                <th className={overviewHeadCellClassName}>Giai đoạn</th>
-                <th className={overviewHeadCellClassName}>Mục tiêu</th>
-                <th className={overviewHeadCellClassName}>Mô tả</th>
-              </tr>
-            </thead>
-            <tbody>
-              {plannings.flatMap((planning) => {
-                const phases = planning.phases || [];
-                if (phases.length === 0) {
-                  return [(
-                    <tr key={`${planning.id}-empty`} className="hover:bg-slate-50">
-                      <td className={overviewBodyCellClassName}>
-                        <p className="font-black text-slate-950">{planning.title}</p>
-                        {planning.description && <p className="mt-1 text-xs font-semibold text-slate-500">{planning.description}</p>}
-                      </td>
-                      <td className={overviewIndexCellClassName}>-</td>
-                      <td className={overviewBodyCellClassName}>Chưa có giai đoạn</td>
-                      <td className={overviewBodyCellClassName}>-</td>
-                      <td className={overviewBodyCellClassName}>-</td>
-                    </tr>
-                  )];
-                }
+      {!isLoading && !error && departments.length > 0 && (
+        <div className="p-5">
+          <div className="grid gap-4">
+            <HierarchyRoot eventId={eventId} event={event} eventLeaders={hierarchy.eventLeaders} />
 
-                return phases.map((phase, index) => (
-                  <tr key={phase.id || `${planning.id}-${index}`} className="hover:bg-slate-50">
-                    <td className={overviewBodyCellClassName}>
-                      <p className="font-black text-slate-950">{planning.title}</p>
-                      {index === 0 && planning.description && (
-                        <p className="mt-1 text-xs font-semibold text-slate-500">{planning.description}</p>
-                      )}
-                    </td>
-                    <td className={overviewIndexCellClassName}>{index + 1}</td>
-                    <td className={overviewBodyCellClassName}>
-                      <p className="font-bold text-slate-900">{phase.phaseName}</p>
-                    </td>
-                    <td className={overviewBodyCellClassName}>{phase.objective || '-'}</td>
-                    <td className={overviewBodyCellClassName}>{phase.description || '-'}</td>
-                  </tr>
-                ));
-              })}
-            </tbody>
-          </table>
+            <div
+              className="grid gap-3"
+              style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 18rem), 1fr))' }}
+            >
+              {hierarchy.departmentNodes.map((department) => (
+                <DepartmentHierarchyNode key={department.id} eventId={eventId} department={department} />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </Panel>
+  );
+};
+
+const HierarchyRoot = ({ eventId, event, eventLeaders }) => (
+  <div className="rounded-lg border border-sky-100 bg-sky-50/60 p-4">
+    <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
+      <p className="text-xs font-black uppercase tracking-[0.16em] text-sky-600">
+        Event Leader
+      </p>
+      <h4 className="min-w-0 truncate text-base font-black text-slate-950">
+        {event?.name || event?.title || 'Sự kiện'}
+      </h4>
+    </div>
+
+    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+      {eventLeaders.length > 0 ? eventLeaders.map((leader) => (
+        <MemberPill key={getMemberKey(leader)} eventId={eventId} member={leader} label="Event Leader" compact />
+      )) : (
+        <div className="col-span-full rounded-lg border border-dashed border-sky-200 bg-white px-3 py-2 text-sm font-bold text-slate-500">
+          Chưa có Event Leader
         </div>
       )}
     </div>
-  </Panel>
-);
-
-const InfoBlock = ({ label, value }) => (
-  <div className="rounded-2xl border border-sky-100 bg-white px-4 py-3">
-    <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">
-      {label}
-    </p>
-    <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
-      {value}
-    </p>
   </div>
 );
 
-const overviewHeadCellClassName = 'border-b border-slate-200 px-3 py-2';
-const overviewBodyCellClassName = 'border-b border-slate-100 px-3 py-3 align-top font-semibold leading-6 text-slate-600';
-const overviewIndexCellClassName = 'w-14 border-b border-slate-100 px-3 py-3 text-center text-xs font-black text-slate-400';
+const DepartmentHierarchyNode = ({ eventId, department }) => (
+  <div className="min-w-0 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="min-w-0">
+      <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-400">
+        Department
+      </p>
+      <h4 className="mt-1 break-words text-base font-black text-slate-950">
+        {department.name}
+      </h4>
+      {department.description && (
+        <p className="mt-1 line-clamp-2 text-xs font-semibold leading-5 text-slate-500">
+          {department.description}
+        </p>
+      )}
+    </div>
+
+    <p className="mt-4 border-t border-slate-100 pt-3 text-[11px] font-black uppercase tracking-[0.14em] text-emerald-600">
+      Trưởng ban
+    </p>
+    {department.leader ? (
+      <MemberPill eventId={eventId} member={department.leader} label="Department Leader" highlight />
+    ) : (
+      <div className="mt-2 rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-3 text-sm font-bold text-slate-500">
+        Chưa phân bổ trưởng ban
+      </div>
+    )}
+  </div>
+);
+
+const MemberPill = ({ eventId, member, label, highlight = false, compact = false }) => {
+  const memberId = member.userId || member.id;
+  const canOpenDetail = Boolean(eventId && memberId);
+
+  return (
+    <div className={`mt-2 flex min-w-0 items-center gap-2 rounded-lg border px-3 py-2 ${highlight ? 'border-emerald-100 bg-emerald-50/80' : 'border-sky-100 bg-white'}`}>
+      <UserAvatar
+        userId={memberId}
+        avatarUrl={member.avatarUrl}
+        name={member.name || member.email}
+        size="sm"
+      />
+      <span className="min-w-0 flex-1 text-left">
+        <span className={`${compact ? 'text-xs' : 'text-sm'} block truncate font-black text-slate-800`}>
+          {member.name || 'Chưa có tên'}
+        </span>
+        <span className="block truncate text-xs font-bold text-slate-400">
+          {label || member.email || 'Leader'}
+        </span>
+      </span>
+
+      {canOpenDetail && (
+        <Link
+          to={`/events/${eventId}/members/${memberId}`}
+          className="shrink-0 rounded-full border border-sky-100 bg-sky-50 px-3 py-1.5 text-xs font-black text-sky-600 transition hover:border-sky-200 hover:bg-white"
+        >
+          Chi tiết
+        </Link>
+      )}
+    </div>
+  );
+};
+
+const InfoRow = ({ label, value }) => (
+  <div className="px-5 py-3 text-sm leading-6 text-slate-700">
+    <span className="font-black text-slate-950">{label}: </span>
+    <span className="whitespace-pre-line font-semibold">{value}</span>
+  </div>
+);
+
+
+const buildHierarchy = ({ departments, members }) => {
+  const memberById = new Map(
+    members
+      .filter((member) => member.userId || member.id)
+      .map((member) => [String(member.userId || member.id), member])
+  );
+
+  const departmentNodes = departments.map((department) => ({
+    ...department,
+    leader: getDepartmentLeader(
+      department,
+      memberById,
+      members.filter((member) => String(member.departmentId || '') === String(department.id))
+    ),
+  }));
+
+  const eventLeaders = members.filter((member) => member.role === 'LEADER');
+
+  return {
+    departmentNodes,
+    eventLeaders,
+  };
+};
+
+const getDepartmentLeader = (department, memberById, departmentMembers) => {
+  if (department.leaderUserId && memberById.has(String(department.leaderUserId))) {
+    return memberById.get(String(department.leaderUserId));
+  }
+
+  const matchedByEmail = department.leaderEmail
+    ? departmentMembers.find((member) => member.email === department.leaderEmail)
+    : null;
+  if (matchedByEmail) {
+    return matchedByEmail;
+  }
+
+  if (department.leaderUserId || department.leaderName || department.leaderEmail) {
+    return {
+      userId: department.leaderUserId,
+      name: department.leaderName || department.leaderEmail || 'Trưởng ban',
+      email: department.leaderEmail,
+      role: 'LEADER',
+    };
+  }
+
+  return null;
+};
+
+const getMemberKey = (member) => String(member.userId || member.id || member.email || member.name);
+
 
 const formatEventRange = (event) => {
   const start = event?.startTime || event?.eventDate;

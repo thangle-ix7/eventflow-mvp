@@ -5,15 +5,15 @@ import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import userApi from '../api/userApi';
 import { getDepartmentHomePath, getEventPermissions } from '../utils/permissionUtils';
-import LanguageSwitcher from './LanguageSwitcher';
 import { useTranslation } from 'react-i18next';
 import {
   BarChart3,
   Bell,
   CalendarDays,
+  ClipboardCheck,
   ClipboardList,
   FileText,
-  Layers,
+  Flag,
   LogOut,
   Menu,
   MessageSquareHeart,
@@ -102,9 +102,9 @@ const AppLayoutFrame = ({
 
   const eventNav = selectedEvent?.id
     ? [
-      { to: `/events/${selectedEvent.id}`, label: t('sidebar.dashboard'), icon: Workflow },
+      { to: `/events/${selectedEvent.id}`, label: t('sidebar.info'), icon: Workflow },
       ...(permissions.canViewEventDashboard ? [{ to: `/events/${selectedEvent.id}/dashboard`, label: t('sidebar.dashboard'), icon: BarChart3 }] : []),
-      { to: `/events/${selectedEvent.id}/plannings`, label: t('sidebar.plannings'), icon: Layers },
+      { to: `/events/${selectedEvent.id}/milestones`, label: 'Cột mốc', icon: Flag },
       { to: `/events/${selectedEvent.id}/tasks`, label: t('sidebar.tasks'), icon: ClipboardList },
       ...(departmentHomePath ? [{ to: departmentHomePath, label: t('sidebar.departments'), icon: Users }] : []),
       { to: `/events/${selectedEvent.id}/members`, label: t('sidebar.members'), icon: UserRound },
@@ -131,10 +131,17 @@ const AppLayoutFrame = ({
         description: t('description.progress'),
         icon: TrendingUp,
       },
+
+      {
+        to: `/events/${selectedEvent.id}/check-in`,
+        label: 'Check-in',
+        description: 'QR attendee',
+        icon: ClipboardCheck,
+      },
       {
         to: `/events/${selectedEvent.id}/settings`,
         label: permissions.canManageEvent ? t('utility.settings') : t('common.view'),
-        description: 'Thiết lập sự kiện',
+        description: 'Giao diện và ngôn ngữ',
         icon: Settings,
       },
     ]
@@ -168,11 +175,13 @@ const AppLayoutFrame = ({
   if (selectedEvent?.id) {
     searchSuggestionBase.push(
       { label: t('sidebar.tasks'), description: '', to: `/events/${selectedEvent.id}/tasks` },
-      { label: t('sidebar.plannings'), description: '', to: `/events/${selectedEvent.id}/plannings` },
+      { label: 'Cột mốc', description: 'Lộ trình sự kiện', to: `/events/${selectedEvent.id}/milestones` },
       { label: t('sidebar.members'), description: '', to: `/events/${selectedEvent.id}/members` },
       { label: t('utility.calendar'), description: '', to: `/events/${selectedEvent.id}/calendar` },
       { label: t('utility.documents'), description: '', to: `/events/${selectedEvent.id}/documents` },
       { label: t('utility.reports'), description: '', to: `/events/${selectedEvent.id}/reports` },
+      ...(permissions.canManageEvent ? [{ label: 'Tạo cột mốc', description: '', to: `/events/${selectedEvent.id}/milestones/new` }] : []),
+      { label: 'Check-in', description: '', to: `/events/${selectedEvent.id}/check-in` },
       { label: permissions.canManageEvent ? t('utility.settings') : t('common.view'), description: '', to: `/events/${selectedEvent.id}/settings` },
     );
 
@@ -637,13 +646,15 @@ const AppLayoutFrame = ({
                 </div>
               </div>
 
-              <LanguageSwitcher />
 
               <Link
                 to="/profile"
-                className="hidden min-w-0 rounded-2xl px-3 py-2 text-right text-sm text-slate-500 transition hover:bg-sky-50 hover:text-sky-600 sm:block"
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-slate-500 transition hover:bg-sky-50 hover:text-sky-600 sm:h-auto sm:w-auto sm:min-w-0 sm:px-3 sm:py-2 sm:text-right"
+                aria-label="Hồ sơ cá nhân"
+                title="Hồ sơ cá nhân"
               >
-                <span className="block max-w-[7.5rem] truncate font-black text-slate-950 sm:max-w-[10rem] lg:max-w-[14rem]">
+                <UserRound className="h-5 w-5 sm:hidden" strokeWidth={1.8} />
+                <span className="hidden max-w-[7.5rem] truncate font-black text-slate-950 sm:block sm:max-w-[10rem] lg:max-w-[14rem]">
                   {user.name}
                 </span>
                 <span className="hidden text-xs font-bold sm:block">

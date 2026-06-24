@@ -146,7 +146,7 @@ const FeedbackModal = ({ isOpen, selectedEvent, user, onClose }) => {
                 required
                 maxLength={4000}
                 rows={6}
-                placeholder="Ví dụ: Với giải đấu 16 đội, tụi mình cần xem rủi ro sân bãi/y tế/trọng tài rõ hơn..."
+                placeholder="Nội dung phản hồi"
                 className={`${inputClassName} min-h-36 resize-y py-3`}
               />
             </label>

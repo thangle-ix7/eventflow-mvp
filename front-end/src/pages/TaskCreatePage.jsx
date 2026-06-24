@@ -2,18 +2,18 @@ import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
+  Bell,
   CalendarDays,
   ClipboardList,
   FileText,
   Flag,
   Layers3,
   Loader2,
+  Paperclip,
   Plus,
   Save,
   Sparkles,
-  TrendingUp,
   UserRound,
-  Users,
 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import AiSuggestionDetailModal from '../components/AiSuggestionDetailModal';
@@ -59,15 +59,19 @@ const TaskCreatePage = ({ user, onLogout }) => {
     assigneeId: '',
     milestoneId: '',
     deadline: '',
+    reminderOffsetHours: 24,
     status: 'TODO',
     priority: 'MEDIUM',
-    progressPercentage: 0,
   });
 
   const [suggestionInstruction, setSuggestionInstruction] = useState('');
   const [suggestedTasks, setSuggestedTasks] = useState([]);
   const [detailSuggestion, setDetailSuggestion] = useState(null);
   const [isMilestoneModalOpen, setIsMilestoneModalOpen] = useState(false);
+  const [attachmentFiles, setAttachmentFiles] = useState([]);
+  const [attachmentLinkUrl, setAttachmentLinkUrl] = useState('');
+  const [attachmentLinkTitle, setAttachmentLinkTitle] = useState('');
+  const [attachmentVisibility, setAttachmentVisibility] = useState('TASK_ONLY');
 
   const eventQuery = useQuery({
     queryKey: ['event', eventId],
@@ -122,10 +126,27 @@ const TaskCreatePage = ({ user, onLogout }) => {
     : null;
 
   const mutation = useMutation({
-    mutationFn: taskApi.createTask,
+    mutationFn: async ({ taskPayload, attachmentDraft }) => {
+      const task = await taskApi.createTask({ eventId, payload: taskPayload });
+      const hasFiles = attachmentDraft.files.length > 0;
+      const hasLink = attachmentDraft.linkUrl.trim();
+
+      if (hasFiles || hasLink) {
+        await taskApi.uploadTaskAttachments({
+          taskId: task.id,
+          files: attachmentDraft.files,
+          linkUrl: attachmentDraft.linkUrl,
+          linkTitle: attachmentDraft.linkTitle,
+          visibility: attachmentDraft.visibility,
+        });
+      }
+
+      return task;
+    },
     onSuccess: (task) => {
       queryClient.invalidateQueries({ queryKey: ['eventTaskPage', eventId] });
       queryClient.invalidateQueries({ queryKey: ['departmentWorkload', eventId, form.departmentId] });
+      queryClient.invalidateQueries({ queryKey: ['taskAttachments', String(task.id)] });
       invalidateDashboardQueries(queryClient, eventId);
       navigate(`/events/${eventId}/tasks/${task.id}`, { replace: true });
     },
@@ -144,24 +165,30 @@ const TaskCreatePage = ({ user, onLogout }) => {
       ...old,
       [name]: value,
       ...(name === 'departmentId' ? { assigneeId: '' } : {}),
-      ...(name === 'status' && value === 'DONE' ? { progressPercentage: 100 } : {}),
     }));
   };
 
   const handleSubmit = (event) => {
     event.preventDefault();
+    const taskPayload = {
+      title: form.title,
+      description: form.description,
+      departmentId: form.departmentId ? Number(form.departmentId) : null,
+      assigneeId: form.assigneeId ? Number(form.assigneeId) : null,
+      milestoneId: form.milestoneId ? Number(form.milestoneId) : null,
+      deadline: form.deadline,
+      reminderOffsetMinutes: Math.round(Number(form.reminderOffsetHours || 0) * 60),
+      status: form.status,
+      priority: form.priority,
+    };
+
     mutation.mutate({
-      eventId,
-      payload: {
-        title: form.title,
-        description: form.description,
-        departmentId: form.departmentId ? Number(form.departmentId) : null,
-        assigneeId: form.assigneeId ? Number(form.assigneeId) : null,
-        milestoneId: form.milestoneId ? Number(form.milestoneId) : null,
-        deadline: form.deadline,
-        status: form.status,
-        priority: form.priority,
-        progressPercentage: Number(form.progressPercentage),
+      taskPayload,
+      attachmentDraft: {
+        files: attachmentFiles,
+        linkUrl: attachmentLinkUrl,
+        linkTitle: attachmentLinkTitle,
+        visibility: attachmentVisibility === 'DEPARTMENT' && !taskPayload.departmentId ? 'TASK_ONLY' : attachmentVisibility,
       },
     });
   };
@@ -175,9 +202,9 @@ const TaskCreatePage = ({ user, onLogout }) => {
       assigneeId: task.assigneeId ? String(task.assigneeId) : '',
       milestoneId: task.milestoneId ? String(task.milestoneId) : '',
       deadline: normalizeSuggestedDeadline(task.deadline),
+      reminderOffsetHours: 24,
       status: task.status || 'TODO',
       priority: task.priority || 'MEDIUM',
-      progressPercentage: task.progressPercentage ?? 0,
     });
   };
 
@@ -214,9 +241,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
                   Tạo task mới
                 </h2>
 
-                <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-slate-600">
-                  Tạo công việc, gán ban phụ trách, phân công thành viên, đặt deadline và theo dõi workload trước khi giao task.
-                </p>
+  
               </div>
 
             <div className="rounded-2xl border border-sky-100 bg-sky-50/70 px-4 py-3">
@@ -244,9 +269,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
                   <h3 className="text-lg font-black text-slate-950">
                     Thông tin công việc
                   </h3>
-                  <p className="mt-1 text-sm font-semibold text-slate-500">
-                    Điền thông tin để tạo công việc trong sự kiện.
-                  </p>
+
                 </div>
               </div>
             </div>
@@ -269,7 +292,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
                   required
                   maxLength={255}
                   className={inputClassName}
-                  placeholder="Nhập tên công việc cần thực hiện"
+                  placeholder="Tên công việc"
                 />
               </Field>
 
@@ -284,7 +307,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
                   maxLength={2000}
                   rows={5}
                   className={`${inputClassName} min-h-32 resize-none py-3`}
-                  placeholder="Mô tả chi tiết công việc, yêu cầu đầu ra, ghi chú..."
+                  placeholder="Mô tả"
                 />
               </Field>
 
@@ -408,15 +431,16 @@ const TaskCreatePage = ({ user, onLogout }) => {
                 </Field>
 
                 <Field
-                  label="Tiến độ (%)"
-                  icon={<TrendingUp className="h-4 w-4" strokeWidth={1.8} />}
+                  label="Cảnh báo vàng trước hạn (giờ)"
+                  icon={<Bell className="h-4 w-4" strokeWidth={1.8} />}
                 >
                   <input
-                    name="progressPercentage"
+                    name="reminderOffsetHours"
                     type="number"
                     min="0"
-                    max="100"
-                    value={form.progressPercentage}
+                    max="8760"
+                    step="0.5"
+                    value={form.reminderOffsetHours}
                     onChange={handleChange}
                     required
                     className={inputClassName}
@@ -459,6 +483,19 @@ const TaskCreatePage = ({ user, onLogout }) => {
                   </select>
                 </Field>
               </div>
+              <InitialAttachmentSection
+                files={attachmentFiles}
+                setFiles={setAttachmentFiles}
+                linkUrl={attachmentLinkUrl}
+                setLinkUrl={setAttachmentLinkUrl}
+                linkTitle={attachmentLinkTitle}
+                setLinkTitle={setAttachmentLinkTitle}
+                visibility={attachmentVisibility}
+                setVisibility={setAttachmentVisibility}
+                hasDepartment={Boolean(form.departmentId)}
+                disabled={mutation.isPending}
+              />
+
 
               <button
                 type="submit"
@@ -470,7 +507,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
                 ) : (
                   <Save size={18} />
                 )}
-                Tạo công việc
+                {mutation.isPending && (attachmentFiles.length > 0 || attachmentLinkUrl.trim()) ? 'Đang tạo và tải tài liệu...' : 'Tạo công việc'}
               </button>
             </div>
           </form>
@@ -489,9 +526,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
                   <h3 className="text-lg font-black text-slate-950">
                     AI gợi ý công việc
                   </h3>
-                  <p className="mt-1 text-sm font-semibold leading-6 text-slate-500">
-                    Nhập bối cảnh để AI đề xuất danh sách công việc phù hợp.
-                  </p>
+
                 </div>
               </div>
 
@@ -500,7 +535,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
                   value={suggestionInstruction}
                   onChange={(event) => setSuggestionInstruction(event.target.value)}
                   className={inputClassName}
-                  placeholder="Bối cảnh cho AI, ví dụ: chuẩn bị workshop 100 người..."
+                  placeholder="Bối cảnh AI"
                 />
 
                 <button
@@ -554,7 +589,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
                           >
                             <td className="px-3 py-3 align-top">
                               <p className="font-black text-slate-950">{task.title}</p>
-                              <p className="mt-1 text-xs font-black text-sky-600">Bấm vào hàng để sửa</p>
+
                             </td>
                             <td className="px-3 py-3 align-top font-semibold text-slate-600">
                               {normalizeSuggestedDeadline(task.deadline) || 'Chưa có'}
@@ -589,21 +624,6 @@ const TaskCreatePage = ({ user, onLogout }) => {
                 </div>
               )}
             </section>
-
-            <section className="rounded-[2rem] border border-sky-100 bg-white p-5 shadow-xl shadow-sky-100/70">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-50 text-sky-600">
-                  <Users size={20} strokeWidth={1.8} />
-                </div>
-
-                <div>
-                  <h3 className="font-black text-slate-950">Gợi ý khối lượng việc</h3>
-                  <p className="mt-1 text-sm font-semibold leading-6 text-slate-500">
-                    Chọn ban trước để EventFlow tải khối lượng việc và chỉ hiển thị thành viên thuộc ban đó.
-                  </p>
-                </div>
-              </div>
-            </section>
           </aside>
         </div>
       </div>
@@ -630,23 +650,124 @@ const TaskCreatePage = ({ user, onLogout }) => {
   );
 };
 
-const Field = ({ label, icon, hint, children }) => (
+const InitialAttachmentSection = ({
+  files,
+  setFiles,
+  linkUrl,
+  setLinkUrl,
+  linkTitle,
+  setLinkTitle,
+  visibility,
+  setVisibility,
+  hasDepartment,
+  disabled,
+}) => {
+  const handleFilesChange = (event) => {
+    const pickedFiles = Array.from(event.target.files || []);
+    if (pickedFiles.length === 0) return;
+    setFiles((old) => [...old, ...pickedFiles]);
+    event.target.value = '';
+  };
+
+  const removeFile = (indexToRemove) => {
+    setFiles((old) => old.filter((_, index) => index !== indexToRemove));
+  };
+
+  return (
+    <section className="rounded-2xl border border-sky-100 bg-sky-50/35 p-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div className="flex items-center gap-2 text-sm font-black text-slate-800">
+            <Paperclip size={16} className="text-sky-600" />
+            Tài liệu khởi tạo
+          </div>
+          <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">
+            File hoặc link hướng dẫn sẽ được gắn vào task ngay sau khi tạo.
+          </p>
+        </div>
+
+        <select
+          value={visibility}
+          onChange={(event) => setVisibility(event.target.value)}
+          disabled={disabled}
+          className="min-h-10 rounded-xl border border-sky-100 bg-white px-3 text-xs font-black text-slate-700 outline-none focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100 disabled:bg-slate-50 disabled:text-slate-500"
+          aria-label="Phạm vi hiển thị tài liệu khởi tạo"
+        >
+          <option value="TASK_ONLY">Chỉ task này</option>
+          <option value="DEPARTMENT" disabled={!hasDepartment}>Cả ban phụ trách</option>
+          <option value="EVENT_PUBLIC">Toàn sự kiện</option>
+        </select>
+      </div>
+
+      <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_1fr]">
+        <label className="flex min-h-24 cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-sky-200 bg-white px-4 py-4 text-center transition hover:bg-sky-50">
+          <input
+            type="file"
+            multiple
+            onChange={handleFilesChange}
+            disabled={disabled}
+            className="sr-only"
+          />
+          <span className="text-sm font-black text-sky-700">Chọn file hướng dẫn</span>
+          <span className="mt-1 text-xs font-semibold text-slate-500">PDF, ảnh, Word, sheet hoặc tài liệu liên quan</span>
+        </label>
+
+        <div className="grid gap-2">
+          <input
+            value={linkUrl}
+            onChange={(event) => setLinkUrl(event.target.value)}
+            disabled={disabled}
+            className={inputClassName}
+            placeholder="Link tài liệu, Drive, Notion..."
+            type="url"
+          />
+          <input
+            value={linkTitle}
+            onChange={(event) => setLinkTitle(event.target.value)}
+            disabled={disabled || !linkUrl.trim()}
+            className={inputClassName}
+            placeholder="Tên hiển thị cho link"
+          />
+        </div>
+      </div>
+
+      {files.length > 0 && (
+        <div className="mt-3 overflow-hidden rounded-2xl border border-sky-100 bg-white">
+          {files.map((file, index) => (
+            <div key={`${file.name}-${file.size}-${index}`} className="flex items-center justify-between gap-3 border-b border-sky-50 px-3 py-2 text-sm last:border-b-0">
+              <div className="min-w-0">
+                <p className="truncate font-black text-slate-800">{file.name}</p>
+                <p className="text-xs font-semibold text-slate-400">{formatFileSize(file.size)}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => removeFile(index)}
+                disabled={disabled}
+                className="shrink-0 rounded-lg px-2 py-1 text-xs font-black text-red-600 transition hover:bg-red-50 disabled:opacity-60"
+              >
+                Bỏ
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+};
+
+const formatFileSize = (size) => {
+  if (!size) return '0 KB';
+  if (size < 1024 * 1024) return `${Math.max(1, Math.round(size / 1024))} KB`;
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+};
+const Field = ({ label, children }) => (
   <label className="block">
-    <span className="flex items-center gap-2 text-sm font-black text-slate-700">
-      <span className="text-sky-500">{icon}</span>
-      {label}
-    </span>
-
+    <span className="text-sm font-black text-slate-700">{label}</span>
     <div className="mt-2">{children}</div>
-
-    {hint && (
-      <p className="mt-2 text-xs font-semibold leading-5 text-slate-500">
-        {hint}
-      </p>
-    )}
   </label>
 );
 
 const inputClassName = 'min-h-11 w-full min-w-0 rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-2.5 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:bg-white focus:ring-4 focus:ring-cyan-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500';
 
 export default TaskCreatePage;
+

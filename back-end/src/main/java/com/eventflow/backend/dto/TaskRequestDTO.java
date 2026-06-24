@@ -36,7 +36,12 @@ public class TaskRequestDTO {
     @NotNull(message = "Deadline không được để trống")
     private LocalDateTime deadline;
 
+    @Min(value = 0, message = "Thời gian nhắc trước hạn không được nhỏ hơn 0 phút")
+    @Max(value = 525600, message = "Thời gian nhắc trước hạn không được vượt quá 1 năm")
+    private Integer reminderOffsetMinutes;
+
     @Min(value = 0, message = "Tiến độ không được nhỏ hơn 0")
     @Max(value = 100, message = "Tiến độ không được lớn hơn 100")
     private Integer progressPercentage;
 }
+

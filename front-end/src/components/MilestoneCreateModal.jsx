@@ -127,7 +127,7 @@ const MilestoneCreateModal = ({ eventId, isOpen, onCancel, onCreated }) => {
                     value={suggestionInstruction}
                     onChange={(event) => setSuggestionInstruction(event.target.value)}
                     className={`${inputClassName} min-h-28 resize-none py-3`}
-                    placeholder="VD: chia theo setup, rehearsal, vận hành chính và tổng kết..."
+                    placeholder="Bối cảnh AI"
                     disabled={suggestionMutation.isPending || createMutation.isPending}
                   />
                 </label>
@@ -152,7 +152,7 @@ const MilestoneCreateModal = ({ eventId, isOpen, onCancel, onCreated }) => {
               <section className="space-y-3">
                 {suggestions.length === 0 ? (
                   <div className="rounded-3xl border border-dashed border-sky-200 bg-white p-5 text-sm font-semibold leading-6 text-slate-500">
-                    AI sẽ đề xuất các cột mốc phù hợp với thông tin sự kiện, kế hoạch và công việc hiện có.
+Chưa có gợi ý.
                   </div>
                 ) : (
                   <div className="overflow-x-auto rounded-2xl border border-sky-100 bg-white">
@@ -194,7 +194,7 @@ const MilestoneCreateModal = ({ eventId, isOpen, onCancel, onCreated }) => {
                                     <p className="font-black leading-5 text-slate-950">
                                       {milestone.name || `Cột mốc ${index + 1}`}
                                     </p>
-                                    <p className="mt-1 text-xs font-black text-sky-600">Bấm vào hàng để sửa</p>
+
                                   </div>
                                 </div>
                               </td>
@@ -259,7 +259,7 @@ const MilestoneCreateModal = ({ eventId, isOpen, onCancel, onCreated }) => {
                     required
                     maxLength={255}
                     className={inputClassName}
-                    placeholder="VD: Chuẩn bị trước sự kiện, Vận hành ngày diễn ra..."
+                    placeholder="Tên cột mốc"
                   />
                 </label>
 
@@ -272,7 +272,7 @@ const MilestoneCreateModal = ({ eventId, isOpen, onCancel, onCreated }) => {
                     maxLength={2000}
                     rows={5}
                     className={`${inputClassName} min-h-36 resize-y py-3`}
-                    placeholder="Mục tiêu, phạm vi hoặc lưu ý của cột mốc..."
+                    placeholder="Mô tả"
                   />
                 </label>
 
@@ -296,7 +296,7 @@ const MilestoneCreateModal = ({ eventId, isOpen, onCancel, onCreated }) => {
                       onChange={handleChange}
                       maxLength={2000}
                       className={inputClassName}
-                      placeholder="VD: Hoàn tất setup sân, nhân sự và truyền thông"
+                      placeholder="Kết quả"
                     />
                   </label>
                 </div>
