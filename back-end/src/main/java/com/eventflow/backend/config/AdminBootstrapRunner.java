@@ -34,11 +34,6 @@ public class AdminBootstrapRunner implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
-        if (userRepository.countBySystemRole(SystemRole.ADMIN) > 0) {
-            log.info("Admin bootstrap skipped because an ADMIN account already exists.");
-            return;
-        }
-
         String email = normalizeEmail(adminEmail);
         if (!hasText(email) || !hasText(adminPassword)) {
             throw new IllegalStateException(
@@ -79,3 +74,4 @@ public class AdminBootstrapRunner implements ApplicationRunner {
         return value != null && !value.isBlank();
     }
 }
+
