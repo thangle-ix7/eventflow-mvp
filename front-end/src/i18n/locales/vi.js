@@ -180,10 +180,6 @@ role: {
   STAFF: 'Nhân sự',
 },
 
-userMenu: {
-  account: 'Tài khoản',
-},
-
 // =====================================================
 // DEPARTMENT - Ban tổ chức
 // Ví dụ dùng: t('department.title')

@@ -181,9 +181,6 @@ role: {
   STAFF: 'Staff',
 },
 
-userMenu: {
-  account: 'Account',
-},
 
 // =====================================================
 // DEPARTMENT - Departments
