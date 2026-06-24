@@ -302,7 +302,8 @@ const AppLayoutFrame = ({
               {selectedEvent.name}
             </p>
             <p className="mt-1 text-xs font-black text-slate-500">
-              {selectedEvent?.role ? (selectedEvent.role === 'LEADER' ? 'Trưởng nhóm' : 'Thành viên') : 'Tài khoản'}
+              {selectedEvent?.role ? t(`role.${selectedEvent.role}`, {defaultValue: selectedEvent.role === 'LEADER'        ? t('role.LEADER')
+            : t('role.MEMBER'),  })   : t('userMenu.account')}
             </p>
           </div>
         </div>
@@ -522,7 +523,7 @@ const AppLayoutFrame = ({
                   onClick={() => setFeedbackOpen(true)}
                 >
                   <MessageSquareHeart className="h-5 w-5" strokeWidth={1.8} />
-                  <span className="hidden xl:inline">Góp ý</span>
+                  <span className="hidden xl:inline">{t('event.feedback')}</span>
                 </button>
 
                 <div className="relative shrink-0" ref={notificationRef}>
@@ -809,6 +810,3 @@ const formatNotificationTime = (value, lang) => {
 };
 
 export default AppLayout;
-
-
-
