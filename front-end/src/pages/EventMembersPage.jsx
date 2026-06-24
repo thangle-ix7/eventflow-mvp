@@ -34,6 +34,7 @@ import { formatDate } from '../utils/dateUtils';
 const EMPTY_MEMBERS = [];
 const EMPTY_DEPARTMENTS = [];
 const EMPTY_INVITATIONS = [];
+const isEventClosed = (event) => ['CANCELLED', 'CANCELED', 'DONE'].includes(String(event?.status || '').toUpperCase());
 
 const EventMembersPage = ({ user, onLogout }) => {
   const { eventId } = useParams();
@@ -65,6 +66,7 @@ const EventMembersPage = ({ user, onLogout }) => {
 
   const event = eventQuery.data;
   const isLeader = event?.role === 'LEADER';
+  const eventClosed = isEventClosed(event);
 
   const invitationsQuery = useQuery({
     queryKey: ['eventInvitations', eventId],
@@ -198,7 +200,13 @@ const EventMembersPage = ({ user, onLogout }) => {
       onLogout={onLogout}
     >
       <div className="space-y-6">
-        {isLeader && (
+        {isLeader && eventClosed && (
+          <Panel className="border-amber-100 bg-amber-50/80 p-4 text-sm font-semibold leading-6 text-amber-800">
+            Sự kiện đã đóng nên không thể mời, đổi vai trò hoặc xóa thành viên. Danh sách bên dưới chỉ còn ở chế độ xem.
+          </Panel>
+        )}
+
+        {isLeader && !eventClosed && (
           <Panel className="p-5">
             <form onSubmit={handleInviteSubmit} className="grid gap-3">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -280,6 +288,7 @@ const EventMembersPage = ({ user, onLogout }) => {
             error={invitationsQuery.error || cancelInvitationMutation.error}
             cancelInvitationMutation={cancelInvitationMutation}
             eventId={eventId}
+            disabled={eventClosed}
           />
         )}
 
@@ -399,6 +408,7 @@ const EventMembersPage = ({ user, onLogout }) => {
                       isLeader={isLeader}
                       updateRoleMutation={updateRoleMutation}
                       removeMemberMutation={removeMemberMutation}
+                      disabledActions={eventClosed}
                     />
                   ))}
                 </tbody>
@@ -451,7 +461,7 @@ const BulkInviteResult = ({ result }) => {
   );
 };
 
-const InvitationPanel = ({ invitations, isLoading, error, cancelInvitationMutation, eventId }) => (
+const InvitationPanel = ({ invitations, isLoading, error, cancelInvitationMutation, eventId, disabled = false }) => (
   <Panel className="overflow-hidden">
     <div className="flex items-center gap-3 border-b border-sky-100 bg-gradient-to-r from-sky-50 via-white to-emerald-50 px-5 py-5">
       <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-400 text-white shadow-lg shadow-cyan-100">
@@ -504,7 +514,7 @@ const InvitationPanel = ({ invitations, isLoading, error, cancelInvitationMutati
                   <td className="px-5 py-4"><InvitationStatusBadge status={invitation.status} /></td>
                   <td className="px-5 py-4 font-semibold text-slate-600">{formatDate(invitation.expiresAt)}</td>
                   <td className="px-5 py-4 text-right">
-                    {invitation.status === 'PENDING' && (
+                    {invitation.status === 'PENDING' && !disabled && (
                       <button
                         type="button"
                         onClick={() => cancelInvitationMutation.mutate({ eventId, invitationId: invitation.id })}
@@ -550,6 +560,7 @@ const MemberRow = ({
   isLeader,
   updateRoleMutation,
   removeMemberMutation,
+  disabledActions = false,
 }) => {
   const isCurrentUser = member.userId === currentUserId;
   const removingThisMember = removeMemberMutation.isPending && removeMemberMutation.variables?.userId === member.userId;
@@ -578,7 +589,7 @@ const MemberRow = ({
       </td>
 
       <td className="px-5 py-4">
-        {isLeader ? (
+        {isLeader && !disabledActions ? (
           <select
             value={member.role}
             onChange={(event) =>
@@ -628,7 +639,7 @@ const MemberRow = ({
 
       {isLeader && (
         <td className="px-5 py-4 text-right">
-          {!isCurrentUser && (
+          {!isCurrentUser && !disabledActions && (
             <button
               type="button"
               onClick={() => removeMemberMutation.mutate({ eventId, userId: member.userId })}

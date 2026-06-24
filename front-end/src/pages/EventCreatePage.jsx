@@ -17,9 +17,18 @@ import AppLayout from '../components/AppLayout';
 import eventApi from '../api/eventApi';
 import { EVENT_TYPE_OPTIONS } from '../utils/eventTypeUtils';
 
+const pad = (value) => String(value).padStart(2, '0');
+
+const toDateTimeLocalValue = (value) => {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
+
 const EventCreatePage = ({ user, onLogout }) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const minEventDateTime = toDateTimeLocalValue(new Date());
   const [localError, setLocalError] = useState('');
   const [form, setForm] = useState({
     name: '',
@@ -52,7 +61,7 @@ const EventCreatePage = ({ user, onLogout }) => {
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    const validationMessage = validateEventForm(form);
+    const validationMessage = validateEventForm(form, minEventDateTime);
     if (validationMessage) {
       setLocalError(validationMessage);
       return;
@@ -278,6 +287,7 @@ const EventCreatePage = ({ user, onLogout }) => {
                     type="datetime-local"
                     value={form.startTime}
                     onChange={handleChange}
+                    min={minEventDateTime}
                     className={inputClassName}
                   />
                 </Field>
@@ -291,7 +301,7 @@ const EventCreatePage = ({ user, onLogout }) => {
                     type="datetime-local"
                     value={form.endTime}
                     onChange={handleChange}
-                    min={form.startTime || undefined}
+                    min={form.startTime || minEventDateTime}
                     className={inputClassName}
                   />
                 </Field>
@@ -340,13 +350,17 @@ const EventCreatePage = ({ user, onLogout }) => {
   );
 };
 
-const validateEventForm = (form) => {
+const validateEventForm = (form, minEventDateTime = toDateTimeLocalValue(new Date())) => {
   if (!form.name.trim()) {
     return 'Vui lòng nhập tên sự kiện.';
   }
 
   if (!form.startTime) {
     return 'Vui lòng chọn thời gian bắt đầu.';
+  }
+
+  if (form.startTime < minEventDateTime) {
+    return 'Thời gian bắt đầu không được ở quá khứ.';
   }
 
   if (form.endTime && form.endTime <= form.startTime) {

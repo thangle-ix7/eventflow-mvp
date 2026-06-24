@@ -96,6 +96,7 @@ public class EventMemberService {
     @Transactional
     public EventInvitationResponseDTO addMember(Long eventId, EventMemberRequestDTO request, Long invitedByUserId) {
         Event event = getEventOrThrow(eventId);
+        assertEventAcceptsChanges(event, "Sự kiện đã đóng nên không thể mời thêm thành viên");
         User invitedBy = getInviterOrThrow(invitedByUserId);
         return mapInvitationToResponse(createInvitation(event, normalizeEmail(request.getEmail()), request.getRole(), invitedBy));
     }
@@ -103,6 +104,7 @@ public class EventMemberService {
     @Transactional
     public EventMemberBulkInviteResponseDTO bulkInviteMembers(Long eventId, EventMemberBulkInviteRequestDTO request, Long invitedByUserId) {
         Event event = getEventOrThrow(eventId);
+        assertEventAcceptsChanges(event, "Sự kiện đã đóng nên không thể mời thêm thành viên");
         User invitedBy = getInviterOrThrow(invitedByUserId);
         UserRole role = parseRoleOrDefault(request.getRole(), UserRole.MEMBER);
         Set<String> seenEmails = new LinkedHashSet<>();
@@ -158,6 +160,7 @@ public class EventMemberService {
     public EventInvitationResponseDTO cancelInvitation(Long eventId, Long invitationId) {
         EventInvitation invitation = eventInvitationRepository.findByEventIdAndIdWithUsers(eventId, invitationId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy lời mời"));
+        assertEventAcceptsChanges(invitation.getEvent(), "Sự kiện đã đóng nên không thể hủy lời mời");
         if (invitation.getStatus() != EventInvitationStatus.PENDING) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chỉ có thể hủy lời mời đang chờ xác nhận");
         }
@@ -175,6 +178,7 @@ public class EventMemberService {
 
         Event event = invitation.getEvent();
         User user = invitation.getInvitee();
+        assertEventAcceptsChanges(event, "Sự kiện đã đóng nên không thể xác nhận lời mời");
 
         if (!eventMemberRepository.existsByEventIdAndUserId(event.getId(), user.getId())) {
             subscriptionService.assertCanAddMember(event.getId());
@@ -196,6 +200,7 @@ public class EventMemberService {
     public EventMemberResponseDTO updateRole(Long eventId, Long userId, EventMemberRoleUpdateRequest request) {
         EventMember member = eventMemberRepository.findByEventIdAndUserId(eventId, userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy thành viên trong sự kiện"));
+        assertEventAcceptsChanges(member.getEvent(), "Sự kiện đã đóng nên không thể đổi vai trò thành viên");
 
         UserRole nextRole = parseRoleOrDefault(request.getRole(), null);
         assertEventKeepsLeader(eventId, member, nextRole);
@@ -207,6 +212,7 @@ public class EventMemberService {
     public void removeMember(Long eventId, Long userId, Long currentUserId) {
         EventMember member = eventMemberRepository.findByEventIdAndUserId(eventId, userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy thành viên trong sự kiện"));
+        assertEventAcceptsChanges(member.getEvent(), "Sự kiện đã đóng nên không thể xóa thành viên");
 
         if (member.getUser().getId().equals(currentUserId)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "LEADER không thể tự xóa mình khỏi sự kiện");
@@ -332,6 +338,13 @@ public class EventMemberService {
         }
         if (eventMemberRepository.countByEventIdAndRole(eventId, UserRole.LEADER) <= 1) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Sự kiện cần giữ ít nhất một leader");
+        }
+    }
+
+    private void assertEventAcceptsChanges(Event event, String message) {
+        String status = event.getStatus();
+        if ("CANCELLED".equalsIgnoreCase(status) || "CANCELED".equalsIgnoreCase(status) || "DONE".equalsIgnoreCase(status)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, message);
         }
     }
 }

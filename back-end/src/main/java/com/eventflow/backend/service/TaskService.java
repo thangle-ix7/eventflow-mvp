@@ -193,6 +193,7 @@ public class TaskService {
     public TaskResponseDTO createTask(Long eventId, TaskRequestDTO request) {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy sự kiện"));
+        assertEventAcceptsChanges(event);
 
         Department department = resolveDepartment(eventId, request.getDepartmentId());
         User assignee = resolveAssignee(eventId, request.getAssigneeId(), department);
@@ -226,6 +227,7 @@ public class TaskService {
     public TaskResponseDTO createSubtask(Long parentTaskId, TaskRequestDTO request) {
         Task parentTask = taskRepository.findByIdWithDetails(parentTaskId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy task cha"));
+        assertEventAcceptsChanges(parentTask.getEvent());
         if (parentTask.getParent() != null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chỉ task lớn mới được chia subtask");
         }
@@ -261,6 +263,7 @@ public class TaskService {
     public TaskResponseDTO updateTask(Long taskId, TaskRequestDTO request) {
         Task task = taskRepository.findByIdWithDetails(taskId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy task"));
+        assertEventAcceptsChanges(task.getEvent());
 
         Long eventId = task.getEvent().getId();
         TaskStatus previousStatus = task.getStatus();
@@ -320,6 +323,7 @@ public class TaskService {
     public void deleteTask(Long taskId) {
         Task task = taskRepository.findByIdWithDetails(taskId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy task"));
+        assertEventAcceptsChanges(task.getEvent());
 
         if (task.getParent() == null && taskRepository.existsByParentId(taskId)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không thể xóa task lớn khi vẫn còn subtask");
@@ -336,6 +340,7 @@ public class TaskService {
     public Task updateStatus(Long taskId, TaskStatus status) {
         Task task = taskRepository.findByIdWithDetails(taskId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy task"));
+        assertEventAcceptsChanges(task.getEvent());
         assertManualProgressAllowed(task);
         TaskStatus previousStatus = task.getStatus();
         task.setStatus(status);
@@ -359,6 +364,7 @@ public class TaskService {
     public TaskResponseDTO updatePriority(Long taskId, TaskPriority priority) {
         Task task = taskRepository.findByIdWithDetails(taskId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy task"));
+        assertEventAcceptsChanges(task.getEvent());
 
         task.setPriority(priority);
         Task savedTask = taskRepository.save(task);
@@ -369,6 +375,7 @@ public class TaskService {
     public TaskResponseDTO updateWork(Long taskId, TaskWorkUpdateRequest request) {
         Task task = taskRepository.findByIdWithDetails(taskId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy task"));
+        assertEventAcceptsChanges(task.getEvent());
         assertManualProgressAllowed(task);
 
         User updater = task.getAssignee();
@@ -399,6 +406,7 @@ public class TaskService {
     public TaskResponseDTO updateAssignment(Long taskId, TaskAssignmentRequest request) {
         Task task = taskRepository.findByIdWithDetails(taskId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy task"));
+        assertEventAcceptsChanges(task.getEvent());
 
         Long previousAssigneeId = task.getAssignee() != null ? task.getAssignee().getId() : null;
         Long eventId = task.getEvent().getId();
@@ -432,6 +440,7 @@ public class TaskService {
     public TaskResponseDTO reviewTask(Long taskId, Long reviewerId, TaskReviewRequest request) {
         Task task = taskRepository.findByIdWithDetails(taskId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy task"));
+        assertEventAcceptsChanges(task.getEvent());
         assertManualProgressAllowed(task);
 
         if (task.getStatus() != TaskStatus.IN_REVIEW) {
@@ -693,6 +702,13 @@ public class TaskService {
     private void assertManualProgressAllowed(Task task) {
         if (task.getParent() == null && taskRepository.existsByParentId(task.getId())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Task đã có subtask nên tiến độ được tính tự động từ subtask");
+        }
+    }
+
+    private void assertEventAcceptsChanges(Event event) {
+        String status = event.getStatus();
+        if ("CANCELLED".equalsIgnoreCase(status) || "CANCELED".equalsIgnoreCase(status) || "DONE".equalsIgnoreCase(status)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Sự kiện đã đóng nên không thể thay đổi công việc");
         }
     }
 

@@ -21,6 +21,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.regex.Pattern;
 
 @Slf4j
 @Service
@@ -28,6 +29,7 @@ import java.util.List;
 public class AdminUserEmailService {
 
     private static final int MAX_RECIPIENTS_PER_REQUEST = 500;
+    private static final Pattern HTML_TAG_PATTERN = Pattern.compile("<[^>]+>");
 
     private final UserRepository userRepository;
     private final JavaMailSender javaMailSender;
@@ -55,12 +57,13 @@ public class AdminUserEmailService {
 
         String subject = request.getSubject().trim();
         String body = request.getMessage().trim();
+        boolean htmlContent = "HTML".equalsIgnoreCase(request.getContentType());
         List<AdminUserEmailFailure> failures = new ArrayList<>();
         int sentCount = 0;
 
         for (User user : recipients) {
             try {
-                sendOne(user, subject, body);
+                sendOne(user, subject, body, htmlContent);
                 sentCount++;
             } catch (Exception e) {
                 log.warn("Admin email send failed to userId={} email={}: {}", user.getId(), user.getEmail(), e.getMessage());
@@ -94,7 +97,7 @@ public class AdminUserEmailService {
         return userRepository.findAllByIdInForAdminEmail(uniqueIds);
     }
 
-    private void sendOne(User user, String subject, String body) throws Exception {
+    private void sendOne(User user, String subject, String body, boolean htmlContent) throws Exception {
         MimeMessage message = javaMailSender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(
                 message,
@@ -103,7 +106,11 @@ public class AdminUserEmailService {
         helper.setFrom(fromEmail);
         helper.setTo(user.getEmail());
         helper.setSubject(subject);
-        helper.setText(buildPlainText(user, body), buildHtml(user, subject, body));
+        if (htmlContent) {
+            helper.setText(buildPlainTextFallback(body), body);
+        } else {
+            helper.setText(buildPlainText(user, body), buildHtml(user, subject, body));
+        }
         javaMailSender.send(message);
     }
 
@@ -158,6 +165,17 @@ public class AdminUserEmailService {
                   </body>
                 </html>
                 """.formatted(safeSubject, safeName, safeBody);
+    }
+
+    private String buildPlainTextFallback(String html) {
+        return HTML_TAG_PATTERN.matcher(html)
+                .replaceAll(" ")
+                .replace("&nbsp;", " ")
+                .replace("&amp;", "&")
+                .replace("&lt;", "<")
+                .replace("&gt;", ">")
+                .replaceAll("\\s+", " ")
+                .trim();
     }
 
     private String normalizeSearch(String search) {

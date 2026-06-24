@@ -1,6 +1,7 @@
 package com.eventflow.backend.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -26,6 +27,9 @@ public class AdminUserEmailRequest {
     private String subject;
 
     @NotBlank(message = "Nội dung email không được để trống")
-    @Size(max = 10000, message = "Nội dung email không được vượt quá 10000 ký tự")
+    @Size(max = 50000, message = "Nội dung email không được vượt quá 50000 ký tự")
     private String message;
+
+    @Pattern(regexp = "TEXT|HTML", message = "Định dạng nội dung email không hợp lệ")
+    private String contentType = "TEXT";
 }

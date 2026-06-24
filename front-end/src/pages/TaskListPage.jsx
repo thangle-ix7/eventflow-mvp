@@ -135,6 +135,9 @@ const getDeadlineLabel = (task) => {
 
   return 'Hạn';
 };
+
+const isEventClosed = (event) => ['CANCELLED', 'CANCELED', 'DONE'].includes(String(event?.status || '').toUpperCase());
+
 const TaskListPage = ({ user, onLogout }) => {
   const { eventId } = useParams();
   const [searchParams] = useSearchParams();
@@ -174,6 +177,7 @@ const TaskListPage = ({ user, onLogout }) => {
   const departments = departmentsQuery.data || [];
   const milestones = milestonesQuery.data || [];
   const isLeader = event?.role === 'LEADER';
+  const eventClosed = isEventClosed(event);
 
   /*
    * Query workload toàn event.
@@ -280,7 +284,7 @@ const TaskListPage = ({ user, onLogout }) => {
                   Tìm
                 </button>
 
-                {isLeader && (
+                {isLeader && !eventClosed && (
                   <Button
                     type="button"
                     variant={quickCreateStatus ? 'secondary' : 'primary'}
@@ -375,7 +379,13 @@ const TaskListPage = ({ user, onLogout }) => {
           </div>
         </Panel>
 
-        {isLeader && quickCreateStatus && (
+        {isLeader && eventClosed && (
+          <Panel className="border-amber-100 bg-amber-50/80 p-4 text-sm font-semibold leading-6 text-amber-800">
+            Sự kiện đã đóng nên không thể tạo mới hoặc thay đổi trạng thái công việc. Mở lại trạng thái ACTIVE trong phần thông tin sự kiện nếu cần chỉnh tiếp.
+          </Panel>
+        )}
+
+        {isLeader && !eventClosed && quickCreateStatus && (
           <Panel className="p-4">
             <InlineTaskCreator
               key={`task-creator-${quickCreateStatus}`}
@@ -409,6 +419,7 @@ const TaskListPage = ({ user, onLogout }) => {
             milestoneId={milestoneId}
             workloadByMemberId={workloadByMemberId}
             canCreate={isLeader}
+            canUpdateStatus={!eventClosed}
             onCreateInStatus={setQuickCreateStatus}
           />
         </Panel>
@@ -426,6 +437,7 @@ export const StatusTaskBoard = ({
   milestoneId,
   workloadByMemberId,
   canCreate,
+  canUpdateStatus = true,
   onCreateInStatus,
 }) => {
   const queryClient = useQueryClient();
@@ -449,7 +461,7 @@ export const StatusTaskBoard = ({
   });
 
   const handleDropTask = (nextStatus) => {
-    if (!draggingTask || draggingTask.status === nextStatus || updateStatusMutation.isPending) {
+    if (!canUpdateStatus || !draggingTask || draggingTask.status === nextStatus || updateStatusMutation.isPending) {
       setDraggingTask(null);
       return;
     }
@@ -486,6 +498,7 @@ export const StatusTaskBoard = ({
               onDragTask={setDraggingTask}
               onDropTask={handleDropTask}
               canCreate={canCreate}
+              canUpdateStatus={canUpdateStatus}
               onCreateInStatus={onCreateInStatus}
             />
           ))}
@@ -508,6 +521,7 @@ const StatusTaskColumn = ({
   onDragTask,
   onDropTask,
   canCreate,
+  canUpdateStatus,
   onCreateInStatus,
 }) => {
   const scrollerRef = useRef(null);
@@ -568,13 +582,13 @@ const StatusTaskColumn = ({
   return (
     <section
       className={`min-w-0 border-r border-slate-200 bg-slate-50/70 transition last:border-r-0 ${column.borderClass} ${
-        draggingTask && !column.readOnly && draggingTask.status !== column.key ? `ring-4 ${column.dropClass}` : ''
+        canUpdateStatus && draggingTask && !column.readOnly && draggingTask.status !== column.key ? `ring-4 ${column.dropClass}` : ''
       }`}
       onDragOver={(event) => {
         event.preventDefault();
-        event.dataTransfer.dropEffect = column.readOnly ? 'none' : 'move';
+        event.dataTransfer.dropEffect = column.readOnly || !canUpdateStatus ? 'none' : 'move';
       }}
-      onDrop={() => { if (!column.readOnly) onDropTask(column.key); }}
+      onDrop={() => { if (!column.readOnly && canUpdateStatus) onDropTask(column.key); }}
     >
       <div className="flex min-h-16 items-center justify-between gap-3 border-b border-slate-200 bg-white px-3 py-3 shadow-sm">
         <span className={`rounded-md px-3 py-1.5 text-xs font-black uppercase ${column.chipClass}`}>
@@ -584,7 +598,7 @@ const StatusTaskColumn = ({
           <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-black text-slate-600">
             {total}
           </span>
-          {canCreate && !column.readOnly && (
+          {canCreate && canUpdateStatus && !column.readOnly && (
             <button
               type="button"
               onClick={() => onCreateInStatus?.(column.key)}
@@ -624,6 +638,7 @@ const StatusTaskColumn = ({
             task={task}
             assigneeWorkload={task.assigneeId ? workloadByMemberId[String(task.assigneeId)] : null}
             disabled={isUpdatingStatus}
+            canDrag={canUpdateStatus}
             onDragStart={() => onDragTask(task)}
             onDragEnd={() => onDragTask(null)}
           />
@@ -646,6 +661,7 @@ const StatusTaskCard = ({
   task,
   assigneeWorkload,
   disabled,
+  canDrag,
   onDragStart,
   onDragEnd,
 }) => {
@@ -656,7 +672,7 @@ const StatusTaskCard = ({
   return (
     <Link
       to={`/events/${eventId}/tasks/${task.id}`}
-      draggable={!disabled}
+      draggable={!disabled && canDrag}
       onDragStart={(event) => {
         event.dataTransfer.effectAllowed = 'move';
         event.dataTransfer.setData('text/plain', String(task.id));

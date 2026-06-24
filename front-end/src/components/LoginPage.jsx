@@ -18,6 +18,7 @@ import LandingFooter from '../components/LandingFooter';
 
 const EMAIL_PATTERN = /^[A-Za-z0-9._%+-]+@(?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,63}$/;
 const EMAIL_FORMAT_MESSAGE = 'Email không đúng định dạng';
+const VERIFY_REDIRECT_DELAY_MS = 900;
 
 const LoginPage = ({ onLoginSuccess }) => {
   const location = useLocation();
@@ -48,6 +49,7 @@ const LoginPage = ({ onLoginSuccess }) => {
     }
 
     let active = true;
+    let redirectTimer;
     const verifyEmail = async () => {
       setLoading(true);
       setError('');
@@ -56,7 +58,13 @@ const LoginPage = ({ onLoginSuccess }) => {
       try {
         const data = await authApi.verifyEmail(token);
         if (active) {
-          onLoginSuccess(data, '/');
+          setLoading(false);
+          setMessage('Xác thực email thành công. EventFlow đang đăng nhập tài khoản của bạn...');
+          redirectTimer = window.setTimeout(() => {
+            if (active) {
+              onLoginSuccess(data, '/events');
+            }
+          }, VERIFY_REDIRECT_DELAY_MS);
         }
       } catch (err) {
         if (active) {
@@ -68,7 +76,7 @@ const LoginPage = ({ onLoginSuccess }) => {
           navigate('/login', { replace: true });
         }
       } finally {
-        if (active) {
+        if (active && !redirectTimer) {
           setLoading(false);
         }
       }
@@ -77,6 +85,9 @@ const LoginPage = ({ onLoginSuccess }) => {
     verifyEmail();
     return () => {
       active = false;
+      if (redirectTimer) {
+        window.clearTimeout(redirectTimer);
+      }
     };
   }, [location.pathname, navigate, onLoginSuccess, token]);
 
@@ -123,7 +134,7 @@ const LoginPage = ({ onLoginSuccess }) => {
           email: normalizedEmail,
           password: form.password,
         });
-        setMessage(data.message || 'Đăng ký thành công. Vui lòng kiểm tra email.');
+        setMessage(data.message || 'Tài khoản đã được tạo. Email đăng ký hợp lệ, vui lòng mở hộp thư và bấm link xác thực để đăng nhập.');
         setMode('login');
         return;
       }
@@ -204,6 +215,33 @@ const LoginPage = ({ onLoginSuccess }) => {
             <h1 className="text-2xl font-black text-slate-950">Đang xác thực email</h1>
             <p className="mt-3 text-sm font-medium leading-6 text-slate-500">
               Vui lòng chờ trong giây lát, EventFlow đang kiểm tra link xác thực của bạn.
+            </p>
+          </div>
+        </main>
+
+        <LandingFooter />
+      </div>
+    );
+  }
+
+  if (location.pathname === '/verify-email' && token && message) {
+    return (
+      <div className="flex min-h-screen flex-col bg-[#F8FCFF] text-slate-950">
+        <Header showNav={false} showLogin={false} ctaLabel="Về trang chủ" ctaTo="/" />
+
+        <main className="relative flex flex-1 items-center justify-center overflow-hidden px-5 py-16">
+          <div className="pointer-events-none absolute inset-0">
+            <div className="absolute -left-40 -top-40 h-[420px] w-[420px] rounded-full bg-sky-300/35 blur-3xl" />
+            <div className="absolute right-[-160px] bottom-[-120px] h-[460px] w-[460px] rounded-full bg-emerald-300/30 blur-3xl" />
+          </div>
+
+          <div className="relative w-full max-w-md rounded-[2rem] border border-emerald-100 bg-white/85 p-8 text-center shadow-2xl shadow-emerald-100/80 backdrop-blur-2xl">
+            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-emerald-500 to-sky-400 text-white shadow-xl shadow-emerald-200">
+              <CheckCircle2 className="h-8 w-8" />
+            </div>
+            <h1 className="text-2xl font-black text-slate-950">Xác thực email thành công</h1>
+            <p className="mt-3 text-sm font-medium leading-6 text-slate-500">
+              {message}
             </p>
           </div>
         </main>

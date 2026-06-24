@@ -303,11 +303,11 @@ const EventEditForm = ({ event, eventId, mutation }) => {
         >
           <input
             name="startTime"
-            type="datetime-local"
-            value={form.startTime}
-            onChange={handleChange}
-            className={inputClassName}
-          />
+          type="datetime-local"
+          value={form.startTime}
+          onChange={handleChange}
+          className={inputClassName}
+        />
         </Field>
 
         <Field
@@ -317,11 +317,11 @@ const EventEditForm = ({ event, eventId, mutation }) => {
           <input
             name="endTime"
             type="datetime-local"
-            value={form.endTime}
-            onChange={handleChange}
-            min={form.startTime || undefined}
-            className={inputClassName}
-          />
+          value={form.endTime}
+          onChange={handleChange}
+          min={form.startTime || undefined}
+          className={inputClassName}
+        />
         </Field>
       </div>
 

@@ -23,7 +23,34 @@ const DEFAULT_EMAIL_FORM = {
   recipientMode: 'selected',
   subject: '',
   message: '',
+  contentType: 'TEXT',
 };
+
+const HTML_EMAIL_SAMPLE = `<div style="font-family: Arial, Helvetica, sans-serif; background: #f6fbff; padding: 24px 0; color: #1e293b;">
+  <div style="max-width: 620px; margin: 0 auto; padding: 0 16px;">
+    <div style="font-size: 20px; font-weight: 800; margin-bottom: 16px; color: #0f172a;">
+      Event<span style="color: #0ea5e9;">Flow</span>
+    </div>
+
+    <div style="background: #ffffff; border: 1px solid #dbeafe; border-radius: 18px; overflow: hidden;">
+      <div style="height: 6px; background: linear-gradient(90deg, #0ea5e9, #10b981);"></div>
+
+      <div style="padding: 28px 28px 24px 28px;">
+        <div style="display: inline-block; padding: 6px 12px; border-radius: 999px; background: #e0f2fe; color: #0284c7; font-size: 12px; font-weight: 700; letter-spacing: 0.04em; margin-bottom: 16px;">
+          EVENTFLOW
+        </div>
+
+        <h1 style="font-size: 24px; line-height: 1.3; margin: 0 0 12px; color: #0f172a;">
+          Tiêu đề thông báo
+        </h1>
+
+        <p style="font-size: 15px; line-height: 1.7; margin: 0; color: #475569;">
+          Nội dung email của bạn ở đây.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>`;
 
 const AdminUserListPage = () => {
   const navigate = useNavigate();
@@ -110,6 +137,7 @@ const AdminUserListPage = () => {
       search: emailForm.recipientMode === 'all' ? search : '',
       subject: emailForm.subject.trim(),
       message: emailForm.message.trim(),
+      contentType: emailForm.contentType,
     });
   };
 
@@ -197,6 +225,31 @@ const AdminUserListPage = () => {
             </label>
           </div>
 
+          <div className="grid gap-2 sm:grid-cols-2">
+            <label className="flex cursor-pointer items-center gap-2 rounded-2xl border border-sky-100 bg-white px-3 py-2 text-sm font-black text-slate-700">
+              <input
+                type="radio"
+                name="contentType"
+                value="TEXT"
+                checked={emailForm.contentType === 'TEXT'}
+                onChange={handleEmailFieldChange('contentType')}
+                className="h-4 w-4 accent-sky-500"
+              />
+              Text
+            </label>
+            <label className="flex cursor-pointer items-center gap-2 rounded-2xl border border-sky-100 bg-white px-3 py-2 text-sm font-black text-slate-700">
+              <input
+                type="radio"
+                name="contentType"
+                value="HTML"
+                checked={emailForm.contentType === 'HTML'}
+                onChange={handleEmailFieldChange('contentType')}
+                className="h-4 w-4 accent-sky-500"
+              />
+              HTML
+            </label>
+          </div>
+
           <input
             value={emailForm.subject}
             onChange={handleEmailFieldChange('subject')}
@@ -207,11 +260,35 @@ const AdminUserListPage = () => {
           <textarea
             value={emailForm.message}
             onChange={handleEmailFieldChange('message')}
-            placeholder="Nội dung email"
-            rows={5}
-            maxLength={10000}
-            className="w-full rounded-2xl border border-sky-100 bg-white px-3 py-3 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100"
+            placeholder={emailForm.contentType === 'HTML' ? '<div style="...">Nội dung email HTML</div>' : 'Nội dung email'}
+            rows={emailForm.contentType === 'HTML' ? 9 : 5}
+            maxLength={50000}
+            className="w-full rounded-2xl border border-sky-100 bg-white px-3 py-3 font-mono text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100"
           />
+
+          {emailForm.contentType === 'HTML' && (
+            <div className="space-y-3 rounded-2xl border border-sky-100 bg-white p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">Preview HTML</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSendResult(null);
+                    setEmailForm((current) => ({ ...current, message: HTML_EMAIL_SAMPLE }));
+                  }}
+                  className="rounded-xl border border-sky-100 bg-sky-50 px-3 py-1.5 text-xs font-black text-sky-700 transition hover:bg-sky-100"
+                >
+                  Dùng mẫu EventFlow
+                </button>
+              </div>
+              <iframe
+                title="Xem trước email HTML"
+                sandbox=""
+                srcDoc={emailForm.message || '<div style="font-family: Arial, sans-serif; color: #64748b; padding: 16px;">Nhập HTML để xem trước.</div>'}
+                className="h-64 w-full rounded-xl border border-slate-200 bg-white"
+              />
+            </div>
+          )}
 
           {sendEmailMutation.error && (
             <ErrorState error={sendEmailMutation.error} title="Không gửi được email" onDismiss={() => sendEmailMutation.reset()} />

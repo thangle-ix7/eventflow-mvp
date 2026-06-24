@@ -40,6 +40,7 @@ logout: 'Đăng xuất',
 // Ví dụ dùng: t('sidebar.dashboard')
 // =====================================================
 sidebar: {
+  info: 'Thông tin chung',
   dashboard: 'Tổng quan',
   events: 'Sự kiện',
   departments: 'Ban tổ chức',

@@ -44,6 +44,8 @@ const workloadText = (workload) => {
   return ` - ${workload.assignedTasks} task - ${workload.workloadStatus}`;
 };
 
+const isEventClosed = (event) => ['CANCELLED', 'CANCELED', 'DONE'].includes(String(event?.status || '').toUpperCase());
+
 const TaskCreatePage = ({ user, onLogout }) => {
   const { eventId } = useParams();
   const [searchParams] = useSearchParams();
@@ -104,6 +106,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
   });
 
   const maxDeadline = toDateTimeLocalValue(eventQuery.data?.endTime || eventQuery.data?.startTime || eventQuery.data?.eventDate);
+  const eventClosed = isEventClosed(eventQuery.data);
 
   const assignableMembers = useMemo(() => {
     if (!form.departmentId) {
@@ -230,6 +233,12 @@ const TaskCreatePage = ({ user, onLogout }) => {
       onLogout={onLogout}
     >
       <div className="mx-auto max-w-6xl space-y-6">
+        {eventClosed && (
+          <div className="rounded-[2rem] border border-amber-100 bg-amber-50/80 p-5 text-sm font-semibold leading-6 text-amber-800 shadow-sm">
+            Sự kiện đã đóng nên không thể tạo công việc mới. Mở lại trạng thái ACTIVE trong phần thông tin sự kiện nếu cần chỉnh tiếp.
+          </div>
+        )}
+
         <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div className="min-w-0">
                 <p className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-sky-600">
@@ -254,7 +263,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
             </div>
         </header>
 
-        <div className="grid gap-6 lg:grid-cols-[1fr_0.72fr]">
+        <div className={`grid gap-6 lg:grid-cols-[1fr_0.72fr] ${eventClosed ? 'pointer-events-none opacity-60' : ''}`}>
           <form
             onSubmit={handleSubmit}
             className="overflow-hidden rounded-[2rem] border border-sky-100 bg-white shadow-xl shadow-sky-100/70"

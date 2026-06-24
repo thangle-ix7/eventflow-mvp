@@ -41,6 +41,7 @@ logout: 'Logout',
 // Example: t('sidebar.dashboard')
 // =====================================================
 sidebar: {
+  info: 'General info',
   dashboard: 'Dashboard',
   events: 'Events',
   departments: 'Departments',

@@ -93,7 +93,9 @@ public class AuthService {
         }
 
         if (!user.isEmailVerified()) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Vui lòng xác thực email trước khi đăng nhập");
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "Tài khoản đã được tạo nhưng chưa xác thực email. Vui lòng mở email đăng ký và bấm link xác thực trước khi đăng nhập.");
         }
 
         if (user.getFailedLoginAttempts() != 0 || user.getLockedUntil() != null) {

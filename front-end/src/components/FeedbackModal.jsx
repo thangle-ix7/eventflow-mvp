@@ -58,14 +58,14 @@ const FeedbackModal = ({ isOpen, selectedEvent, user, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm">
-      <Panel className="w-full max-w-xl overflow-hidden">
+    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/45 p-3 backdrop-blur-sm sm:p-4">
+      <Panel className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-xl flex-col overflow-hidden sm:max-h-[calc(100dvh-2rem)]">
         <div className="flex items-start justify-between gap-4 border-b border-sky-100 bg-gradient-to-r from-sky-50 via-white to-emerald-50 px-5 py-4">
-          <div className="flex items-start gap-3">
+          <div className="flex min-w-0 items-start gap-3">
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-sky-600 shadow-sm">
               <MessageSquareHeart size={20} />
             </span>
-            <div>
+            <div className="min-w-0">
               <h2 className="text-lg font-black text-slate-950">Gửi feedback cho EventFlow</h2>
               <p className="mt-1 text-sm font-semibold leading-6 text-slate-500">
                 Gửi lỗi, nhu cầu mới, flow chưa hợp lý hoặc template bạn muốn có. Team sẽ phản hồi qua thông báo EventFlow, Telegram hoặc email khi xử lý.
@@ -76,7 +76,7 @@ const FeedbackModal = ({ isOpen, selectedEvent, user, onClose }) => {
           <button
             type="button"
             onClick={onClose}
-            className="rounded-2xl p-2 text-slate-400 transition hover:bg-white hover:text-slate-700"
+            className="shrink-0 rounded-2xl p-2 text-slate-400 transition hover:bg-white hover:text-slate-700"
             aria-label="Đóng feedback"
           >
             <X size={18} />
@@ -84,7 +84,7 @@ const FeedbackModal = ({ isOpen, selectedEvent, user, onClose }) => {
         </div>
 
         {mutation.isSuccess ? (
-          <div className="p-6">
+          <div className="min-h-0 overflow-y-auto p-5 sm:p-6">
             <div className="rounded-3xl border border-emerald-100 bg-emerald-50 p-5 text-emerald-800">
               <CheckCircle2 className="h-7 w-7" />
               <h3 className="mt-3 font-black">Đã nhận feedback của bạn</h3>
@@ -98,7 +98,7 @@ const FeedbackModal = ({ isOpen, selectedEvent, user, onClose }) => {
             </div>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-4 p-5">
+          <form onSubmit={handleSubmit} className="min-h-0 space-y-4 overflow-y-auto p-4 sm:p-5">
             {mutation.error && (
               <ErrorState
                 title="Không gửi được feedback"

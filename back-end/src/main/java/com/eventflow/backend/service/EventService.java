@@ -13,6 +13,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -63,13 +64,16 @@ public class EventService {
         subscriptionService.assertCanCreateEvent(userId);
 
         EventNature nature = request.getNature() != null ? request.getNature() : EventNature.NORMAL;
+        LocalDateTime startTime = resolveStartTime(request);
+        LocalDateTime endTime = resolveEndTime(request);
+        validateOperationalEventTime(startTime, endTime);
 
         Event event = eventRepository.save(Event.builder()
                 .name(request.getName().trim())
                 .description(normalizeOptionalText(request.getDescription()))
                 .location(normalizeOptionalText(request.getLocation()))
-                .eventDate(resolveStartTime(request))
-                .endTime(resolveEndTime(request))
+                .eventDate(startTime)
+                .endTime(endTime)
                 .status(normalizeStatus(request.getStatus()))
                 .nature(nature)
                 .contextDescription(normalizeOptionalText(request.getContextDescription()))
@@ -98,12 +102,18 @@ public class EventService {
         if (activatingEvent) {
             subscriptionService.assertCanCreateEvent(userId);
         }
+        LocalDateTime startTime = resolveStartTime(request);
+        LocalDateTime endTime = resolveEndTime(request);
+        boolean timeChanged = !startTime.equals(event.getEventDate()) || !Objects.equals(endTime, event.getEndTime());
+        if (event.getNature() != EventNature.TEMPLATE && timeChanged) {
+            validateOperationalEventTime(startTime, endTime);
+        }
 
         event.setName(request.getName().trim());
         event.setDescription(normalizeOptionalText(request.getDescription()));
         event.setLocation(normalizeOptionalText(request.getLocation()));
-        event.setEventDate(resolveStartTime(request));
-        event.setEndTime(resolveEndTime(request));
+        event.setEventDate(startTime);
+        event.setEndTime(endTime);
         event.setStatus(nextStatus);
         event.setContextDescription(normalizeOptionalText(request.getContextDescription()));
         event.setEventType(normalizeEventType(request.getEventType()));
@@ -422,6 +432,17 @@ public class EventService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Thời gian kết thúc sự kiện phải sau thời gian bắt đầu");
         }
         return endTime;
+    }
+
+    private void validateOperationalEventTime(LocalDateTime startTime, LocalDateTime endTime) {
+        LocalDateTime now = LocalDateTime.now();
+        if (startTime.isBefore(now)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Thời gian bắt đầu sự kiện không được ở quá khứ");
+        }
+
+        if (endTime != null && endTime.isBefore(now)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Thời gian kết thúc sự kiện không được ở quá khứ");
+        }
     }
 
     private String normalizeOptionalText(String value) {

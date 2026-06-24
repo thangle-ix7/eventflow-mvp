@@ -23,12 +23,14 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -110,6 +112,27 @@ class EventMemberServiceTest {
         assertThat(response.getEmail()).isEqualTo("member@example.com");
         verify(eventMemberRepository, never()).save(any());
         verify(authEmailService).sendEventInvitationEmail(eq("member@example.com"), anyString(), eq("Workshop"), eq("Leader"));
+    }
+
+    @Test
+    void addMemberRejectsClosedEvent() {
+        Event event = Event.builder()
+                .id(10L)
+                .name("Workshop")
+                .status("CANCELLED")
+                .eventDate(LocalDateTime.now().plusDays(7))
+                .build();
+
+        when(eventRepository.findById(10L)).thenReturn(Optional.of(event));
+
+        assertThatThrownBy(() -> eventMemberService.addMember(
+                10L,
+                new EventMemberRequestDTO("member@example.com", "MEMBER"),
+                1L))
+                .isInstanceOf(org.springframework.web.server.ResponseStatusException.class)
+                .hasMessageContaining("Sự kiện đã đóng nên không thể mời thêm thành viên");
+
+        verifyNoInteractions(userRepository, authEmailService);
     }
 
     @Test
