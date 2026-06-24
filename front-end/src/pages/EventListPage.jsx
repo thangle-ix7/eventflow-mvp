@@ -28,20 +28,17 @@ import {
 } from '../components/ui';
 import eventApi from '../api/eventApi';
 import { formatDate } from '../utils/dateUtils';
+// import LanguageSwitcher from '../components/LanguageSwitcher';
+import { useTranslation } from 'react-i18next';
 
 const PAGE_SIZE = 8;
 
-const STATUS_OPTIONS = [
-  { value: '', label: 'Tất cả' },
-  { value: 'ACTIVE', label: 'Đang diễn ra' },
-  { value: 'DONE', label: 'Hoàn thành' },
-  { value: 'CANCELLED', label: 'Đã hủy' },
-];
+
 
 const SORT_OPTIONS = {
-  upcoming: { sort: 'eventDate', direction: 'asc' },
-  newest: { sort: 'createdAt', direction: 'desc' },
-  name: { sort: 'name', direction: 'asc' },
+  upcoming: { sort: 'eventDate', direction: 'asc', label: 'event.upcoming' },
+  newest: { sort: 'createdAt', direction: 'desc', label: 'event.newest' },
+  name: { sort: 'name', direction: 'asc', label: 'event.nameAZ' },
 };
 
 const EventListPage = ({ user, onLogout }) => {
@@ -99,6 +96,14 @@ const EventListPage = ({ user, onLogout }) => {
   const handleOpenEvent = (eventId) => {
     navigate(`/events/${eventId}`);
   };
+ const { t } = useTranslation();
+  const STATUS_OPTIONS = [
+  { value: '', label: t('common.all') },
+  { value: 'ACTIVE', label: t('event.active') },
+  { value: 'DRAFT', label: t('event.draft') },
+  { value: 'DONE', label: t('event.done') },
+  { value: 'CANCELLED', label: t('event.cancelled') },
+];
 
   return (
     <AppLayout
@@ -112,33 +117,33 @@ const EventListPage = ({ user, onLogout }) => {
         <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div className="min-w-0">
               <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-600">
-                Event workspace
+                {t('event.workspace').toUpperCase()}
               </p>
 
               <h1 className="mt-1 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
-                Sự kiện của bạn
+                 {t('event.myEvents')}
               </h1>
 
               <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-slate-600">
-                Quản lý các sự kiện bạn tạo hoặc tham gia, mở workspace để theo dõi ban tổ chức, task và dashboard.
+                {t('event.workspaceDescription')}
               </p>
             </div>
 
             <div className="flex w-full min-w-0 flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
               <Button as={Link} to="/events/templates" variant="secondary" className="min-h-11 w-full rounded-2xl sm:w-auto">
                 <LayoutTemplate size={18} />
-                Thư viện Mẫu
+                {t('event.templateLibrary')}
               </Button>
 
               {user?.systemRole === 'ADMIN' && (
                 <>
                   <Button as={Link} to="/admin/feedback" variant="secondary" className="min-h-11 w-full rounded-2xl sm:w-auto">
                     <MessageSquareHeart size={18} />
-                    Feedback
+                    {t('event.feedback')}
                   </Button>
                   <Button as={Link} to="/admin/templates" variant="secondary" className="min-h-11 w-full rounded-2xl sm:w-auto">
                     <Settings size={18} />
-                    Quản lý Mẫu
+                    {t('event.manageTemplates')}
                   </Button>
                   <Button as={Link} to="/admin/discount-codes" variant="secondary" className="min-h-11 w-full rounded-2xl sm:w-auto">
                     <BadgePercent size={18} />
@@ -157,7 +162,7 @@ const EventListPage = ({ user, onLogout }) => {
                 className="min-h-11 w-full rounded-2xl bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 font-black text-white shadow-xl shadow-cyan-100 sm:w-auto"
               >
                 <Plus size={18} />
-                Tạo sự kiện
+                {t('event.create')}
               </Button>
             </div>
         </header>
@@ -175,10 +180,10 @@ const EventListPage = ({ user, onLogout }) => {
               <input
                 id="event-search"
                 name="search"
-                aria-label="Tìm kiếm sự kiện"
+                aria-label={t('event.searchPlaceholder')}
                 value={searchInput}
                 onChange={(event) => setSearchInput(event.target.value)}
-                placeholder="Tìm sự kiện theo tên..."
+                placeholder={t('event.searchPlaceholder')}
                 className="h-12 w-full rounded-2xl border border-sky-100 bg-sky-50/60 px-11 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:bg-white focus:ring-4 focus:ring-cyan-100"
               />
 
@@ -187,7 +192,7 @@ const EventListPage = ({ user, onLogout }) => {
                   type="button"
                   onClick={() => setSearchInput('')}
                   className="absolute right-3 top-1/2 rounded-xl p-1.5 text-slate-400 transition hover:bg-white hover:text-slate-700"
-                  aria-label="Xóa tìm kiếm"
+                  aria-label={t('common.close')}
                 >
                   <X size={16} />
                 </button>
@@ -213,15 +218,15 @@ const EventListPage = ({ user, onLogout }) => {
                 />
 
                 <select
-                  aria-label="Sắp xếp sự kiện"
+                  aria-label={t('event.sortBy')}
                   name="sortMode"
                   value={sortMode}
                   onChange={handleSortModeChange}
                   className="h-12 w-full min-w-0 rounded-2xl border border-sky-100 bg-white px-10 text-sm font-black text-slate-700 outline-none transition focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100 sm:min-w-44"
                 >
-                  <option value="upcoming">Gần nhất</option>
-                  <option value="newest">Mới tạo</option>
-                  <option value="name">Tên A-Z</option>
+                  <option value="upcoming">{t('event.upcoming')}</option>
+                  <option value="newest">{t('event.newest')}</option>
+                  <option value="name">{t('event.nameAZ')}</option>
                 </select>
               </label>
 
@@ -232,21 +237,21 @@ const EventListPage = ({ user, onLogout }) => {
                   onClick={handleClearFilters}
                   className="rounded-2xl px-3 font-black text-sky-600"
                 >
-                  Xóa lọc
+                  {t('event.clearFilters')}
                 </Button>
               )}
             </div>
           </div>
         </section>
 
-        {query.isLoading && <LoadingState message="Đang tải danh sách sự kiện..." />}
+        {query.isLoading && <LoadingState message={t('event.loadingList')} />}
 
         {query.error && (
-          <ErrorState error={query.error} title="Không tải được danh sách sự kiện" />
+          <ErrorState error={query.error} title={t('event.errorLoading')} />
         )}
 
         {!query.isLoading && !query.error && events.length === 0 && (
-          <EventListEmpty hasFilters={hasFilters} onClearFilters={handleClearFilters} />
+          <EventListEmpty hasFilters={hasFilters} onClearFilters={handleClearFilters} t={t} />
         )}
 
         {!query.isLoading && !query.error && events.length > 0 && (
@@ -257,6 +262,7 @@ const EventListPage = ({ user, onLogout }) => {
                   key={event.id}
                   event={event}
                   onOpen={() => handleOpenEvent(event.id)}
+                  t={t}
                 />
               ))}
             </div>
@@ -271,7 +277,7 @@ const EventListPage = ({ user, onLogout }) => {
                   className="rounded-2xl"
                 >
                   <ChevronLeft size={16} />
-                  Trước
+                  {t('event.previous')}
                 </Button>
 
                 <Button
@@ -281,7 +287,7 @@ const EventListPage = ({ user, onLogout }) => {
                   variant="secondary"
                   className="rounded-2xl"
                 >
-                  Sau
+                  {t('event.next')}
                   <ChevronRight size={16} />
                 </Button>
               </div>
@@ -316,7 +322,7 @@ const FilterChip = ({ active, label, onClick }) => (
   </button>
 );
 
-const EventCard = ({ event, onOpen }) => (
+const EventCard = ({ event, onOpen, t }) => (
   <button
     type="button"
     onClick={onOpen}
@@ -344,13 +350,13 @@ const EventCard = ({ event, onOpen }) => (
 
     <div className="relative mt-5 grid gap-3 text-sm font-semibold text-slate-600">
       <EventMeta icon={CalendarDays} text={formatEventRange(event)} />
-      <EventMeta icon={MapPin} text={event.location || 'Chưa cập nhật địa điểm'} />
-      <EventMeta icon={Users} text={event.role === 'LEADER' ? 'Bạn điều phối' : 'Bạn tham gia'} />
+      <EventMeta icon={MapPin} text={event.location || t('event.noLocation')} />
+      <EventMeta icon={Users} text={event.role === 'LEADER' ? t('event.leader') : t('event.join')} />
     </div>
 
     <div className="relative mt-auto pt-5">
       <span className="inline-flex items-center gap-2 rounded-full bg-sky-50 px-3 py-1.5 text-sm font-black text-sky-600 transition group-hover:bg-white group-hover:text-emerald-600">
-        Mở workspace
+        {t('event.openWorkspace')}
         <ArrowRight size={15} />
       </span>
     </div>
@@ -366,14 +372,14 @@ const EventMeta = ({ icon: Icon, text }) => (
   </span>
 );
 
-const EventListEmpty = ({ hasFilters, onClearFilters }) => (
+const EventListEmpty = ({ hasFilters, onClearFilters, t }) => (
   <EmptyState
     icon={CalendarDays}
-    title={hasFilters ? 'Không tìm thấy sự kiện' : 'Bạn chưa có sự kiện nào'}
+    title={hasFilters ? t('event.notFound') : t('event.noEvents')}
     description={
       hasFilters
-        ? 'Không có sự kiện nào khớp với bộ lọc hiện tại. Hãy thử xóa lọc hoặc đổi từ khóa tìm kiếm.'
-        : 'Tạo sự kiện đầu tiên để bắt đầu quản lý ban tổ chức, task và dashboard trên EventFlow.'
+        ? t('event.noEventsFilter')
+        : t('event.noEventsDescription')
     }
     actions={
       <>
@@ -384,7 +390,7 @@ const EventListEmpty = ({ hasFilters, onClearFilters }) => (
             variant="secondary"
             className="rounded-2xl"
           >
-            Xóa lọc
+            {t('event.clearFilters')}
           </Button>
         )}
 
@@ -394,7 +400,7 @@ const EventListEmpty = ({ hasFilters, onClearFilters }) => (
           className="rounded-2xl bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 font-black text-white shadow-xl shadow-cyan-100"
         >
           <Plus size={18} />
-          Tạo sự kiện
+          {t('event.create')}
         </Button>
       </>
     }
