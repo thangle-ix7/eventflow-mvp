@@ -42,6 +42,7 @@ import AdminTemplateDetailPage from './pages/AdminTemplateDetailPage';
 import AdminFeedbackPage from './pages/AdminFeedbackPage';
 import AdminDiscountCodePage from './pages/AdminDiscountCodePage';
 import AdminUserListPage from './pages/AdminUserListPage';
+import AdminUserEmailPage from './pages/AdminUserEmailPage';
 import AdminUserDetailPage from './pages/AdminUserDetailPage';
 import eventApi from './api/eventApi';
 import userApi from './api/userApi';
@@ -341,6 +342,7 @@ function App() {
           <Route path="/admin/feedback" element={<AdminFeedbackPage {...protectedProps} />} />
           <Route path="/admin/discount-codes" element={<AdminDiscountCodePage {...protectedProps} />} />
           <Route path="/admin/users" element={<AdminUserListPage {...protectedProps} />} />
+          <Route path="/admin/users/email" element={<AdminUserEmailPage {...protectedProps} />} />
           <Route path="/admin/users/:userId" element={<AdminUserDetailPage {...protectedProps} />} />
 
           {/* Department Routes */}
@@ -526,6 +528,8 @@ const resolveErrorTitle = (status) => {
 };
 
 export default App;
+
+
 
 
 
