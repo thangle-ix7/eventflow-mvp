@@ -28,15 +28,19 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Query("""
             SELECT u
             FROM User u
-            WHERE LOWER(u.name) LIKE LOWER(CONCAT('%', :search, '%'))
-               OR LOWER(u.email) LIKE LOWER(CONCAT('%', :search, '%'))
+            WHERE u.emailVerified = true
+              AND (
+                  LOWER(u.name) LIKE LOWER(CONCAT('%', :search, '%'))
+                  OR LOWER(u.email) LIKE LOWER(CONCAT('%', :search, '%'))
+              )
             """)
     Page<User> findAllForAdmin(@Param("search") String search, Pageable pageable);
 
     @Query("""
             SELECT u
             FROM User u
-            WHERE u.id IN :ids
+            WHERE u.emailVerified = true
+              AND u.id IN :ids
             ORDER BY u.name ASC, u.id ASC
             """)
     List<User> findAllByIdInForAdminEmail(@Param("ids") Collection<Long> ids);
@@ -44,8 +48,11 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Query("""
             SELECT u
             FROM User u
-            WHERE LOWER(u.name) LIKE LOWER(CONCAT('%', :search, '%'))
-               OR LOWER(u.email) LIKE LOWER(CONCAT('%', :search, '%'))
+            WHERE u.emailVerified = true
+              AND (
+                  LOWER(u.name) LIKE LOWER(CONCAT('%', :search, '%'))
+                  OR LOWER(u.email) LIKE LOWER(CONCAT('%', :search, '%'))
+              )
             ORDER BY u.createdAt DESC, u.id DESC
             """)
     List<User> findAllForAdminEmail(@Param("search") String search);
@@ -67,7 +74,3 @@ public interface UserRepository extends JpaRepository<User, Long> {
             String tokenHash,
             LocalDateTime now);
 }
-
-
-
-
