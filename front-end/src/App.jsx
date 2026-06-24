@@ -41,6 +41,8 @@ import AdminTemplateCreatePage from './pages/AdminTemplateCreatePage';
 import AdminTemplateDetailPage from './pages/AdminTemplateDetailPage';
 import AdminFeedbackPage from './pages/AdminFeedbackPage';
 import AdminDiscountCodePage from './pages/AdminDiscountCodePage';
+import AdminUserListPage from './pages/AdminUserListPage';
+import AdminUserDetailPage from './pages/AdminUserDetailPage';
 import eventApi from './api/eventApi';
 import userApi from './api/userApi';
 import { identifyUser, resetAnalytics, trackEvent, trackPageView } from './lib/analytics';
@@ -338,6 +340,8 @@ function App() {
           <Route path="/admin/templates/:templateId" element={<AdminTemplateDetailPage {...protectedProps} />} />
           <Route path="/admin/feedback" element={<AdminFeedbackPage {...protectedProps} />} />
           <Route path="/admin/discount-codes" element={<AdminDiscountCodePage {...protectedProps} />} />
+          <Route path="/admin/users" element={<AdminUserListPage {...protectedProps} />} />
+          <Route path="/admin/users/:userId" element={<AdminUserDetailPage {...protectedProps} />} />
 
           {/* Department Routes */}
           <Route
@@ -522,6 +526,7 @@ const resolveErrorTitle = (status) => {
 };
 
 export default App;
+
 
 
 

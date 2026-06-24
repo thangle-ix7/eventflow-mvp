@@ -99,6 +99,11 @@ const AppLayoutFrame = ({
   const selectedEventId = selectedEvent?.id ? String(selectedEvent.id) : null;
   const permissions = getEventPermissions(selectedEvent);
   const departmentHomePath = getDepartmentHomePath(selectedEvent);
+  const currentRoleLabel = selectedEvent?.role
+    ? t(`role.${selectedEvent.role}`, {
+      defaultValue: selectedEvent.role === 'LEADER' ? t('role.LEADER') : t('role.MEMBER'),
+    })
+    : t('userMenu.account');
 
   const eventNav = selectedEvent?.id
     ? [
@@ -162,6 +167,7 @@ const AppLayoutFrame = ({
         { label: 'Quản lý mẫu', description: 'Khu quản trị', to: '/admin/templates' },
         { label: 'Hộp thư góp ý', description: 'Góp ý người dùng', to: '/admin/feedback' },
         { label: 'Mã giảm giá', description: 'Ưu đãi theo gói', to: '/admin/discount-codes' },
+        { label: 'Quản lý user', description: 'Tài khoản hệ thống', to: '/admin/users' },
       ]
       : []),
     { label: 'Hồ sơ cá nhân', description: '', to: '/profile' },
@@ -302,8 +308,8 @@ const AppLayoutFrame = ({
               {selectedEvent.name}
             </p>
             <p className="mt-1 text-xs font-black text-slate-500">
-              {selectedEvent?.role ? t(`role.${selectedEvent.role}`, {defaultValue: selectedEvent.role === 'LEADER'        ? t('role.LEADER')
-            : t('role.MEMBER'),  })   : t('userMenu.account')}
+              {currentRoleLabel}
+
             </p>
           </div>
         </div>
@@ -658,7 +664,7 @@ const AppLayoutFrame = ({
                   {user.name}
                 </span>
                 <span className="hidden text-xs font-bold sm:block">
-                  {selectedEvent?.role ? (selectedEvent.role === 'LEADER' ? 'Trưởng nhóm' : 'Thành viên') : 'Tài khoản'}
+                  {currentRoleLabel}
                 </span>
               </Link>
 
@@ -810,3 +816,5 @@ const formatNotificationTime = (value, lang) => {
 };
 
 export default AppLayout;
+
+

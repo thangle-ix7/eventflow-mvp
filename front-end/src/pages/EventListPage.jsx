@@ -15,7 +15,8 @@ import {
   X,
   LayoutTemplate,
   MessageSquareHeart,
-  Settings
+  Settings,
+  UserRound
 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import {
@@ -147,6 +148,10 @@ const EventListPage = ({ user, onLogout }) => {
                   <Button as={Link} to="/admin/discount-codes" variant="secondary" className="min-h-11 w-full rounded-2xl sm:w-auto">
                     <BadgePercent size={18} />
                     Mã giảm giá
+                  </Button>
+                  <Button as={Link} to="/admin/users" variant="secondary" className="min-h-11 w-full rounded-2xl sm:w-auto">
+                    <UserRound size={18} />
+                    User
                   </Button>
                 </>
               )}
@@ -403,3 +408,4 @@ const EventListEmpty = ({ hasFilters, onClearFilters, t }) => (
 );
 
 export default EventListPage;
+
