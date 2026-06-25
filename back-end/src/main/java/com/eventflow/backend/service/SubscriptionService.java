@@ -175,71 +175,49 @@ public class SubscriptionService {
 
     @Transactional
     public CheckoutResponseDTO createCheckout(Long userId, CheckoutRequestDTO request) {
-        SubscriptionPlan plan = subscriptionPlanRepository.findById(request.getPlanCode().trim().toUpperCase())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy gói subscription"));
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Người dùng không hợp lệ"));
-
-        Event event = null;
-        if (plan.getPlanType() == PlanType.EVENT_PASS) {
-            if (request.getEventId() == null) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Event Pass cần eventId");
-            }
-            event = eventRepository.findById(request.getEventId())
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy sự kiện"));
-            if (!eventMemberRepository.existsByEventIdAndUserIdAndRole(event.getId(), userId, UserRole.LEADER)) {
-                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Chỉ leader mới được mua Event Pass cho sự kiện");
-            }
-        } else {
-            validateSubscriptionPlanChange(userId, plan);
-        }
-
-        String changeType = resolveChangeType(userId, plan);
-        long originalAmount = plan.getPriceVnd() != null ? plan.getPriceVnd() : 0L;
-        DiscountApplication discount = resolveDiscountApplication(plan, request.getDiscountCode(), originalAmount);
-        long finalAmount = Math.max(0L, originalAmount - discount.discountAmountVnd());
-        if (originalAmount <= 0 || "CURRENT_PLAN".equals(changeType)) {
+        CheckoutContext checkoutContext = resolveCheckoutContext(userId, request);
+        if (checkoutContext.originalAmount() <= 0 || "CURRENT_PLAN".equals(checkoutContext.changeType())) {
             return CheckoutResponseDTO.builder()
                     .provider("INTERNAL")
                     .status(CommercialStatus.ACTIVE.name())
-                    .planCode(plan.getCode())
-                    .amountVnd(originalAmount)
-                    .originalAmountVnd(originalAmount)
+                    .planCode(checkoutContext.plan().getCode())
+                    .amountVnd(checkoutContext.originalAmount())
+                    .originalAmountVnd(checkoutContext.originalAmount())
                     .discountAmountVnd(0L)
-                    .finalAmountVnd(originalAmount)
-                    .changeType(changeType)
-                    .message(resolveCheckoutMessage(plan, changeType))
+                    .finalAmountVnd(checkoutContext.originalAmount())
+                    .changeType(checkoutContext.changeType())
+                    .message(resolveCheckoutMessage(checkoutContext.plan(), checkoutContext.changeType()))
                     .build();
         }
 
         PaymentTransaction transaction = paymentTransactionRepository.save(PaymentTransaction.builder()
-                .user(user)
-                .event(event)
-                .plan(plan)
-                .amountVnd(finalAmount)
-                .discountCode(discount.discountCode().orElse(null))
-                .originalAmountVnd(originalAmount)
-                .discountAmountVnd(discount.discountAmountVnd())
-                .provider(finalAmount <= 0 ? "DISCOUNT" : "PAYOS")
+                .user(checkoutContext.user())
+                .event(checkoutContext.event())
+                .plan(checkoutContext.plan())
+                .amountVnd(checkoutContext.finalAmount())
+                .discountCode(checkoutContext.discount().discountCode().orElse(null))
+                .originalAmountVnd(checkoutContext.originalAmount())
+                .discountAmountVnd(checkoutContext.discount().discountAmountVnd())
+                .provider(checkoutContext.finalAmount() <= 0 ? "DISCOUNT" : "PAYOS")
                 .status(CommercialStatus.PENDING)
                 .build());
         transaction.setProviderOrderId(String.valueOf(transaction.getId()));
-        if (finalAmount <= 0) {
+        if (checkoutContext.finalAmount() <= 0) {
             activatePaidTransaction(transaction, Map.of(
                     "success", true,
                     "provider", "DISCOUNT",
-                    "discountCode", discount.discountCode().map(DiscountCode::getCode).orElse(null)));
+                    "discountCode", checkoutContext.discount().discountCode().map(DiscountCode::getCode).orElse(null)));
             return CheckoutResponseDTO.builder()
                     .transactionId(transaction.getId())
                     .provider(transaction.getProvider())
                     .status(CommercialStatus.ACTIVE.name())
-                    .planCode(plan.getCode())
+                    .planCode(checkoutContext.plan().getCode())
                     .amountVnd(0L)
-                    .originalAmountVnd(originalAmount)
-                    .discountAmountVnd(discount.discountAmountVnd())
+                    .originalAmountVnd(checkoutContext.originalAmount())
+                    .discountAmountVnd(checkoutContext.discount().discountAmountVnd())
                     .finalAmountVnd(0L)
-                    .discountCode(discount.discountCode().map(DiscountCode::getCode).orElse(null))
-                    .changeType(changeType)
+                    .discountCode(checkoutContext.discount().discountCode().map(DiscountCode::getCode).orElse(null))
+                    .changeType(checkoutContext.changeType())
                     .message("Mã giảm giá đã được áp dụng. Gói của bạn đã được kích hoạt với số tiền 0đ.")
                     .build();
         }
@@ -258,15 +236,44 @@ public class SubscriptionService {
                 .transactionId(transaction.getId())
                 .provider(transaction.getProvider())
                 .status(transaction.getStatus().name())
-                .planCode(plan.getCode())
-                .amountVnd(finalAmount)
-                .originalAmountVnd(originalAmount)
-                .discountAmountVnd(discount.discountAmountVnd())
-                .finalAmountVnd(finalAmount)
-                .discountCode(discount.discountCode().map(DiscountCode::getCode).orElse(null))
+                .planCode(checkoutContext.plan().getCode())
+                .amountVnd(checkoutContext.finalAmount())
+                .originalAmountVnd(checkoutContext.originalAmount())
+                .discountAmountVnd(checkoutContext.discount().discountAmountVnd())
+                .finalAmountVnd(checkoutContext.finalAmount())
+                .discountCode(checkoutContext.discount().discountCode().map(DiscountCode::getCode).orElse(null))
                 .checkoutUrl(transaction.getCheckoutUrl())
-                .changeType(changeType)
-                .message(resolveCheckoutMessage(plan, changeType, discount.discountAmountVnd()))
+                .changeType(checkoutContext.changeType())
+                .message(resolveCheckoutMessage(
+                        checkoutContext.plan(),
+                        checkoutContext.changeType(),
+                        checkoutContext.discount().discountAmountVnd()))
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public CheckoutResponseDTO previewCheckout(Long userId, CheckoutRequestDTO request) {
+        CheckoutContext checkoutContext = resolveCheckoutContext(userId, request);
+        long finalAmount = "CURRENT_PLAN".equals(checkoutContext.changeType())
+                ? checkoutContext.originalAmount()
+                : checkoutContext.finalAmount();
+        long discountAmount = "CURRENT_PLAN".equals(checkoutContext.changeType())
+                ? 0L
+                : checkoutContext.discount().discountAmountVnd();
+
+        return CheckoutResponseDTO.builder()
+                .provider("PREVIEW")
+                .status("PREVIEW")
+                .planCode(checkoutContext.plan().getCode())
+                .amountVnd(finalAmount)
+                .originalAmountVnd(checkoutContext.originalAmount())
+                .discountAmountVnd(discountAmount)
+                .finalAmountVnd(finalAmount)
+                .discountCode(checkoutContext.discount().discountCode().map(DiscountCode::getCode).orElse(null))
+                .changeType(checkoutContext.changeType())
+                .message(discountAmount > 0
+                        ? "Mã giảm giá hợp lệ. Số tiền cần thanh toán đã được cập nhật."
+                        : resolveCheckoutMessage(checkoutContext.plan(), checkoutContext.changeType()))
                 .build();
     }
 
@@ -705,6 +712,34 @@ public class SubscriptionService {
         }
     }
 
+    private CheckoutContext resolveCheckoutContext(Long userId, CheckoutRequestDTO request) {
+        SubscriptionPlan plan = subscriptionPlanRepository.findById(request.getPlanCode().trim().toUpperCase(Locale.ROOT))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy gói subscription"));
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Người dùng không hợp lệ"));
+
+        Event event = null;
+        if (plan.getPlanType() == PlanType.EVENT_PASS) {
+            if (request.getEventId() == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Event Pass cần chọn sự kiện trước khi thanh toán");
+            }
+            event = eventRepository.findById(request.getEventId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy sự kiện"));
+            if (!eventMemberRepository.existsByEventIdAndUserIdAndRole(event.getId(), userId, UserRole.LEADER)) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Chỉ leader mới được mua Event Pass cho sự kiện");
+            }
+        } else {
+            validateSubscriptionPlanChange(userId, plan);
+        }
+
+        String changeType = resolveChangeType(userId, plan);
+        long originalAmount = plan.getPriceVnd() != null ? plan.getPriceVnd() : 0L;
+        DiscountApplication discount = resolveDiscountApplication(plan, request.getDiscountCode(), originalAmount);
+        long finalAmount = Math.max(0L, originalAmount - discount.discountAmountVnd());
+
+        return new CheckoutContext(plan, user, event, changeType, originalAmount, discount, finalAmount);
+    }
+
     private String resolveChangeType(Long userId, SubscriptionPlan targetPlan) {
         if (targetPlan.getPlanType() == PlanType.EVENT_PASS) {
             return "EVENT_PASS_PURCHASE";
@@ -1000,6 +1035,16 @@ public class SubscriptionService {
     private record DiscountApplication(
             Optional<DiscountCode> discountCode,
             long discountAmountVnd) {
+    }
+
+    private record CheckoutContext(
+            SubscriptionPlan plan,
+            User user,
+            Event event,
+            String changeType,
+            long originalAmount,
+            DiscountApplication discount,
+            long finalAmount) {
     }
 
     private record PaymentCallbackResult(

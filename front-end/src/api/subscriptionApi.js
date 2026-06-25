@@ -21,6 +21,11 @@ const subscriptionApi = {
     return response.data;
   },
 
+  previewCheckout: async (payload) => {
+    const response = await apiClient.post('/subscriptions/checkout/preview', payload);
+    return response.data;
+  },
+
   getDiscountCodes: async () => {
     const response = await apiClient.get('/subscriptions/admin/discount-codes');
     return response.data;

@@ -55,6 +55,14 @@ public class SubscriptionController {
                 .body(subscriptionService.createCheckout(currentUserId(authentication), request));
     }
 
+    @PostMapping("/checkout/preview")
+    public ResponseEntity<CheckoutResponseDTO> previewCheckout(
+            @Valid @RequestBody CheckoutRequestDTO request,
+            Authentication authentication) {
+
+        return ResponseEntity.ok(subscriptionService.previewCheckout(currentUserId(authentication), request));
+    }
+
     @GetMapping("/admin/discount-codes")
     public ResponseEntity<List<DiscountCodeResponseDTO>> getDiscountCodes(Authentication authentication) {
         Long userId = currentUserId(authentication);

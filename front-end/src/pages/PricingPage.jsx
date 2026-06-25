@@ -8,12 +8,24 @@ import {
   Bot,
   CalendarDays,
   CheckCircle2,
+  Clock3,
+  Copy,
   CreditCard,
   Layers3,
+  LockKeyhole,
   Percent,
+  QrCode,
+  ReceiptText,
+  RefreshCw,
   ShieldCheck,
+  Sparkles,
+  Tag,
+  Ticket,
   UsersRound,
+  WalletCards,
+  X,
 } from 'lucide-react';
+import eventApi from '../api/eventApi';
 import subscriptionApi from '../api/subscriptionApi';
 import { Button, ErrorState } from '../components/ui';
 
@@ -100,11 +112,23 @@ const FALLBACK_PLANS = [
   },
 ];
 
+const CHECKOUT_GUARDS = [
+  'Đơn thanh toán được tạo theo từng gói, từng user và có mã đơn riêng.',
+  'Voucher chỉ được áp ở bước thanh toán để tránh áp nhầm gói.',
+  'payOS/webhook xác nhận trước khi EventFlow kích hoạt quyền lợi.',
+];
+
 const PricingPage = ({ user }) => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [manualCheckoutMessage, setManualCheckoutMessage] = useState(null);
+  const [selectedPlan, setSelectedPlan] = useState(null);
+  const [checkoutStep, setCheckoutStep] = useState('details');
+  const [checkoutResult, setCheckoutResult] = useState(null);
+  const [checkoutPreview, setCheckoutPreview] = useState(null);
   const [discountCode, setDiscountCode] = useState('');
+  const [selectedEventId, setSelectedEventId] = useState('');
+  const [copiedOrder, setCopiedOrder] = useState(false);
 
   const paymentMessage = useMemo(() => {
     const payment = searchParams.get('payment');
@@ -139,14 +163,25 @@ const PricingPage = ({ user }) => {
   const checkoutMutation = useMutation({
     mutationFn: subscriptionApi.createCheckout,
     onSuccess: (response) => {
+      setCheckoutResult(response);
+      setCopiedOrder(false);
       if (response?.checkoutUrl) {
-        window.location.assign(response.checkoutUrl);
+        setCheckoutStep('payment');
+        setManualCheckoutMessage(null);
         return;
       }
       if (response?.discountAmountVnd > 0) {
         setDiscountCode('');
       }
       setManualCheckoutMessage(response?.message || 'Đã ghi nhận yêu cầu nâng cấp.');
+      setCheckoutStep('payment');
+    },
+  });
+
+  const previewMutation = useMutation({
+    mutationFn: subscriptionApi.previewCheckout,
+    onSuccess: (response) => {
+      setCheckoutPreview(response);
     },
   });
 
@@ -157,16 +192,90 @@ const PricingPage = ({ user }) => {
 
   const subscriptions = plans.filter((plan) => plan.planType === 'SUBSCRIPTION');
   const eventPasses = plans.filter((plan) => plan.planType === 'EVENT_PASS');
+  const eventPassSelected = selectedPlan?.planType === 'EVENT_PASS';
 
-  const handleSubscribe = (plan) => {
+  const eventsQuery = useQuery({
+    queryKey: ['pricingEventPassEvents'],
+    queryFn: eventApi.getMyEvents,
+    enabled: Boolean(user?.userId && eventPassSelected),
+    staleTime: 60 * 1000,
+  });
+
+  const leaderEvents = useMemo(() => {
+    const items = Array.isArray(eventsQuery.data) ? eventsQuery.data : [];
+    return items.filter((event) => (
+      event.role === 'LEADER'
+      && !['DONE', 'CANCELLED', 'CANCELED'].includes(String(event.status || '').toUpperCase())
+    ));
+  }, [eventsQuery.data]);
+
+  const buildCheckoutPayload = () => ({
+    planCode: selectedPlan.code,
+    eventId: eventPassSelected ? Number(selectedEventId) || undefined : undefined,
+    discountCode: discountCode.trim() || undefined,
+  });
+
+  const openPlanDetail = (plan) => {
+    setSelectedPlan(plan);
+    setCheckoutStep('details');
+    setCheckoutResult(null);
+    setCheckoutPreview(null);
+    setDiscountCode('');
+    setSelectedEventId('');
+    setCopiedOrder(false);
+    checkoutMutation.reset();
+    previewMutation.reset();
+  };
+
+  const closeCheckout = () => {
+    setSelectedPlan(null);
+    setCheckoutStep('details');
+    setCheckoutResult(null);
+    setCheckoutPreview(null);
+    setDiscountCode('');
+    setSelectedEventId('');
+    setCopiedOrder(false);
+    checkoutMutation.reset();
+    previewMutation.reset();
+  };
+
+  const handleSubscribe = () => {
+    if (!selectedPlan) return;
     if (!user?.userId) {
       navigate('/login');
       return;
     }
-    checkoutMutation.mutate({
-      planCode: plan.code,
-      discountCode: discountCode.trim() || undefined,
-    });
+    checkoutMutation.mutate(buildCheckoutPayload());
+  };
+
+  const handleApplyDiscount = () => {
+    if (!selectedPlan || !discountCode.trim()) return;
+    if (!user?.userId) {
+      navigate('/login');
+      return;
+    }
+    previewMutation.mutate(buildCheckoutPayload());
+  };
+
+  const handleDiscountChange = (value) => {
+    setDiscountCode(value.toUpperCase());
+    setCheckoutPreview(null);
+    previewMutation.reset();
+    checkoutMutation.reset();
+  };
+
+  const handleEventChange = (value) => {
+    setSelectedEventId(value);
+    setCheckoutPreview(null);
+    previewMutation.reset();
+    checkoutMutation.reset();
+  };
+
+  const copyOrderCode = async () => {
+    const orderCode = getOrderCode(checkoutResult);
+    if (!orderCode || !navigator.clipboard) return;
+    await navigator.clipboard.writeText(orderCode);
+    setCopiedOrder(true);
   };
 
   return (
@@ -203,7 +312,7 @@ const PricingPage = ({ user }) => {
               Chọn gói theo cách team bạn tổ chức sự kiện.
             </h1>
             <p className="mt-5 max-w-2xl text-base font-semibold leading-7 text-slate-600">
-              Gói tháng/năm phù hợp đội làm sự kiện thường xuyên. Event Pass dành cho một sự kiện lớn cần mở thêm sức chứa, storage và AI.
+              Vào trang giá chỉ để xem gói. Voucher và QR thanh toán chỉ xuất hiện sau khi bạn chọn gói, kiểm tra chi tiết và tạo đơn.
             </p>
           </div>
 
@@ -225,95 +334,433 @@ const PricingPage = ({ user }) => {
           </div>
         )}
 
-        {checkoutMutation.error && (
-          <div className="mt-8">
-            <ErrorState error={checkoutMutation.error} title="Chưa tạo được yêu cầu nâng cấp" onDismiss={() => checkoutMutation.reset()} />
+        {plansQuery.isLoading && (
+          <div className="mt-10 rounded-2xl border border-sky-100 bg-white p-4 text-sm font-bold text-sky-700 shadow-sm">
+            Đang đồng bộ bảng giá từ server. Bạn vẫn có thể xem bảng giá chuẩn bên dưới.
           </div>
         )}
 
-        {user && (
-          <section className="mt-8 rounded-2xl border border-sky-100 bg-white p-4 shadow-lg shadow-sky-100/60">
-            <label htmlFor="discount-code" className="text-sm font-black text-slate-800">
-              Mã giảm giá
-            </label>
-            <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <div className="relative min-w-0 flex-1">
-                <Percent className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-sky-500" />
-                <input
-                  id="discount-code"
-                  value={discountCode}
-                  onChange={(event) => setDiscountCode(event.target.value.toUpperCase())}
-                  placeholder="Nhập mã admin cấp cho gói muốn mua"
-                  className="h-12 w-full rounded-2xl border border-sky-100 bg-sky-50/70 px-11 text-sm font-black uppercase tracking-wide text-slate-800 outline-none transition placeholder:normal-case placeholder:font-semibold placeholder:tracking-normal placeholder:text-slate-400 focus:border-cyan-300 focus:bg-white focus:ring-4 focus:ring-cyan-100"
-                />
-              </div>
-              {discountCode && (
-              <Button type="button" variant="secondary" onClick={() => setDiscountCode('')} className="w-full sm:w-auto">
-                Xóa mã
-              </Button>
-              )}
-            </div>
-          </section>
+        {plansQuery.error && (
+          <div className="mt-10">
+            <ErrorState
+              error="Đang dùng bảng giá dự phòng vì backend chưa phản hồi."
+              title="Chưa đồng bộ được bảng giá từ server"
+            />
+          </div>
         )}
 
-        {
-          <>
-            {plansQuery.isLoading && (
-              <div className="mt-10 rounded-2xl border border-sky-100 bg-white p-4 text-sm font-bold text-sky-700 shadow-sm">
-                Đang đồng bộ bảng giá từ server. Bạn vẫn có thể xem bảng giá chuẩn bên dưới.
-              </div>
-            )}
-
-            {plansQuery.error && (
-              <div className="mt-10">
-                <ErrorState
-                  error="Đang dùng bảng giá dự phòng vì backend chưa phản hồi."
-                  title="Chưa đồng bộ được bảng giá từ server"
-                />
-              </div>
-            )}
-
-            <section className="mt-12">
-              <SectionTitle
-                eyebrow="Gói subscription"
-                title="Cho CLB, agency và team vận hành thường xuyên"
+        <section className="mt-12">
+          <SectionTitle
+            eyebrow="Gói subscription"
+            title="Cho CLB, agency và team vận hành thường xuyên"
+          />
+          <div className="mt-6 grid gap-5 lg:grid-cols-4">
+            {subscriptions.map((plan) => (
+              <PlanCard
+                key={plan.code}
+                plan={plan}
+                highlighted={plan.code === 'PRO_AGENCY'}
+                onAction={() => openPlanDetail(plan)}
               />
-              <div className="mt-6 grid gap-5 lg:grid-cols-4">
-                {subscriptions.map((plan) => (
-                  <PlanCard
-                    key={plan.code}
-                    plan={plan}
-                    highlighted={plan.code === 'PRO_AGENCY'}
-                    loading={checkoutMutation.isPending}
-                    onAction={() => handleSubscribe(plan)}
-                  />
-                ))}
-              </div>
-            </section>
+            ))}
+          </div>
+        </section>
 
-            <section className="mt-14">
-              <SectionTitle
-                eyebrow="Event Pass"
-                title="Cho một sự kiện lớn cần mở quota riêng"
+        <section className="mt-14">
+          <SectionTitle
+            eyebrow="Event Pass"
+            title="Cho một sự kiện lớn cần mở quota riêng"
+          />
+          <div className="mt-6 grid gap-5 lg:grid-cols-2">
+            {eventPasses.map((plan) => (
+              <PlanCard
+                key={plan.code}
+                plan={plan}
+                eventPass
+                onAction={() => openPlanDetail(plan)}
               />
-              <div className="mt-6 grid gap-5 lg:grid-cols-2">
-                {eventPasses.map((plan) => (
-                  <PlanCard
-                    key={plan.code}
-                    plan={plan}
-                    eventPass
-                    loading={checkoutMutation.isPending}
-                    onAction={() => (user ? navigate('/events') : navigate('/login'))}
-                  />
-                ))}
-              </div>
-            </section>
-          </>
-        }
+            ))}
+          </div>
+        </section>
       </main>
+
+      {selectedPlan && (
+        <CheckoutDialog
+          plan={selectedPlan}
+          user={user}
+          checkoutStep={checkoutStep}
+          checkoutResult={checkoutResult}
+          checkoutPreview={checkoutPreview}
+          discountCode={discountCode}
+          onDiscountChange={handleDiscountChange}
+          selectedEventId={selectedEventId}
+          onEventChange={handleEventChange}
+          leaderEvents={leaderEvents}
+          eventsLoading={eventsQuery.isLoading}
+          eventsError={eventsQuery.error}
+          checkoutError={checkoutMutation.error}
+          previewError={previewMutation.error}
+          loading={checkoutMutation.isPending}
+          previewLoading={previewMutation.isPending}
+          copiedOrder={copiedOrder}
+          onClose={closeCheckout}
+          onCheckout={handleSubscribe}
+          onApplyDiscount={handleApplyDiscount}
+          onCopyOrder={copyOrderCode}
+          onGoEvents={() => navigate(user ? '/events' : '/login')}
+        />
+      )}
     </div>
   );
 };
+
+const CheckoutDialog = ({
+  plan,
+  user,
+  checkoutStep,
+  checkoutResult,
+  checkoutPreview,
+  discountCode,
+  onDiscountChange,
+  selectedEventId,
+  onEventChange,
+  leaderEvents,
+  eventsLoading,
+  eventsError,
+  checkoutError,
+  previewError,
+  loading,
+  previewLoading,
+  copiedOrder,
+  onClose,
+  onCheckout,
+  onApplyDiscount,
+  onCopyOrder,
+  onGoEvents,
+}) => {
+  const enterprise = plan.code === 'ENTERPRISE';
+  const eventPass = plan.planType === 'EVENT_PASS';
+  const paidPlan = !enterprise && Number(plan.priceVnd || 0) > 0;
+  const activeQuote = checkoutResult || checkoutPreview;
+  const finalAmount = activeQuote?.finalAmountVnd ?? activeQuote?.amountVnd ?? plan.priceVnd ?? 0;
+  const discountAmount = activeQuote?.discountAmountVnd ?? 0;
+  const orderCode = getOrderCode(checkoutResult);
+  const eventPassBlocked = eventPass && !selectedEventId;
+  const canApplyDiscount = paidPlan && discountCode.trim() && !eventPassBlocked && !previewLoading && !loading;
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/55 px-4 py-6 backdrop-blur-sm">
+      <div className="mx-auto flex min-h-full w-full max-w-5xl items-center">
+        <section className="relative grid w-full overflow-hidden rounded-3xl border border-sky-100 bg-white shadow-2xl shadow-slate-950/20 lg:grid-cols-[1fr_0.88fr]">
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:border-sky-200 hover:text-sky-700"
+            aria-label="Đóng"
+          >
+            <X className="h-5 w-5" />
+          </button>
+
+          <div className="p-5 sm:p-7 lg:p-8">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-2 rounded-full bg-sky-50 px-3 py-1 text-xs font-black uppercase tracking-[0.14em] text-sky-700">
+                {eventPass ? <Ticket className="h-3.5 w-3.5" /> : <Sparkles className="h-3.5 w-3.5" />}
+                {eventPass ? 'Event Pass' : 'Subscription'}
+              </span>
+              {plan.code === 'PRO_AGENCY' && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">
+                  <BadgeCheck className="h-3.5 w-3.5" />
+                  Khuyên dùng
+                </span>
+              )}
+            </div>
+
+            <h2 className="mt-5 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
+              {plan.displayName}
+            </h2>
+            <p className="mt-3 text-sm font-semibold leading-6 text-slate-600 sm:text-base">
+              {plan.targetSegment}
+            </p>
+
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              <DetailMetric icon={CalendarDays} label="Sự kiện" value={formatEvents(plan, eventPass)} />
+              <DetailMetric icon={UsersRound} label="Thành viên" value={formatUsers(plan)} />
+              <DetailMetric icon={Layers3} label="Lưu trữ" value={formatStorage(plan)} />
+              <DetailMetric icon={Bot} label="AI credits" value={formatAi(plan)} />
+            </div>
+
+            <div className="mt-7">
+              <h3 className="text-sm font-black uppercase tracking-[0.14em] text-slate-500">Tính năng chính</h3>
+              <div className="mt-3 grid gap-2">
+                {(plan.features || []).map((feature) => (
+                  <div key={feature} className="flex items-start gap-2 text-sm font-semibold leading-6 text-slate-700">
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                    <span>{feature}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-7 grid gap-3 rounded-2xl border border-cyan-100 bg-cyan-50/60 p-4">
+              {CHECKOUT_GUARDS.map((guard) => (
+                <div key={guard} className="flex items-start gap-2 text-sm font-bold leading-6 text-slate-700">
+                  <LockKeyhole className="mt-0.5 h-4 w-4 shrink-0 text-sky-600" />
+                  <span>{guard}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <aside className="border-t border-sky-100 bg-slate-50/80 p-5 sm:p-7 lg:border-l lg:border-t-0 lg:p-8">
+            <div className="rounded-2xl border border-sky-100 bg-white p-5 shadow-xl shadow-sky-100/60">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                    {checkoutStep === 'payment' ? 'Thanh toán đơn hàng' : 'Tóm tắt gói'}
+                  </p>
+                  <p className="mt-2 text-xl font-black text-slate-950">{formatPrice(plan)}</p>
+                  <p className="mt-1 text-sm font-bold text-slate-500">{formatInterval(plan)}</p>
+                </div>
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-50 text-sky-700">
+                  <ReceiptText className="h-6 w-6" />
+                </div>
+              </div>
+
+              <div className="mt-5 space-y-3 border-t border-slate-100 pt-5">
+                <PriceRow label="Giá gốc" value={formatMoney(plan.priceVnd || 0)} />
+                {discountAmount > 0 && (
+                  <PriceRow label="Voucher" value={`-${formatMoney(discountAmount)}`} success />
+                )}
+                <PriceRow label="Cần thanh toán" value={formatMoney(finalAmount)} strong />
+              </div>
+
+              {checkoutStep === 'details' && eventPass && (
+                <div className="mt-5">
+                  <label htmlFor="event-pass-target" className="text-sm font-black text-slate-800">
+                    Sự kiện áp dụng Event Pass
+                  </label>
+                  <div className="mt-3">
+                    <select
+                      id="event-pass-target"
+                      value={selectedEventId}
+                      onChange={(event) => onEventChange(event.target.value)}
+                      disabled={!user || eventsLoading || Boolean(eventsError)}
+                      className="h-12 w-full rounded-2xl border border-sky-100 bg-sky-50/70 px-4 text-sm font-black text-slate-800 outline-none transition focus:border-cyan-300 focus:bg-white focus:ring-4 focus:ring-cyan-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+                    >
+                      <option value="">
+                        {user ? 'Chọn event bạn đang lead' : 'Đăng nhập để chọn event'}
+                      </option>
+                      {leaderEvents.map((event) => (
+                        <option key={event.id} value={event.id}>
+                          {event.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {eventsLoading && (
+                    <p className="mt-2 text-xs font-bold text-sky-700">Đang tải danh sách event...</p>
+                  )}
+                  {eventsError && (
+                    <p className="mt-2 text-xs font-bold text-rose-700">Chưa tải được danh sách event. Vui lòng thử lại.</p>
+                  )}
+                  {user && !eventsLoading && !eventsError && leaderEvents.length === 0 && (
+                    <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs font-bold leading-5 text-amber-800">
+                      Bạn cần là leader của một event đang hoạt động/draft để mua Event Pass.
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {checkoutStep === 'details' && paidPlan && (
+                <div className="mt-5">
+                  <label htmlFor="checkout-discount-code" className="text-sm font-black text-slate-800">
+                    Mã voucher
+                  </label>
+                  <div className="mt-3 flex gap-2">
+                    <div className="relative min-w-0 flex-1">
+                      <Percent className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-sky-500" />
+                      <input
+                        id="checkout-discount-code"
+                        value={discountCode}
+                        onChange={(event) => onDiscountChange(event.target.value)}
+                        placeholder="Nhập mã nếu có"
+                        className="h-12 w-full rounded-2xl border border-sky-100 bg-sky-50/70 px-11 text-sm font-black uppercase tracking-wide text-slate-800 outline-none transition placeholder:normal-case placeholder:font-semibold placeholder:tracking-normal placeholder:text-slate-400 focus:border-cyan-300 focus:bg-white focus:ring-4 focus:ring-cyan-100"
+                      />
+                    </div>
+                    {discountCode && (
+                      <button
+                        type="button"
+                        onClick={() => onDiscountChange('')}
+                        className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-500 transition hover:border-sky-200 hover:text-sky-700"
+                        aria-label="Xóa mã"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto] sm:items-center">
+                    <p className="text-xs font-bold leading-5 text-slate-500">
+                      {discountAmount > 0
+                        ? `Đã áp dụng ${activeQuote?.discountCode || discountCode.trim()}: giảm ${formatMoney(discountAmount)}.`
+                        : 'Bấm áp dụng để kiểm tra mã trước khi tạo đơn payOS.'}
+                    </p>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={onApplyDiscount}
+                      disabled={!canApplyDiscount}
+                      className="w-full sm:w-auto"
+                    >
+                      {previewLoading ? (
+                        <>
+                          <RefreshCw className="h-4 w-4 animate-spin" />
+                          Đang kiểm tra
+                        </>
+                      ) : (
+                        'Áp dụng'
+                      )}
+                    </Button>
+                  </div>
+                  {previewError && (
+                    <div className="mt-3 rounded-2xl border border-rose-200 bg-rose-50 p-3 text-xs font-bold leading-5 text-rose-700">
+                      {previewError?.userMessage || previewError?.message || 'Mã giảm giá không hợp lệ.'}
+                    </div>
+                  )}
+                  <div className="mt-3 flex items-start gap-2 rounded-2xl bg-amber-50 p-3 text-xs font-bold leading-5 text-amber-800">
+                    <Tag className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>Áp dụng mã chỉ preview giá, chưa tạo transaction. Khi thanh toán, backend kiểm tra lại lần nữa trước khi tạo link payOS.</span>
+                  </div>
+                </div>
+              )}
+
+              {checkoutError && (
+                <div className="mt-5">
+                  <ErrorState error={checkoutError} title="Chưa tạo được đơn thanh toán" />
+                </div>
+              )}
+
+              {checkoutStep === 'payment' && (
+                <PaymentPanel
+                  result={checkoutResult}
+                  orderCode={orderCode}
+                  copiedOrder={copiedOrder}
+                  onCopyOrder={onCopyOrder}
+                />
+              )}
+
+              <div className="mt-6 grid gap-3">
+                {enterprise ? (
+                  <Button as="a" href="mailto:sales@eventflow.local?subject=EventFlow Enterprise" variant="secondary" className="w-full">
+                    Liên hệ sales
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                ) : checkoutStep === 'payment' && checkoutResult?.checkoutUrl ? (
+                  <Button as="a" href={checkoutResult.checkoutUrl} target="_blank" rel="noreferrer" className="w-full">
+                    Mở QR thanh toán payOS
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                ) : checkoutStep === 'payment' ? (
+                  <Button type="button" onClick={onClose} className="w-full">
+                    Hoàn tất
+                  </Button>
+                ) : eventPass && !user ? (
+                  <Button type="button" onClick={onGoEvents} className="w-full">
+                    Đăng nhập để chọn event
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                ) : (
+                  <Button type="button" onClick={onCheckout} disabled={loading || eventPassBlocked} className="w-full">
+                    {user
+                      ? (loading ? 'Đang tạo đơn...' : Number(plan.priceVnd || 0) > 0 ? 'Tạo đơn thanh toán' : 'Kích hoạt gói Free')
+                      : Number(plan.priceVnd || 0) > 0 ? 'Đăng nhập để thanh toán' : 'Đăng nhập để bắt đầu'}
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                )}
+                {checkoutStep === 'payment' && checkoutResult?.checkoutUrl && (
+                  <p className="text-center text-xs font-bold leading-5 text-slate-500">
+                    Sau khi thanh toán, quay lại EventFlow. Webhook payOS sẽ kích hoạt gói khi tiền khớp với mã đơn.
+                  </p>
+                )}
+              </div>
+            </div>
+          </aside>
+        </section>
+      </div>
+    </div>
+  );
+};
+
+const PaymentPanel = ({ result, orderCode, copiedOrder, onCopyOrder }) => {
+  if (!result) return null;
+
+  if (!result.checkoutUrl) {
+    return (
+      <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold leading-6 text-emerald-800">
+        {result.message || 'Đơn đã được xử lý thành công.'}
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-5 space-y-4">
+      <div className="rounded-2xl border border-sky-100 bg-sky-50/80 p-4">
+        <div className="flex items-start gap-3">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white text-sky-700 shadow-sm">
+            <QrCode className="h-6 w-6" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-black text-slate-950">QR thanh toán bảo mật qua payOS</p>
+            <p className="mt-1 text-xs font-semibold leading-5 text-slate-600">
+              Bấm mở payOS để quét QR ngân hàng chính thức. EventFlow không tự nhận tiền thủ công ngoài đơn này.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-3 text-sm">
+        <PaymentFact icon={WalletCards} label="Cổng thanh toán" value="payOS" />
+        <PaymentFact icon={Clock3} label="Trạng thái" value="Đang chờ thanh toán" />
+        {orderCode && (
+          <div className="rounded-2xl border border-slate-100 bg-white p-3">
+            <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">Mã đơn hàng</p>
+            <div className="mt-2 flex items-center justify-between gap-2">
+              <p className="min-w-0 truncate font-black text-slate-800">{orderCode}</p>
+              <button
+                type="button"
+                onClick={onCopyOrder}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition hover:border-sky-200 hover:text-sky-700"
+                aria-label="Sao chép mã đơn hàng"
+              >
+                <Copy className="h-4 w-4" />
+              </button>
+            </div>
+            {copiedOrder && <p className="mt-2 text-xs font-bold text-emerald-600">Đã sao chép mã đơn.</p>}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const PaymentFact = ({ icon: Icon, label, value }) => (
+  <div className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-white p-3">
+    <Icon className="h-4 w-4 shrink-0 text-sky-600" />
+    <div className="min-w-0">
+      <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">{label}</p>
+      <p className="mt-1 truncate font-black text-slate-800">{value}</p>
+    </div>
+  </div>
+);
+
+const DetailMetric = ({ icon: Icon, label, value }) => (
+  <div className="rounded-2xl border border-sky-100 bg-white p-4 shadow-sm">
+    <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-sky-50 text-sky-600">
+      <Icon className="h-5 w-5" />
+    </div>
+    <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">{label}</p>
+    <p className="mt-1 text-sm font-black leading-5 text-slate-800">{value}</p>
+  </div>
+);
 
 const SectionTitle = ({ eyebrow, title }) => (
   <div>
@@ -332,16 +779,16 @@ const PricingMetric = ({ icon: Icon, value, label }) => (
   </div>
 );
 
-const PlanCard = ({ plan, highlighted = false, eventPass = false, loading, onAction }) => {
+const PlanCard = ({ plan, highlighted = false, eventPass = false, onAction }) => {
   const enterprise = plan.code === 'ENTERPRISE';
   const free = plan.code === 'FREE';
   const actionLabel = enterprise
-    ? 'Liên hệ sales'
+    ? 'Xem tư vấn'
     : free
-      ? 'Bắt đầu miễn phí'
+      ? 'Xem gói Free'
       : eventPass
-        ? 'Chọn sự kiện'
-        : 'Yêu cầu nâng cấp';
+        ? 'Xem Event Pass'
+        : 'Xem chi tiết';
 
   return (
     <article className={`relative flex min-h-[420px] flex-col rounded-2xl border bg-white p-6 shadow-xl transition hover:-translate-y-1 ${
@@ -386,17 +833,10 @@ const PlanCard = ({ plan, highlighted = false, eventPass = false, loading, onAct
       </div>
 
       <div className="mt-auto pt-6">
-        {enterprise ? (
-          <Button as="a" href="mailto:sales@eventflow.local?subject=EventFlow Enterprise" variant="secondary" className="w-full">
-            {actionLabel}
-            <ArrowRight className="h-4 w-4" />
-          </Button>
-        ) : (
-          <Button type="button" onClick={onAction} disabled={loading} className="w-full">
-            {actionLabel}
-            <ArrowRight className="h-4 w-4" />
-          </Button>
-        )}
+        <Button type="button" onClick={onAction} variant={enterprise ? 'secondary' : 'primary'} className="w-full">
+          {actionLabel}
+          <ArrowRight className="h-4 w-4" />
+        </Button>
       </div>
     </article>
   );
@@ -409,6 +849,22 @@ const LimitRow = ({ icon: Icon, label }) => (
   </div>
 );
 
+const PriceRow = ({ label, value, strong = false, success = false }) => (
+  <div className="flex items-center justify-between gap-4 text-sm font-bold">
+    <span className="text-slate-500">{label}</span>
+    <span className={`${strong ? 'text-lg font-black text-slate-950' : ''} ${success ? 'text-emerald-600' : ''}`}>
+      {value}
+    </span>
+  </div>
+);
+
+const getOrderCode = (checkoutResult) => {
+  if (!checkoutResult?.transactionId) return null;
+  return `EF${checkoutResult.transactionId}`;
+};
+
+const formatMoney = (value) => `${Number(value || 0).toLocaleString('vi-VN')}đ`;
+
 const formatPrice = (plan) => {
   if (plan.code === 'ENTERPRISE') {
     return 'Liên hệ';
@@ -416,7 +872,7 @@ const formatPrice = (plan) => {
   if (!plan.priceVnd) {
     return '0đ';
   }
-  return `${Number(plan.priceVnd).toLocaleString('vi-VN')}đ`;
+  return formatMoney(plan.priceVnd);
 };
 
 const formatInterval = (plan) => {
