@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { FileText, Loader2, MapPin, Tag, Target, UsersRound, X } from 'lucide-react';
-import { Button, ErrorState, Panel, TextInput } from './ui';
+import { AlertTriangle, FileText, Loader2, MapPin, Tag, Target, UsersRound, X } from 'lucide-react';
+import { Button, Panel, TextInput } from './ui';
 import templateApi from '../api/templateApi';
 import departmentApi from '../api/departmentApi';
 import taskApi from '../api/taskApi';
 import { EVENT_TYPE_OPTIONS, getEventTypeLabel } from '../utils/eventTypeUtils';
+import { formatDateOnly, formatDateTimeInput, nowDateTimeLocalValue } from '../utils/dateUtils';
 
 const TemplateInstantiationModal = ({
   isOpen,
@@ -13,22 +14,24 @@ const TemplateInstantiationModal = ({
   onClose,
   onSuccess,
 }) => {
-const [formData, setFormData] = useState(() => {
-  const today = new Date().toLocaleDateString('vi-VN');
-  return {
-    name: template?.name ? `${template.name} - ${today}` : '',
-    description: template?.description || '',
-    location: template?.location || '',
-    eventType: template?.eventType || '',
-    objective: template?.objective || '',
-    expectedAttendees: template?.expectedAttendees ?? '',
-    scale: template?.scale || '',
-    contextDescription: template?.contextDescription || '',
-    startTime: '',
-    endTime: '',
-  };
-});
+  const minEventDateTime = nowDateTimeLocalValue();
+  const [formData, setFormData] = useState(() => {
+    const today = formatDateOnly(new Date());
+    return {
+      name: template?.name ? `${template.name} - ${today}` : '',
+      description: template?.description || '',
+      location: template?.location || '',
+      eventType: template?.eventType || '',
+      objective: template?.objective || '',
+      expectedAttendees: template?.expectedAttendees ?? '',
+      scale: template?.scale || '',
+      contextDescription: template?.contextDescription || '',
+      startTime: '',
+      endTime: '',
+    };
+  });
   const [errors, setErrors] = useState({});
+  const [lastTimeField, setLastTimeField] = useState('endTime');
 
   // Fetch departments for this template
   const departmentsQuery = useQuery({
@@ -69,6 +72,12 @@ const [formData, setFormData] = useState(() => {
         endTime: formData.endTime ? formatDateTime(formData.endTime) : null,
       });
     },
+    onError: (error) => {
+      const apiFieldErrors = mapEventApiErrorToFieldErrors(error);
+      if (hasFieldErrors(apiFieldErrors)) {
+        setErrors((old) => ({ ...old, ...apiFieldErrors }));
+      }
+    },
     onSuccess: (newEvent) => {
       setFormData({
         name: '',
@@ -90,9 +99,18 @@ const [formData, setFormData] = useState(() => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    if (instantiateMutation.error) {
+      instantiateMutation.reset();
+    }
     setFormData((prev) => ({ ...prev, [name]: value }));
+    if (name === 'startTime' || name === 'endTime') {
+      setLastTimeField(name);
+    }
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: '' }));
+    }
+    if ((name === 'startTime' || name === 'endTime') && (errors.startTime || errors.endTime)) {
+      setErrors((prev) => ({ ...prev, startTime: '', endTime: '' }));
     }
   };
 
@@ -103,6 +121,11 @@ const [formData, setFormData] = useState(() => {
     }
     if (!formData.startTime) {
       newErrors.startTime = 'Ngày bắt đầu không được để trống';
+    } else if (formData.startTime < minEventDateTime) {
+      newErrors.startTime = `Thời gian bắt đầu không được trước hiện tại (${formatDateTimeInput(minEventDateTime)})`;
+    }
+    if (formData.endTime && formData.endTime <= formData.startTime) {
+      newErrors[lastTimeField === 'startTime' ? 'startTime' : 'endTime'] = 'Thời gian kết thúc phải sau thời gian bắt đầu';
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -115,9 +138,13 @@ const [formData, setFormData] = useState(() => {
     }
   };
 
+  const apiFieldErrors = mapEventApiErrorToFieldErrors(instantiateMutation.error);
+  const displayErrors = { ...apiFieldErrors, ...errors };
+  const generalInstantiationError = instantiateMutation.error && !hasFieldErrors(apiFieldErrors);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <Panel className="relative max-h-[90vh] w-full max-w-2xl overflow-hidden">
+      <Panel className="relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-200 p-6">
           <h2 className="text-xl font-bold text-slate-950">Tạo sự kiện từ template</h2>
@@ -130,15 +157,7 @@ const [formData, setFormData] = useState(() => {
         </div>
 
         {/* Content */}
-        <form onSubmit={handleSubmit} className="max-h-[calc(90vh-156px)] space-y-4 overflow-y-auto p-6">
-          {instantiateMutation.error && (
-            <ErrorState
-              error={instantiateMutation.error}
-              title="Lỗi tạo sự kiện"
-              onDismiss={() => instantiateMutation.reset()}
-            />
-          )}
-
+        <form noValidate onSubmit={handleSubmit} className="min-h-0 flex-1 space-y-4 overflow-y-auto p-6">
           {/* Template Info */}
           <div className="rounded-lg bg-indigo-50 border border-indigo-200 p-3">
             <p className="text-xs font-semibold text-indigo-700">TEMPLATE</p>
@@ -161,10 +180,10 @@ const [formData, setFormData] = useState(() => {
               onChange={handleChange}
               placeholder="Nhập tên sự kiện"
               disabled={instantiateMutation.isPending}
-              className={errors.name ? 'border-red-500' : ''}
+              className={displayErrors.name ? invalidInputClassName : ''}
             />
-            {errors.name && (
-              <p className="text-xs text-red-600">{errors.name}</p>
+            {displayErrors.name && (
+              <FieldError>{displayErrors.name}</FieldError>
             )}
           </div>
 
@@ -292,11 +311,12 @@ const [formData, setFormData] = useState(() => {
               value={formData.startTime}
               onChange={handleChange}
               disabled={instantiateMutation.isPending}
+              min={minEventDateTime}
               required
-              className={errors.startTime ? 'border-red-500' : ''}
+              className={displayErrors.startTime ? invalidInputClassName : ''}
             />
-            {errors.startTime && (
-              <p className="text-xs text-red-600">{errors.startTime}</p>
+            {displayErrors.startTime && (
+              <FieldError>{displayErrors.startTime}</FieldError>
             )}
           </div>
 
@@ -312,7 +332,12 @@ const [formData, setFormData] = useState(() => {
               value={formData.endTime}
               onChange={handleChange}
               disabled={instantiateMutation.isPending}
+              min={formData.startTime || minEventDateTime}
+              className={displayErrors.endTime ? invalidInputClassName : ''}
             />
+            {displayErrors.endTime && (
+              <FieldError>{displayErrors.endTime}</FieldError>
+            )}
           </div>
 
           {/* Note */}
@@ -322,25 +347,51 @@ const [formData, setFormData] = useState(() => {
         </form>
 
         {/* Footer */}
-        <div className="flex gap-2 border-t border-slate-200 p-6">
-          <Button
-            variant="secondary"
-            onClick={onClose}
-            disabled={instantiateMutation.isPending}
-            className="flex-1"
-          >
-            Hủy
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={instantiateMutation.isPending}
-            className="flex-1"
-          >
-            {instantiateMutation.isPending && (
-              <Loader2 size={18} className="animate-spin" />
-            )}
-            Tạo sự kiện
-          </Button>
+        <div className="shrink-0 space-y-3 border-t border-slate-200 p-6">
+          {generalInstantiationError && (
+            <div className="max-h-40 overflow-y-auto rounded-2xl border border-red-200 bg-red-50 p-4 text-red-700">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex min-w-0 items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-red-600 shadow-sm">
+                    <AlertTriangle className="h-5 w-5" strokeWidth={1.8} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-black">Lỗi tạo sự kiện</p>
+                    <p className="mt-1 whitespace-normal break-words text-sm font-semibold leading-6">
+                      {instantiateMutation.error?.userMessage || instantiateMutation.error?.message}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => instantiateMutation.reset()}
+                  className="self-end rounded-full px-3 py-1 text-sm font-black text-red-700 transition hover:bg-white hover:text-red-800 sm:self-start"
+                >
+                  Đóng
+                </button>
+              </div>
+            </div>
+          )}
+          <div className="flex gap-2">
+            <Button
+              variant="secondary"
+              onClick={onClose}
+              disabled={instantiateMutation.isPending}
+              className="flex-1"
+            >
+              Hủy
+            </Button>
+            <Button
+              onClick={handleSubmit}
+              disabled={instantiateMutation.isPending}
+              className="flex-1"
+            >
+              {instantiateMutation.isPending && (
+                <Loader2 size={18} className="animate-spin" />
+              )}
+              Tạo sự kiện
+            </Button>
+          </div>
         </div>
       </Panel>
     </div>
@@ -356,6 +407,35 @@ const getTaskCount = (rawTasks, fallback = 0) => {
 };
 
 const getArrayCount = (data, fallback = 0) => data?.content?.length || data?.length || fallback || 0;
+
+const invalidInputClassName = 'border-red-500 focus:border-red-500 focus:ring-red-100';
+
+const FieldError = ({ children }) => (
+  <p className="text-xs font-semibold text-red-600">{children}</p>
+);
+
+const getErrorMessage = (error) => error?.userMessage || error?.message || '';
+
+const hasFieldErrors = (errors) => Object.values(errors || {}).some(Boolean);
+
+const mapEventApiErrorToFieldErrors = (error) => {
+  const message = getErrorMessage(error);
+  const normalized = message.toLowerCase();
+  const errors = {};
+  if (!message) {
+    return errors;
+  }
+  if (normalized.includes('tên') || normalized.includes('name')) {
+    errors.name = message;
+  }
+  if (normalized.includes('bắt đầu') || normalized.includes('starttime') || normalized.includes('eventdate')) {
+    errors.startTime = message;
+  }
+  if (normalized.includes('kết thúc') || normalized.includes('endtime')) {
+    errors.endTime = message;
+  }
+  return errors;
+};
 
 const FieldLabel = ({ htmlFor, icon, children }) => (
   <label htmlFor={htmlFor} className="flex items-center gap-2 text-sm font-semibold text-slate-700">

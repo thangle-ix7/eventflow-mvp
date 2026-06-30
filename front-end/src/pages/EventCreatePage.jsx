@@ -16,20 +16,14 @@ import {
 import AppLayout from '../components/AppLayout';
 import eventApi from '../api/eventApi';
 import { EVENT_TYPE_OPTIONS } from '../utils/eventTypeUtils';
-
-const pad = (value) => String(value).padStart(2, '0');
-
-const toDateTimeLocalValue = (value) => {
-  const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-};
+import { formatDateTimeInput, nowDateTimeLocalValue } from '../utils/dateUtils';
 
 const EventCreatePage = ({ user, onLogout }) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const minEventDateTime = toDateTimeLocalValue(new Date());
-  const [localError, setLocalError] = useState('');
+  const minEventDateTime = nowDateTimeLocalValue();
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [lastTimeField, setLastTimeField] = useState('endTime');
   const [form, setForm] = useState({
     name: '',
     description: '',
@@ -46,6 +40,12 @@ const EventCreatePage = ({ user, onLogout }) => {
 
   const createEventMutation = useMutation({
     mutationFn: eventApi.createEvent,
+    onError: (error) => {
+      const apiFieldErrors = mapEventApiErrorToFieldErrors(error);
+      if (hasFieldErrors(apiFieldErrors)) {
+        setFieldErrors((old) => ({ ...old, ...apiFieldErrors }));
+      }
+    },
     onSuccess: (createdEvent) => {
       queryClient.invalidateQueries({ queryKey: ['events'] });
       queryClient.invalidateQueries({ queryKey: ['eventsPage'] });
@@ -55,15 +55,21 @@ const EventCreatePage = ({ user, onLogout }) => {
 
   const handleChange = (event) => {
     const { name, value } = event.target;
-    setLocalError('');
+    if (createEventMutation.error) {
+      createEventMutation.reset();
+    }
+    if (name === 'startTime' || name === 'endTime') {
+      setLastTimeField(name);
+    }
+    setFieldErrors((old) => ({ ...old, [name]: '', ...(name === 'startTime' || name === 'endTime' ? { startTime: '', endTime: '' } : {}) }));
     setForm((old) => ({ ...old, [name]: value }));
   };
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    const validationMessage = validateEventForm(form, minEventDateTime);
-    if (validationMessage) {
-      setLocalError(validationMessage);
+    const validationErrors = validateEventForm(form, minEventDateTime, lastTimeField);
+    if (Object.keys(validationErrors).length > 0) {
+      setFieldErrors(validationErrors);
       return;
     }
 
@@ -81,6 +87,10 @@ const EventCreatePage = ({ user, onLogout }) => {
       status: form.status,
     });
   };
+
+  const apiFieldErrors = mapEventApiErrorToFieldErrors(createEventMutation.error);
+  const displayFieldErrors = { ...apiFieldErrors, ...fieldErrors };
+  const generalCreateError = createEventMutation.error && !hasFieldErrors(apiFieldErrors);
 
   return (
     <AppLayout
@@ -138,14 +148,13 @@ const EventCreatePage = ({ user, onLogout }) => {
             </div>
 
             <div className="relative space-y-5 p-6">
-              {(localError || createEventMutation.error) && (
+              {generalCreateError && (
                 <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-red-600 shadow-sm">
                     <AlertCircle size={18} />
                   </div>
                   <span className="leading-6">
-                    {localError || createEventMutation.error?.userMessage ||
-                      createEventMutation.error?.message}
+                    {createEventMutation.error?.userMessage || createEventMutation.error?.message}
                   </span>
                 </div>
               )}
@@ -161,8 +170,9 @@ const EventCreatePage = ({ user, onLogout }) => {
                   onChange={handleChange}
                   maxLength={255}
                   placeholder="Tên sự kiện"
-                  className={inputClassName}
+                  className={inputClassNameWithError(displayFieldErrors.name)}
                 />
+                <FieldError message={displayFieldErrors.name} />
               </Field>
 
               <Field
@@ -288,8 +298,9 @@ const EventCreatePage = ({ user, onLogout }) => {
                     value={form.startTime}
                     onChange={handleChange}
                     min={minEventDateTime}
-                    className={inputClassName}
+                    className={inputClassNameWithError(displayFieldErrors.startTime)}
                   />
+                  <FieldError message={displayFieldErrors.startTime} />
                 </Field>
 
                 <Field
@@ -302,8 +313,9 @@ const EventCreatePage = ({ user, onLogout }) => {
                     value={form.endTime}
                     onChange={handleChange}
                     min={form.startTime || minEventDateTime}
-                    className={inputClassName}
+                    className={inputClassNameWithError(displayFieldErrors.endTime)}
                   />
+                  <FieldError message={displayFieldErrors.endTime} />
                 </Field>
               </div>
 
@@ -350,24 +362,46 @@ const EventCreatePage = ({ user, onLogout }) => {
   );
 };
 
-const validateEventForm = (form, minEventDateTime = toDateTimeLocalValue(new Date())) => {
+const validateEventForm = (form, minEventDateTime = nowDateTimeLocalValue(), lastTimeField = 'endTime') => {
+  const errors = {};
   if (!form.name.trim()) {
-    return 'Vui lòng nhập tên sự kiện.';
+    errors.name = 'Vui lòng nhập tên sự kiện.';
   }
 
   if (!form.startTime) {
-    return 'Vui lòng chọn thời gian bắt đầu.';
-  }
-
-  if (form.startTime < minEventDateTime) {
-    return 'Thời gian bắt đầu không được ở quá khứ.';
+    errors.startTime = 'Vui lòng chọn thời gian bắt đầu.';
+  } else if (form.startTime < minEventDateTime) {
+    errors.startTime = `Thời gian bắt đầu không được trước hiện tại (${formatDateTimeInput(minEventDateTime)}).`;
   }
 
   if (form.endTime && form.endTime <= form.startTime) {
-    return 'Thời gian kết thúc phải sau thời gian bắt đầu.';
+    errors[lastTimeField === 'startTime' ? 'startTime' : 'endTime'] = 'Thời gian kết thúc phải sau thời gian bắt đầu.';
   }
 
-  return '';
+  return errors;
+};
+
+const getErrorMessage = (error) => error?.userMessage || error?.message || '';
+
+const hasFieldErrors = (errors) => Object.values(errors || {}).some(Boolean);
+
+const mapEventApiErrorToFieldErrors = (error) => {
+  const message = getErrorMessage(error);
+  const normalized = message.toLowerCase();
+  const errors = {};
+  if (!message) {
+    return errors;
+  }
+  if (normalized.includes('tên') || normalized.includes('name')) {
+    errors.name = message;
+  }
+  if (normalized.includes('bắt đầu') || normalized.includes('starttime') || normalized.includes('eventdate')) {
+    errors.startTime = message;
+  }
+  if (normalized.includes('kết thúc') || normalized.includes('endtime')) {
+    errors.endTime = message;
+  }
+  return errors;
 };
 
 const Field = ({ label, children }) => (
@@ -379,5 +413,13 @@ const Field = ({ label, children }) => (
 
 
 const inputClassName = 'w-full rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:bg-white focus:ring-4 focus:ring-cyan-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500';
+
+const inputClassNameWithError = (error) => (
+  error ? `${inputClassName} border-red-300 bg-red-50/70 focus:border-red-400 focus:ring-red-100` : inputClassName
+);
+
+const FieldError = ({ message }) => (
+  message ? <p className="mt-2 text-xs font-semibold text-red-600">{message}</p> : null
+);
 
 export default EventCreatePage;

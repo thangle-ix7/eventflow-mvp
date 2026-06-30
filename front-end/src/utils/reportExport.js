@@ -1,11 +1,6 @@
-const formatDateTime = (value) => {
-  if (!value) return '';
+import { formatDate } from './dateUtils';
 
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return String(value);
-
-  return date.toLocaleString('vi-VN');
-};
+const formatDateTime = (value) => (value ? formatDate(value, String(value)) : '');
 
 const sanitizeFileName = (value) =>
   String(value || 'eventflow-report')

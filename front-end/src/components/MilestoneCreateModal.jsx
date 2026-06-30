@@ -5,8 +5,15 @@ import aiSuggestionApi from '../api/aiSuggestionApi';
 import milestoneApi from '../api/milestoneApi';
 import AiSuggestionDetailModal from './AiSuggestionDetailModal';
 import { stripHiddenSuggestionKeys } from '../utils/aiSuggestionUtils';
+import {
+  buildEventTimeRangeError,
+  formatDate,
+  formatDateTimeInputRange,
+  getEventTimeBounds,
+  toDateTimeLocalValue,
+} from '../utils/dateUtils';
 
-const MilestoneCreateModal = ({ eventId, isOpen, onCancel, onCreated }) => {
+const MilestoneCreateModal = ({ eventId, event, isOpen, onCancel, onCreated }) => {
   const queryClient = useQueryClient();
   const [suggestionInstruction, setSuggestionInstruction] = useState('');
   const [suggestions, setSuggestions] = useState([]);
@@ -20,6 +27,9 @@ const MilestoneCreateModal = ({ eventId, isOpen, onCancel, onCreated }) => {
     priority: 'MEDIUM',
     status: 'TODO',
   });
+  const [fieldErrors, setFieldErrors] = useState({});
+  const { startInput: eventStartInput, endInput: eventEndInput } = getEventTimeBounds(event);
+  const eventTimeRangeLabel = formatDateTimeInputRange(eventStartInput, eventEndInput);
 
   const createMutation = useMutation({
     mutationFn: milestoneApi.createMilestone,
@@ -38,6 +48,7 @@ const MilestoneCreateModal = ({ eventId, isOpen, onCancel, onCreated }) => {
       setSuggestions([]);
       setSuggestionInstruction('');
       setAppliedSuggestionKey('');
+      setFieldErrors({});
     },
   });
 
@@ -54,8 +65,21 @@ const MilestoneCreateModal = ({ eventId, isOpen, onCancel, onCreated }) => {
 
   if (!isOpen) return null;
 
+  const apiExpectedDeadlineError = isExpectedDeadlineError(createMutation.error)
+    ? getErrorMessage(createMutation.error)
+    : '';
+  const displayFieldErrors = {
+    ...fieldErrors,
+    expectedDeadline: fieldErrors.expectedDeadline || apiExpectedDeadlineError,
+  };
+  const generalCreateError = createMutation.error && !apiExpectedDeadlineError;
+
   const handleChange = (event) => {
     const { name, value } = event.target;
+    if (createMutation.error) {
+      createMutation.reset();
+    }
+    setFieldErrors((old) => ({ ...old, [name]: '' }));
     setForm((old) => ({ ...old, [name]: value }));
   };
 
@@ -63,7 +87,7 @@ const MilestoneCreateModal = ({ eventId, isOpen, onCancel, onCreated }) => {
     setForm({
       name: milestone.name || '',
       description: milestone.description || '',
-      expectedDeadline: toDateTimeLocal(milestone.expectedDeadline),
+      expectedDeadline: toDateTimeLocalValue(milestone.expectedDeadline),
       expectedResult: milestone.expectedResult || '',
       priority: milestone.priority || 'MEDIUM',
       status: milestone.status || 'TODO',
@@ -73,6 +97,11 @@ const MilestoneCreateModal = ({ eventId, isOpen, onCancel, onCreated }) => {
 
   const handleSubmit = (event) => {
     event.preventDefault();
+    const validationErrors = validateMilestoneForm(form, eventStartInput, eventEndInput);
+    if (Object.values(validationErrors).some(Boolean)) {
+      setFieldErrors(validationErrors);
+      return;
+    }
     createMutation.mutate({
       eventId,
       payload: {
@@ -243,7 +272,7 @@ Chưa có gợi ý.
             </aside>
 
             <main className="rounded-3xl border border-sky-100 bg-white p-4 shadow-sm lg:p-5">
-              {createMutation.error && (
+              {generalCreateError && (
                 <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
                   {createMutation.error.userMessage || createMutation.error.message}
                 </div>
@@ -284,8 +313,14 @@ Chưa có gợi ý.
                       type="datetime-local"
                       value={form.expectedDeadline}
                       onChange={handleChange}
+                      min={eventStartInput || undefined}
+                      max={eventEndInput || undefined}
                       className={inputClassName}
                     />
+                    <p className="mt-2 text-xs font-semibold text-slate-500">
+                      Khoảng hợp lệ: {eventTimeRangeLabel}
+                    </p>
+                    <FieldError message={displayFieldErrors.expectedDeadline} />
                   </label>
 
                   <label className="block">
@@ -375,23 +410,30 @@ Chưa có gợi ý.
 
 const inputClassName = 'mt-2 min-h-11 w-full min-w-0 rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-2.5 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:bg-white focus:ring-4 focus:ring-cyan-100';
 
-const toDateTimeLocal = (value) => (value ? String(value).slice(0, 16) : '');
-
 const getSuggestionKey = (milestone, index) => `${milestone.name || 'milestone'}-${milestone.expectedDeadline || index}`;
 
-const formatSuggestionDate = (value) => {
-  if (!value) return 'Chưa có';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return String(value).replace('T', ' ').slice(0, 16);
+const validateMilestoneForm = (form, eventStartInput, eventEndInput) => {
+  const errors = {};
+  if (form.expectedDeadline && eventStartInput && form.expectedDeadline < eventStartInput) {
+    errors.expectedDeadline = buildEventTimeRangeError('Hạn kỳ vọng', eventStartInput, eventEndInput);
   }
-  return date.toLocaleString('vi-VN', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  if (form.expectedDeadline && eventEndInput && form.expectedDeadline > eventEndInput) {
+    errors.expectedDeadline = buildEventTimeRangeError('Hạn kỳ vọng', eventStartInput, eventEndInput);
+  }
+  return errors;
 };
+
+const getErrorMessage = (error) => error?.userMessage || error?.message || '';
+
+const isExpectedDeadlineError = (error) => {
+  const normalized = getErrorMessage(error).toLowerCase();
+  return normalized.includes('hạn') || normalized.includes('deadline') || normalized.includes('expecteddeadline');
+};
+
+const FieldError = ({ message }) => (
+  message ? <p className="mt-2 text-xs font-semibold text-red-600">{message}</p> : null
+);
+
+const formatSuggestionDate = (value) => formatDate(value, 'Chưa có');
 
 export default MilestoneCreateModal;

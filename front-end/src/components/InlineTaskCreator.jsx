@@ -10,21 +10,14 @@ import workloadApi from '../api/workloadApi';
 import { ErrorState } from './ui';
 import { invalidateDashboardQueries } from '../utils/dashboardQueryUtils';
 import { stripHiddenSuggestionKeys } from '../utils/aiSuggestionUtils';
-
-const pad = (value) => String(value).padStart(2, '0');
-
-const toDateTimeLocalValue = (value) => {
-  if (!value) {
-    return '';
-  }
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return '';
-  }
-
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-};
+import {
+  buildEventTimeRangeError,
+  formatDateTimeInputRange,
+  getEventTimeBounds,
+  getLaterDateTimeLocal,
+  nowDateTimeLocalValue,
+  toDateTimeLocalValue,
+} from '../utils/dateUtils';
 
 const createEmptyAttachmentDraft = () => ({
   files: [],
@@ -74,6 +67,13 @@ const workloadHintClassName = (status) => {
   return 'text-slate-500';
 };
 
+const getErrorMessage = (error) => error?.userMessage || error?.message || '';
+
+const isDeadlineError = (message) => {
+  const normalized = String(message || '').toLowerCase();
+  return normalized.includes('deadline') || normalized.includes('hạn');
+};
+
 const InlineTaskCreator = ({
   eventId,
   parentTaskId,
@@ -91,15 +91,20 @@ const InlineTaskCreator = ({
   openLabel,
 }) => {
   const queryClient = useQueryClient();
-  const defaultDeadline = useMemo(
-    () => toDateTimeLocalValue(event?.startTime || event?.eventDate),
+  const minDeadline = useMemo(
+    () => getLaterDateTimeLocal(
+      nowDateTimeLocalValue(),
+      toDateTimeLocalValue(event?.startTime || event?.eventDate)
+    ),
     [event?.eventDate, event?.startTime]
   );
   const maxDeadline = useMemo(
-    () => toDateTimeLocalValue(event?.endTime || event?.startTime || event?.eventDate),
-    [event?.endTime, event?.eventDate, event?.startTime]
+    () => getEventTimeBounds(event).endInput,
+    [event]
   );
+  const deadlineRangeLabel = formatDateTimeInputRange(minDeadline, maxDeadline);
   const [rows, setRows] = useState([createEmptyRow(departmentId, assigneeId, initialStatus)]);
+  const [rowErrors, setRowErrors] = useState({});
   const [localError, setLocalError] = useState('');
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const [suggestionInstruction, setSuggestionInstruction] = useState('');
@@ -228,6 +233,7 @@ const InlineTaskCreator = ({
     },
     onSuccess: () => {
       setRows([createEmptyRow(departmentId, assigneeId, initialStatus)]);
+      setRowErrors({});
       setLocalError('');
       setIsOpen(false);
       invalidateKeys.forEach((queryKey) => {
@@ -273,7 +279,17 @@ const InlineTaskCreator = ({
   });
 
   const updateRow = (rowId, name, value) => {
+    if (mutation.error) {
+      mutation.reset();
+    }
     setLocalError('');
+    setRowErrors((old) => ({
+      ...old,
+      [rowId]: {
+        ...(old[rowId] || {}),
+        [name]: '',
+      },
+    }));
     setRows((old) => old.map((row) => {
       if (row.id !== rowId) {
         return row;
@@ -317,11 +333,13 @@ const InlineTaskCreator = ({
 
   const handleClose = () => {
     setRows([createEmptyRow(departmentId, assigneeId, initialStatus)]);
+    setRowErrors({});
     setLocalError('');
     setIsOpen(false);
   };
 
   const handleSave = () => {
+    setRowErrors({});
     const filledRows = rows.filter((row) => row.title.trim());
     if (filledRows.length === 0) {
       setLocalError('Cần nhập ít nhất một tên công việc trước khi lưu.');
@@ -329,11 +347,15 @@ const InlineTaskCreator = ({
     }
 
     const invalidDeadlineRow = filledRows.find((row) => {
-      const deadline = row.deadline || defaultDeadline;
-      return maxDeadline && deadline && deadline > maxDeadline;
+      const deadline = row.deadline || minDeadline;
+      return deadline && ((minDeadline && deadline < minDeadline) || (maxDeadline && deadline > maxDeadline));
     });
     if (invalidDeadlineRow) {
-      setLocalError('Hạn công việc chỉ được nằm trước hoặc trong thời gian sự kiện.');
+      setRowErrors({
+        [invalidDeadlineRow.id]: {
+          deadline: buildEventTimeRangeError('Deadline công việc', minDeadline, maxDeadline),
+        },
+      });
       return;
     }
 
@@ -350,7 +372,7 @@ const InlineTaskCreator = ({
           milestoneId: !parentTaskId && row.milestoneId ? Number(row.milestoneId) : null,
           status: row.status,
           priority: row.priority,
-          deadline: row.deadline || defaultDeadline,
+          deadline: row.deadline || minDeadline,
           reminderOffsetMinutes: Math.round(Number(row.reminderOffsetHours || 0) * 60),
         },
         attachmentDraft: row.attachmentDraft,
@@ -360,6 +382,7 @@ const InlineTaskCreator = ({
 
   const handleSuggestTasks = () => {
     setLocalError('');
+    setRowErrors({});
     if (parentTaskId) {
       suggestionMutation.mutate({
         taskId: parentTaskId,
@@ -375,6 +398,11 @@ const InlineTaskCreator = ({
       count: 5,
     });
   };
+
+  const mutationErrorMessage = getErrorMessage(mutation.error);
+  const mutationDeadlineError = isDeadlineError(mutationErrorMessage) ? mutationErrorMessage : '';
+  const firstFilledRowId = rows.find((row) => row.title.trim())?.id || rows[0]?.id;
+  const generalMutationError = mutation.error && !mutationDeadlineError;
 
   return (
     <>
@@ -476,6 +504,7 @@ const InlineTaskCreator = ({
                     ? getMemberWorkload(effectiveDepartmentId, effectiveAssigneeId)
                     : null;
                   const isWorkloadLoading = isDepartmentWorkloadLoading(effectiveDepartmentId);
+                  const deadlineError = rowErrors[row.id]?.deadline || (row.id === firstFilledRowId ? mutationDeadlineError : '');
 
                   return (
                     <div
@@ -572,15 +601,26 @@ const InlineTaskCreator = ({
                           </option>
                         ))}
                       </select>
-                      <input
-                        type="datetime-local"
-                        value={row.deadline || defaultDeadline}
-                        onChange={(event) => updateRow(row.id, 'deadline', event.target.value)}
-                        max={maxDeadline || undefined}
-                        disabled={mutation.isPending}
-                        aria-label="Hạn"
-                        className={taskInputClassName}
-                      />
+                      <div className="min-w-0">
+                        <input
+                          type="datetime-local"
+                          value={row.deadline || minDeadline}
+                          onChange={(event) => updateRow(row.id, 'deadline', event.target.value)}
+                          min={minDeadline || undefined}
+                          max={maxDeadline || undefined}
+                          disabled={mutation.isPending}
+                          aria-label="Hạn"
+                          className={taskInputClassNameWithError(deadlineError)}
+                        />
+                        <p className="mt-1 text-[10px] font-bold text-slate-500">
+                          {deadlineRangeLabel}
+                        </p>
+                        {deadlineError && (
+                          <p className="mt-1 text-[10px] font-bold text-red-600">
+                            {deadlineError}
+                          </p>
+                        )}
+                      </div>
 
                       <input
                         type="number"
@@ -656,7 +696,7 @@ const InlineTaskCreator = ({
               </div>
             </div>
 
-            {(localError || mutation.error) && (
+            {(localError || generalMutationError) && (
               <div className="shrink-0 border-t border-red-100 bg-red-50/80 px-5 py-3">
                 <ErrorState error={localError || mutation.error} title="Không tạo được công việc" />
               </div>
@@ -799,6 +839,9 @@ const taskCreatorGridColumns = 'grid-cols-[36px_minmax(240px,1.05fr)_minmax(320p
 const taskCreatorGridHeaderClassName = `grid min-w-[2040px] ${taskCreatorGridColumns} items-center gap-2 border-b border-sky-100 bg-sky-50/80 px-5 py-2.5 text-[10px] font-black uppercase tracking-[0.18em] text-slate-500`;
 const taskCreatorGridRowClassName = `grid min-w-[2040px] ${taskCreatorGridColumns} items-stretch gap-2 border-b border-sky-100/70 bg-white/80 px-5 py-2 transition hover:bg-sky-50/70 last:border-b-0`;
 const taskInputClassName = 'h-full min-h-8 w-full min-w-0 rounded-lg border border-sky-100 bg-white px-2.5 text-xs font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:ring-2 focus:ring-cyan-100 disabled:bg-slate-50 disabled:text-slate-500';
+const taskInputClassNameWithError = (error) => (
+  error ? `${taskInputClassName} border-red-300 bg-red-50/70 focus:border-red-400 focus:ring-red-100` : taskInputClassName
+);
 const taskCompactInputClassName = 'min-h-7 w-full min-w-0 rounded-lg border border-sky-100 bg-white px-2 py-1 text-[11px] font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:ring-2 focus:ring-cyan-100 disabled:bg-slate-50 disabled:text-slate-500';
 const taskTextareaClassName = 'min-h-8 w-full min-w-0 resize-none overflow-hidden rounded-lg border border-sky-100 bg-white px-2.5 py-1.5 text-xs font-semibold leading-5 text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:ring-2 focus:ring-cyan-100 disabled:bg-slate-50 disabled:text-slate-500';
 

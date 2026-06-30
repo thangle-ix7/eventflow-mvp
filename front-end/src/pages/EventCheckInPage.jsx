@@ -40,6 +40,7 @@ const EventCheckInPage = () => {
       <section className="grid gap-5 xl:grid-cols-[0.78fr_1.22fr]">
         <SessionCreatePanel
           canManage={canManage}
+          event={eventQuery.data}
           eventId={eventId}
           sessionForm={sessionForm}
           setSessionForm={setSessionForm}

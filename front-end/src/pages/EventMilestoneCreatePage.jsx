@@ -48,6 +48,7 @@ const EventMilestoneCreatePage = ({ user, onLogout }) => {
       {!eventQuery.isLoading && event && permissions.canManageEvent && (
         <MilestoneCreateModal
           eventId={eventId}
+          event={event}
           isOpen
           onCancel={handleClose}
           onCreated={handleClose}

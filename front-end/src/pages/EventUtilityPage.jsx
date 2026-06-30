@@ -37,7 +37,14 @@ import eventMemberApi from '../api/eventMemberApi';
 import eventUtilityApi from '../api/eventUtilityApi';
 import taskApi from '../api/taskApi';
 import ErrorPage from './ErrorPage';
-import { formatDate } from '../utils/dateUtils';
+import {
+  buildEventTimeRangeError,
+  formatDate,
+  formatDateOnly,
+  formatDateTimeInputRange,
+  getEventTimeBounds,
+  getVietnamDateTimeParts,
+} from '../utils/dateUtils';
 import { getEventPermissions } from '../utils/permissionUtils';
 import {
   buildDashboardReport,
@@ -216,8 +223,10 @@ const CalendarContent = ({ eventId, event, departments, members, calendar, calen
   const canGoNext = monthIntersectsEventRange(year, month + 1, eventRange);
   const todayKey = toDateKey(new Date());
   const canGoToday = isDateKeyInEventRange(todayKey, eventRange);
-  const eventStartInput = eventRange.start ? `${eventRange.start}T00:00` : undefined;
-  const eventEndInput = eventRange.end ? `${eventRange.end}T23:59` : undefined;
+  const { startInput, endInput } = getEventTimeBounds(event);
+  const eventStartInput = startInput || undefined;
+  const eventEndInput = endInput || undefined;
+  const eventTimeRangeLabel = formatDateTimeInputRange(eventStartInput, eventEndInput);
   useEffect(() => {
     const range = { start: eventRangeStart, end: eventRangeEnd };
     if (!eventRangeStart || monthIntersectsEventRange(calendarDate.year, calendarDate.month, range)) {
@@ -248,12 +257,20 @@ const CalendarContent = ({ eventId, event, departments, members, calendar, calen
   const [editingCalendarItem, setEditingCalendarItem] = useState(null);
   const [isCreatePopupOpen, setIsCreatePopupOpen] = useState(false);
   const [form, setForm] = useState(() => buildEmptyCalendarForm());
+  const [calendarFormErrors, setCalendarFormErrors] = useState({});
+  const [lastCalendarTimeField, setLastCalendarTimeField] = useState('endTime');
   const [aiInstruction, setAiInstruction] = useState('');
   const [aiCalendarSuggestions, setAiCalendarSuggestions] = useState([]);
   const calendarEventIdParam = searchParams.get('calendarEventId');
   const selectableMembers = members;
   const createCalendarItemMutation = useMutation({
     mutationFn: eventUtilityApi.createCalendarItem,
+    onError: (error) => {
+      const apiFieldErrors = mapCalendarApiErrorToFieldErrors(error);
+      if (hasFieldErrors(apiFieldErrors)) {
+        setCalendarFormErrors((old) => ({ ...old, ...apiFieldErrors }));
+      }
+    },
     onSuccess: () => {
       setForm(buildEmptyCalendarForm());
       setSelectedDateKey('');
@@ -308,6 +325,11 @@ const CalendarContent = ({ eventId, event, departments, members, calendar, calen
   });
   const handleCreateCalendarItem = (submitEvent) => {
     submitEvent.preventDefault();
+    const validationErrors = validateCalendarForm(form, eventStartInput, eventEndInput, lastCalendarTimeField);
+    if (Object.keys(validationErrors).length > 0) {
+      setCalendarFormErrors(validationErrors);
+      return;
+    }
     createCalendarItemMutation.mutate({
       eventId,
       payload: buildCalendarPayload(form),
@@ -343,8 +365,18 @@ const CalendarContent = ({ eventId, event, departments, members, calendar, calen
     return () => window.cancelAnimationFrame(frameId);
   }, [calendar?.days, calendarEventIdParam, setSearchParams]);
   const updateForm = (name, value) => {
+    if (createCalendarItemMutation.error) {
+      createCalendarItemMutation.reset();
+    }
+    if (name === 'startTime' || name === 'endTime') {
+      setLastCalendarTimeField(name);
+    }
+    setCalendarFormErrors((old) => ({ ...old, [name]: '', ...(name === 'startTime' || name === 'endTime' ? { startTime: '', endTime: '' } : {}) }));
     setForm((old) => ({ ...old, [name]: value }));
   };
+  const apiCalendarFormErrors = mapCalendarApiErrorToFieldErrors(createCalendarItemMutation.error);
+  const displayCalendarFormErrors = { ...apiCalendarFormErrors, ...calendarFormErrors };
+  const generalCalendarCreateError = createCalendarItemMutation.error && !hasFieldErrors(apiCalendarFormErrors);
   const openEditCalendarItem = (item) => {
     setSelectedCalendarItem(null);
     setEditingCalendarItem(item);
@@ -460,6 +492,7 @@ const CalendarContent = ({ eventId, event, departments, members, calendar, calen
         departments={departments}
         eventStartInput={eventStartInput}
         eventEndInput={eventEndInput}
+        eventTimeRangeLabel={eventTimeRangeLabel}
         mutation={updateCalendarItemMutation}
         onClose={() => setEditingCalendarItem(null)}
       />
@@ -483,7 +516,7 @@ const CalendarContent = ({ eventId, event, departments, members, calendar, calen
               <X size={18} />
             </button>
           </div>
-          <form onSubmit={handleCreateCalendarItem} className="flex min-h-0 flex-1 flex-col">
+          <form noValidate onSubmit={handleCreateCalendarItem} className="flex min-h-0 flex-1 flex-col">
             <div className="grid gap-4 overflow-y-auto px-5 py-4 md:grid-cols-2">
               <label className="space-y-1 md:col-span-2">
                 <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Tên lịch</span>
@@ -493,8 +526,9 @@ const CalendarContent = ({ eventId, event, departments, members, calendar, calen
                   onChange={(event) => updateForm('title', event.target.value)}
                   required
                   maxLength={255}
-                  className="w-full rounded-xl border border-slate-200 px-4 py-3 text-base font-semibold text-slate-950 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
+                  className={calendarInputClassName(displayCalendarFormErrors.title, 'w-full rounded-xl border border-slate-200 px-4 py-3 text-base font-semibold text-slate-950 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100')}
                 />
+                <FieldError message={displayCalendarFormErrors.title} />
               </label>
 
               <label className="space-y-1">
@@ -537,8 +571,12 @@ const CalendarContent = ({ eventId, event, departments, members, calendar, calen
                   min={eventStartInput}
                   max={eventEndInput}
                   required
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
+                  className={calendarInputClassName(displayCalendarFormErrors.startTime)}
                 />
+                <p className="text-xs font-semibold text-slate-500">
+                  Sự kiện: {eventTimeRangeLabel}
+                </p>
+                <FieldError message={displayCalendarFormErrors.startTime} />
               </label>
 
               <label className="space-y-1">
@@ -550,8 +588,9 @@ const CalendarContent = ({ eventId, event, departments, members, calendar, calen
                   min={form.startTime || eventStartInput}
                   max={eventEndInput}
                   required
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
+                  className={calendarInputClassName(displayCalendarFormErrors.endTime)}
                 />
+                <FieldError message={displayCalendarFormErrors.endTime} />
               </label>
 
               <label className="space-y-1">
@@ -633,7 +672,7 @@ const CalendarContent = ({ eventId, event, departments, members, calendar, calen
                 </div>
               </div>
 
-              {createCalendarItemMutation.error && (
+              {generalCalendarCreateError && (
                 <div className="rounded-xl bg-red-50 p-3 text-sm text-red-700 md:col-span-2">
                   {createCalendarItemMutation.error.userMessage || createCalendarItemMutation.error.message}
                 </div>
@@ -918,6 +957,65 @@ const buildCalendarPayload = (form) => ({
   attendeeIds: form.attendeeIds.map((attendeeId) => Number(attendeeId)),
 });
 
+const validateCalendarForm = (form, eventStartInput, eventEndInput, lastTimeField = 'endTime') => {
+  const errors = {};
+  if (!form.title.trim()) {
+    errors.title = 'Vui lòng nhập tên lịch.';
+  }
+  if (!form.startTime || !form.endTime) {
+    if (!form.startTime) {
+      errors.startTime = 'Vui lòng chọn thời gian bắt đầu lịch.';
+    }
+    if (!form.endTime) {
+      errors.endTime = 'Vui lòng chọn thời gian kết thúc lịch.';
+    }
+    return errors;
+  }
+  if ((eventStartInput && form.startTime < eventStartInput) || (eventEndInput && form.endTime > eventEndInput)) {
+    if (eventStartInput && form.startTime < eventStartInput) {
+      errors.startTime = buildEventTimeRangeError('Thời gian bắt đầu lịch', eventStartInput, eventEndInput);
+    }
+    if (eventEndInput && form.endTime > eventEndInput) {
+      errors.endTime = buildEventTimeRangeError('Thời gian kết thúc lịch', eventStartInput, eventEndInput);
+    }
+  }
+  if (form.endTime <= form.startTime) {
+    errors[lastTimeField === 'startTime' ? 'startTime' : 'endTime'] = 'Thời gian kết thúc lịch phải sau thời gian bắt đầu.';
+  }
+  return errors;
+};
+
+const getErrorMessage = (error) => error?.userMessage || error?.message || '';
+
+const hasFieldErrors = (errors) => Object.values(errors || {}).some(Boolean);
+
+const mapCalendarApiErrorToFieldErrors = (error) => {
+  const message = getErrorMessage(error);
+  const normalized = message.toLowerCase();
+  const errors = {};
+  if (!message) {
+    return errors;
+  }
+  if (normalized.includes('tên') || normalized.includes('tiêu đề') || normalized.includes('title')) {
+    errors.title = message;
+  }
+  if (normalized.includes('bắt đầu') || normalized.includes('starttime')) {
+    errors.startTime = message;
+  }
+  if (normalized.includes('kết thúc') || normalized.includes('endtime')) {
+    errors.endTime = message;
+  }
+  return errors;
+};
+
+const calendarInputClassName = (error, className = 'w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100') => (
+  error ? `${className} border-red-300 bg-red-50/70 focus:border-red-400 focus:ring-red-100` : className
+);
+
+const FieldError = ({ message }) => (
+  message ? <p className="text-xs font-semibold text-red-600">{message}</p> : null
+);
+
 const calendarSuggestionToPayload = (item, departments, members) => buildCalendarPayload(
   suggestedCalendarItemToForm(item, buildEmptyCalendarForm(), departments, members)
 );
@@ -1146,9 +1244,20 @@ const CalendarDetailField = ({ label, value }) => (
   </div>
 );
 
-const CalendarEditModal = ({ eventId, item, departments, members, eventStartInput, eventEndInput, mutation, onClose }) => {
+const CalendarEditModal = ({ eventId, item, departments, members, eventStartInput, eventEndInput, eventTimeRangeLabel, mutation, onClose }) => {
   const [form, setForm] = useState(() => calendarItemToForm(item));
-  const updateForm = (name, value) => setForm((old) => ({ ...old, [name]: value }));
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [lastTimeField, setLastTimeField] = useState('endTime');
+  const updateForm = (name, value) => {
+    if (mutation.error) {
+      mutation.reset();
+    }
+    if (name === 'startTime' || name === 'endTime') {
+      setLastTimeField(name);
+    }
+    setFieldErrors((old) => ({ ...old, [name]: '', ...(name === 'startTime' || name === 'endTime' ? { startTime: '', endTime: '' } : {}) }));
+    setForm((old) => ({ ...old, [name]: value }));
+  };
   const toggleAttendee = (userId) => {
     setForm((old) => {
       const value = String(userId);
@@ -1160,12 +1269,20 @@ const CalendarEditModal = ({ eventId, item, departments, members, eventStartInpu
   };
   const handleSubmit = (submitEvent) => {
     submitEvent.preventDefault();
+    const validationErrors = validateCalendarForm(form, eventStartInput, eventEndInput, lastTimeField);
+    if (Object.keys(validationErrors).length > 0) {
+      setFieldErrors(validationErrors);
+      return;
+    }
     mutation.mutate({
       eventId,
       calendarItemId: item.id,
       payload: buildCalendarPayload(form),
     });
   };
+  const apiFieldErrors = mapCalendarApiErrorToFieldErrors(mutation.error);
+  const displayFieldErrors = { ...apiFieldErrors, ...fieldErrors };
+  const generalMutationError = mutation.error && !hasFieldErrors(apiFieldErrors);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 p-4 backdrop-blur-sm">
@@ -1184,7 +1301,7 @@ const CalendarEditModal = ({ eventId, item, departments, members, eventStartInpu
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+        <form noValidate onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
           <div className="grid gap-4 overflow-y-auto px-5 py-4 md:grid-cols-2">
             <label className="space-y-1 md:col-span-2">
               <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Tên lịch</span>
@@ -1193,8 +1310,9 @@ const CalendarEditModal = ({ eventId, item, departments, members, eventStartInpu
                 onChange={(event) => updateForm('title', event.target.value)}
                 required
                 maxLength={255}
-                className="w-full rounded-xl border border-slate-200 px-4 py-3 text-base font-semibold text-slate-950 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
+                className={calendarInputClassName(displayFieldErrors.title, 'w-full rounded-xl border border-slate-200 px-4 py-3 text-base font-semibold text-slate-950 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100')}
               />
+              <FieldError message={displayFieldErrors.title} />
             </label>
 
             <label className="space-y-1">
@@ -1237,8 +1355,12 @@ const CalendarEditModal = ({ eventId, item, departments, members, eventStartInpu
                 min={eventStartInput}
                 max={eventEndInput}
                 required
-                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
+                className={calendarInputClassName(displayFieldErrors.startTime)}
               />
+              <p className="text-xs font-semibold text-slate-500">
+                Sự kiện: {eventTimeRangeLabel}
+              </p>
+              <FieldError message={displayFieldErrors.startTime} />
             </label>
 
             <label className="space-y-1">
@@ -1250,8 +1372,9 @@ const CalendarEditModal = ({ eventId, item, departments, members, eventStartInpu
                 min={form.startTime || eventStartInput}
                 max={eventEndInput}
                 required
-                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
+                className={calendarInputClassName(displayFieldErrors.endTime)}
               />
+              <FieldError message={displayFieldErrors.endTime} />
             </label>
 
             <label className="space-y-1">
@@ -1333,7 +1456,7 @@ const CalendarEditModal = ({ eventId, item, departments, members, eventStartInpu
               </div>
             </div>
 
-            {mutation.error && (
+            {generalMutationError && (
               <div className="rounded-xl bg-red-50 p-3 text-sm text-red-700 md:col-span-2">
                 {mutation.error.userMessage || mutation.error.message}
               </div>
@@ -1385,11 +1508,7 @@ const buildDateTimeLocalValue = (dateKey, currentValue) => {
 };
 
 const formatCalendarDateKey = (dateKey) => {
-  const date = new Date(`${dateKey}T00:00:00`);
-  if (Number.isNaN(date.getTime())) {
-    return dateKey;
-  }
-  return date.toLocaleDateString('vi-VN');
+  return formatDateOnly(`${dateKey}T00:00:00`, dateKey);
 };
 
 const formatCalendarItemTime = (item) => {
@@ -1401,12 +1520,11 @@ const formatCalendarItemTime = (item) => {
     return '';
   }
 
-  const start = new Date(item.startTime);
-  if (Number.isNaN(start.getTime())) {
+  const start = getVietnamDateTimeParts(item.startTime);
+  if (!start) {
     return '';
   }
-
-  return `${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`;
+  return `${start.hour}:${start.minute}`;
 };
 
 const formatCalendarItemRange = (item) => {

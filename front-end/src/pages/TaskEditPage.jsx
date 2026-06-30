@@ -11,8 +11,14 @@ import workloadApi from '../api/workloadApi';
 import MilestoneCreateModal from '../components/MilestoneCreateModal';
 import { Button, ErrorState, LoadingState, PageHeader, Panel, PriorityBadge, StatusBadge } from '../components/ui';
 import { invalidateDashboardQueries } from '../utils/dashboardQueryUtils';
-
-const toDatetimeLocal = (value) => (value ? value.slice(0, 16) : '');
+import {
+  buildEventTimeRangeError,
+  formatDateTimeInputRange,
+  getEventTimeBounds,
+  getLaterDateTimeLocal,
+  nowDateTimeLocalValue,
+  toDateTimeLocalValue,
+} from '../utils/dateUtils';
 
 const autoResizeTextarea = (element) => {
   element.style.height = 'auto';
@@ -22,6 +28,27 @@ const autoResizeTextarea = (element) => {
 const workloadText = (workload) => {
   if (!workload) return '';
   return ` - ${workload.assignedTasks} công việc - ${workload.workloadStatus}`;
+};
+
+const validateTaskDeadline = (deadline, minDeadlineInput, eventEndInput, previousDeadline = '') => {
+  if (!deadline) {
+    return 'Vui lòng chọn deadline công việc.';
+  }
+  const unchangedExistingDeadline = previousDeadline && deadline === previousDeadline;
+  if (!unchangedExistingDeadline && minDeadlineInput && deadline < minDeadlineInput) {
+    return buildEventTimeRangeError('Deadline công việc', minDeadlineInput, eventEndInput);
+  }
+  if (eventEndInput && deadline > eventEndInput) {
+    return buildEventTimeRangeError('Deadline công việc', minDeadlineInput, eventEndInput);
+  }
+  return '';
+};
+
+const getErrorMessage = (error) => error?.userMessage || error?.message || '';
+
+const isDeadlineError = (message) => {
+  const normalized = String(message || '').toLowerCase();
+  return normalized.includes('deadline') || normalized.includes('hạn');
 };
 
 const TaskEditPage = () => {
@@ -111,16 +138,22 @@ const TaskEditPage = () => {
 };
 
 const TaskEditForm = ({ task, event, departments, members, mutation, taskId, eventId }) => {
-  const maxDeadline = toDatetimeLocal(event?.endTime || event?.startTime || event?.eventDate);
+  const minDeadline = getLaterDateTimeLocal(
+    nowDateTimeLocalValue(),
+    toDateTimeLocalValue(event?.startTime || event?.eventDate)
+  );
+  const { endInput: maxDeadline } = getEventTimeBounds(event);
+  const deadlineRangeLabel = formatDateTimeInputRange(minDeadline, maxDeadline);
   const isSubtask = Boolean(task.parentId);
   const [isMilestoneModalOpen, setIsMilestoneModalOpen] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
   const [form, setForm] = useState({
     title: task.title || '',
     description: task.description || '',
     departmentId: String(task.departmentId || ''),
     assigneeId: task.assigneeId ? String(task.assigneeId) : '',
     milestoneId: task.milestoneId ? String(task.milestoneId) : '',
-    deadline: toDatetimeLocal(task.deadline),
+    deadline: toDateTimeLocalValue(task.deadline),
     reminderOffsetHours: Number(((task.reminderOffsetMinutes ?? 1440) / 60).toFixed(2)),
     status: task.status || 'TODO',
     priority: task.priority || 'MEDIUM',
@@ -140,6 +173,10 @@ const TaskEditForm = ({ task, event, departments, members, mutation, taskId, eve
 
   const handleChange = (event) => {
     const { name, value } = event.target;
+    if (mutation.error) {
+      mutation.reset();
+    }
+    setFieldErrors((old) => ({ ...old, [name]: '' }));
     setForm((old) => ({
       ...old,
       [name]: value,
@@ -164,6 +201,12 @@ const TaskEditForm = ({ task, event, departments, members, mutation, taskId, eve
 
   const handleSubmit = (event) => {
     event.preventDefault();
+    const previousDeadline = toDateTimeLocalValue(task.deadline);
+    const validationMessage = validateTaskDeadline(form.deadline, minDeadline, maxDeadline, previousDeadline);
+    if (validationMessage) {
+      setFieldErrors((old) => ({ ...old, deadline: validationMessage }));
+      return;
+    }
     mutation.mutate({
       taskId,
       payload: {
@@ -185,11 +228,16 @@ const TaskEditForm = ({ task, event, departments, members, mutation, taskId, eve
     setIsMilestoneModalOpen(false);
   };
 
+  const mutationErrorMessage = getErrorMessage(mutation.error);
+  const apiDeadlineError = isDeadlineError(mutationErrorMessage) ? mutationErrorMessage : '';
+  const displayFieldErrors = { ...fieldErrors, deadline: fieldErrors.deadline || apiDeadlineError };
+  const generalMutationError = mutation.error && !apiDeadlineError;
+
   return (
     <>
       <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
         <Panel className="p-5">
-          <form onSubmit={handleSubmit} className="grid gap-5">
+          <form noValidate onSubmit={handleSubmit} className="grid gap-5">
             <div className="flex flex-col gap-3 border-b border-slate-100 pb-4 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.14em] text-sky-600">Thông tin</p>
@@ -198,7 +246,7 @@ const TaskEditForm = ({ task, event, departments, members, mutation, taskId, eve
               <span className="text-sm font-bold text-slate-500">#{task.id}</span>
             </div>
 
-            {mutation.error && (
+            {generalMutationError && (
               <ErrorState error={mutation.error} title="Không lưu được công việc" />
             )}
 
@@ -310,10 +358,15 @@ const TaskEditForm = ({ task, event, departments, members, mutation, taskId, eve
                   type="datetime-local"
                   value={form.deadline}
                   onChange={handleChange}
+                  min={form.deadline === toDateTimeLocalValue(task.deadline) ? undefined : (minDeadline || undefined)}
                   max={maxDeadline || undefined}
                   required
-                  className={inputClassName}
+                  className={inputClassNameWithError(displayFieldErrors.deadline)}
                 />
+                <p className="mt-2 text-xs font-semibold text-slate-500">
+                  Khoảng hợp lệ: {deadlineRangeLabel}
+                </p>
+                <FieldError message={displayFieldErrors.deadline} />
               </Field>
             </div>
 
@@ -384,6 +437,7 @@ const TaskEditForm = ({ task, event, departments, members, mutation, taskId, eve
 
       <MilestoneCreateModal
         eventId={eventId}
+        event={event}
         isOpen={isMilestoneModalOpen}
         onCancel={() => setIsMilestoneModalOpen(false)}
         onCreated={handleMilestoneCreated}
@@ -413,8 +467,15 @@ const getWorkloadClassName = (status) => {
 };
 
 const inputClassName = 'min-h-11 w-full min-w-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-sky-300 focus:ring-4 focus:ring-sky-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500';
+const inputClassNameWithError = (error) => (
+  error ? `${inputClassName} border-red-300 bg-red-50/70 focus:border-red-400 focus:ring-red-100` : inputClassName
+);
 const compactTextareaClassName = 'min-h-11 w-full min-w-0 resize-none overflow-hidden rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold leading-6 text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-sky-300 focus:ring-4 focus:ring-sky-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500';
 const textareaClassName = 'min-h-28 w-full min-w-0 resize-none overflow-hidden rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold leading-6 text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-sky-300 focus:ring-4 focus:ring-sky-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500';
+
+const FieldError = ({ message }) => (
+  message ? <p className="mt-2 text-xs font-semibold text-red-600">{message}</p> : null
+);
 
 export default TaskEditPage;
 

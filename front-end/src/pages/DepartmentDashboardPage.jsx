@@ -19,20 +19,12 @@ import eventApi from '../api/eventApi';
 import leaderSnapshotApi from '../api/leaderSnapshotApi';
 import taskApi from '../api/taskApi';
 import { PriorityBadge, StatusBadge } from '../components/ui';
-import { formatDate } from '../utils/dateUtils';
+import { formatDate, toDateInputValue } from '../utils/dateUtils';
 import { canAccessDepartment, getEventPermissions } from '../utils/permissionUtils';
 
 const PAGE_SIZE = 8;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
-const pad = (value) => String(value).padStart(2, '0');
-const toDateInput = (value) => {
-  const date = value instanceof Date ? value : new Date(value || Date.now());
-  if (Number.isNaN(date.getTime())) {
-    return '';
-  }
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-};
 const addDays = (date, days) => new Date(date.getTime() + days * MS_PER_DAY);
 const getLatestWeekDateRange = (eventStart, eventEnd) => {
   const today = new Date();
@@ -49,7 +41,7 @@ const getLatestWeekDateRange = (eventStart, eventEnd) => {
   const from = hasStart && start > latestFrom ? start : latestFrom;
   from.setHours(0, 0, 0, 0);
 
-  return { fromDate: toDateInput(from), toDate: toDateInput(to) };
+  return { fromDate: toDateInputValue(from), toDate: toDateInputValue(to) };
 };
 
 const DepartmentDashboardPage = ({ user, onLogout }) => {

@@ -7,6 +7,7 @@ import milestoneApi from '../api/milestoneApi';
 import eventApi from '../api/eventApi';
 import { Button, EmptyState, ErrorState, LoadingState, PageHeader, Panel, PriorityBadge, ProgressBar, StatusBadge } from '../components/ui';
 import { getEventPermissions } from '../utils/permissionUtils';
+import { formatDate } from '../utils/dateUtils';
 
 const EventMilestonePage = ({ user, onLogout }) => {
   const { eventId } = useParams();
@@ -165,21 +166,6 @@ const toTime = (value) => {
   return Number.isNaN(date.getTime()) ? Number.MAX_SAFE_INTEGER : date.getTime();
 };
 
-const formatMilestoneDate = (value) => {
-  if (!value) {
-    return 'Chưa có hạn';
-  }
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return 'Chưa có hạn';
-  }
-
-  return date.toLocaleDateString('vi-VN', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  });
-};
+const formatMilestoneDate = (value) => formatDate(value, 'Chưa có hạn');
 
 export default EventMilestonePage;

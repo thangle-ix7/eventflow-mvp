@@ -18,15 +18,7 @@ import AppLayout from '../components/AppLayout';
 import { Button, ErrorState, LoadingState, Panel } from '../components/ui';
 import eventApi from '../api/eventApi';
 import { EVENT_TYPE_OPTIONS } from '../utils/eventTypeUtils';
-
-const pad = (value) => String(value).padStart(2, '0');
-
-const toDateTimeLocalValue = (value) => {
-  if (!value) return '';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-};
+import { formatDateTimeInput, nowDateTimeLocalValue, toDateTimeLocalValue } from '../utils/dateUtils';
 
 const EventEditPage = ({ user, onLogout }) => {
   const { eventId } = useParams();
@@ -116,7 +108,11 @@ const EventEditPage = ({ user, onLogout }) => {
 };
 
 const EventEditForm = ({ event, eventId, mutation }) => {
-  const [localError, setLocalError] = useState('');
+  const minEventDateTime = nowDateTimeLocalValue();
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [lastTimeField, setLastTimeField] = useState('endTime');
+  const initialStartTime = toDateTimeLocalValue(event.startTime || event.eventDate);
+  const initialEndTime = toDateTimeLocalValue(event.endTime);
   const [form, setForm] = useState({
     name: event.name || '',
     description: event.description || '',
@@ -126,22 +122,31 @@ const EventEditForm = ({ event, eventId, mutation }) => {
     expectedAttendees: event.expectedAttendees ?? '',
     scale: event.scale || '',
     contextDescription: event.contextDescription || '',
-    startTime: toDateTimeLocalValue(event.startTime || event.eventDate),
-    endTime: toDateTimeLocalValue(event.endTime),
+    startTime: initialStartTime,
+    endTime: initialEndTime,
     status: event.status || 'ACTIVE',
   });
 
   const handleChange = (changeEvent) => {
     const { name, value } = changeEvent.target;
-    setLocalError('');
+    if (mutation.error) {
+      mutation.reset();
+    }
+    if (name === 'startTime' || name === 'endTime') {
+      setLastTimeField(name);
+    }
+    setFieldErrors((old) => ({ ...old, [name]: '', ...(name === 'startTime' || name === 'endTime' ? { startTime: '', endTime: '' } : {}) }));
     setForm((old) => ({ ...old, [name]: value }));
   };
 
   const handleSubmit = (submitEvent) => {
     submitEvent.preventDefault();
-    const validationMessage = validateEventForm(form);
-    if (validationMessage) {
-      setLocalError(validationMessage);
+    const validationErrors = validateEventForm(form, lastTimeField, minEventDateTime, {
+      initialStartTime,
+      initialEndTime,
+    });
+    if (hasFieldErrors(validationErrors)) {
+      setFieldErrors(validationErrors);
       return;
     }
 
@@ -163,15 +168,19 @@ const EventEditForm = ({ event, eventId, mutation }) => {
     });
   };
 
+  const apiFieldErrors = mapEventApiErrorToFieldErrors(mutation.error);
+  const displayFieldErrors = { ...apiFieldErrors, ...fieldErrors };
+  const generalMutationError = mutation.error && !hasFieldErrors(apiFieldErrors);
+
   return (
     <form noValidate onSubmit={handleSubmit} className="relative space-y-5 p-6">
-      {(localError || mutation.error) && (
+      {generalMutationError && (
         <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-red-600 shadow-sm">
             <AlertCircle size={18} />
           </div>
           <span className="leading-6">
-            {localError || mutation.error?.userMessage || mutation.error?.message}
+            {mutation.error?.userMessage || mutation.error?.message}
           </span>
         </div>
       )}
@@ -186,8 +195,9 @@ const EventEditForm = ({ event, eventId, mutation }) => {
           value={form.name}
           onChange={handleChange}
           maxLength={255}
-          className={inputClassName}
+          className={inputClassNameWithError(displayFieldErrors.name)}
         />
+        <FieldError message={displayFieldErrors.name} />
       </Field>
 
       <Field
@@ -303,11 +313,13 @@ const EventEditForm = ({ event, eventId, mutation }) => {
         >
           <input
             name="startTime"
-          type="datetime-local"
-          value={form.startTime}
-          onChange={handleChange}
-          className={inputClassName}
-        />
+            type="datetime-local"
+            value={form.startTime}
+            onChange={handleChange}
+            min={form.startTime === initialStartTime ? undefined : minEventDateTime}
+            className={inputClassNameWithError(displayFieldErrors.startTime)}
+          />
+          <FieldError message={displayFieldErrors.startTime} />
         </Field>
 
         <Field
@@ -317,11 +329,12 @@ const EventEditForm = ({ event, eventId, mutation }) => {
           <input
             name="endTime"
             type="datetime-local"
-          value={form.endTime}
-          onChange={handleChange}
-          min={form.startTime || undefined}
-          className={inputClassName}
-        />
+            value={form.endTime}
+            onChange={handleChange}
+            min={form.endTime === initialEndTime ? undefined : (form.startTime || minEventDateTime)}
+            className={inputClassNameWithError(displayFieldErrors.endTime)}
+          />
+          <FieldError message={displayFieldErrors.endTime} />
         </Field>
       </div>
 
@@ -368,20 +381,50 @@ const EventEditForm = ({ event, eventId, mutation }) => {
   );
 };
 
-const validateEventForm = (form) => {
+const validateEventForm = (form, lastTimeField = 'endTime', minEventDateTime = nowDateTimeLocalValue(), initialValues = {}) => {
+  const errors = {};
+  const unchangedStartTime = form.startTime === initialValues.initialStartTime;
+  const unchangedEndTime = form.endTime === initialValues.initialEndTime;
   if (!form.name.trim()) {
-    return 'Vui lòng nhập tên sự kiện.';
+    errors.name = 'Vui lòng nhập tên sự kiện.';
   }
 
   if (!form.startTime) {
-    return 'Vui lòng chọn thời gian bắt đầu.';
+    errors.startTime = 'Vui lòng chọn thời gian bắt đầu.';
+  } else if (!unchangedStartTime && form.startTime < minEventDateTime) {
+    errors.startTime = `Thời gian bắt đầu không được trước hiện tại (${formatDateTimeInput(minEventDateTime)}).`;
   }
 
   if (form.endTime && form.endTime <= form.startTime) {
-    return 'Thời gian kết thúc phải sau thời gian bắt đầu.';
+    errors[lastTimeField === 'startTime' ? 'startTime' : 'endTime'] = 'Thời gian kết thúc phải sau thời gian bắt đầu.';
+  } else if (form.endTime && !unchangedEndTime && form.endTime < minEventDateTime) {
+    errors.endTime = `Thời gian kết thúc không được trước hiện tại (${formatDateTimeInput(minEventDateTime)}).`;
   }
 
-  return '';
+  return errors;
+};
+
+const getErrorMessage = (error) => error?.userMessage || error?.message || '';
+
+const hasFieldErrors = (errors) => Object.values(errors || {}).some(Boolean);
+
+const mapEventApiErrorToFieldErrors = (error) => {
+  const message = getErrorMessage(error);
+  const normalized = message.toLowerCase();
+  const errors = {};
+  if (!message) {
+    return errors;
+  }
+  if (normalized.includes('tên') || normalized.includes('name')) {
+    errors.name = message;
+  }
+  if (normalized.includes('bắt đầu') || normalized.includes('starttime') || normalized.includes('eventdate')) {
+    errors.startTime = message;
+  }
+  if (normalized.includes('kết thúc') || normalized.includes('endtime')) {
+    errors.endTime = message;
+  }
+  return errors;
 };
 
 const Field = ({ label, children }) => (
@@ -393,5 +436,13 @@ const Field = ({ label, children }) => (
 
 
 const inputClassName = 'w-full rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:bg-white focus:ring-4 focus:ring-cyan-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500';
+
+const inputClassNameWithError = (error) => (
+  error ? `${inputClassName} border-red-300 bg-red-50/70 focus:border-red-400 focus:ring-red-100` : inputClassName
+);
+
+const FieldError = ({ message }) => (
+  message ? <p className="mt-2 text-xs font-semibold text-red-600">{message}</p> : null
+);
 
 export default EventEditPage;

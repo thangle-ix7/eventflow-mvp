@@ -7,7 +7,15 @@ import eventApi from '../api/eventApi';
 import eventMemberApi from '../api/eventMemberApi';
 import milestoneApi from '../api/milestoneApi';
 import taskApi from '../api/taskApi';
-import { formatDate } from '../utils/dateUtils';
+import {
+  buildEventTimeRangeError,
+  formatDate,
+  formatDateTimeInputRange,
+  getEventTimeBounds,
+  getLaterDateTimeLocal,
+  nowDateTimeLocalValue,
+  toDateTimeLocalValue,
+} from '../utils/dateUtils';
 import { invalidateDashboardQueries } from '../utils/dashboardQueryUtils';
 
 
@@ -25,7 +33,27 @@ const PRIORITY_OPTIONS = [
   { value: 'URGENT', label: 'Khẩn cấp' },
 ];
 
-const toDatetimeLocal = (value) => (value ? value.slice(0, 16) : '');
+const validateTaskDeadline = (deadline, minDeadlineInput, eventEndInput, previousDeadline = '') => {
+  if (!deadline) {
+    return 'Vui lòng chọn deadline công việc.';
+  }
+  const unchangedExistingDeadline = previousDeadline && deadline === previousDeadline;
+  if (!unchangedExistingDeadline && minDeadlineInput && deadline < minDeadlineInput) {
+    return buildEventTimeRangeError('Deadline công việc', minDeadlineInput, eventEndInput);
+  }
+  if (eventEndInput && deadline > eventEndInput) {
+    return buildEventTimeRangeError('Deadline công việc', minDeadlineInput, eventEndInput);
+  }
+  return '';
+};
+
+const getErrorMessage = (error) => error?.userMessage || error?.message || '';
+
+const isDeadlineError = (message) => {
+  const normalized = String(message || '').toLowerCase();
+  return normalized.includes('deadline') || normalized.includes('hạn');
+};
+
 const toReminderHours = (minutes) => Number(((minutes ?? 1440) / 60).toFixed(2));
 
 const createFormFromTask = (task) => ({
@@ -34,7 +62,7 @@ const createFormFromTask = (task) => ({
   departmentId: task?.departmentId ? String(task.departmentId) : '',
   assigneeId: task?.assigneeId ? String(task.assigneeId) : '',
   milestoneId: task?.milestoneId ? String(task.milestoneId) : '',
-  deadline: toDatetimeLocal(task?.deadline),
+  deadline: toDateTimeLocalValue(task?.deadline),
   reminderOffsetHours: toReminderHours(task?.reminderOffsetMinutes),
   status: task?.status || 'TODO',
   priority: task?.priority || 'MEDIUM',
@@ -47,6 +75,7 @@ const TaskDetailPage = ({ user }) => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [editingField, setEditingField] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({});
   const [form, setForm] = useState(null);
 
   const eventQuery = useQuery({
@@ -93,6 +122,12 @@ const TaskDetailPage = ({ user }) => {
   const canEditTask = Boolean(task && (isEventLeader || isTeamLeader));
   const isAssignee = String(task?.assigneeId || '') === String(user?.userId || '');
   const currentForm = form || createFormFromTask(task);
+  const minDeadline = getLaterDateTimeLocal(
+    nowDateTimeLocalValue(),
+    toDateTimeLocalValue(event?.startTime || event?.eventDate)
+  );
+  const { endInput: maxDeadline } = getEventTimeBounds(event);
+  const deadlineRangeLabel = formatDateTimeInputRange(minDeadline, maxDeadline);
 
   const assignableMembers = useMemo(() => {
     if (!currentForm.departmentId) return [];
@@ -127,8 +162,12 @@ const TaskDetailPage = ({ user }) => {
   });
 
   const handleFieldChange = (name, value) => {
+    if (updateTaskMutation.error) {
+      updateTaskMutation.reset();
+    }
+    setFieldErrors((old) => ({ ...old, [name]: '' }));
     setForm((old) => ({
-      ...old,
+      ...(old || currentForm),
       [name]: value,
       ...(name === 'departmentId' ? { assigneeId: '' } : {}),
     }));
@@ -152,6 +191,13 @@ const TaskDetailPage = ({ user }) => {
     const payload = buildTaskPayload();
 
     if (!payload.title || !payload.deadline) return;
+    if (editingField === 'deadline') {
+      const validationMessage = validateTaskDeadline(payload.deadline, minDeadline, maxDeadline, toDateTimeLocalValue(task.deadline));
+      if (validationMessage) {
+        setFieldErrors((old) => ({ ...old, deadline: validationMessage }));
+        return;
+      }
+    }
     updateTaskMutation.mutate({ taskId, payload });
   };
 
@@ -165,6 +211,7 @@ const TaskDetailPage = ({ user }) => {
 
   const cancelEditing = () => {
     setForm(createFormFromTask(task));
+    setFieldErrors({});
     setEditingField(null);
   };
 
@@ -179,6 +226,11 @@ const TaskDetailPage = ({ user }) => {
   if (!task) {
     return <ErrorState error="Không tìm thấy công việc này" title="Không tìm thấy công việc" />;
   }
+
+  const updateErrorMessage = getErrorMessage(updateTaskMutation.error);
+  const apiDeadlineError = isDeadlineError(updateErrorMessage) ? updateErrorMessage : '';
+  const displayFieldErrors = { ...fieldErrors, deadline: fieldErrors.deadline || apiDeadlineError };
+  const generalUpdateError = updateTaskMutation.error && !apiDeadlineError;
 
   return (
     <div className="space-y-5">
@@ -220,7 +272,7 @@ const TaskDetailPage = ({ user }) => {
           )}
         </div>
 
-        {(updateTaskMutation.error || approveTaskMutation.error) && (
+        {(generalUpdateError || approveTaskMutation.error) && (
           <div className="px-5 py-4">
             <ErrorState error={updateTaskMutation.error || approveTaskMutation.error} title="Không lưu được công việc" />
           </div>
@@ -272,7 +324,19 @@ const TaskDetailPage = ({ user }) => {
             </EditableRow>
 
             <EditableRow label="Deadline" field="deadline" value={formatDate(task.deadline)} editingField={editingField} setEditingField={setEditingField} canEdit={canEditTask} onSave={saveField} onCancel={cancelEditing} isSaving={updateTaskMutation.isPending}>
-              <input type="datetime-local" value={currentForm.deadline} onChange={(event) => handleFieldChange('deadline', event.target.value)} className={inputClassName} autoFocus />
+              <input
+                type="datetime-local"
+                value={currentForm.deadline}
+                onChange={(event) => handleFieldChange('deadline', event.target.value)}
+                min={currentForm.deadline === toDateTimeLocalValue(task.deadline) ? undefined : (minDeadline || undefined)}
+                max={maxDeadline || undefined}
+                className={inputClassNameWithError(displayFieldErrors.deadline)}
+                autoFocus
+              />
+              <p className="text-xs font-semibold text-slate-500">
+                Khoảng hợp lệ: {deadlineRangeLabel}
+              </p>
+              <FieldError message={displayFieldErrors.deadline} />
             </EditableRow>
 
             <EditableRow label="Nhắc trước hạn" field="reminderOffsetHours" value={`${toReminderHours(task.reminderOffsetMinutes)} giờ`} editingField={editingField} setEditingField={setEditingField} canEdit={canEditTask} onSave={saveField} onCancel={cancelEditing} isSaving={updateTaskMutation.isPending}>
@@ -351,6 +415,13 @@ const TaskActionLink = ({ to, title }) => (
 
 
 const inputClassName = 'min-h-11 w-full min-w-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-sky-300 focus:ring-4 focus:ring-sky-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500';
+const inputClassNameWithError = (error) => (
+  error ? `${inputClassName} border-red-300 bg-red-50/70 focus:border-red-400 focus:ring-red-100` : inputClassName
+);
 const textareaClassName = 'min-h-24 w-full min-w-0 resize-y rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold leading-6 text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-sky-300 focus:ring-4 focus:ring-sky-100';
+
+const FieldError = ({ message }) => (
+  message ? <p className="text-xs font-semibold text-red-600">{message}</p> : null
+);
 
 export default TaskDetailPage;
