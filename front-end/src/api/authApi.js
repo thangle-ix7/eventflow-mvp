@@ -26,6 +26,11 @@ const authApi = {
     return response.data;
   },
 
+  logout: async (refreshToken) => {
+    const response = await apiClient.post('/auth/logout', { token: refreshToken });
+    return response.data;
+  },
+
   resetPassword: async ({ token, newPassword }) => {
     const response = await apiClient.post('/auth/reset-password', {
       token,
@@ -36,3 +41,4 @@ const authApi = {
 };
 
 export default authApi;
+

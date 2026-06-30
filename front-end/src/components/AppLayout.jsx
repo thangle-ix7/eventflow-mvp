@@ -1,5 +1,6 @@
 import TelegramOnboarding from './TelegramOnboarding';
 import FeedbackModal from './FeedbackModal';
+import { EventGuideAutoStart, EventGuideLauncher } from './EventGuide';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -107,12 +108,12 @@ const AppLayoutFrame = ({
 
   const eventNav = selectedEvent?.id
     ? [
-      { to: `/events/${selectedEvent.id}`, label: t('sidebar.info'), icon: Workflow },
-      ...(permissions.canViewEventDashboard ? [{ to: `/events/${selectedEvent.id}/dashboard`, label: t('sidebar.dashboard'), icon: BarChart3 }] : []),
-      { to: `/events/${selectedEvent.id}/milestones`, label: 'Cột mốc', icon: Flag },
-      { to: `/events/${selectedEvent.id}/tasks`, label: t('sidebar.tasks'), icon: ClipboardList },
-      ...(departmentHomePath ? [{ to: departmentHomePath, label: t('sidebar.departments'), icon: Users }] : []),
-      { to: `/events/${selectedEvent.id}/members`, label: t('sidebar.members'), icon: UserRound },
+      { to: `/events/${selectedEvent.id}`, label: t('sidebar.info'), icon: Workflow, guideTarget: 'nav-event-info' },
+      ...(permissions.canViewEventDashboard ? [{ to: `/events/${selectedEvent.id}/dashboard`, label: t('sidebar.dashboard'), icon: BarChart3, guideTarget: 'nav-event-dashboard' }] : []),
+      { to: `/events/${selectedEvent.id}/milestones`, label: 'Cột mốc', icon: Flag, guideTarget: 'nav-event-milestones' },
+      { to: `/events/${selectedEvent.id}/tasks`, label: t('sidebar.tasks'), icon: ClipboardList, guideTarget: 'nav-event-tasks' },
+      ...(departmentHomePath ? [{ to: departmentHomePath, label: t('sidebar.departments'), icon: Users, guideTarget: 'nav-event-departments' }] : []),
+      { to: `/events/${selectedEvent.id}/members`, label: t('sidebar.members'), icon: UserRound, guideTarget: 'nav-event-members' },
     ]
     : [];
 
@@ -297,7 +298,7 @@ const AppLayoutFrame = ({
   const renderEventNavigation = () => (
     <div className="space-y-5 p-4">
       {selectedEvent?.name && (
-        <div className="relative overflow-hidden rounded-[2rem] border border-sky-100 bg-gradient-to-br from-sky-50 via-white to-emerald-50 p-4 shadow-lg shadow-sky-100/60">
+        <div className="relative overflow-hidden rounded-[2rem] border border-sky-100 bg-gradient-to-br from-sky-50 via-white to-emerald-50 p-4 shadow-lg shadow-sky-100/60" data-guide-target="event-created-entry">
           <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-sky-100 blur-2xl" />
           <div className="pointer-events-none absolute -bottom-12 left-1/2 h-32 w-32 rounded-full bg-emerald-100/70 blur-2xl" />
 
@@ -326,6 +327,7 @@ const AppLayoutFrame = ({
               key={item.to}
               to={item.to}
               onClick={closeSidebarOnMobile}
+              data-guide-target={item.guideTarget}
               className={[
                 'group relative flex min-h-14 items-center gap-3 overflow-hidden rounded-[1.35rem] border px-3.5 py-3 text-sm font-black transition-all',
                 active
@@ -377,6 +379,7 @@ const AppLayoutFrame = ({
                 key={item.to}
                 to={item.to}
                 onClick={closeSidebarOnMobile}
+              data-guide-target={item.guideTarget}
                 className={[
                   'group relative flex min-h-16 items-center gap-3 overflow-hidden rounded-[1.35rem] border px-3.5 py-3 text-sm font-black transition-all',
                   active
@@ -427,9 +430,9 @@ const AppLayoutFrame = ({
       <div className="min-h-screen bg-[#F8FCFF] text-slate-950">
         {showTelegramOnboarding && <TelegramOnboarding userId={user.userId} />}
 
-        <header className="sticky top-0 z-50 border-b border-sky-100/80 bg-white/85 shadow-sm shadow-sky-100/60 backdrop-blur-2xl">
-          <div className="flex min-h-16 min-w-0 flex-nowrap items-center gap-1.5 px-2 py-3 min-[380px]:gap-2 min-[380px]:px-3 sm:gap-3 sm:px-5 lg:h-16 lg:justify-between lg:gap-6 lg:px-6 lg:py-0">
-            <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3 lg:flex-none">
+        <header className="sticky top-0 z-50 border-b border-sky-100/80 bg-white/90 shadow-sm shadow-sky-100/50 backdrop-blur-2xl">
+          <div className="flex min-h-[4.5rem] min-w-0 flex-nowrap items-center gap-2 px-3 py-3 sm:gap-4 sm:px-6 lg:gap-8 lg:px-8 lg:py-0">
+            <div className="flex min-w-0 flex-1 items-center gap-3 lg:flex-none">
               {eventNav.length > 0 && (
                 <button
                   type="button"
@@ -465,8 +468,8 @@ const AppLayoutFrame = ({
             </div>
 
             {selectedEvent?.id && (
-              <form onSubmit={handleGlobalSearchSubmit} className="hidden min-w-0 flex-1 items-center lg:flex">
-                <div className="relative w-full max-w-xl">
+              <form onSubmit={handleGlobalSearchSubmit} className="hidden min-w-0 flex-1 items-center justify-center lg:flex">
+                <div className="relative w-full max-w-2xl">
                   <Search
                     className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
                     strokeWidth={1.8}
@@ -480,7 +483,7 @@ const AppLayoutFrame = ({
                     placeholder={`${t('common.search')}...`}
                     value={globalSearch}
                     onChange={(event) => setGlobalSearch(event.target.value)}
-                    className="h-11 w-full rounded-2xl border border-sky-100 bg-sky-50/70 px-11 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:bg-white focus:ring-4 focus:ring-cyan-100"
+                    className="h-12 w-full rounded-[1.25rem] border border-sky-100 bg-slate-50/80 px-11 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 hover:bg-white focus:border-cyan-300 focus:bg-white focus:ring-4 focus:ring-cyan-100"
                   />
 
                   {globalSearch.trim() && (
@@ -510,17 +513,8 @@ const AppLayoutFrame = ({
               </form>
             )}
 
-            <div className="ml-auto flex min-w-0 shrink-0 items-center justify-end gap-1 min-[380px]:gap-2 lg:gap-3">
-              <div className="flex items-center gap-1 text-slate-500">
-                {selectedEvent?.id && (
-                  <Link
-                    to={`/events/${selectedEvent.id}/calendar`}
-                    className="hidden rounded-2xl p-2 transition hover:bg-sky-50 hover:text-sky-600 lg:inline-flex"
-                    aria-label={t('utility.calendar')}
-                  >
-                    <CalendarDays className="h-5 w-5" strokeWidth={1.8} />
-                  </Link>
-                )}
+            <div className="ml-auto flex min-w-0 shrink-0 items-center justify-end gap-2 lg:gap-3">
+              <div className="flex items-center gap-1.5 rounded-[1.35rem] border border-sky-100/80 bg-white/70 px-1.5 py-1 text-slate-500 shadow-sm shadow-sky-100/50">
 
                 <button
                   type="button"
@@ -532,6 +526,9 @@ const AppLayoutFrame = ({
                   <MessageSquareHeart className="h-5 w-5" strokeWidth={1.8} />
                   <span className="hidden xl:inline">{t('event.feedback')}</span>
                 </button>
+
+                <EventGuideLauncher selectedEvent={selectedEvent} user={user} />
+
 
                 <div className="relative shrink-0" ref={notificationRef}>
                   <button
@@ -652,20 +649,15 @@ const AppLayoutFrame = ({
                   )}
                 </div>
               </div>
-
-
               <Link
                 to="/profile"
-                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-slate-500 transition hover:bg-sky-50 hover:text-sky-600 sm:h-auto sm:w-auto sm:min-w-0 sm:px-3 sm:py-2 sm:text-right"
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center gap-2 rounded-2xl text-slate-600 transition hover:bg-sky-50 hover:text-sky-700 sm:h-11 sm:w-auto sm:min-w-0 sm:border sm:border-sky-100 sm:bg-white sm:px-3 sm:shadow-sm sm:shadow-sky-100/50"
                 aria-label="Hồ sơ cá nhân"
                 title="Hồ sơ cá nhân"
               >
-                <UserRound className="h-5 w-5 sm:hidden" strokeWidth={1.8} />
-                <span className="hidden max-w-[7.5rem] truncate font-black text-slate-950 sm:block sm:max-w-[10rem] lg:max-w-[14rem]">
+                <UserRound className="h-5 w-5" strokeWidth={1.8} />
+                <span className="hidden max-w-[8.5rem] truncate text-sm font-black text-slate-950 sm:block lg:max-w-[13rem]">
                   {user.name}
-                </span>
-                <span className="hidden text-xs font-bold sm:block">
-                  {currentRoleLabel}
                 </span>
               </Link>
 
@@ -793,6 +785,7 @@ const AppLayoutFrame = ({
           user={user}
           onClose={() => setFeedbackOpen(false)}
         />
+        <EventGuideAutoStart selectedEvent={selectedEvent} user={user} />
       </div>
     </AppLayoutContext.Provider>
   );
@@ -817,6 +810,9 @@ const formatNotificationTime = (value, lang) => {
 };
 
 export default AppLayout;
+
+
+
 
 
 

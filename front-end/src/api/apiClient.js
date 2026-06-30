@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { clearAuthSession, getRefreshToken, saveAuthSession } from './authSession';
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || '/api/v1';
@@ -11,6 +12,8 @@ const apiClient = axios.create({
   },
 });
 
+let refreshRequest = null;
+
 // Tự động gắn JWT token vào mọi request
 apiClient.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
@@ -20,21 +23,30 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
-// Nếu 401 thì clear token và reload về login
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     const requestUrl = error.config?.url || '';
     const isAuthRequest = requestUrl.includes('/auth/');
+    const status = error.response?.status;
+    const originalRequest = error.config;
 
-    if (error.response?.status === 401 && !isAuthRequest) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      localStorage.setItem('sessionExpired', 'true');
-      window.location.assign('/login');
+    if (status === 401 && !isAuthRequest && originalRequest && !originalRequest._retry) {
+      try {
+        originalRequest._retry = true;
+        const token = await refreshAccessToken();
+        originalRequest.headers = {
+          ...originalRequest.headers,
+          Authorization: `Bearer ${token}`,
+        };
+        return apiClient(originalRequest);
+      } catch {
+        expireSession();
+      }
+    } else if (status === 401 && !isAuthRequest) {
+      expireSession();
     }
 
-    const status = error.response?.status;
     const fieldErrors = error.response?.data?.fieldErrors;
     const validationMessage = fieldErrors
       ? Object.values(fieldErrors).join('\n')
@@ -52,6 +64,42 @@ apiClient.interceptors.response.use(
     });
   }
 );
+
+const refreshAccessToken = async () => {
+  if (!refreshRequest) {
+    const refreshToken = getRefreshToken();
+    if (!refreshToken) {
+      throw new Error('NO_REFRESH_TOKEN');
+    }
+
+    refreshRequest = axios
+      .post(
+        `${API_BASE_URL}/auth/refresh`,
+        { token: refreshToken },
+        {
+          timeout: 10000,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
+      .then((response) => {
+        saveAuthSession(response.data);
+        return response.data.token;
+      })
+      .finally(() => {
+        refreshRequest = null;
+      });
+  }
+
+  return refreshRequest;
+};
+
+const expireSession = () => {
+  clearAuthSession();
+  localStorage.setItem('sessionExpired', 'true');
+  if (window.location.pathname !== '/login') {
+    window.location.assign('/login');
+  }
+};
 
 const redirectPageLoadError = (error, status, message, isAuthRequest) => {
   const method = (error.config?.method || 'get').toLowerCase();
@@ -125,5 +173,3 @@ const getFriendlyErrorMessage = (status, error) => {
 };
 
 export default apiClient;
-
-

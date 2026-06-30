@@ -1,0 +1,697 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>EventFlow - Guideline Popup Tracker</title>
+    <style>
+      :root {
+        --ink: #172033;
+        --muted: #5d6b82;
+        --line: #d9e1ec;
+        --soft: #f5f8fc;
+        --teal: #0f766e;
+        --teal-soft: #dff7f3;
+        --blue: #2563eb;
+        --blue-soft: #e8f0ff;
+        --amber: #b45309;
+        --amber-soft: #fff4dd;
+        --green: #15803d;
+        --green-soft: #e7f8ed;
+        --red: #b91c1c;
+        --red-soft: #fdecec;
+        --white: #ffffff;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        color: var(--ink);
+        background: #eef3f8;
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        line-height: 1.55;
+      }
+
+      main {
+        width: min(1180px, calc(100% - 32px));
+        margin: 32px auto 56px;
+      }
+
+      header {
+        background: var(--white);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 28px;
+        box-shadow: 0 16px 40px rgba(23, 32, 51, 0.06);
+      }
+
+      h1,
+      h2,
+      h3 {
+        margin: 0;
+        line-height: 1.2;
+      }
+
+      h1 {
+        font-size: 30px;
+      }
+
+      h2 {
+        font-size: 22px;
+        margin-bottom: 14px;
+      }
+
+      h3 {
+        font-size: 17px;
+      }
+
+      p {
+        margin: 8px 0 0;
+      }
+
+      .subtle {
+        color: var(--muted);
+      }
+
+      .meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 18px;
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        min-height: 28px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: var(--soft);
+        border: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      section {
+        margin-top: 20px;
+        background: var(--white);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 24px;
+        box-shadow: 0 10px 28px rgba(23, 32, 51, 0.045);
+      }
+
+      .grid {
+        display: grid;
+        gap: 14px;
+      }
+
+      .grid.four {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .card {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 16px;
+        background: var(--soft);
+      }
+
+      .card strong {
+        display: block;
+        margin-bottom: 6px;
+      }
+
+      .status {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .done {
+        background: var(--green-soft);
+        color: var(--green);
+      }
+
+      .draft {
+        background: var(--amber-soft);
+        color: var(--amber);
+      }
+
+      .planned {
+        background: var(--blue-soft);
+        color: var(--blue);
+      }
+
+      .review {
+        background: var(--red-soft);
+        color: var(--red);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 12px;
+        table-layout: fixed;
+      }
+
+      th,
+      td {
+        border-bottom: 1px solid var(--line);
+        padding: 11px 10px;
+        text-align: left;
+        vertical-align: top;
+        font-size: 14px;
+      }
+
+      th {
+        background: #172033;
+        color: var(--white);
+        font-size: 13px;
+      }
+
+      tr:nth-child(even) td {
+        background: #fafcff;
+      }
+
+      .phase-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 8px;
+      }
+
+      .phase-title span {
+        flex: none;
+      }
+
+      .callout {
+        border-left: 4px solid var(--teal);
+        background: var(--teal-soft);
+        padding: 14px 16px;
+        border-radius: 6px;
+        color: #164e47;
+        margin-top: 14px;
+      }
+
+      ul {
+        margin: 10px 0 0;
+        padding-left: 20px;
+      }
+
+      li + li {
+        margin-top: 6px;
+      }
+
+      code {
+        background: #eef2f7;
+        border: 1px solid #d8e0ea;
+        border-radius: 5px;
+        padding: 2px 5px;
+        font-family:
+          "SFMono-Regular",
+          Consolas,
+          "Liberation Mono",
+          monospace;
+        font-size: 0.92em;
+      }
+
+      .small {
+        font-size: 13px;
+      }
+
+      @media (max-width: 900px) {
+        .grid.four {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        table {
+          table-layout: auto;
+        }
+      }
+
+      @media (max-width: 640px) {
+        main {
+          width: min(100% - 20px, 1180px);
+          margin-top: 16px;
+        }
+
+        header,
+        section {
+          padding: 18px;
+        }
+
+        .grid.four {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>EventFlow - Theo dõi phát triển Guideline Popup</h1>
+        <p class="subtle">
+          File này tổng hợp Giai đoạn 2, 3, 4 và 5 dựa trên dữ liệu nội dung ở file Excel
+          <code>eventflow_guideline_popup_giai_doan_1.xlsx</code>.
+        </p>
+        <div class="meta">
+          <span class="pill">Ngày tạo: 30/06/2026</span>
+          <span class="pill">Nguồn dữ liệu: Giai đoạn 1 - Guide Popups</span>
+          <span class="pill">Mục tiêu: hướng dẫn sử dụng chức năng và quy trình</span>
+          <span class="pill">Không bao gồm: lời khuyên thay đổi dữ liệu/kế hoạch</span>
+        </div>
+      </header>
+
+      <section>
+        <h2>Tổng quan tiến độ</h2>
+        <div class="grid four">
+          <div class="card">
+            <strong>Giai đoạn 1</strong>
+            <span class="status done">Đã có Excel</span>
+            <p class="small">Danh sách popup, nội dung, cách sử dụng, vai trò trong quy trình.</p>
+          </div>
+          <div class="card">
+            <strong>Giai đoạn 2</strong>
+            <span class="status draft">Đang thiết kế</span>
+            <p class="small">Định nghĩa kiểu popup, thành phần UI, hành vi chuyển bước.</p>
+          </div>
+          <div class="card">
+            <strong>Giai đoạn 3</strong>
+            <span class="status draft">Đang thiết kế</span>
+            <p class="small">Xác định điều kiện hiển thị, lưu trạng thái đã xem, mở lại hướng dẫn.</p>
+          </div>
+          <div class="card">
+            <strong>Giai đoạn 4-5</strong>
+            <span class="status planned">Đã lên cấu trúc</span>
+            <p class="small">Thiết kế data model dùng lại và map từng guide vào màn hình tương ứng.</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="phase-title">
+          <h2>Giai đoạn 2 - Thiết kế trải nghiệm popup</h2>
+          <span class="status draft">Draft</span>
+        </div>
+        <p class="subtle">
+          Giai đoạn này chuyển nội dung trong Excel thành trải nghiệm hướng dẫn có thể hiển thị trên UI.
+        </p>
+
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 16%">Loại popup</th>
+              <th style="width: 24%">Dùng cho dữ liệu nào trong Excel</th>
+              <th style="width: 30%">Cấu trúc hiển thị</th>
+              <th style="width: 30%">Hành vi người dùng</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Page intro</strong></td>
+              <td>Popup giới thiệu trang, ví dụ: Xem tổng quan sự kiện.</td>
+              <td>Tiêu đề, mô tả ngắn, vai trò trong quy trình, nút tiếp tục.</td>
+              <td>Hiện khi người dùng mở trang lần đầu hoặc bấm nút hướng dẫn.</td>
+            </tr>
+            <tr>
+              <td><strong>Feature guide</strong></td>
+              <td>Các bước chức năng chính: sự kiện, cột mốc, ban tổ chức, thành viên, công việc, review.</td>
+              <td>Tiêu đề, nội dung chức năng, cách sử dụng, vị trí trong flow.</td>
+              <td>Có thể chạy theo tour từng bước hoặc mở riêng ở từng màn hình.</td>
+            </tr>
+            <tr>
+              <td><strong>Metric tooltip</strong></td>
+              <td>Các chỉ số trong tổng quan: tổng công việc, hoàn thành, trễ hạn, thành viên, cột mốc, tỷ lệ hoàn thành.</td>
+              <td>Tooltip nhỏ cạnh icon hướng dẫn của từng chỉ số.</td>
+              <td>Hiện khi hover hoặc click vào icon hướng dẫn trên metric card.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="callout">
+          Nội dung popup nên giữ đúng format từ Excel: <strong>Tiêu đề popup</strong>,
+          <strong>Nội dung chức năng</strong>, <strong>Cách sử dụng</strong>,
+          <strong>Vai trò trong quy trình</strong>.
+        </div>
+      </section>
+
+      <section>
+        <h2>Giai đoạn 2 - Component popup đề xuất</h2>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 20%">Thành phần</th>
+              <th style="width: 42%">Nội dung lấy từ Excel</th>
+              <th style="width: 38%">Ghi chú sử dụng</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Header</td>
+              <td><code>Tiêu đề popup</code></td>
+              <td>Hiển thị ngắn gọn, ví dụ: “Khởi tạo cột mốc”.</td>
+            </tr>
+            <tr>
+              <td>Body - chức năng</td>
+              <td><code>Nội dung chức năng</code></td>
+              <td>Giải thích chức năng dùng để làm gì.</td>
+            </tr>
+            <tr>
+              <td>Body - thao tác</td>
+              <td><code>Cách sử dụng</code></td>
+              <td>Hướng dẫn người dùng thao tác trực tiếp trên màn hình.</td>
+            </tr>
+            <tr>
+              <td>Body - quy trình</td>
+              <td><code>Vai trò trong quy trình</code></td>
+              <td>Cho biết bước này nằm ở đâu trong flow tổ chức sự kiện.</td>
+            </tr>
+            <tr>
+              <td>Footer</td>
+              <td><code>Step</code>, <code>Giai đoạn</code></td>
+              <td>Hiển thị tiến độ tour, ví dụ: “Bước 3/8”.</td>
+            </tr>
+            <tr>
+              <td>Action buttons</td>
+              <td>Không lấy từ Excel</td>
+              <td>Dùng các nút: Bỏ qua, Quay lại, Tiếp tục, Hoàn tất.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <div class="phase-title">
+          <h2>Giai đoạn 3 - Điều kiện hiển thị</h2>
+          <span class="status draft">Draft</span>
+        </div>
+        <p class="subtle">
+          Giai đoạn này định nghĩa khi nào popup tự hiện, khi nào người dùng có thể mở lại và trạng thái đã xem được lưu ở đâu.
+        </p>
+
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 22%">Tình huống</th>
+              <th style="width: 30%">Điều kiện hiển thị</th>
+              <th style="width: 26%">Trạng thái cần lưu</th>
+              <th style="width: 22%">Cách mở lại</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Lần đầu vào sự kiện</td>
+              <td>Người dùng chưa xem tour chính của event hiện tại.</td>
+              <td><code>event_main_tour_seen</code></td>
+              <td>Nút “Hướng dẫn” trên trang sự kiện.</td>
+            </tr>
+            <tr>
+              <td>Lần đầu vào tổng quan</td>
+              <td>Người dùng chưa xem popup giới thiệu tổng quan.</td>
+              <td><code>overview_intro_seen</code></td>
+              <td>Icon hướng dẫn trong tab tổng quan.</td>
+            </tr>
+            <tr>
+              <td>Hover/click metric</td>
+              <td>Người dùng hover hoặc click icon hướng dẫn cạnh chỉ số.</td>
+              <td>Không bắt buộc lưu nếu chỉ là tooltip.</td>
+              <td>Icon hướng dẫn cạnh từng chỉ số.</td>
+            </tr>
+            <tr>
+              <td>Lần đầu vào từng feature</td>
+              <td>Người dùng chưa xem hướng dẫn của feature đó.</td>
+              <td><code>{feature_id}_guide_seen</code></td>
+              <td>Nút “Hướng dẫn” trong từng màn hình.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="callout">
+          Đề xuất lưu trạng thái theo cặp <strong>userId + eventId + guideId</strong> để cùng một người có thể xem hướng dẫn riêng cho từng sự kiện.
+        </div>
+      </section>
+
+      <section>
+        <div class="phase-title">
+          <h2>Giai đoạn 4 - Cấu trúc guide dùng lại được</h2>
+          <span class="status planned">Structure</span>
+        </div>
+        <p class="subtle">
+          Giai đoạn này biến các dòng trong Excel thành data model để frontend có thể render popup một cách nhất quán.
+        </p>
+
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 20%">Field</th>
+              <th style="width: 30%">Nguồn từ Excel</th>
+              <th style="width: 50%">Ý nghĩa</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>id</code></td>
+              <td>Tạo từ <code>Giai đoạn</code> + <code>Step</code></td>
+              <td>Mã duy nhất của popup, ví dụ: <code>overview-total-tasks</code>.</td>
+            </tr>
+            <tr>
+              <td><code>step</code></td>
+              <td><code>Step</code></td>
+              <td>Thứ tự hiển thị trong tour hoặc flow.</td>
+            </tr>
+            <tr>
+              <td><code>page</code></td>
+              <td><code>Khu vực hiển thị</code></td>
+              <td>Màn hình hoặc tab sẽ hiển thị popup.</td>
+            </tr>
+            <tr>
+              <td><code>type</code></td>
+              <td><code>Loại popup</code></td>
+              <td>Page intro, feature guide hoặc metric tooltip.</td>
+            </tr>
+            <tr>
+              <td><code>target</code></td>
+              <td><code>UI target đề xuất</code></td>
+              <td>Selector hoặc component key mà popup sẽ gắn vào.</td>
+            </tr>
+            <tr>
+              <td><code>title</code></td>
+              <td><code>Tiêu đề popup</code></td>
+              <td>Tiêu đề hiển thị trên popup.</td>
+            </tr>
+            <tr>
+              <td><code>content</code></td>
+              <td><code>Nội dung chức năng</code></td>
+              <td>Giải thích chức năng dùng để làm gì.</td>
+            </tr>
+            <tr>
+              <td><code>howTo</code></td>
+              <td><code>Cách sử dụng</code></td>
+              <td>Hướng dẫn thao tác trực tiếp.</td>
+            </tr>
+            <tr>
+              <td><code>processRole</code></td>
+              <td><code>Vai trò trong quy trình</code></td>
+              <td>Mô tả vị trí của popup trong flow tổ chức sự kiện.</td>
+            </tr>
+            <tr>
+              <td><code>trigger</code></td>
+              <td><code>Trigger đề xuất</code></td>
+              <td>Điều kiện hoặc hành động làm popup xuất hiện.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3 style="margin-top: 18px">Ví dụ cấu trúc dữ liệu</h3>
+        <pre><code>{
+  id: "milestone-create",
+  step: 3,
+  page: "Trang cột mốc / lịch trình",
+  type: "Feature guide",
+  target: "Create milestone/session button",
+  title: "Khởi tạo cột mốc",
+  content: "Cột mốc là các mốc thời gian hoặc giai đoạn chính trong quá trình tổ chức sự kiện.",
+  howTo: "Nhấn nút tạo cột mốc, nhập tên cột mốc, thời gian bắt đầu, thời gian kết thúc và các thông tin liên quan.",
+  processRole: "Cột mốc được tạo trước hoặc trong quá trình tạo công việc để nhóm các đầu việc theo từng giai đoạn.",
+  trigger: "Lần đầu mở trang cột mốc hoặc khi nhấn hướng dẫn"
+}</code></pre>
+      </section>
+
+      <section>
+        <div class="phase-title">
+          <h2>Giai đoạn 5 - Tích hợp vào từng màn hình</h2>
+          <span class="status planned">Mapping</span>
+        </div>
+        <p class="subtle">
+          Bảng dưới đây map từng dòng nội dung từ Excel sang màn hình hoặc component cần gắn guide.
+        </p>
+
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 8%">Step</th>
+              <th style="width: 18%">Giai đoạn</th>
+              <th style="width: 18%">Màn hình</th>
+              <th style="width: 20%">UI target</th>
+              <th style="width: 20%">Kiểu guide</th>
+              <th style="width: 16%">Trạng thái</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1</td>
+              <td>Xem thông tin sự kiện</td>
+              <td>Trang chi tiết sự kiện</td>
+              <td>Event detail header / event information section</td>
+              <td>Feature guide</td>
+              <td><span class="status draft">Chờ gắn UI</span></td>
+            </tr>
+            <tr>
+              <td>2</td>
+              <td>Tổng quan sự kiện</td>
+              <td>Trang tổng quan</td>
+              <td>Overview page</td>
+              <td>Page intro</td>
+              <td><span class="status draft">Chờ gắn UI</span></td>
+            </tr>
+            <tr>
+              <td>2.1 - 2.6</td>
+              <td>Chỉ số tổng quan</td>
+              <td>Trang tổng quan</td>
+              <td>Metric cards</td>
+              <td>Metric tooltip</td>
+              <td><span class="status draft">Chờ gắn UI</span></td>
+            </tr>
+            <tr>
+              <td>3</td>
+              <td>Khởi tạo cột mốc</td>
+              <td>Trang cột mốc / lịch trình</td>
+              <td>Create milestone/session button</td>
+              <td>Feature guide</td>
+              <td><span class="status draft">Chờ gắn UI</span></td>
+            </tr>
+            <tr>
+              <td>4</td>
+              <td>Khởi tạo ban tổ chức</td>
+              <td>Trang ban tổ chức / nhóm phụ trách</td>
+              <td>Create organizer/team button</td>
+              <td>Feature guide</td>
+              <td><span class="status draft">Chờ gắn UI</span></td>
+            </tr>
+            <tr>
+              <td>5</td>
+              <td>Mời thành viên</td>
+              <td>Trang thành viên</td>
+              <td>Invite member form / add member button</td>
+              <td>Feature guide</td>
+              <td><span class="status draft">Chờ gắn UI</span></td>
+            </tr>
+            <tr>
+              <td>6</td>
+              <td>Tạo công việc</td>
+              <td>Trang công việc</td>
+              <td>Create task button / task form</td>
+              <td>Feature guide</td>
+              <td><span class="status draft">Chờ gắn UI</span></td>
+            </tr>
+            <tr>
+              <td>7</td>
+              <td>Giao công việc</td>
+              <td>Form chi tiết công việc</td>
+              <td>Assignee field in task form</td>
+              <td>Feature guide</td>
+              <td><span class="status draft">Chờ gắn UI</span></td>
+            </tr>
+            <tr>
+              <td>8</td>
+              <td>Review công việc</td>
+              <td>Danh sách / chi tiết công việc</td>
+              <td>Task detail / status update / review controls</td>
+              <td>Feature guide</td>
+              <td><span class="status draft">Chờ gắn UI</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>Checklist theo dõi triển khai</h2>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 12%">Giai đoạn</th>
+              <th style="width: 48%">Việc cần làm</th>
+              <th style="width: 20%">Đầu ra</th>
+              <th style="width: 20%">Trạng thái</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>2</td>
+              <td>Chốt UI pattern cho Page intro, Feature guide và Metric tooltip.</td>
+              <td>Popup design spec</td>
+              <td><span class="status draft">Draft</span></td>
+            </tr>
+            <tr>
+              <td>2</td>
+              <td>Chốt nút điều hướng: Bỏ qua, Quay lại, Tiếp tục, Hoàn tất.</td>
+              <td>Interaction spec</td>
+              <td><span class="status draft">Draft</span></td>
+            </tr>
+            <tr>
+              <td>3</td>
+              <td>Chốt rule tự hiển thị lần đầu và rule mở lại hướng dẫn.</td>
+              <td>Display rules</td>
+              <td><span class="status draft">Draft</span></td>
+            </tr>
+            <tr>
+              <td>3</td>
+              <td>Chốt cách lưu trạng thái đã xem theo user, event và guide.</td>
+              <td>Seen-state model</td>
+              <td><span class="status planned">Planned</span></td>
+            </tr>
+            <tr>
+              <td>4</td>
+              <td>Tạo data model guide dùng lại được từ các cột trong Excel.</td>
+              <td>Guide config schema</td>
+              <td><span class="status planned">Planned</span></td>
+            </tr>
+            <tr>
+              <td>4</td>
+              <td>Tạo component render popup theo type.</td>
+              <td>Reusable guide component</td>
+              <td><span class="status planned">Planned</span></td>
+            </tr>
+            <tr>
+              <td>5</td>
+              <td>Gắn guide vào trang chi tiết sự kiện và tổng quan.</td>
+              <td>Event/Overview integration</td>
+              <td><span class="status planned">Planned</span></td>
+            </tr>
+            <tr>
+              <td>5</td>
+              <td>Gắn guide vào cột mốc, ban tổ chức, thành viên, công việc và review.</td>
+              <td>Feature integration</td>
+              <td><span class="status planned">Planned</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+    </main>
+  </body>
+</html>

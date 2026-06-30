@@ -1,7 +1,7 @@
 package com.eventflow.backend.controller;
 
-import com.eventflow.backend.dto.AuthResponse;
 import com.eventflow.backend.dto.AuthMessageResponse;
+import com.eventflow.backend.dto.AuthResponse;
 import com.eventflow.backend.dto.EmailRequest;
 import com.eventflow.backend.dto.LoginRequest;
 import com.eventflow.backend.dto.ResetPasswordRequest;
@@ -36,6 +36,16 @@ public class AuthController {
     @PostMapping("/verify-email")
     public ResponseEntity<AuthResponse> verifyEmail(@Valid @RequestBody TokenRequest request) {
         return ResponseEntity.ok(authService.verifyEmail(request));
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<AuthResponse> refresh(@Valid @RequestBody TokenRequest request) {
+        return ResponseEntity.ok(authService.refresh(request));
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<AuthMessageResponse> logout(@Valid @RequestBody TokenRequest request) {
+        return ResponseEntity.ok(authService.logout(request));
     }
 
     @PostMapping("/resend-verification")

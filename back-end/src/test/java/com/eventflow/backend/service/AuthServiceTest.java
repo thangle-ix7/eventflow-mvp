@@ -3,6 +3,7 @@ package com.eventflow.backend.service;
 import com.eventflow.backend.dto.SignupRequest;
 import com.eventflow.backend.entity.User;
 import com.eventflow.backend.repository.UserRepository;
+import com.eventflow.backend.repository.RefreshTokenRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -35,6 +36,9 @@ class AuthServiceTest {
     @Mock
     private UserProfileService userProfileService;
 
+    @Mock
+    private RefreshTokenRepository refreshTokenRepository;
+
     private AuthService authService;
 
     @BeforeEach
@@ -43,7 +47,8 @@ class AuthServiceTest {
                 userRepository,
                 passwordEncoder,
                 authEmailService,
-                userProfileService);
+                userProfileService,
+                refreshTokenRepository);
     }
 
     @ParameterizedTest

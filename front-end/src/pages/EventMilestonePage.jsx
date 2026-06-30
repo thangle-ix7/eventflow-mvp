@@ -50,7 +50,7 @@ const EventMilestonePage = ({ user, onLogout }) => {
             </>
           )}
           actions={permissions.canManageEvent && (
-            <Button as={Link} to={`/events/${eventId}/milestones/new`}>
+            <Button as={Link} to={`/events/${eventId}/milestones/new`} data-guide-target="milestone-create-action">
               Tạo cột mốc
             </Button>
           )}

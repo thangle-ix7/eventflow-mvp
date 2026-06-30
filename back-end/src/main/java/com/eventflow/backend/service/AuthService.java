@@ -7,7 +7,9 @@ import com.eventflow.backend.dto.LoginRequest;
 import com.eventflow.backend.dto.ResetPasswordRequest;
 import com.eventflow.backend.dto.SignupRequest;
 import com.eventflow.backend.dto.TokenRequest;
+import com.eventflow.backend.entity.RefreshToken;
 import com.eventflow.backend.entity.User;
+import com.eventflow.backend.repository.RefreshTokenRepository;
 import com.eventflow.backend.repository.UserRepository;
 import com.eventflow.backend.util.EmailFormat;
 import com.eventflow.backend.util.JwtUtil;
@@ -32,6 +34,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final AuthEmailService authEmailService;
     private final UserProfileService userProfileService;
+    private final RefreshTokenRepository refreshTokenRepository;
 
     @Value("${jwt.secret}")
     private String jwtSecret;
@@ -50,6 +53,9 @@ public class AuthService {
 
     @Value("${eventflow.auth.lockout-minutes}")
     private long lockoutMinutes;
+
+    @Value("${eventflow.auth.refresh-token-ttl-days:30}")
+    private long refreshTokenTtlDays;
 
     @Transactional
     public AuthMessageResponse signup(SignupRequest request) {
@@ -104,7 +110,7 @@ public class AuthService {
             userRepository.save(user);
         }
 
-        return buildAuthResponse(user);
+        return buildAuthResponse(user, createRefreshToken(user));
     }
 
     @Transactional
@@ -121,9 +127,40 @@ public class AuthService {
         user.setLockedUntil(null);
         userRepository.save(user);
 
-        return buildAuthResponse(user);
+        return buildAuthResponse(user, createRefreshToken(user));
     }
 
+    @Transactional
+    public AuthResponse refresh(TokenRequest request) {
+        String rawRefreshToken = normalizeToken(request.getToken());
+        LocalDateTime now = LocalDateTime.now();
+        RefreshToken refreshToken = refreshTokenRepository
+                .findByTokenHashAndRevokedAtIsNullAndExpiresAtAfter(SecureTokenUtil.sha256Hex(rawRefreshToken), now)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Phiên đăng nhập không hợp lệ hoặc đã hết hạn"));
+
+        refreshToken.setRevokedAt(now);
+        refreshTokenRepository.save(refreshToken);
+
+        User user = refreshToken.getUser();
+        if (!user.isEmailVerified()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Tài khoản chưa xác thực email");
+        }
+
+        return buildAuthResponse(user, createRefreshToken(user));
+    }
+
+    @Transactional
+    public AuthMessageResponse logout(TokenRequest request) {
+        String rawRefreshToken = normalizeToken(request.getToken());
+        refreshTokenRepository
+                .findByTokenHashAndRevokedAtIsNullAndExpiresAtAfter(SecureTokenUtil.sha256Hex(rawRefreshToken), LocalDateTime.now())
+                .ifPresent(refreshToken -> {
+                    refreshToken.setRevokedAt(LocalDateTime.now());
+                    refreshTokenRepository.save(refreshToken);
+                });
+
+        return new AuthMessageResponse("Đăng xuất thành công.");
+    }
     @Transactional
     public AuthMessageResponse resendVerificationEmail(EmailRequest request) {
         String email = normalizeEmail(request.getEmail());
@@ -190,10 +227,21 @@ public class AuthService {
         userRepository.save(user);
     }
 
-    private AuthResponse buildAuthResponse(User user) {
+    private String createRefreshToken(User user) {
+        String rawToken = SecureTokenUtil.generateToken();
+        refreshTokenRepository.save(RefreshToken.builder()
+                .user(user)
+                .tokenHash(SecureTokenUtil.sha256Hex(rawToken))
+                .expiresAt(LocalDateTime.now().plusDays(refreshTokenTtlDays))
+                .build());
+        return rawToken;
+    }
+
+    private AuthResponse buildAuthResponse(User user, String refreshToken) {
         String token = JwtUtil.generateToken(user.getId(), jwtSecret, jwtExpirationMs);
         return new AuthResponse(
                 token,
+                refreshToken,
                 user.getId(),
                 user.getName(),
                 user.getEmail(),
@@ -201,7 +249,6 @@ public class AuthService {
                 user.getTaskPageSize() != null ? user.getTaskPageSize() : 10,
                 user.getSystemRole() != null ? user.getSystemRole().name() : "USER");
     }
-
     private ResponseStatusException invalidCredentials() {
         return new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Email hoặc mật khẩu không đúng");
     }
@@ -214,5 +261,11 @@ public class AuthService {
 
     private String normalizeEmail(String email) {
         return email.trim().toLowerCase();
+    }
+    private String normalizeToken(String token) {
+        if (token == null || token.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Phiên đăng nhập không hợp lệ hoặc đã hết hạn");
+        }
+        return token.trim();
     }
 }

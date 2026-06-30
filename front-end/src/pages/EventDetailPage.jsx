@@ -106,7 +106,7 @@ const EventInfoPanel = ({ event, eventId, isLeader }) => {
   ];
 
   return (
-    <Panel className="overflow-hidden">
+    <Panel className="overflow-hidden" data-guide-target="event-info-panel">
       <div className="border-b border-sky-100 bg-gradient-to-r from-sky-50 via-white to-emerald-50 px-5 py-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-start gap-3">
