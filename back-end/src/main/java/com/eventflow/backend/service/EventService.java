@@ -12,12 +12,14 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
 public class EventService {
+    private static final DateTimeFormatter VIETNAM_DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
     private final EventRepository eventRepository;
     private final EventMemberRepository eventMemberRepository;
@@ -104,9 +106,10 @@ public class EventService {
         }
         LocalDateTime startTime = resolveStartTime(request);
         LocalDateTime endTime = resolveEndTime(request);
-        boolean timeChanged = !startTime.equals(event.getEventDate()) || !Objects.equals(endTime, event.getEndTime());
-        if (event.getNature() != EventNature.TEMPLATE && timeChanged) {
-            validateOperationalEventTime(startTime, endTime);
+        boolean startTimeChanged = !startTime.equals(event.getEventDate());
+        boolean endTimeChanged = !Objects.equals(endTime, event.getEndTime());
+        if (event.getNature() != EventNature.TEMPLATE && (startTimeChanged || endTimeChanged)) {
+            validateOperationalEventTimeUpdate(startTime, endTime, startTimeChanged, endTimeChanged);
         }
 
         event.setName(request.getName().trim());
@@ -437,12 +440,30 @@ public class EventService {
     private void validateOperationalEventTime(LocalDateTime startTime, LocalDateTime endTime) {
         LocalDateTime now = LocalDateTime.now();
         if (startTime.isBefore(now)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Thời gian bắt đầu sự kiện không được ở quá khứ");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Thời gian bắt đầu sự kiện không được trước hiện tại: " + formatDateTime(now));
         }
 
         if (endTime != null && endTime.isBefore(now)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Thời gian kết thúc sự kiện không được ở quá khứ");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Thời gian kết thúc sự kiện không được trước hiện tại: " + formatDateTime(now));
         }
+    }
+
+    private void validateOperationalEventTimeUpdate(
+            LocalDateTime startTime,
+            LocalDateTime endTime,
+            boolean startTimeChanged,
+            boolean endTimeChanged) {
+        LocalDateTime now = LocalDateTime.now();
+        if (startTimeChanged && startTime.isBefore(now)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Thời gian bắt đầu sự kiện không được trước hiện tại: " + formatDateTime(now));
+        }
+        if (endTimeChanged && endTime != null && endTime.isBefore(now)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Thời gian kết thúc sự kiện không được trước hiện tại: " + formatDateTime(now));
+        }
+    }
+
+    private String formatDateTime(LocalDateTime value) {
+        return value != null ? value.format(VIETNAM_DATE_TIME_FORMATTER) : "chưa xác định";
     }
 
     private String normalizeOptionalText(String value) {

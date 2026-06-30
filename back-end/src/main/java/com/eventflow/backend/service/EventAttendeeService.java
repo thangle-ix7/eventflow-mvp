@@ -39,6 +39,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
@@ -46,6 +48,7 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class EventAttendeeService {
+    private static final DateTimeFormatter VIETNAM_DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private static final String INVITE_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     private static final String[] IMPORT_HEADERS = {
@@ -70,6 +73,7 @@ public class EventAttendeeService {
     @Transactional
     public CheckInSessionResponse createSession(Long eventId, CheckInSessionRequest request) {
         Event event = ensureEvent(eventId);
+        validateSessionTimeWithinEvent(request.getStartsAt(), request.getEndsAt(), event);
         CheckInSession session = sessionRepository.save(CheckInSession.builder()
                 .event(event)
                 .name(requiredText(request.getName(), "Ten session check-in khong duoc de trong"))
@@ -79,6 +83,34 @@ public class EventAttendeeService {
                 .active(request.getActive() == null || request.getActive())
                 .build());
         return mapSession(session);
+    }
+
+    private void validateSessionTimeWithinEvent(LocalDateTime startsAt, LocalDateTime endsAt, Event event) {
+        if (startsAt == null || endsAt == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Thời gian bắt đầu và kết thúc session không được để trống");
+        }
+        if (!endsAt.isAfter(startsAt)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Thời gian kết thúc session phải sau thời gian bắt đầu");
+        }
+
+        LocalDateTime eventStartTime = event.getEventDate();
+        LocalDateTime eventEndTime = effectiveEventEndTime(event);
+        if (startsAt.isBefore(eventStartTime) || endsAt.isAfter(eventEndTime)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Thời gian session phải nằm trong khoảng hợp lệ: "
+                    + formatDateTime(eventStartTime)
+                    + " - "
+                    + formatDateTime(eventEndTime));
+        }
+    }
+
+    private LocalDateTime effectiveEventEndTime(Event event) {
+        LocalDateTime startTime = event.getEventDate();
+        LocalDateTime endTime = event.getEndTime() != null ? event.getEndTime() : startTime.toLocalDate().atTime(LocalTime.MAX);
+        return endTime.isBefore(startTime) ? startTime : endTime;
+    }
+
+    private String formatDateTime(LocalDateTime value) {
+        return value != null ? value.format(VIETNAM_DATE_TIME_FORMATTER) : "chưa xác định";
     }
 
     @Transactional(readOnly = true)

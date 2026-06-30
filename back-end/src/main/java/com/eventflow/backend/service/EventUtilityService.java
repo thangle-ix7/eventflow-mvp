@@ -25,7 +25,9 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -39,6 +41,7 @@ import java.util.Set;
 @Service
 @RequiredArgsConstructor
 public class EventUtilityService {
+    private static final DateTimeFormatter VIETNAM_DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
@@ -51,8 +54,8 @@ public class EventUtilityService {
         LocalDateTime from = firstDay.atStartOfDay();
         LocalDateTime toExclusive = lastDay.plusDays(1).atStartOfDay();
         EventBounds eventBounds = getEventBounds(eventId);
-        LocalDateTime eventFrom = eventBounds.startDate().atStartOfDay();
-        LocalDateTime eventToExclusive = eventBounds.endDate().plusDays(1).atStartOfDay();
+        LocalDateTime eventFrom = eventBounds.startTime().toLocalDate().atStartOfDay();
+        LocalDateTime eventToExclusive = eventBounds.endTime().toLocalDate().plusDays(1).atStartOfDay();
 
         Map<LocalDate, List<CalendarEventDTO>> itemsByDay = new LinkedHashMap<>();
         for (LocalDate day = firstDay; !day.isAfter(lastDay); day = day.plusDays(1)) {
@@ -457,26 +460,39 @@ public class EventUtilityService {
 
     private void assertCalendarWithinEventDateRange(Long eventId, LocalDateTime startTime, LocalDateTime endTime) {
         EventBounds bounds = getEventBounds(eventId);
-        LocalDate startDate = startTime.toLocalDate();
-        LocalDate endDate = endTime.toLocalDate();
-        if (startDate.isBefore(bounds.startDate()) || endDate.isAfter(bounds.endDate())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Lịch phải nằm trong ngày bắt đầu và ngày kết thúc sự kiện");
+        if (startTime.isBefore(bounds.startTime()) || endTime.isAfter(bounds.endTime())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Lịch phải nằm trong khoảng hợp lệ: "
+                    + formatDateTime(bounds.startTime())
+                    + " - "
+                    + formatDateTime(bounds.endTime()));
         }
     }
 
     private EventBounds getEventBounds(Long eventId) {
         return jdbcTemplate.queryForObject("""
-                SELECT event_date, COALESCE(end_time, event_date) AS end_time
+                SELECT event_date, end_time
                 FROM events
                 WHERE id = ?
                 """, (rs, rowNum) -> {
-            LocalDate startDate = rs.getTimestamp("event_date").toLocalDateTime().toLocalDate();
-            LocalDate endDate = rs.getTimestamp("end_time").toLocalDateTime().toLocalDate();
-            if (endDate.isBefore(startDate)) {
-                endDate = startDate;
+            LocalDateTime startTime = rs.getTimestamp("event_date").toLocalDateTime();
+            LocalDateTime endTime = readEventEndTime(rs, startTime);
+            if (endTime.isBefore(startTime)) {
+                endTime = startTime;
             }
-            return new EventBounds(startDate, endDate);
+            return new EventBounds(startTime, endTime);
         }, eventId);
+    }
+
+    private LocalDateTime readEventEndTime(ResultSet rs, LocalDateTime startTime) throws SQLException {
+        Timestamp endTimestamp = rs.getTimestamp("end_time");
+        if (endTimestamp == null) {
+            return startTime.toLocalDate().atTime(LocalTime.MAX);
+        }
+        return endTimestamp.toLocalDateTime();
+    }
+
+    private String formatDateTime(LocalDateTime value) {
+        return value != null ? value.format(VIETNAM_DATE_TIME_FORMATTER) : "chưa xác định";
     }
 
     private boolean departmentBelongsToEvent(Long eventId, Long departmentId) {
@@ -668,6 +684,6 @@ public class EventUtilityService {
     private record PeriodStats(long totalTasks, long completedTasks, long overdueTasks, int progressPercentage) {
     }
 
-    private record EventBounds(LocalDate startDate, LocalDate endDate) {
+    private record EventBounds(LocalDateTime startTime, LocalDateTime endTime) {
     }
 }

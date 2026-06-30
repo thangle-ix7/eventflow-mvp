@@ -31,7 +31,7 @@ import java.time.format.DateTimeFormatter;
 @RequiredArgsConstructor
 public class EventAttendeeInvitationEmailService {
     private static final String QR_CONTENT_ID = "eventflowCheckInQr";
-    private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm dd/MM/yyyy");
+    private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
     private final JavaMailSender javaMailSender;
 

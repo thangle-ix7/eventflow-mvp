@@ -16,11 +16,14 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class MilestoneService {
+    private static final DateTimeFormatter VIETNAM_DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
     private final MilestoneRepository milestoneRepository;
     private final EventRepository eventRepository;
@@ -37,6 +40,7 @@ public class MilestoneService {
     public MilestoneResponseDTO createMilestone(Long eventId, MilestoneRequestDTO request) {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy sự kiện"));
+        validateExpectedDeadlineWithinEvent(request.getExpectedDeadline(), event, null);
 
         Milestone milestone = milestoneRepository.save(Milestone.builder()
                 .event(event)
@@ -54,6 +58,7 @@ public class MilestoneService {
     @Transactional
     public MilestoneResponseDTO updateMilestone(Long eventId, Long milestoneId, MilestoneRequestDTO request) {
         Milestone milestone = getMilestoneEntity(eventId, milestoneId);
+        validateExpectedDeadlineWithinEvent(request.getExpectedDeadline(), milestone.getEvent(), milestone.getExpectedDeadline());
         milestone.setName(normalizeRequiredText(request.getName(), "Tên milestone không được để trống"));
         milestone.setDescription(normalizeOptionalText(request.getDescription()));
         milestone.setExpectedDeadline(request.getExpectedDeadline());
@@ -68,6 +73,39 @@ public class MilestoneService {
     private Milestone getMilestoneEntity(Long eventId, Long milestoneId) {
         return milestoneRepository.findByIdAndEventId(milestoneId, eventId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy milestone"));
+    }
+
+    private void validateExpectedDeadlineWithinEvent(LocalDateTime expectedDeadline, Event event, LocalDateTime previousDeadline) {
+        if (expectedDeadline == null) {
+            return;
+        }
+        boolean unchangedExistingDeadline = previousDeadline != null && previousDeadline.equals(expectedDeadline);
+        if (unchangedExistingDeadline) {
+            return;
+        }
+
+        LocalDateTime eventStartTime = event.getEventDate();
+        LocalDateTime eventEndTime = effectiveEventEndTime(event);
+        if ((eventStartTime != null && expectedDeadline.isBefore(eventStartTime))
+                || (eventEndTime != null && expectedDeadline.isAfter(eventEndTime))) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hạn kỳ vọng milestone phải nằm trong khoảng hợp lệ: "
+                    + formatDateTime(eventStartTime)
+                    + " - "
+                    + formatDateTime(eventEndTime));
+        }
+    }
+
+    private LocalDateTime effectiveEventEndTime(Event event) {
+        LocalDateTime startTime = event.getEventDate();
+        if (startTime == null) {
+            return null;
+        }
+        LocalDateTime endTime = event.getEndTime() != null ? event.getEndTime() : startTime.toLocalDate().atTime(LocalTime.MAX);
+        return endTime.isBefore(startTime) ? startTime : endTime;
+    }
+
+    private String formatDateTime(LocalDateTime value) {
+        return value != null ? value.format(VIETNAM_DATE_TIME_FORMATTER) : "chưa xác định";
     }
 
     private MilestoneResponseDTO mapToResponse(Milestone milestone) {

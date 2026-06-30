@@ -37,11 +37,14 @@ import java.util.Map;
 import java.util.LinkedHashMap;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class TaskService {
+    private static final DateTimeFormatter VIETNAM_DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
     private final TaskRepository taskRepository;
     private final EventRepository eventRepository;
@@ -277,7 +280,7 @@ public class TaskService {
         Milestone milestone = task.getParent() != null
                 ? task.getParent().getMilestone()
                 : resolveMilestone(eventId, request.getMilestoneId());
-        validateTaskDeadlineWithinEvent(request.getDeadline(), task.getEvent());
+        validateTaskDeadlineWithinEvent(request.getDeadline(), task.getEvent(), previousDeadline);
         boolean hasSubtasks = taskRepository.existsByParentId(taskId);
 
         task.setDepartment(department);
@@ -556,14 +559,62 @@ public class TaskService {
     }
 
     private void validateTaskDeadlineWithinEvent(LocalDateTime deadline, Event event) {
+        validateTaskDeadlineWithinEvent(deadline, event, null);
+    }
+
+    private void validateTaskDeadlineWithinEvent(LocalDateTime deadline, Event event, LocalDateTime previousDeadline) {
         if (deadline == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Deadline không được để trống");
         }
 
-        LocalDateTime eventEndTime = event.getEndTime() != null ? event.getEndTime() : event.getEventDate();
-        if (eventEndTime != null && deadline.isAfter(eventEndTime)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Deadline task chỉ được nằm trước hoặc trong thời gian diễn ra sự kiện");
+        boolean unchangedExistingDeadline = previousDeadline != null && previousDeadline.equals(deadline);
+        LocalDateTime eventStartTime = event.getEventDate();
+        LocalDateTime eventEndTime = effectiveEventEndTime(event);
+        LocalDateTime minAllowedDeadline = laterDateTime(LocalDateTime.now(), eventStartTime);
+        LocalDateTime displayRangeStart = eventEndTime != null && minAllowedDeadline != null && minAllowedDeadline.isAfter(eventEndTime)
+                ? eventStartTime
+                : minAllowedDeadline;
+        if (!unchangedExistingDeadline && deadline.isBefore(minAllowedDeadline)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, buildTaskDeadlineRangeMessage(displayRangeStart, eventEndTime));
         }
+
+        if (eventStartTime != null && deadline.isBefore(eventStartTime)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, buildTaskDeadlineRangeMessage(displayRangeStart, eventEndTime));
+        }
+
+        if (eventEndTime != null && deadline.isAfter(eventEndTime)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, buildTaskDeadlineRangeMessage(displayRangeStart, eventEndTime));
+        }
+    }
+
+    private String buildTaskDeadlineRangeMessage(LocalDateTime minAllowedDeadline, LocalDateTime eventEndTime) {
+        return "Deadline task phải nằm trong khoảng hợp lệ: "
+                + formatDateTime(minAllowedDeadline)
+                + " - "
+                + formatDateTime(eventEndTime);
+    }
+
+    private LocalDateTime laterDateTime(LocalDateTime first, LocalDateTime second) {
+        if (first == null) {
+            return second;
+        }
+        if (second == null) {
+            return first;
+        }
+        return first.isAfter(second) ? first : second;
+    }
+
+    private String formatDateTime(LocalDateTime value) {
+        return value != null ? value.format(VIETNAM_DATE_TIME_FORMATTER) : "chưa xác định";
+    }
+
+    private LocalDateTime effectiveEventEndTime(Event event) {
+        LocalDateTime startTime = event.getEventDate();
+        if (startTime == null) {
+            return null;
+        }
+        LocalDateTime endTime = event.getEndTime() != null ? event.getEndTime() : startTime.toLocalDate().atTime(LocalTime.MAX);
+        return endTime.isBefore(startTime) ? startTime : endTime;
     }
 
     private TaskStatus parseStatusOrDefault(String status, TaskStatus defaultStatus) {

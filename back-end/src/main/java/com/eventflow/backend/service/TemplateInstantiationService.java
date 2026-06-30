@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -24,6 +25,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 @Slf4j
 public class TemplateInstantiationService {
+    private static final DateTimeFormatter VIETNAM_DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
     private final EventRepository eventRepository;
     private final DepartmentRepository departmentRepository;
@@ -50,6 +52,7 @@ public class TemplateInstantiationService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Người dùng không hợp lệ"));
         subscriptionService.assertCanCreateEvent(userId);
+        validateEventTime(request.getEventDate(), request.getEndTime());
 
         // 2. Clone Event từ Template sang NORMAL
         Event newEvent = Event.builder()
@@ -170,6 +173,23 @@ public class TemplateInstantiationService {
                 .progressPercentage(0) // Reset progress
                 .createdAt(LocalDateTime.now())
                 .build();
+    }
+
+    private void validateEventTime(LocalDateTime startTime, LocalDateTime endTime) {
+        if (startTime == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Thời gian bắt đầu sự kiện không được để trống");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        if (startTime.isBefore(now)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Thời gian bắt đầu sự kiện không được trước hiện tại: " + formatDateTime(now));
+        }
+        if (endTime != null && !endTime.isAfter(startTime)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Thời gian kết thúc sự kiện phải sau thời gian bắt đầu");
+        }
+    }
+
+    private String formatDateTime(LocalDateTime value) {
+        return value != null ? value.format(VIETNAM_DATE_TIME_FORMATTER) : "chưa xác định";
     }
 
     private String coalesceText(String preferred, String fallback) {
