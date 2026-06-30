@@ -16,6 +16,7 @@ import departmentApi from '../api/departmentApi';
 import eventApi from '../api/eventApi';
 import leaderSnapshotApi from '../api/leaderSnapshotApi';
 import { getEventPermissions } from '../utils/permissionUtils';
+import { dashboardMetricGuides } from '../config/eventGuideContent';
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -202,19 +203,19 @@ const EventDashboardPage = ({ user, onLogout }) => {
 
         {canViewDashboard && summary && !error && (
           <>
-            <section className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <MetricCard label="Tổng công việc" value={summary.totalTasks} />
-              <MetricCard label="Đã hoàn thành" value={summary.completedTasks} />
-              <MetricCard label="Tiến độ" value={`${summary.progressPercentage || 0}%`} />
-              <MetricCard label="Quá hạn chưa xong" value={summary.overdueTasksCount} />
+            <section className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-4" data-guide-target="event-dashboard-summary">
+              <MetricCard label="Tổng công việc" value={summary.totalTasks} guide={dashboardMetricGuides.totalTasks} guideTarget="dashboard-total-tasks" />
+              <MetricCard label="Đã hoàn thành" value={summary.completedTasks} guide={dashboardMetricGuides.completedTasks} guideTarget="dashboard-completed-tasks" />
+              <MetricCard label="Tiến độ" value={`${summary.progressPercentage || 0}%`} guide={dashboardMetricGuides.progressPercentage} guideTarget="dashboard-progress" />
+              <MetricCard label="Quá hạn chưa xong" value={summary.overdueTasksCount} guide={dashboardMetricGuides.overdueTasks} guideTarget="dashboard-overdue-tasks" />
             </section>
 
             <section className="grid gap-5">
-              <ChartPanel title="Burndown Chart">
+              <ChartPanel title="Burndown Chart" guideTarget="dashboard-burndown-chart">
                 <BurndownChart data={trendQuery.data || []} />
               </ChartPanel>
 
-              <ChartPanel title="Cumulative Flow">
+              <ChartPanel title="Cumulative Flow" guideTarget="dashboard-cumulative-flow-chart">
                 <CumulativeFlowChart
                   data={trendQuery.data || []}
                   onStatusClick={({ status, deadlineStatus }) => openFilteredTasks({ status, deadlineStatus })}
@@ -228,8 +229,8 @@ const EventDashboardPage = ({ user, onLogout }) => {
   );
 };
 
-const ChartPanel = ({ icon, title, children }) => (
-  <Panel className="min-w-0 overflow-hidden">
+const ChartPanel = ({ icon, title, children, guideTarget }) => (
+  <Panel className="min-w-0 overflow-hidden" data-guide-target={guideTarget}>
     <div className="border-b border-sky-100 bg-slate-50 px-5 py-4">
       <div className="flex items-start gap-3">
         {icon && (
@@ -251,3 +252,5 @@ const ChartPanel = ({ icon, title, children }) => (
 );
 
 export default EventDashboardPage;
+
+

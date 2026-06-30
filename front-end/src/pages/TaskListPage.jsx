@@ -290,6 +290,7 @@ const TaskListPage = ({ user, onLogout }) => {
                     variant={quickCreateStatus ? 'secondary' : 'primary'}
                     onClick={() => setQuickCreateStatus((currentStatus) => (currentStatus ? '' : 'TODO'))}
                     className="min-h-11 w-full rounded-2xl lg:w-auto"
+                  data-guide-target="task-create-action"
                   >
                     {quickCreateStatus ? <X size={18} /> : <Plus size={18} />}
                     {quickCreateStatus ? 'Đóng tạo nhanh' : 'Tạo task'}
@@ -581,6 +582,7 @@ const StatusTaskColumn = ({
 
   return (
     <section
+      data-guide-target={`task-column-${column.key}`}
       className={`min-w-0 border-r border-slate-200 bg-slate-50/70 transition last:border-r-0 ${column.borderClass} ${
         canUpdateStatus && draggingTask && !column.readOnly && draggingTask.status !== column.key ? `ring-4 ${column.dropClass}` : ''
       }`}
@@ -709,7 +711,7 @@ const StatusTaskCard = ({
           <span className="truncate">{task.departmentName || 'Chưa gán ban'}</span>
         </span>
         <span className="grid grid-cols-[72px_minmax(0,1fr)] gap-2">
-          <span className="text-slate-400">Phụ trách</span>
+          <span className="text-slate-400" data-guide-target="task-assignee-field">Phụ trách</span>
           <span className="truncate">{task.assigneeName || 'Chưa phân công'}</span>
         </span>
       </span>
@@ -784,6 +786,9 @@ export const StatusFilterBoxes = ({ selectedStatuses, onToggleStatus }) => {
 const inputClassName = 'min-h-11 w-full min-w-0 rounded-2xl border border-sky-100 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:bg-white focus:ring-4 focus:ring-cyan-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500';
 
 export default TaskListPage;
+
+
+
 
 
 

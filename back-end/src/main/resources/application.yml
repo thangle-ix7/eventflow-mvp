@@ -96,6 +96,7 @@ eventflow:
   auth:
     email-verification-token-ttl-minutes: ${AUTH_EMAIL_VERIFICATION_TOKEN_TTL_MINUTES:1440}
     password-reset-token-ttl-minutes: ${AUTH_PASSWORD_RESET_TOKEN_TTL_MINUTES:30}
+    refresh-token-ttl-days: ${AUTH_REFRESH_TOKEN_TTL_DAYS:30}
     max-failed-login-attempts: ${AUTH_MAX_FAILED_LOGIN_ATTEMPTS:5}
     lockout-minutes: ${AUTH_LOCKOUT_MINUTES:15}
     require-email-delivery: ${AUTH_REQUIRE_EMAIL_DELIVERY:false}
@@ -133,5 +134,6 @@ springdoc:
     path: /swagger-ui.html
     operations-sorter: method
     tags-sorter: alpha
+
 
 

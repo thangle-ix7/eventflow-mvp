@@ -207,7 +207,7 @@ const EventMembersPage = ({ user, onLogout }) => {
         )}
 
         {isLeader && !eventClosed && (
-          <Panel className="p-5">
+          <Panel className="p-5" data-guide-target="member-invite-area">
             <form onSubmit={handleInviteSubmit} className="grid gap-3">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <h3 className="text-lg font-black text-slate-950">

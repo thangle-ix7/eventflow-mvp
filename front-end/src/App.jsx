@@ -44,8 +44,10 @@ import AdminDiscountCodePage from './pages/AdminDiscountCodePage';
 import AdminUserListPage from './pages/AdminUserListPage';
 import AdminUserEmailPage from './pages/AdminUserEmailPage';
 import AdminUserDetailPage from './pages/AdminUserDetailPage';
+import authApi from './api/authApi';
 import eventApi from './api/eventApi';
 import userApi from './api/userApi';
+import { clearAuthSession, getRefreshToken, saveAuthSession } from './api/authSession';
 import { identifyUser, resetAnalytics, trackEvent, trackPageView } from './lib/analytics';
 
 const EventDashboardPage = lazy(() => import('./pages/EventDashboardPage'));
@@ -65,18 +67,22 @@ function App() {
   });
 
   const handleLoginSuccess = (userData, redirectTo = '/events') => {
-    localStorage.setItem('token', userData.token);
-    localStorage.setItem('user', JSON.stringify(userData));
-    setUser(userData);
-    identifyUser(userData);
-    trackEvent('User Logged In', { user_id: String(userData.userId) });
+    const sessionUser = saveAuthSession(userData);
+    setUser(sessionUser);
+    identifyUser(sessionUser);
+    trackEvent('User Logged In', { user_id: String(sessionUser.userId) });
     navigate(redirectTo, { replace: true });
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     trackEvent('User Logged Out', { user_id: user?.userId ? String(user.userId) : undefined });
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    const refreshToken = getRefreshToken();
+
+    if (refreshToken) {
+      authApi.logout(refreshToken).catch(() => {});
+    }
+
+    clearAuthSession();
     setUser(null);
     resetAnalytics();
     navigate('/', { replace: true });
@@ -528,6 +534,7 @@ const resolveErrorTitle = (status) => {
 };
 
 export default App;
+
 
 
 

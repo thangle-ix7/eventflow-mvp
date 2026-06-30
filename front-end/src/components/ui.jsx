@@ -1,5 +1,6 @@
 import { AlertTriangle, CheckCircle2, Loader2, Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { MetricGuideButton } from './EventGuide';
 
 const STATUS_META = {
   ACTIVE: { className: 'border-emerald-200 bg-emerald-50 text-emerald-700' },
@@ -161,7 +162,7 @@ export const PriorityBadge = ({ priority = 'MEDIUM', className = '' }) => {
   );
 };
 
-export const MetricCard = ({ icon: Icon, label, value, hint, tone = 'indigo' }) => {
+export const MetricCard = ({ icon: Icon, label, value, hint, tone = 'indigo', guide, guideTarget }) => {
   const tones = {
     indigo: 'bg-sky-50 text-sky-700',
     sky: 'bg-sky-50 text-sky-700',
@@ -173,7 +174,10 @@ export const MetricCard = ({ icon: Icon, label, value, hint, tone = 'indigo' }) 
   };
 
   return (
-    <Panel className="group relative overflow-hidden p-5 transition hover:-translate-y-1 hover:shadow-2xl hover:shadow-cyan-100">
+    <Panel
+      className="group relative overflow-visible p-5 transition hover:-translate-y-1 hover:shadow-2xl hover:shadow-cyan-100"
+      {...(guideTarget ? { 'data-guide-target': guideTarget } : {})}
+    >
       <div className="pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full bg-sky-100/80 opacity-0 blur-2xl transition group-hover:opacity-100" />
 
       <div className="relative flex items-start justify-between gap-3">
@@ -185,9 +189,14 @@ export const MetricCard = ({ icon: Icon, label, value, hint, tone = 'indigo' }) 
           {hint && <p className="mt-2 text-xs font-semibold text-slate-500">{hint}</p>}
         </div>
 
-        {Icon && (
-          <div className={`rounded-2xl p-3 shadow-sm ${tones[tone] || tones.indigo}`}>
-            <Icon className="h-5 w-5" strokeWidth={1.8} />
+        {(Icon || guide) && (
+          <div className="flex shrink-0 items-start gap-2">
+            {guide && <MetricGuideButton guide={guide} />}
+            {Icon && (
+              <div className={`rounded-2xl p-3 shadow-sm ${tones[tone] || tones.indigo}`}>
+                <Icon className="h-5 w-5" strokeWidth={1.8} />
+              </div>
+            )}
           </div>
         )}
       </div>

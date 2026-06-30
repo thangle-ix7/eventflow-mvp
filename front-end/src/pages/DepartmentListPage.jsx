@@ -201,7 +201,7 @@ const DepartmentListPage = ({ user, onLogout }) => {
 
         {isLeader && (
           <>
-            <div className="flex flex-wrap justify-end gap-2">
+            <div className="flex flex-wrap justify-end gap-2" data-guide-target="department-create-actions">
               <Button
                 type="button"
                 onClick={() => setIsBulkCreateOpen((old) => !old)}
