@@ -5,9 +5,11 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import userApi from '../api/userApi';
+import subscriptionApi from '../api/subscriptionApi';
 import { getDepartmentHomePath, getEventPermissions } from '../utils/permissionUtils';
 import { useTranslation } from 'react-i18next';
 import {
+  ArrowRight,
   BarChart3,
   Bell,
   CalendarDays,
@@ -24,6 +26,7 @@ import {
   Users,
   UserRound,
   Workflow,
+  X,
 } from 'lucide-react';
 
 const AppLayoutContext = createContext(false);
@@ -53,6 +56,7 @@ const AppLayoutFrame = ({
   const [globalSearch, setGlobalSearch] = useState('');
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [notificationOpen, setNotificationOpen] = useState(false);
+  const [upgradePrompt, setUpgradePrompt] = useState(null);
   const [isDesktop, setIsDesktop] = useState(() => {
     if (typeof window === 'undefined') {
       return true;
@@ -100,6 +104,16 @@ const AppLayoutFrame = ({
   const selectedEventId = selectedEvent?.id ? String(selectedEvent.id) : null;
   const permissions = getEventPermissions(selectedEvent);
   const departmentHomePath = getDepartmentHomePath(selectedEvent);
+  const eventEntitlementQuery = useQuery({
+    queryKey: ['eventEntitlement', selectedEventId],
+    queryFn: () => subscriptionApi.getEventEntitlement(selectedEventId),
+    enabled: Boolean(selectedEventId),
+    staleTime: 60_000,
+    retry: false,
+  });
+  const activeEventPlan = eventEntitlementQuery.data?.plan
+    || (selectedEventId && !eventEntitlementQuery.isLoading ? { code: 'FREE', displayName: 'Free' } : null);
+  const activeEventPlanCode = activeEventPlan?.code || 'FREE';
   const currentRoleLabel = selectedEvent?.role
     ? t(`role.${selectedEvent.role}`, {
       defaultValue: selectedEvent.role === 'LEADER' ? t('role.LEADER') : t('role.MEMBER'),
@@ -124,18 +138,24 @@ const AppLayoutFrame = ({
         label: t('utility.calendar'),
         description: 'Lịch vận hành',
         icon: CalendarDays,
+        featureKey: 'calendar',
+        requiredPlans: ['CLUB', 'PRO_AGENCY', 'ENTERPRISE', 'EVENT_PREMIUM'],
       },
       {
         to: `/events/${selectedEvent.id}/documents`,
         label: t('utility.documents'),
         description: 'Tệp và liên kết',
         icon: FileText,
+        featureKey: 'documents',
+        requiredPlans: ['CLUB', 'PRO_AGENCY', 'ENTERPRISE', 'EVENT_STANDARD', 'EVENT_PREMIUM'],
       },
       {
         to: `/events/${selectedEvent.id}/reports`,
         label: t('utility.reports'),
         description: t('description.progress'),
         icon: TrendingUp,
+        featureKey: 'reports',
+        requiredPlans: ['CLUB', 'PRO_AGENCY', 'ENTERPRISE', 'EVENT_STANDARD', 'EVENT_PREMIUM'],
       },
 
       {
@@ -143,6 +163,8 @@ const AppLayoutFrame = ({
         label: 'Check-in',
         description: 'QR attendee',
         icon: ClipboardCheck,
+        featureKey: 'checkIn',
+        requiredPlans: ['PRO_AGENCY', 'ENTERPRISE', 'EVENT_PREMIUM'],
       },
       {
         to: `/events/${selectedEvent.id}/settings`,
@@ -217,6 +239,21 @@ const AppLayoutFrame = ({
       setGlobalSearch('');
       navigate(first.to);
     }
+  };
+
+  const handleUtilityClick = (event, item) => {
+    const gate = resolveFeatureGate(item, activeEventPlanCode, activeEventPlan, eventEntitlementQuery.isLoading);
+    if (!gate.blocked) {
+      closeSidebarOnMobile();
+      return;
+    }
+
+    event.preventDefault();
+    setUpgradePrompt({
+      label: item.label,
+      currentPlanName: activeEventPlan?.displayName || 'Free',
+      requiredLabel: gate.requiredLabel,
+    });
   };
 
   const isEventNavActive = (item) => {
@@ -378,8 +415,8 @@ const AppLayoutFrame = ({
               <Link
                 key={item.to}
                 to={item.to}
-                onClick={closeSidebarOnMobile}
-              data-guide-target={item.guideTarget}
+                onClick={(event) => handleUtilityClick(event, item)}
+                data-guide-target={item.guideTarget}
                 className={[
                   'group relative flex min-h-16 items-center gap-3 overflow-hidden rounded-[1.35rem] border px-3.5 py-3 text-sm font-black transition-all',
                   active
@@ -785,9 +822,84 @@ const AppLayoutFrame = ({
           user={user}
           onClose={() => setFeedbackOpen(false)}
         />
+        <UpgradePromptModal
+          prompt={upgradePrompt}
+          onClose={() => setUpgradePrompt(null)}
+        />
         <EventGuideAutoStart selectedEvent={selectedEvent} user={user} />
       </div>
     </AppLayoutContext.Provider>
+  );
+};
+
+const FEATURE_PLAN_LABELS = {
+  calendar: 'Club, Pro Agency, Enterprise hoặc Event Pass Premium',
+  documents: 'Club, Pro Agency, Enterprise hoặc Event Pass Standard/Premium',
+  reports: 'Club, Pro Agency, Enterprise hoặc Event Pass Standard/Premium',
+  checkIn: 'Pro Agency, Enterprise hoặc Event Pass Premium',
+};
+
+const resolveFeatureGate = (item, activePlanCode, activePlan, loading) => {
+  if (!item.featureKey || loading || !activePlan) {
+    return { blocked: false };
+  }
+
+  const allowed = item.requiredPlans?.includes(activePlanCode);
+  return {
+    blocked: !allowed,
+    requiredLabel: FEATURE_PLAN_LABELS[item.featureKey] || 'gói cao hơn',
+  };
+};
+
+const UpgradePromptModal = ({ prompt, onClose }) => {
+  if (!prompt) {
+    return null;
+  }
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/55 px-4 py-6 backdrop-blur-sm">
+      <section className="w-full max-w-md overflow-hidden rounded-3xl border border-sky-100 bg-white shadow-2xl shadow-slate-950/20">
+        <div className="flex items-start justify-between gap-4 border-b border-sky-100 bg-gradient-to-r from-sky-50 via-white to-emerald-50 p-5">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-sky-600">Cần nâng cấp gói</p>
+            <h2 className="mt-2 text-xl font-black text-slate-950">{prompt.label}</h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-slate-400 transition hover:bg-white hover:text-slate-700"
+            aria-label="Đóng thông báo nâng cấp"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="p-5">
+          <p className="text-sm font-semibold leading-6 text-slate-600">
+            Gói hiện tại của event là <span className="font-black text-slate-950">{prompt.currentPlanName}</span>, chưa hỗ trợ tính năng này.
+            Hãy nâng cấp lên {prompt.requiredLabel} để sử dụng đầy đủ.
+          </p>
+
+          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex min-h-11 items-center justify-center rounded-2xl border border-sky-100 bg-white px-4 py-2 text-sm font-black text-slate-600 transition hover:bg-sky-50"
+            >
+              Để sau
+            </button>
+            <Link
+              to="/pricing"
+              onClick={onClose}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 px-4 py-2 text-sm font-black text-white shadow-xl shadow-cyan-100 transition hover:-translate-y-0.5"
+            >
+              Xem gói phù hợp
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+        </div>
+      </section>
+    </div>
   );
 };
 
