@@ -13,6 +13,7 @@ import {
   Users,
 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
+import DeleteConfirmModal from '../components/DeleteConfirmModal';
 import UserAvatar from '../components/UserAvatar';
 import {
   EmptyState,
@@ -37,6 +38,7 @@ const DepartmentMembersPage = ({ user, onLogout }) => {
   const [selectedUserId, setSelectedUserId] = useState('');
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
+  const [removeTarget, setRemoveTarget] = useState(null);
 
   const eventQuery = useQuery({
     queryKey: ['event', eventId],
@@ -78,6 +80,7 @@ const DepartmentMembersPage = ({ user, onLogout }) => {
   const removeMemberMutation = useMutation({
     mutationFn: departmentApi.removeMember,
     onSuccess: () => {
+      setRemoveTarget(null);
       queryClient.invalidateQueries({ queryKey: ['departmentMembers', eventId, departmentId] });
       queryClient.invalidateQueries({ queryKey: ['eventMembers', eventId] });
     },
@@ -117,6 +120,14 @@ const DepartmentMembersPage = ({ user, onLogout }) => {
     event.preventDefault();
     if (!selectedUserId) return;
     assignMemberMutation.mutate({ eventId, departmentId, userId: Number(selectedUserId) });
+  };
+
+  const confirmRemoveMember = () => {
+    if (!removeTarget) {
+      return;
+    }
+
+    removeMemberMutation.mutate({ eventId, departmentId, userId: removeTarget.userId });
   };
 
   return (
@@ -314,11 +325,11 @@ const DepartmentMembersPage = ({ user, onLogout }) => {
                         <DepartmentMemberRow
                           key={member.id}
                           eventId={eventId}
-                          departmentId={departmentId}
                           member={member}
                           isLeader={isLeader}
                           departmentLeaderUserId={department?.leaderUserId}
                           removeMemberMutation={removeMemberMutation}
+                          onRequestRemove={setRemoveTarget}
                         />
                       ))}
                     </tbody>
@@ -329,11 +340,19 @@ const DepartmentMembersPage = ({ user, onLogout }) => {
           </>
         )}
       </div>
+      <DeleteConfirmModal
+        isOpen={Boolean(removeTarget)}
+        title="Gỡ thành viên khỏi ban"
+        message={`Bạn có chắc chắn muốn gỡ "${removeTarget?.name || removeTarget?.email || 'thành viên này'}" khỏi ban "${department?.name || ''}"? Thành viên vẫn thuộc event nhưng không còn nằm trong ban này.`}
+        isLoading={removeMemberMutation.isPending}
+        onConfirm={confirmRemoveMember}
+        onCancel={() => setRemoveTarget(null)}
+      />
     </AppLayout>
   );
 };
 
-const DepartmentMemberRow = ({ eventId, departmentId, member, isLeader, departmentLeaderUserId, removeMemberMutation }) => {
+const DepartmentMemberRow = ({ eventId, member, isLeader, departmentLeaderUserId, removeMemberMutation, onRequestRemove }) => {
   const removingThisMember = removeMemberMutation.isPending && removeMemberMutation.variables?.userId === member.userId;
   const isDepartmentLeader = String(member.userId) === String(departmentLeaderUserId);
 
@@ -386,7 +405,7 @@ const DepartmentMemberRow = ({ eventId, departmentId, member, isLeader, departme
         <td className="px-5 py-4 text-right">
           <button
             type="button"
-            onClick={() => removeMemberMutation.mutate({ eventId, departmentId, userId: member.userId })}
+            onClick={() => onRequestRemove(member)}
             disabled={removingThisMember}
             className="inline-flex items-center justify-center gap-2 rounded-2xl border border-red-100 bg-red-50 px-3 py-2 text-sm font-black text-red-600 shadow-sm transition hover:-translate-y-0.5 hover:border-red-200 hover:bg-red-100 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
           >

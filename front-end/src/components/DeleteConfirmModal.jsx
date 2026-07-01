@@ -5,6 +5,8 @@ const DeleteConfirmModal = ({
   isOpen,
   title = 'Xác nhận xóa',
   message = 'Bạn có chắc chắn muốn xóa?',
+  confirmLabel = 'Xóa',
+  cancelLabel = 'Hủy',
   isLoading,
   onConfirm,
   onCancel,
@@ -38,7 +40,7 @@ const DeleteConfirmModal = ({
             disabled={isLoading}
             className="flex-1"
           >
-            Hủy
+            {cancelLabel}
           </Button>
           <Button
             variant="danger"
@@ -47,7 +49,7 @@ const DeleteConfirmModal = ({
             className="flex-1"
           >
             {isLoading && <Loader2 size={18} className="animate-spin" />}
-            Xóa
+            {confirmLabel}
           </Button>
         </div>
       </Panel>

@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { CheckCircle2, ClipboardCheck, Mail, QrCode, Search, Trash2 } from 'lucide-react';
+import DeleteConfirmModal from '../../components/DeleteConfirmModal';
 import { Button, EmptyState, ErrorState, Panel, SelectControl, StatusBadge, TextInput } from '../../components/ui';
 import { buildCheckInPayload } from './checkInUtils';
 
@@ -23,7 +25,22 @@ const CheckInDeskPanel = ({
   eventId,
   confirmAttendeeMutation,
   deleteAttendeeMutation,
-}) => (
+}) => {
+  const [deleteTarget, setDeleteTarget] = useState(null);
+
+  const confirmDeleteAttendee = () => {
+    if (!deleteTarget) {
+      return;
+    }
+
+    deleteAttendeeMutation.mutate(
+      { eventId, attendeeId: deleteTarget.id },
+      { onSuccess: () => setDeleteTarget(null) }
+    );
+  };
+
+  return (
+    <>
   <Panel className="p-5">
     <div className="flex flex-col gap-3 border-b border-slate-100 pb-4 sm:flex-row sm:items-center sm:justify-between">
       <div>
@@ -163,7 +180,7 @@ const CheckInDeskPanel = ({
                 <button
                   type="button"
                   className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600"
-                  onClick={() => deleteAttendeeMutation.mutate({ eventId, attendeeId: attendee.id })}
+                  onClick={() => setDeleteTarget(attendee)}
                   title="Xóa"
                   aria-label="Xóa khách mời"
                 >
@@ -181,6 +198,16 @@ const CheckInDeskPanel = ({
       </div>
     </div>
   </Panel>
-);
+      <DeleteConfirmModal
+        isOpen={Boolean(deleteTarget)}
+        title="Xóa khách mời"
+        message={`Bạn có chắc chắn muốn xóa "${deleteTarget?.fullName || 'khách mời này'}" khỏi danh sách check-in? Hành động này sẽ xóa mã mời/QR đã phát cho khách.`}
+        isLoading={deleteAttendeeMutation.isPending}
+        onConfirm={confirmDeleteAttendee}
+        onCancel={() => setDeleteTarget(null)}
+      />
+    </>
+  );
+};
 
 export default CheckInDeskPanel;
