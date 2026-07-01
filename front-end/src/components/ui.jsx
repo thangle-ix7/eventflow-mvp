@@ -85,8 +85,11 @@ export const Button = ({ as: Component = 'button', variant = 'primary', classNam
   );
 };
 
-export const Panel = ({ children, className = '' }) => (
-  <section className={`min-w-0 max-w-full rounded-[2rem] border border-sky-100 bg-white shadow-xl shadow-sky-100/70 ${className}`}>
+export const Panel = ({ children, className = '', ...props }) => (
+  <section
+    className={`min-w-0 max-w-full rounded-[2rem] border border-sky-100 bg-white shadow-xl shadow-sky-100/70 ${className}`}
+    {...props}
+  >
     {children}
   </section>
 );
@@ -295,4 +298,7 @@ export const ProgressBar = ({ value = 0, tone = 'indigo' }) => {
     </div>
   );
 };
+
+
+
 

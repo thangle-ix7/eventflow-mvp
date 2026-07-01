@@ -430,13 +430,13 @@ const AppLayoutFrame = ({
       <div className="min-h-screen bg-[#F8FCFF] text-slate-950">
         {showTelegramOnboarding && <TelegramOnboarding userId={user.userId} />}
 
-        <header className="sticky top-0 z-50 border-b border-sky-100/80 bg-white/90 shadow-sm shadow-sky-100/50 backdrop-blur-2xl">
-          <div className="flex min-h-[4.5rem] min-w-0 flex-nowrap items-center gap-2 px-3 py-3 sm:gap-4 sm:px-6 lg:gap-8 lg:px-8 lg:py-0">
+        <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-xl">
+          <div className="mx-auto flex min-h-[4.75rem] min-w-0 max-w-[1600px] flex-nowrap items-center gap-2 px-4 py-3 sm:gap-5 sm:px-7 lg:gap-10 lg:px-10 lg:py-0">
             <div className="flex min-w-0 flex-1 items-center gap-3 lg:flex-none">
               {eventNav.length > 0 && (
                 <button
                   type="button"
-                  className="shrink-0 rounded-2xl p-2 text-slate-500 transition hover:bg-sky-50 hover:text-sky-600 active:scale-95"
+                  className="shrink-0 rounded-full p-2 text-slate-500 transition hover:bg-emerald-50 hover:text-emerald-600 active:scale-95"
                   aria-label={sidebarOpen ? 'Ẩn thanh điều hướng' : 'Mở thanh điều hướng'}
                   aria-expanded={sidebarOpen}
                   onClick={toggleSidebar}
@@ -445,10 +445,10 @@ const AppLayoutFrame = ({
                 </button>
               )}
 
-              <Link to="/events" className="group flex min-w-0 items-center gap-2 sm:gap-3">
+              <Link to="/events" className="group flex min-w-0 items-center gap-2.5 sm:gap-3">
                 <span className="relative flex h-10 w-10 shrink-0 items-center justify-center sm:h-11 sm:w-11">
-                  <span className="absolute inset-0 rounded-2xl bg-gradient-to-br from-sky-400 to-emerald-400 opacity-35 blur-md transition group-hover:opacity-70" />
-                  <span className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-2xl border border-sky-100 bg-white shadow-lg shadow-sky-100 sm:h-11 sm:w-11">
+                  <span className="absolute inset-0 rounded-full bg-gradient-to-br from-lime-300 to-emerald-300 opacity-30 blur-md transition group-hover:opacity-60" />
+                  <span className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-white sm:h-11 sm:w-11">
                     <img src="/event-flow-logo-mark.png" alt="" className="h-7 w-7 object-contain sm:h-8 sm:w-8" />
                   </span>
                 </span>
@@ -483,7 +483,7 @@ const AppLayoutFrame = ({
                     placeholder={`${t('common.search')}...`}
                     value={globalSearch}
                     onChange={(event) => setGlobalSearch(event.target.value)}
-                    className="h-12 w-full rounded-[1.25rem] border border-sky-100 bg-slate-50/80 px-11 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 hover:bg-white focus:border-cyan-300 focus:bg-white focus:ring-4 focus:ring-cyan-100"
+                    className="h-11 w-full rounded-full border-0 bg-slate-50 px-11 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 hover:bg-slate-100 focus:bg-white focus:ring-4 focus:ring-emerald-100"
                   />
 
                   {globalSearch.trim() && (
@@ -514,11 +514,11 @@ const AppLayoutFrame = ({
             )}
 
             <div className="ml-auto flex min-w-0 shrink-0 items-center justify-end gap-2 lg:gap-3">
-              <div className="flex items-center gap-1.5 rounded-[1.35rem] border border-sky-100/80 bg-white/70 px-1.5 py-1 text-slate-500 shadow-sm shadow-sky-100/50">
+              <div className="flex items-center gap-1.5 rounded-full bg-white px-1 py-1 text-slate-500">
 
                 <button
                   type="button"
-                  className="inline-flex items-center gap-2 rounded-2xl px-2.5 py-2 text-sm font-black transition hover:bg-sky-50 hover:text-sky-600"
+                  className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-lime-400 to-emerald-400 px-4 py-2 text-sm font-black text-white shadow-lg shadow-emerald-100 transition hover:-translate-y-0.5 hover:shadow-emerald-200"
                   aria-label="Gửi góp ý cho EventFlow"
                   title="Gửi góp ý cho EventFlow"
                   onClick={() => setFeedbackOpen(true)}
@@ -533,7 +533,7 @@ const AppLayoutFrame = ({
                 <div className="relative shrink-0" ref={notificationRef}>
                   <button
                     type="button"
-                    className="relative rounded-2xl p-2 transition hover:bg-sky-50 hover:text-sky-600"
+                    className="relative rounded-full p-2 transition hover:bg-emerald-50 hover:text-emerald-600"
                     aria-label={t('notification.title')}
                     aria-expanded={notificationOpen}
                     onClick={() => setNotificationOpen((open) => !open)}
@@ -651,7 +651,7 @@ const AppLayoutFrame = ({
               </div>
               <Link
                 to="/profile"
-                className="inline-flex h-10 w-10 shrink-0 items-center justify-center gap-2 rounded-2xl text-slate-600 transition hover:bg-sky-50 hover:text-sky-700 sm:h-11 sm:w-auto sm:min-w-0 sm:border sm:border-sky-100 sm:bg-white sm:px-3 sm:shadow-sm sm:shadow-sky-100/50"
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center gap-2 rounded-full text-slate-600 transition hover:bg-emerald-50 hover:text-emerald-700 sm:h-11 sm:w-auto sm:min-w-0 sm:bg-slate-50 sm:px-3"
                 aria-label="Hồ sơ cá nhân"
                 title="Hồ sơ cá nhân"
               >
@@ -664,7 +664,7 @@ const AppLayoutFrame = ({
               <button
                 type="button"
                 onClick={onLogout}
-                className="inline-flex h-10 w-10 shrink-0 items-center justify-center gap-2 rounded-2xl border border-sky-100 bg-white text-sm font-black text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-red-100 hover:bg-red-50 hover:text-red-600 active:translate-y-px sm:w-auto sm:px-3"
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center gap-2 rounded-full bg-white text-sm font-black text-slate-500 transition hover:-translate-y-0.5 hover:bg-red-50 hover:text-red-600 active:translate-y-px sm:w-auto sm:px-3"
                 aria-label={t('common.logout')}
               >
                 <LogOut className="h-4 w-4" strokeWidth={1.8} />
@@ -810,6 +810,7 @@ const formatNotificationTime = (value, lang) => {
 };
 
 export default AppLayout;
+
 
 
 

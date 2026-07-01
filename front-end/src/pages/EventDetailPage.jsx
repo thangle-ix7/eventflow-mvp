@@ -151,7 +151,7 @@ const EventHierarchyPanel = ({ eventId, event, departments, members, isLoading, 
   );
 
   return (
-    <Panel className="overflow-hidden">
+    <Panel className="overflow-hidden" data-guide-target="event-hierarchy-panel">
       <div className="border-b border-slate-200 bg-white px-5 py-4">
         <div className="flex flex-col gap-1">
           <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-600">
@@ -353,3 +353,4 @@ const formatEventRange = (event) => {
 };
 
 export default EventDetailPage;
+

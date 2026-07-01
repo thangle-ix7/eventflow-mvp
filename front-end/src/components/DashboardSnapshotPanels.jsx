@@ -199,7 +199,7 @@ const SnapshotMetric = ({ icon: Icon, label, value, detail, tone }) => {
 };
 
 const MilestoneProgressBoard = ({ eventId, milestones }) => (
-  <section className="rounded-2xl border border-sky-100 bg-white p-4">
+  <section className="rounded-2xl border border-sky-100 bg-white p-4" data-guide-target="dashboard-milestone-roadmap">
     <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div>
         <h3 className="font-black text-slate-950">Lộ trình cột mốc</h3>
@@ -315,7 +315,7 @@ const PriorityTaskBoard = ({ eventId, milestone, onClearMilestone }) => {
   };
 
   return (
-    <section className="rounded-2xl border border-sky-100 bg-white p-4">
+    <section className="rounded-2xl border border-sky-100 bg-white p-4" data-guide-target="dashboard-priority-tasks">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h3 className="font-black text-slate-950">Công việc theo độ ưu tiên</h3>
@@ -698,6 +698,9 @@ const priorityTone = (priority) => {
   if (priority === 'MEDIUM') return 'bg-sky-100 text-sky-700';
   return 'bg-slate-100 text-slate-600';
 };
+
+
+
 
 
 

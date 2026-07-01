@@ -81,7 +81,7 @@ const EventMilestonePage = ({ user, onLogout }) => {
         )}
 
         {!eventQuery.isLoading && !milestonesQuery.isLoading && !eventQuery.error && !milestonesQuery.error && milestones.length > 0 && (
-          <Panel className="overflow-hidden">
+          <Panel className="overflow-hidden" data-guide-target="milestone-list">
             <div className="overflow-x-auto">
               <div className="min-w-[980px]">
                 <div className="grid grid-cols-[64px_minmax(240px,1.5fr)_140px_130px_130px_180px_120px] items-center gap-4 border-b border-sky-100 bg-sky-50/70 px-5 py-3 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
