@@ -410,7 +410,7 @@ const TaskListPage = ({ user, onLogout }) => {
           </Panel>
         )}
 
-        <Panel className="overflow-hidden">
+        <Panel className="overflow-hidden" data-guide-target="task-board-panel">
           <StatusTaskBoard
             eventId={eventId}
             search={search}

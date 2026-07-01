@@ -240,7 +240,7 @@ const DepartmentListPage = ({ user, onLogout }) => {
               saveMutation={saveAiDepartmentsMutation}
             />
 
-            <Panel className="overflow-hidden">
+            <Panel className="overflow-hidden" data-guide-target="department-list">
               <div className="flex flex-col gap-3 border-b border-sky-100 bg-white px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
                 <h3 className="text-lg font-black text-slate-950">
                   Danh sách ban tổ chức

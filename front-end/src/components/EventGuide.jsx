@@ -7,24 +7,14 @@ import { EVENT_GUIDE_STORAGE_PREFIX, createEventFlowGuide } from '../config/even
 const getStorageKey = ({ userId, eventId, guideId }) =>
   `${EVENT_GUIDE_STORAGE_PREFIX}:${userId || 'guest'}:${eventId || 'global'}:${guideId}`;
 
-const getElementRect = (selector) => {
+const getGuideTargetElement = (selector) => {
   if (typeof document === 'undefined' || !selector) {
     return null;
   }
 
-  const element = document.querySelector(selector);
-  if (!element) {
-    return null;
-  }
-
-  element.scrollIntoView({ block: 'center', inline: 'center', behavior: 'auto' });
-  const rect = element.getBoundingClientRect();
-  if (rect.width === 0 || rect.height === 0) {
-    return null;
-  }
-
-  return rect;
+  return document.querySelector(selector);
 };
+
 
 const isSeen = ({ userId, eventId, guideId }) => {
   try {
@@ -54,7 +44,7 @@ export const EventGuideLauncher = ({ selectedEvent, user, className = '' }) => {
     <>
       <button
         type="button"
-        className={`inline-flex items-center gap-2 rounded-2xl px-2.5 py-2 text-sm font-black text-slate-500 transition hover:bg-sky-50 hover:text-sky-600 ${className}`}
+        className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-black text-slate-500 transition hover:bg-emerald-50 hover:text-emerald-600 ${className}`}
         aria-label="Mở hướng dẫn sử dụng"
         title="Hướng dẫn sử dụng"
         onClick={() => setOpen(true)}
@@ -108,6 +98,7 @@ const EventGuideTour = ({
   const open = controlledOpen ?? internalOpen;
   const currentStep = guide.steps[stepIndex];
   const isLastStep = stepIndex === guide.steps.length - 1;
+  const isCurrentStepComplete = !currentStep?.completionPath || location.pathname === currentStep.completionPath;
 
   const closeTour = useCallback(() => {
     markSeen({ userId, eventId, guideId: guide.id });
@@ -145,20 +136,35 @@ const EventGuideTour = ({
     let retryCount = 0;
     let retryTimer;
 
-    const updateRect = () => {
-      const rect = getElementRect(currentStep.target);
+    const updateRect = ({ shouldScroll = false } = {}) => {
+      const element = getGuideTargetElement(currentStep.target);
+      if (!element) {
+        setTargetRect(null);
+        return false;
+      }
+
+      if (shouldScroll) {
+        element.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
+      }
+
+      const rect = element.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) {
+        setTargetRect(null);
+        return false;
+      }
+
       setTargetRect(rect);
-      return Boolean(rect);
+      return true;
     };
 
     const timer = window.setTimeout(() => {
-      if (updateRect()) {
+      if (updateRect({ shouldScroll: true })) {
         return;
       }
 
       retryTimer = window.setInterval(() => {
         retryCount += 1;
-        if (updateRect() || retryCount >= 10) {
+        if (updateRect({ shouldScroll: retryCount === 1 }) || retryCount >= 10) {
           window.clearInterval(retryTimer);
         }
       }, 250);
@@ -218,15 +224,17 @@ const EventGuideTour = ({
       {targetRect && <Spotlight rect={targetRect} />}
 
       <GuideCard
-        guide={guide}
         step={currentStep}
         stepIndex={stepIndex}
         totalSteps={guide.steps.length}
         isLastStep={isLastStep}
         onClose={closeTour}
+        onSkip={closeTour}
         onPrevious={goPrevious}
         onNext={goNext}
         targetRect={targetRect}
+        canProceed={isCurrentStepComplete}
+        nextLabel={!isCurrentStepComplete ? currentStep.waitingLabel || 'Đang chờ thao tác' : undefined}
       />
     </div>,
     document.body,
@@ -234,16 +242,16 @@ const EventGuideTour = ({
 };
 
 const GuideBackdrop = ({ rect }) => {
-  const shadeClass = "pointer-events-none fixed z-[90] bg-black/62 backdrop-blur-sm";
+  const shadeClass = "pointer-events-none fixed z-[90] bg-slate-950/62 backdrop-blur-sm";
 
   if (!rect) {
     return <div className={`${shadeClass} inset-0`} />;
   }
 
-  const left = Math.max(rect.left - 8, 8);
-  const top = Math.max(rect.top - 8, 72);
-  const right = Math.min(rect.right + 8, window.innerWidth - 8);
-  const bottom = Math.min(rect.bottom + 8, window.innerHeight - 8);
+  const left = Math.max(rect.left - 18, 8);
+  const top = Math.max(rect.top - 18, 72);
+  const right = Math.min(rect.right + 18, window.innerWidth - 8);
+  const bottom = Math.min(rect.bottom + 18, window.innerHeight - 8);
 
   return (
     <>
@@ -256,7 +264,7 @@ const GuideBackdrop = ({ rect }) => {
 };
 const Spotlight = ({ rect }) => (
   <div
-    className="pointer-events-none fixed z-[91] rounded-[1.35rem] border-[3px] border-white bg-white/10 shadow-[0_0_0_5px_rgba(34,211,238,0.88),0_0_32px_rgba(34,211,238,0.85),0_18px_46px_rgba(0,0,0,0.42)]"
+    className="pointer-events-none fixed z-[94] rounded-[1.35rem] border-2 border-emerald-300/90 bg-white/5 shadow-[0_0_0_3px_rgba(255,255,255,0.88),0_0_0_6px_rgba(52,211,153,0.26),0_12px_28px_rgba(15,23,42,0.16)]"
     style={{
       left: Math.max(rect.left - 8, 8),
       top: Math.max(rect.top - 8, 72),
@@ -300,57 +308,59 @@ const getGuideCardPlacement = (targetRect) => {
   }
 
   return {
-    left: '50%',
-    top: '50%',
-    transform: 'translate(-50%, -50%)',
+    right: margin,
+    bottom: margin,
+    transform: 'none',
   };
 };
 
 const GuideCard = ({
-  guide,
   step,
   stepIndex,
   totalSteps,
   isLastStep,
   onClose,
+  onSkip,
   onPrevious,
   onNext,
   targetRect,
+  canProceed = true,
+  nextLabel,
 }) => {
   const placementStyle = getGuideCardPlacement(targetRect);
 
   return (
     <section
-      className="pointer-events-auto fixed z-[92] max-h-[calc(100vh-2.5rem)] w-[min(640px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-sky-100 bg-white text-slate-950 shadow-2xl shadow-slate-950/20"
+      className="pointer-events-auto fixed z-[95] max-h-[calc(100vh-2.5rem)] w-[min(520px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-sky-100 bg-white text-slate-950 shadow-2xl shadow-slate-950/30"
       style={placementStyle}
       role="dialog"
       aria-modal="true"
       aria-labelledby="event-guide-title"
     >
-      <div className="border-b border-sky-100 bg-gradient-to-r from-sky-50 via-white to-emerald-50 px-5 py-4">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-sky-600">
-              {guide.title}
-            </p>
-            <h3 id="event-guide-title" className="mt-1 text-lg font-black text-slate-950">
+      <div className="px-5 pb-4 pt-5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            {step.completionPath && (
+              <span className="mb-2 inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-black text-emerald-700">
+                → Thao tác trên vùng đang sáng
+              </span>
+            )}
+            <h3 id="event-guide-title" className="text-base font-black text-slate-950">
               {step.title}
             </h3>
+            <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
+              {step.content}
+            </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full p-2 text-slate-400 transition hover:bg-white hover:text-slate-700"
+            className="shrink-0 rounded-full p-2 text-slate-400 transition hover:bg-slate-50 hover:text-slate-700"
             aria-label="Đóng hướng dẫn"
           >
             <X className="h-4 w-4" strokeWidth={2} />
           </button>
         </div>
-      </div>
-
-      <div className="grid max-h-[50vh] gap-4 overflow-y-auto px-5 py-5 text-sm font-semibold leading-7 text-slate-600">
-        {step.featureContent && <GuideBlock label="Trong mục này" text={step.featureContent} />}
-        <GuideBlock label="Chức năng" text={step.content} />
       </div>
       <div className="border-t border-sky-100 bg-slate-50 px-5 py-4">
         <div className="mb-3 flex items-center justify-between gap-3 text-xs font-black text-slate-500">
@@ -376,17 +386,23 @@ const GuideCard = ({
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={onNext}
+              onClick={onSkip}
               className="rounded-2xl px-3 py-2 text-sm font-black text-slate-500 transition hover:bg-white hover:text-slate-700"
             >
-              Bỏ qua bước này
+              Bỏ qua guide
             </button>
             <button
               type="button"
               onClick={onNext}
-              className="rounded-2xl bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 px-4 py-2 text-sm font-black text-white shadow-lg shadow-cyan-100 transition hover:-translate-y-0.5"
+              disabled={!canProceed}
+              className={[
+                'rounded-2xl px-4 py-2 text-sm font-black shadow-lg transition',
+                canProceed
+                  ? 'bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 text-white shadow-cyan-100 hover:-translate-y-0.5'
+                  : 'cursor-not-allowed bg-slate-200 text-slate-500 shadow-none',
+              ].join(' ')}
             >
-              {isLastStep ? 'Hoàn tất' : 'Tiếp tục'}
+              {nextLabel || (isLastStep ? 'Hoàn tất' : 'Tiếp tục')}
             </button>
           </div>
         </div>
@@ -395,14 +411,6 @@ const GuideCard = ({
   );
 };
 
-const GuideBlock = ({ label, text }) => (
-  <div>
-    <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
-      {label}
-    </p>
-    <p className="mt-1">{text}</p>
-  </div>
-);
 
 
 export const MetricGuideButton = ({ guide }) => {
@@ -441,6 +449,27 @@ export const MetricGuideButton = ({ guide }) => {
     </span>
   );
 };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

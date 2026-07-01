@@ -292,7 +292,7 @@ const EventMembersPage = ({ user, onLogout }) => {
           />
         )}
 
-        <Panel className="overflow-hidden">
+        <Panel className="overflow-hidden" data-guide-target="member-list">
           <div className="flex flex-col gap-4 border-b border-sky-100 bg-gradient-to-r from-sky-50 via-white to-emerald-50 px-5 py-5 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-400 text-white shadow-lg shadow-cyan-100">

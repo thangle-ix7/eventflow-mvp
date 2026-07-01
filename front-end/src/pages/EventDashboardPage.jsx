@@ -203,7 +203,7 @@ const EventDashboardPage = ({ user, onLogout }) => {
               <MetricCard label="Quá hạn chưa xong" value={summary.overdueTasksCount} guide={dashboardMetricGuides.overdueTasks} guideTarget="dashboard-overdue-tasks" />
             </section>
 
-            <section className="grid gap-5">
+            <section className="grid gap-5" data-guide-target="event-dashboard-charts">
               <ChartPanel title="Burndown Chart" guideTarget="dashboard-burndown-chart">
                 <BurndownChart data={trendQuery.data || []} />
               </ChartPanel>
@@ -245,5 +245,6 @@ const ChartPanel = ({ icon, title, children, guideTarget }) => (
 );
 
 export default EventDashboardPage;
+
 
 
