@@ -1,6 +1,7 @@
-import { formatDate } from './dateUtils';
+import { formatDate, formatDateOnly } from './dateUtils';
 
 const formatDateTime = (value) => (value ? formatDate(value, String(value)) : '');
+const formatReportDate = (value) => (value ? formatDateOnly(value, String(value)) : '');
 
 const sanitizeFileName = (value) =>
   String(value || 'eventflow-report')
@@ -225,7 +226,7 @@ export const openPrintableDashboardReport = (report) => {
       <body>
         <button onclick="window.print()">In / lưu PDF</button>
         <h1>${escapeHtml(report.event?.name)} - Báo cáo EventFlow</h1>
-        <p class="muted">Phạm vi: ${escapeHtml(report.scope?.name)} • Kỳ: ${escapeHtml(report.range?.fromDate || '')} - ${escapeHtml(report.range?.toDate || '')} • Tạo lúc: ${escapeHtml(formatDateTime(report.generatedAt))}</p>
+        <p class="muted">Phạm vi: ${escapeHtml(report.scope?.name)} • Kỳ: ${escapeHtml(formatReportDate(report.range?.fromDate))} - ${escapeHtml(formatReportDate(report.range?.toDate))} • Tạo lúc: ${escapeHtml(formatDateTime(report.generatedAt))}</p>
         ${report.note ? `<p class="muted">${escapeHtml(report.note)}</p>` : ''}
         <section class="grid">${metrics}</section>
         <h2>Trạng thái công việc</h2>

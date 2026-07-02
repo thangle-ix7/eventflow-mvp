@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import subscriptionApi from '../api/subscriptionApi';
 import { Button, EmptyState, ErrorState, LoadingState, PageHeader } from '../components/ui';
+import { formatDate, toDateTimeLocalValue } from '../utils/dateUtils';
 
 const DEFAULT_FORM = {
   code: '',
@@ -296,24 +297,11 @@ const formatPrice = (value) => `${Number(value || 0).toLocaleString('vi-VN')}đ`
 
 const formatDateTime = (value) => {
   if (!value) return 'Không giới hạn';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'Không giới hạn';
-  return date.toLocaleString('vi-VN', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  return formatDate(value, 'Không giới hạn');
 };
 
 const toDateTimeLocal = (value) => {
-  if (!value) return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-  const offset = date.getTimezoneOffset();
-  const local = new Date(date.getTime() - offset * 60 * 1000);
-  return local.toISOString().slice(0, 16);
+  return toDateTimeLocalValue(value) || null;
 };
 
 export default AdminDiscountCodePage;

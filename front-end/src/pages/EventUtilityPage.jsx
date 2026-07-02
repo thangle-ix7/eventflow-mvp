@@ -1849,6 +1849,8 @@ const formatFileSize = (sizeBytes) => {
 const ReportsContent = ({ event, stats, departments, members, tasks, reportsData, reportRange }) => {
   const reports = useMemo(() => reportsData?.reports || [], [reportsData]);
   const reportSummary = reportsData?.summary || {};
+  const displayFromDate = formatDateOnly(reportsData?.fromDate || reportRange.fromDate);
+  const displayToDate = formatDateOnly(reportsData?.toDate || reportRange.toDate);
   const statusData = useMemo(() => {
     const statuses = ['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE'];
     return statuses.map((status) => ({
@@ -1886,7 +1888,7 @@ const ReportsContent = ({ event, stats, departments, members, tasks, reportsData
           <div>
             <h3 className="font-bold text-slate-950">Report tiến độ thật</h3>
             <p className="mt-1 text-sm text-slate-500">
-              {reportsData?.fromDate || reportRange.fromDate} - {reportsData?.toDate || reportRange.toDate} • trung bình {Math.round(reportSummary.averageReportedProgress || 0)}%
+              {displayFromDate} - {displayToDate} • trung bình {Math.round(reportSummary.averageReportedProgress || 0)}%
             </p>
           </div>
           <ReportDownloadButtons report={report} />

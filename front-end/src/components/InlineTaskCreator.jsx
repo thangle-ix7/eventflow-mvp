@@ -42,6 +42,70 @@ const createEmptyRow = (departmentId = '', assigneeId = '', status = 'TODO') => 
 
 const normalizeSuggestedDeadline = (value) => (value ? toDateTimeLocalValue(value) || String(value).slice(0, 16) : '');
 
+const DATE_DISPLAY_PATTERN = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+const TIME_INPUT_PATTERN = /^(\d{2}):(\d{2})$/;
+
+const splitDateTimeInput = (value) => {
+  const normalized = String(value || '');
+  const [datePart = '', timePart = ''] = normalized.split('T');
+  return {
+    datePart,
+    timePart: timePart.slice(0, 5) || '00:00',
+  };
+};
+
+const formatDateForDisplayInput = (value) => {
+  const { datePart } = splitDateTimeInput(value);
+  const [year, month, day] = datePart.split('-');
+  if (!year || !month || !day) {
+    return '';
+  }
+  return `${day}/${month}/${year}`;
+};
+
+const parseDisplayDate = (value) => {
+  const match = String(value || '').trim().match(DATE_DISPLAY_PATTERN);
+  if (!match) {
+    return null;
+  }
+
+  const [, day, month, year] = match;
+  const parsed = new Date(`${year}-${month}-${day}T00:00:00`);
+  if (
+    Number.isNaN(parsed.getTime())
+    || parsed.getFullYear() !== Number(year)
+    || parsed.getMonth() + 1 !== Number(month)
+    || parsed.getDate() !== Number(day)
+  ) {
+    return null;
+  }
+
+  return { day, month, year };
+};
+
+const normalizeTimeInput = (value) => {
+  const match = String(value || '').match(TIME_INPUT_PATTERN);
+  if (!match) {
+    return null;
+  }
+
+  const [, hour, minute] = match;
+  if (Number(hour) > 23 || Number(minute) > 59) {
+    return null;
+  }
+  return `${hour}:${minute}`;
+};
+
+const buildDateTimeInputValue = (dateDisplay, timeValue) => {
+  const dateParts = parseDisplayDate(dateDisplay);
+  const timePart = normalizeTimeInput(timeValue) || '00:00';
+  if (!dateParts) {
+    return '';
+  }
+
+  return `${dateParts.year}-${dateParts.month}-${dateParts.day}T${timePart}`;
+};
+
 const autoResizeTextarea = (element) => {
   element.style.height = 'auto';
   element.style.height = `${Math.max(32, element.scrollHeight)}px`;
@@ -480,7 +544,7 @@ const InlineTaskCreator = ({
             </div>
 
             <div className="min-h-0 flex-1 overflow-auto bg-gradient-to-br from-white via-sky-50/25 to-emerald-50/30">
-              <div className="min-w-[2040px]">
+              <div className="min-w-[2120px]">
                 <div className={taskCreatorGridHeaderClassName}>
                   <span>#</span>
                   <span>Tên công việc</span>
@@ -602,15 +666,11 @@ const InlineTaskCreator = ({
                         ))}
                       </select>
                       <div className="min-w-0">
-                        <input
-                          type="datetime-local"
+                        <DeadlineDateTimeInput
                           value={row.deadline || minDeadline}
-                          onChange={(event) => updateRow(row.id, 'deadline', event.target.value)}
-                          min={minDeadline || undefined}
-                          max={maxDeadline || undefined}
+                          onChange={(value) => updateRow(row.id, 'deadline', value)}
                           disabled={mutation.isPending}
-                          aria-label="Hạn"
-                          className={taskInputClassNameWithError(deadlineError)}
+                          error={deadlineError}
                         />
                         <p className="mt-1 text-[10px] font-bold text-slate-500">
                           {deadlineRangeLabel}
@@ -763,6 +823,68 @@ const InlineTaskCreator = ({
   );
 };
 
+const DeadlineDateTimeInput = ({ value, onChange, disabled, error }) => {
+  const [dateDraft, setDateDraft] = useState('');
+  const { timePart } = splitDateTimeInput(value);
+  const committedDate = formatDateForDisplayInput(value);
+  const displayDate = dateDraft || committedDate;
+
+  const commitDate = (nextDisplayDate, nextTime = timePart) => {
+    const nextValue = buildDateTimeInputValue(nextDisplayDate, nextTime);
+    if (!nextValue) {
+      return false;
+    }
+
+    onChange(nextValue);
+    return true;
+  };
+
+  const handleDateChange = (event) => {
+    const nextDisplayDate = event.target.value;
+    setDateDraft(nextDisplayDate);
+
+    if (commitDate(nextDisplayDate)) {
+      setDateDraft('');
+    }
+  };
+
+  const handleDateBlur = () => {
+    if (!dateDraft || commitDate(dateDraft)) {
+      setDateDraft('');
+    }
+  };
+
+  const handleTimeChange = (event) => {
+    commitDate(displayDate, event.target.value);
+  };
+
+  return (
+    <div className="grid grid-cols-[minmax(0,1.25fr)_88px] gap-2">
+      <input
+        type="text"
+        inputMode="numeric"
+        value={displayDate}
+        onChange={handleDateChange}
+        onBlur={handleDateBlur}
+        disabled={disabled}
+        placeholder="dd/mm/yyyy"
+        aria-label="Ngày hạn theo định dạng dd/mm/yyyy"
+        aria-invalid={Boolean(error)}
+        className={taskInputClassNameWithError(error)}
+      />
+      <input
+        type="time"
+        value={timePart}
+        onChange={handleTimeChange}
+        disabled={disabled}
+        aria-label="Giờ hạn"
+        aria-invalid={Boolean(error)}
+        className={taskInputClassNameWithError(error)}
+      />
+    </div>
+  );
+};
+
 const RowAttachmentDraft = ({ row, onChange, onFilesChange, hasDepartment, disabled }) => {
   const { files, linkUrl, linkTitle, visibility } = row.attachmentDraft;
 
@@ -835,9 +957,9 @@ const RowAttachmentDraft = ({ row, onChange, onFilesChange, hasDepartment, disab
   );
 };
 
-const taskCreatorGridColumns = 'grid-cols-[36px_minmax(240px,1.05fr)_minmax(320px,1.2fr)_170px_250px_190px_190px_112px_120px_118px_170px_82px]';
-const taskCreatorGridHeaderClassName = `grid min-w-[2040px] ${taskCreatorGridColumns} items-center gap-2 border-b border-sky-100 bg-sky-50/80 px-5 py-2.5 text-[10px] font-black uppercase tracking-[0.18em] text-slate-500`;
-const taskCreatorGridRowClassName = `grid min-w-[2040px] ${taskCreatorGridColumns} items-stretch gap-2 border-b border-sky-100/70 bg-white/80 px-5 py-2 transition hover:bg-sky-50/70 last:border-b-0`;
+const taskCreatorGridColumns = 'grid-cols-[36px_minmax(240px,1.05fr)_minmax(320px,1.2fr)_170px_250px_190px_260px_112px_120px_118px_170px_82px]';
+const taskCreatorGridHeaderClassName = `grid min-w-[2120px] ${taskCreatorGridColumns} items-center gap-2 border-b border-sky-100 bg-sky-50/80 px-5 py-2.5 text-[10px] font-black uppercase tracking-[0.18em] text-slate-500`;
+const taskCreatorGridRowClassName = `grid min-w-[2120px] ${taskCreatorGridColumns} items-stretch gap-2 border-b border-sky-100/70 bg-white/80 px-5 py-2 transition hover:bg-sky-50/70 last:border-b-0`;
 const taskInputClassName = 'h-full min-h-8 w-full min-w-0 rounded-lg border border-sky-100 bg-white px-2.5 text-xs font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:ring-2 focus:ring-cyan-100 disabled:bg-slate-50 disabled:text-slate-500';
 const taskInputClassNameWithError = (error) => (
   error ? `${taskInputClassName} border-red-300 bg-red-50/70 focus:border-red-400 focus:ring-red-100` : taskInputClassName

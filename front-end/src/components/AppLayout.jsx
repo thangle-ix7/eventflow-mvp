@@ -7,6 +7,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import userApi from '../api/userApi';
 import subscriptionApi from '../api/subscriptionApi';
 import { getDepartmentHomePath, getEventPermissions } from '../utils/permissionUtils';
+import { formatDate } from '../utils/dateUtils';
 import { useTranslation } from 'react-i18next';
 import {
   ArrowRight,
@@ -913,12 +914,7 @@ const formatNotificationTime = (value, lang) => {
     return lang === 'en' ? 'Just now' : 'Vừa tạo';
   }
 
-  return date.toLocaleString(lang === 'en' ? 'en-US' : 'vi-VN', {
-    day: '2-digit',
-    month: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  return formatDate(date, lang === 'en' ? 'Just now' : 'Vừa tạo');
 };
 
 export default AppLayout;

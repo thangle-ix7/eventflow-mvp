@@ -28,6 +28,7 @@ import {
 import eventApi from '../api/eventApi';
 import subscriptionApi from '../api/subscriptionApi';
 import { Button, ErrorState } from '../components/ui';
+import { formatDate } from '../utils/dateUtils';
 
 const PLAN_ORDER = ['FREE', 'CLUB', 'PRO_AGENCY', 'EVENT_STANDARD', 'EVENT_PREMIUM', 'ENTERPRISE'];
 
@@ -905,18 +906,7 @@ const getOrderCode = (checkoutResult) => {
 const formatMoney = (value) => `${Number(value || 0).toLocaleString('vi-VN')}đ`;
 
 const formatDateTime = (value) => {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return 'không rõ';
-  }
-
-  return date.toLocaleString('vi-VN', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  return formatDate(value, 'không rõ');
 };
 
 const formatPrice = (plan) => {

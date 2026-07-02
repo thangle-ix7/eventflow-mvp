@@ -1,18 +1,13 @@
 import { Link } from 'react-router-dom';
 import { Button, Panel, ProgressBar, StatusBadge } from '../../components/ui';
+import { formatDate } from '../../utils/dateUtils';
 
 const formatSessionTime = (value) => {
   if (!value) {
     return 'Chưa đặt giờ';
   }
 
-  return new Intl.DateTimeFormat('vi-VN', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(value));
+  return formatDate(value, 'Chưa đặt giờ');
 };
 
 const SessionListPanel = ({ eventId, sessions }) => (
