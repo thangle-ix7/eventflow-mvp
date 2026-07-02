@@ -507,8 +507,6 @@ public class LeaderSnapshotService {
                 SELECT
                     m.id AS milestone_id,
                     m.name,
-                    m.status,
-                    m.priority,
                     m.expected_deadline,
                     COUNT(t.id) AS total_tasks,
                     COALESCE(SUM(CASE WHEN t.status = 'DONE' THEN 1 ELSE 0 END), 0) AS completed_tasks,
@@ -519,7 +517,7 @@ public class LeaderSnapshotService {
                     AND t.event_id = m.event_id
                     AND t.parent_id IS NULL
                 WHERE m.event_id = ?
-                GROUP BY m.id, m.name, m.status, m.priority, m.expected_deadline
+                GROUP BY m.id, m.name, m.expected_deadline
                 ORDER BY m.expected_deadline ASC NULLS LAST, m.created_at ASC, m.id ASC
                 """, (rs, rowNum) -> {
             long total = rs.getLong("total_tasks");
@@ -527,8 +525,6 @@ public class LeaderSnapshotService {
             return LeaderSnapshotResponse.MilestoneProgress.builder()
                     .milestoneId(rs.getLong("milestone_id"))
                     .name(rs.getString("name"))
-                    .status(rs.getString("status"))
-                    .priority(rs.getString("priority"))
                     .expectedDeadline(toLocalDateTime(rs, "expected_deadline"))
                     .totalTasks(total)
                     .completedTasks(completed)
@@ -828,8 +824,6 @@ public class LeaderSnapshotService {
         return LeaderSnapshotResponse.CriticalItem.builder()
                 .taskId(rs.getLong("id"))
                 .title(rs.getString("title"))
-                .status(rs.getString("status"))
-                .priority(rs.getString("priority"))
                 .deadline(toLocalDateTime(rs, "deadline"))
                 .departmentId(readNullableLong(rs, "department_id"))
                 .departmentName(rs.getString("department_name"))
@@ -929,3 +923,5 @@ public class LeaderSnapshotService {
         CATEGORY
     }
 }
+
+

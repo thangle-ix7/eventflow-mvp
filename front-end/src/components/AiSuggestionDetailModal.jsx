@@ -240,7 +240,6 @@ const KEY_LABELS = {
   description: 'Mô tả',
   objective: 'Mục tiêu',
   phaseName: 'Phase',
-  expectedResult: 'Kết quả kỳ vọng',
   expectedDeadline: 'Hạn kỳ vọng',
   deadline: 'Hạn',
   priority: 'Ưu tiên',
@@ -256,3 +255,4 @@ const KEY_LABELS = {
 };
 
 export default AiSuggestionDetailModal;
+

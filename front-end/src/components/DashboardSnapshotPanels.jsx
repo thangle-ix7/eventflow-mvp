@@ -226,7 +226,8 @@ const MilestoneProgressBoard = ({ eventId, milestones }) => (
       <div className="mt-5 overflow-x-auto pb-2">
         <div className="relative flex min-w-[720px] gap-4 px-1">
           <div className="absolute left-6 right-6 top-7 h-1 rounded-full bg-sky-100" />
-          {milestones.map((milestone, index) => {            const progress = milestone.progress || 0;
+          {milestones.map((milestone, index) => {
+            const progress = milestone.progress || 0;
 
             return (
               <Link
@@ -239,16 +240,8 @@ const MilestoneProgressBoard = ({ eventId, milestones }) => (
                 </span>
                 <span className={`absolute left-10 right-4 top-[1.9rem] h-1 rounded-full ${progress >= 100 ? 'bg-emerald-400' : 'bg-sky-300'}`} />
 
-                <span className="flex items-start justify-between gap-3">
-                  <span className="min-w-0">
-                    <span className="block truncate font-black text-slate-950">{milestone.name}</span>
-                    <span className="mt-1 block text-xs font-bold text-slate-500">
-                      {milestone.status || 'TODO'}
-                    </span>
-                  </span>
-                  <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-black ${priorityTone(milestone.priority)}`}>
-                    {milestone.priority || 'MEDIUM'}
-                  </span>
+                <span className="block min-w-0 truncate font-black text-slate-950">
+                  {milestone.name}
                 </span>
 
                 <span className="mt-4 block">
@@ -691,13 +684,11 @@ const getSeverityDot = (severity) => {
   if (severity === 'MEDIUM') return 'bg-amber-400';
   return 'bg-emerald-400';
 };
+
 
-const priorityTone = (priority) => {
-  if (priority === 'URGENT') return 'bg-rose-100 text-rose-700';
-  if (priority === 'HIGH') return 'bg-orange-100 text-orange-700';
-  if (priority === 'MEDIUM') return 'bg-sky-100 text-sky-700';
-  return 'bg-slate-100 text-slate-600';
-};
+
+
+
 
 
 

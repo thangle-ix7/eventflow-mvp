@@ -4,8 +4,6 @@ import com.eventflow.backend.dto.MilestoneRequestDTO;
 import com.eventflow.backend.dto.MilestoneResponseDTO;
 import com.eventflow.backend.entity.Event;
 import com.eventflow.backend.entity.Milestone;
-import com.eventflow.backend.entity.MilestoneStatus;
-import com.eventflow.backend.entity.TaskPriority;
 import com.eventflow.backend.repository.EventRepository;
 import com.eventflow.backend.repository.MilestoneRepository;
 import com.eventflow.backend.repository.TaskRepository;
@@ -47,9 +45,6 @@ public class MilestoneService {
                 .name(normalizeRequiredText(request.getName(), "Tên milestone không được để trống"))
                 .description(normalizeOptionalText(request.getDescription()))
                 .expectedDeadline(request.getExpectedDeadline())
-                .expectedResult(normalizeOptionalText(request.getExpectedResult()))
-                .priority(parsePriorityOrDefault(request.getPriority(), TaskPriority.MEDIUM))
-                .status(parseStatusOrDefault(request.getStatus(), MilestoneStatus.TODO))
                 .build());
 
         return mapToResponse(milestone);
@@ -62,9 +57,6 @@ public class MilestoneService {
         milestone.setName(normalizeRequiredText(request.getName(), "Tên milestone không được để trống"));
         milestone.setDescription(normalizeOptionalText(request.getDescription()));
         milestone.setExpectedDeadline(request.getExpectedDeadline());
-        milestone.setExpectedResult(normalizeOptionalText(request.getExpectedResult()));
-        milestone.setPriority(parsePriorityOrDefault(request.getPriority(), milestone.getPriority()));
-        milestone.setStatus(parseStatusOrDefault(request.getStatus(), milestone.getStatus()));
         milestone.setUpdatedAt(LocalDateTime.now());
 
         return mapToResponse(milestoneRepository.save(milestone));
@@ -123,39 +115,12 @@ public class MilestoneService {
                 .name(milestone.getName())
                 .description(milestone.getDescription())
                 .expectedDeadline(milestone.getExpectedDeadline())
-                .expectedResult(milestone.getExpectedResult())
-                .priority(milestone.getPriority())
-                .status(milestone.getStatus())
                 .totalTasks(totalTasks)
                 .completedTasks(completedTasks)
                 .progressPercentage(progress)
                 .createdAt(milestone.getCreatedAt())
                 .updatedAt(milestone.getUpdatedAt())
                 .build();
-    }
-
-    private TaskPriority parsePriorityOrDefault(String priority, TaskPriority defaultPriority) {
-        if (priority == null || priority.isBlank()) {
-            return defaultPriority != null ? defaultPriority : TaskPriority.MEDIUM;
-        }
-
-        try {
-            return TaskPriority.valueOf(priority.trim().toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Độ ưu tiên milestone không hợp lệ", e);
-        }
-    }
-
-    private MilestoneStatus parseStatusOrDefault(String status, MilestoneStatus defaultStatus) {
-        if (status == null || status.isBlank()) {
-            return defaultStatus != null ? defaultStatus : MilestoneStatus.TODO;
-        }
-
-        try {
-            return MilestoneStatus.valueOf(status.trim().toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Trạng thái milestone không hợp lệ", e);
-        }
     }
 
     private String normalizeRequiredText(String value, String errorMessage) {

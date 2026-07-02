@@ -82,8 +82,6 @@ public class LeaderSnapshotResponse {
     public static class MilestoneProgress {
         private Long milestoneId;
         private String name;
-        private String status;
-        private String priority;
         private LocalDateTime expectedDeadline;
         private Long totalTasks;
         private Long completedTasks;
@@ -130,3 +128,4 @@ public class LeaderSnapshotResponse {
         private String severity;
     }
 }
+

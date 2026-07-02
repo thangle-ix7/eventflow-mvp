@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import AppLayout from '../components/AppLayout';
 import AiSuggestionDetailModal from '../components/AiSuggestionDetailModal';
 import { Button, ErrorState, LoadingState, Panel } from '../components/ui';
@@ -20,7 +20,9 @@ const DepartmentListPage = ({ user, onLogout }) => {
   const [editingForm, setEditingForm] = useState({ name: '', description: '', leaderUserId: '' });
   const [aiInstruction, setAiInstruction] = useState('');
   const [aiSuggestions, setAiSuggestions] = useState([]);
-  const [isBulkCreateOpen, setIsBulkCreateOpen] = useState(false);
+  const [isCreatingInline, setIsCreatingInline] = useState(false);
+  const [createForm, setCreateForm] = useState({ name: '', description: '', leaderUserId: '' });
+  const [createError, setCreateError] = useState('');
 
   const eventQuery = useQuery({
     queryKey: ['event', eventId],
@@ -47,6 +49,18 @@ const DepartmentListPage = ({ user, onLogout }) => {
 
   const departments = departmentsQuery.data || [];
   const members = membersQuery.data || [];
+
+  const createDepartmentMutation = useMutation({
+    mutationFn: departmentApi.createDepartment,
+    onSuccess: () => {
+      setCreateForm({ name: '', description: '', leaderUserId: '' });
+      setCreateError('');
+      setIsCreatingInline(false);
+      queryClient.invalidateQueries({ queryKey: ['eventDepartments', eventId] });
+      queryClient.invalidateQueries({ queryKey: ['eventMembers', eventId] });
+      queryClient.invalidateQueries({ queryKey: ['leaderSnapshot', eventId] });
+    },
+  });
 
   const updateDepartmentMutation = useMutation({
     mutationFn: departmentApi.updateDepartment,
@@ -124,6 +138,43 @@ const DepartmentListPage = ({ user, onLogout }) => {
     },
   });
 
+  const openInlineCreator = () => {
+    createDepartmentMutation.reset();
+    setCreateError('');
+    setIsCreatingInline(true);
+  };
+
+  const cancelInlineCreator = () => {
+    createDepartmentMutation.reset();
+    setCreateForm({ name: '', description: '', leaderUserId: '' });
+    setCreateError('');
+    setIsCreatingInline(false);
+  };
+
+  const handleCreateChange = (field, value) => {
+    if (createDepartmentMutation.error) {
+      createDepartmentMutation.reset();
+    }
+    setCreateError('');
+    setCreateForm((old) => ({ ...old, [field]: value }));
+  };
+
+  const submitInlineCreate = () => {
+    const name = createForm.name.trim();
+    if (!name || createDepartmentMutation.isPending) {
+      setCreateError('Nhập tên ban trước khi lưu.');
+      return;
+    }
+
+    createDepartmentMutation.mutate({
+      eventId,
+      payload: {
+        name,
+        description: createForm.description.trim(),
+        leaderUserId: createForm.leaderUserId ? Number(createForm.leaderUserId) : null,
+      },
+    });
+  };
   const startEditing = (department) => {
     setEditingDepartmentId(department.id);
     setEditingForm({
@@ -204,29 +255,13 @@ const DepartmentListPage = ({ user, onLogout }) => {
             <div className="flex flex-wrap justify-end gap-2" data-guide-target="department-create-actions">
               <Button
                 type="button"
-                onClick={() => setIsBulkCreateOpen((old) => !old)}
-                variant="secondary"
-                className="min-h-11 rounded-2xl border-sky-100 bg-white font-black text-sky-700 shadow-sm"
-              >
-                Tạo nhiều ban
-              </Button>
-              <Button
-                as={Link}
-                to={`/events/${eventId}/departments/new`}
+                onClick={openInlineCreator}
+                disabled={isCreatingInline}
                 className="min-h-11 rounded-2xl bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 font-black text-white shadow-xl shadow-cyan-100"
               >
-                Tạo 1 ban
+                Thêm dòng
               </Button>
             </div>
-
-            {isBulkCreateOpen && (
-              <DepartmentBulkCreatePanel
-                eventId={eventId}
-                members={members}
-                queryClient={queryClient}
-                onClose={() => setIsBulkCreateOpen(false)}
-              />
-            )}
 
             <DepartmentAiSuggestionPanel
               instruction={aiInstruction}
@@ -271,22 +306,20 @@ const DepartmentListPage = ({ user, onLogout }) => {
                   />
                 </div>
               )}
-
-              {!departmentsQuery.isLoading && departments.length === 0 && (
+              {!departmentsQuery.isLoading && departments.length === 0 && !isCreatingInline && (
                 <div className="p-5">
                   <div className="rounded-2xl border border-dashed border-sky-100 bg-sky-50/40 px-5 py-8 text-center">
                     <h4 className="text-base font-black text-slate-950">Chưa có ban tổ chức</h4>
                     <p className="mx-auto mt-2 max-w-xl text-sm font-semibold leading-6 text-slate-500">
-                      Bạn có thể tạo thủ công hoặc dùng AI để gợi ý nhanh các ban phù hợp với sự kiện.
+                      Bấm “Thêm dòng” để tạo ban trực tiếp trong danh sách này.
                     </p>
-                    <Button as={Link} to={`/events/${eventId}/departments/new`} className="mt-4">
-                      Tạo ban đầu tiên
+                    <Button type="button" onClick={openInlineCreator} className="mt-4">
+                      Thêm dòng
                     </Button>
                   </div>
                 </div>
               )}
-
-              {!departmentsQuery.isLoading && departments.length > 0 && (
+              {!departmentsQuery.isLoading && (departments.length > 0 || isCreatingInline) && (
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[980px] text-left text-sm">
                     <thead className="bg-sky-50/70 text-xs font-black uppercase tracking-[0.18em] text-slate-500">
@@ -298,7 +331,17 @@ const DepartmentListPage = ({ user, onLogout }) => {
                       </tr>
                     </thead>
 
-                    <tbody className="divide-y divide-sky-50">
+                    <tbody className="divide-y divide-sky-50">                      {isCreatingInline && (
+                        <InlineDepartmentCreateRow
+                          form={createForm}
+                          members={members}
+                          error={createError || getMutationError(createDepartmentMutation.error)}
+                          isPending={createDepartmentMutation.isPending}
+                          onChange={handleCreateChange}
+                          onCancel={cancelInlineCreator}
+                          onSubmit={submitInlineCreate}
+                        />
+                      )}
                       {departments.map((department) => (
                         <DepartmentRow
                           key={department.id}
@@ -329,126 +372,6 @@ const DepartmentListPage = ({ user, onLogout }) => {
   );
 };
 
-const createEmptyDepartmentRow = () => ({
-  id: crypto.randomUUID(),
-  name: '',
-  description: '',
-  leaderUserId: '',
-});
-
-const DepartmentBulkCreatePanel = ({ eventId, members, queryClient, onClose }) => {
-  const [rows, setRows] = useState([createEmptyDepartmentRow()]);
-  const [localError, setLocalError] = useState('');
-
-  const createMutation = useMutation({
-    mutationFn: async (filledRows) => Promise.all(filledRows.map((row) => departmentApi.createDepartment({
-      eventId,
-      payload: {
-        name: row.name.trim(),
-        description: row.description,
-        leaderUserId: row.leaderUserId ? Number(row.leaderUserId) : null,
-      },
-    }))),
-    onSuccess: () => {
-      setRows([createEmptyDepartmentRow()]);
-      setLocalError('');
-      queryClient.invalidateQueries({ queryKey: ['eventDepartments', eventId] });
-      queryClient.invalidateQueries({ queryKey: ['eventMembers', eventId] });
-      queryClient.invalidateQueries({ queryKey: ['leaderSnapshot', eventId] });
-      onClose();
-    },
-  });
-
-  const updateRow = (rowId, field, value) => {
-    setLocalError('');
-    setRows((old) => old.map((row) => (row.id === rowId ? { ...row, [field]: value } : row)));
-  };
-
-  const addRow = () => setRows((old) => [...old, createEmptyDepartmentRow()]);
-
-  const removeRow = (rowId) => {
-    setRows((old) => (old.length === 1 ? [createEmptyDepartmentRow()] : old.filter((row) => row.id !== rowId)));
-  };
-
-  const saveRows = () => {
-    const filledRows = rows.filter((row) => row.name.trim());
-    if (filledRows.length === 0) {
-      setLocalError('Cần nhập ít nhất một tên ban.');
-      return;
-    }
-    createMutation.mutate(filledRows);
-  };
-
-  return (
-    <Panel className="overflow-hidden p-0">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-sky-100 bg-white px-5 py-4">
-        <div>
-          <h3 className="text-lg font-black text-slate-950">Tạo ban theo danh sách</h3>
-          <p className="mt-1 text-sm font-semibold text-slate-500">Nhập nhiều dòng giống tạo task nhanh.</p>
-        </div>
-        <div className="flex gap-2">
-          <button type="button" onClick={addRow} disabled={createMutation.isPending} className="rounded-2xl border border-sky-100 bg-white px-3 py-2 text-sm font-black text-sky-700 shadow-sm hover:bg-sky-50 disabled:opacity-60">
-            Thêm dòng
-          </button>
-          <button type="button" onClick={onClose} disabled={createMutation.isPending} className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-600 shadow-sm hover:bg-slate-50 disabled:opacity-60">
-            Đóng
-          </button>
-        </div>
-      </div>
-
-      {(localError || createMutation.error) && (
-        <div className="p-5">
-          <ErrorState error={localError || createMutation.error} title="Không tạo được ban" />
-        </div>
-      )}
-
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[900px] text-left text-sm">
-          <thead className="bg-sky-50/70 text-xs font-black uppercase tracking-[0.14em] text-slate-500">
-            <tr>
-              <th className="w-14 px-5 py-3">#</th>
-              <th className="px-5 py-3">Tên ban</th>
-              <th className="px-5 py-3">Trưởng ban</th>
-              <th className="px-5 py-3">Mô tả</th>
-              <th className="w-24 px-5 py-3 text-right">Xóa</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-sky-50">
-            {rows.map((row, index) => (
-              <tr key={row.id} className="bg-white">
-                <td className="px-5 py-3 font-black text-slate-500">{index + 1}</td>
-                <td className="px-5 py-3">
-                  <input value={row.name} onChange={(event) => updateRow(row.id, 'name', event.target.value)} disabled={createMutation.isPending} className={inputClassName} placeholder="Tên ban" />
-                </td>
-                <td className="px-5 py-3">
-                  <select value={row.leaderUserId} onChange={(event) => updateRow(row.id, 'leaderUserId', event.target.value)} disabled={createMutation.isPending} className={inputClassName}>
-                    <option value="">Chưa chọn</option>
-                    {members.map((member) => <option key={member.userId} value={member.userId}>{member.name}</option>)}
-                  </select>
-                </td>
-                <td className="px-5 py-3">
-                  <textarea value={row.description} onChange={(event) => updateRow(row.id, 'description', event.target.value)} disabled={createMutation.isPending} rows={1} className={`${inputClassName} min-h-11 resize-y py-3`} placeholder="Mô tả" />
-                </td>
-                <td className="px-5 py-3 text-right">
-                  <button type="button" onClick={() => removeRow(row.id)} disabled={createMutation.isPending} className="rounded-xl px-3 py-2 text-sm font-black text-red-600 hover:bg-red-50 disabled:opacity-60">
-                    Xóa
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-sky-100 bg-white px-5 py-4">
-        <span className="text-sm font-black text-slate-500">{rows.length} dòng đang nhập</span>
-        <button type="button" onClick={saveRows} disabled={createMutation.isPending} className="rounded-2xl bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 px-4 py-2 text-sm font-black text-white shadow-lg shadow-cyan-100 disabled:opacity-60">
-          {createMutation.isPending ? 'Đang tạo...' : 'Lưu danh sách ban'}
-        </button>
-      </div>
-    </Panel>
-  );
-};
 const DepartmentAiSuggestionPanel = ({
   instruction,
   setInstruction,
@@ -595,6 +518,90 @@ const DepartmentAiSuggestionPanel = ({
   );
 };
 
+const InlineDepartmentCreateRow = ({
+  form,
+  members,
+  error,
+  isPending,
+  onChange,
+  onCancel,
+  onSubmit,
+}) => (
+  <tr className="bg-white">
+    <td className="px-5 py-4 align-top">
+      <input
+        value={form.name}
+        onChange={(event) => onChange('name', event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
+            onSubmit();
+          }
+          if (event.key === 'Escape') {
+            onCancel();
+          }
+        }}
+        disabled={isPending}
+        required
+        maxLength={100}
+        autoFocus
+        className={inputClassName}
+        placeholder="Tên ban"
+      />
+      {error && <p className="mt-2 text-xs font-semibold leading-5 text-red-600">{error}</p>}
+    </td>
+
+    <td className="px-5 py-4 align-top">
+      <select
+        value={form.leaderUserId}
+        onChange={(event) => onChange('leaderUserId', event.target.value)}
+        disabled={isPending || members.length === 0}
+        className={inputClassName}
+      >
+        <option value="">Chưa chọn trưởng ban</option>
+        {members.map((member) => (
+          <option key={member.userId} value={member.userId}>
+            {member.name}
+          </option>
+        ))}
+      </select>
+    </td>
+
+    <td className="px-5 py-4 align-top">
+      <textarea
+        value={form.description}
+        onChange={(event) => onChange('description', event.target.value)}
+        disabled={isPending}
+        maxLength={1000}
+        rows={2}
+        className={`${inputClassName} min-h-20 resize-y py-3`}
+        placeholder="Mô tả nhiệm vụ"
+      />
+    </td>
+
+    <td className="px-5 py-4 align-top">
+      <div className="flex justify-end gap-2">
+        <button
+          type="button"
+          onClick={onSubmit}
+          disabled={isPending || !form.name.trim()}
+          className="inline-flex items-center justify-center rounded-2xl bg-sky-600 px-3 py-2 text-sm font-black text-white shadow-sm transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {isPending ? 'Đang lưu...' : 'Lưu'}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={isPending}
+          className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-600 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          Hủy
+        </button>
+      </div>
+    </td>
+  </tr>
+);
+
+const getMutationError = (error) => error?.userMessage || error?.message || '';
 const DepartmentRow = ({
   department,
   isEditing,
@@ -763,3 +770,10 @@ const inputClassName = 'w-full rounded-2xl border border-sky-100 bg-white px-4 p
 export default DepartmentListPage;
 
 const normalizeName = (value) => String(value || '').trim().toLowerCase();
+
+
+
+
+
+
+

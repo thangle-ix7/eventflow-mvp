@@ -19,11 +19,4 @@ public class MilestoneRequestDTO {
     private String description;
 
     private LocalDateTime expectedDeadline;
-
-    @Size(max = 2000, message = "Kết quả kỳ vọng không được vượt quá 2000 ký tự")
-    private String expectedResult;
-
-    private String priority;
-
-    private String status;
 }
