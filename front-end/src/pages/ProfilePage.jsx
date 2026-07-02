@@ -34,6 +34,8 @@ import subscriptionApi from '../api/subscriptionApi';
 import userApi from '../api/userApi';
 import { formatDate } from '../utils/dateUtils';
 
+const ERASE_CONFIRM_PHRASE = 'XOA DU LIEU';
+
 const ProfilePage = ({ user, onLogout, onUserUpdate }) => {
   const queryClient = useQueryClient();
   const [selectedFileName, setSelectedFileName] = useState('');
@@ -41,6 +43,7 @@ const ProfilePage = ({ user, onLogout, onUserUpdate }) => {
   const [form, setForm] = useState({ name: '', phoneNumber: '' });
   const [disconnectConfirmOpen, setDisconnectConfirmOpen] = useState(false);
   const [eraseConfirmOpen, setEraseConfirmOpen] = useState(false);
+  const [eraseConfirmText, setEraseConfirmText] = useState('');
 
   const profileQuery = useQuery({
     queryKey: ['profile', user.userId],
@@ -136,11 +139,12 @@ const ProfilePage = ({ user, onLogout, onUserUpdate }) => {
   const exportDataMutation = useMutation({
     mutationFn: () => userApi.exportPersonalData(user.userId),
     onSuccess: (data) => {
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const documentHtml = buildPersonalDataDocument(data);
+      const blob = new Blob([documentHtml], { type: 'application/msword;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `eventflow-user-data-${user.userId}.json`;
+      link.download = `eventflow-du-lieu-ca-nhan-${user.userId}.doc`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -152,6 +156,7 @@ const ProfilePage = ({ user, onLogout, onUserUpdate }) => {
     mutationFn: () => userApi.erasePersonalData(user.userId),
     onSuccess: () => {
       setEraseConfirmOpen(false);
+      setEraseConfirmText('');
       onLogout?.();
     },
   });
@@ -487,7 +492,7 @@ const ProfilePage = ({ user, onLogout, onUserUpdate }) => {
                   Quyền kiểm soát dữ liệu
                 </h2>
                 <p className="mt-1 text-sm font-semibold text-slate-500">
-                  Xuất dữ liệu cá nhân hoặc yêu cầu xóa định danh khỏi tài khoản EventFlow.
+                  Tải bản sao dữ liệu cá nhân hoặc yêu cầu ẩn danh thông tin nhận dạng khỏi EventFlow.
                 </p>
               </div>
             </div>
@@ -497,8 +502,8 @@ const ProfilePage = ({ user, onLogout, onUserUpdate }) => {
             <DataControlAction
               icon={<Download size={20} />}
               title="Xuất dữ liệu của tôi"
-              description="Tải xuống JSON gồm profile, consent, membership và lịch sử thanh toán tối thiểu."
-              actionLabel="Tải dữ liệu"
+              description="Tải xuống file Word gồm hồ sơ, sự kiện đã tham gia, trạng thái đồng ý và lịch sử thanh toán tối thiểu."
+              actionLabel="Tải file Word"
               isLoading={exportDataMutation.isPending}
               onClick={() => exportDataMutation.mutate()}
             />
@@ -506,11 +511,14 @@ const ProfilePage = ({ user, onLogout, onUserUpdate }) => {
             <DataControlAction
               icon={<Trash2 size={20} />}
               tone="danger"
-              title="Xóa dữ liệu cá nhân"
-              description="Ẩn danh tài khoản, xóa email, số điện thoại, Telegram, avatar và token. Lịch sử nghiệp vụ được giữ ở dạng không định danh."
-              actionLabel="Yêu cầu xóa"
+              title="Ẩn danh / xóa dữ liệu cá nhân"
+              description="Xóa email, số điện thoại, Telegram, avatar và token đăng nhập. Một số lịch sử nghiệp vụ được giữ lại ở dạng không định danh."
+              actionLabel="Tiếp tục xóa dữ liệu"
               isLoading={eraseDataMutation.isPending}
-              onClick={() => setEraseConfirmOpen(true)}
+              onClick={() => {
+                setEraseConfirmText('');
+                setEraseConfirmOpen(true);
+              }}
             />
           </div>
         </section>
@@ -525,17 +533,96 @@ const ProfilePage = ({ user, onLogout, onUserUpdate }) => {
           onCancel={() => setDisconnectConfirmOpen(false)}
         />
 
-        <DeleteConfirmModal
+        <PersonalDataEraseConfirmModal
           isOpen={eraseConfirmOpen}
-          title="Xóa dữ liệu cá nhân"
-          message="Thao tác này sẽ ẩn danh tài khoản, xóa thông tin liên hệ, avatar, token và đăng xuất bạn khỏi EventFlow. Lịch sử sự kiện/task/thanh toán được giữ lại ở dạng không định danh để bảo toàn dữ liệu vận hành."
-          confirmLabel="Xóa dữ liệu"
+          confirmText={eraseConfirmText}
           isLoading={eraseDataMutation.isPending}
+          onConfirmTextChange={setEraseConfirmText}
           onConfirm={() => eraseDataMutation.mutate()}
-          onCancel={() => setEraseConfirmOpen(false)}
+          onCancel={() => {
+            setEraseConfirmOpen(false);
+            setEraseConfirmText('');
+          }}
         />
       </div>
     </AppLayout>
+  );
+};
+
+const PersonalDataEraseConfirmModal = ({
+  isOpen,
+  confirmText,
+  isLoading,
+  onConfirmTextChange,
+  onConfirm,
+  onCancel,
+}) => {
+  if (!isOpen) {
+    return null;
+  }
+
+  const canConfirm = confirmText.trim().toUpperCase() === ERASE_CONFIRM_PHRASE;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-lg overflow-hidden rounded-[2rem] border border-red-100 bg-white shadow-2xl shadow-red-950/20">
+        <div className="border-b border-red-100 bg-red-50 px-5 py-5">
+          <div className="flex items-start gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-red-100 text-red-600">
+              <Trash2 size={20} strokeWidth={1.8} />
+            </div>
+            <div>
+              <h2 className="text-lg font-black text-slate-950">
+                Xác nhận xóa dữ liệu cá nhân
+              </h2>
+              <p className="mt-1 text-sm font-semibold leading-6 text-red-700">
+                Thao tác này sẽ ẩn danh tài khoản và đăng xuất bạn khỏi EventFlow.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-4 p-5">
+          <div className="rounded-2xl border border-red-100 bg-red-50/60 p-4 text-sm font-semibold leading-6 text-slate-700">
+            <p className="font-black text-slate-950">Dữ liệu sẽ bị xóa khỏi tài khoản:</p>
+            <ul className="mt-2 list-disc space-y-1 pl-5">
+              <li>Email, số điện thoại, Telegram và avatar.</li>
+              <li>Token đăng nhập và phiên đăng nhập hiện tại.</li>
+              <li>Thông tin đồng ý sẽ được hủy theo yêu cầu xóa.</li>
+            </ul>
+            <p className="mt-3">
+              Lịch sử sự kiện, task và thanh toán tối thiểu có thể được giữ lại ở dạng không định danh để bảo toàn dữ liệu vận hành.
+            </p>
+          </div>
+
+          <label className="grid gap-2 text-sm font-black text-slate-700">
+            Gõ XOA DU LIEU để xác nhận
+            <input
+              value={confirmText}
+              onChange={(event) => onConfirmTextChange(event.target.value)}
+              disabled={isLoading}
+              className={inputClassName}
+              autoFocus
+            />
+          </label>
+
+          <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+            <Button type="button" variant="secondary" onClick={onCancel} disabled={isLoading} className="rounded-2xl">
+              Hủy
+            </Button>
+            <Button
+              type="button"
+              onClick={onConfirm}
+              disabled={isLoading || !canConfirm}
+              className="rounded-2xl bg-red-600 font-black text-white shadow-xl shadow-red-100 hover:bg-red-700"
+            >
+              {isLoading ? <Loader2 size={18} className="animate-spin" /> : <Trash2 size={18} />}
+              Xóa và ẩn danh dữ liệu
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 
@@ -1009,6 +1096,146 @@ const SummaryCard = ({ icon, label, value, tone = 'sky' }) => {
     </div>
   );
 };
+
+const buildPersonalDataDocument = (data) => {
+  const profile = data?.profile || {};
+  const consent = data?.consent || {};
+  const eventMemberships = Array.isArray(data?.eventMemberships) ? data.eventMemberships : [];
+  const payments = Array.isArray(data?.payments) ? data.payments : [];
+  const generatedAt = formatReadableDate(data?.generatedAt || new Date());
+  const userName = profile.name || 'Người dùng EventFlow';
+
+  return `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Du lieu ca nhan EventFlow</title>
+    <style>
+      body { color: #0f172a; font-family: Arial, sans-serif; line-height: 1.55; }
+      h1 { color: #0369a1; font-size: 24px; margin-bottom: 4px; }
+      h2 { border-bottom: 1px solid #bae6fd; color: #0f172a; font-size: 18px; margin-top: 24px; padding-bottom: 6px; }
+      p { margin: 6px 0; }
+      table { border-collapse: collapse; margin-top: 10px; width: 100%; }
+      th, td { border: 1px solid #cbd5e1; padding: 8px; text-align: left; vertical-align: top; }
+      th { background: #e0f2fe; color: #0f172a; font-weight: 700; }
+      .muted { color: #64748b; }
+      .notice { background: #f8fafc; border: 1px solid #cbd5e1; padding: 12px; }
+    </style>
+  </head>
+  <body>
+    <h1>Bản sao dữ liệu cá nhân EventFlow</h1>
+    <p class="muted">Chủ tài khoản: ${escapeDocumentHtml(userName)}</p>
+    <p class="muted">Thời điểm xuất: ${escapeDocumentHtml(generatedAt)}</p>
+    <p class="notice">Tài liệu này giúp bạn đọc và lưu trữ dữ liệu cá nhân đang được EventFlow xử lý. Một số dữ liệu nghiệp vụ có thể đã được rút gọn để dễ đọc.</p>
+
+    <h2>Thông tin hồ sơ</h2>
+    ${buildKeyValueTable([
+      ['Họ tên', profile.name],
+      ['Email', profile.email],
+      ['Số điện thoại', profile.phoneNumber],
+      ['Telegram', profile.telegramChatId ? 'Đã kết nối' : 'Chưa kết nối'],
+      ['Email đã xác thực', profile.emailVerified ? 'Có' : 'Không'],
+      ['Ngày tạo tài khoản', profile.createdAt ? formatDate(profile.createdAt) : 'Chưa có dữ liệu'],
+    ])}
+
+    <h2>Trạng thái đồng ý và quyền riêng tư</h2>
+    ${buildKeyValueTable([
+      ['Phiên bản đồng ý', consent.version || consent.consentVersion],
+      ['Thời điểm đồng ý', formatReadableDate(consent.acceptedAt || consent.consentAcceptedAt)],
+      ['Thời điểm xóa định danh', formatReadableDate(consent.personalDataDeletedAt)],
+    ])}
+
+    <h2>Sự kiện đã tham gia</h2>
+    ${buildRowsTable(
+      eventMemberships,
+      ['Sự kiện', 'Vai trò', 'Thời điểm tham gia'],
+      (item) => [
+        item.eventName || item.name,
+        item.role,
+        formatReadableDate(item.joinedAt || item.createdAt),
+      ]
+    )}
+
+    <h2>Lịch sử thanh toán tối thiểu</h2>
+    ${buildRowsTable(
+      payments,
+      ['Nhà cung cấp', 'Mã giao dịch', 'Gói', 'Số tiền', 'Trạng thái', 'Thời điểm'],
+      (item) => [
+        item.provider,
+        item.providerOrderId || item.orderCode || item.paymentId || item.id,
+        item.planCode || item.planName || item.description,
+        formatPaymentAmount(item.amountVnd || item.amount),
+        item.status,
+        formatReadableDate(item.createdAt || item.paidAt),
+      ]
+    )}
+  </body>
+</html>`;
+};
+
+const buildKeyValueTable = (rows) => `
+  <table>
+    <tbody>
+      ${rows.map(([label, value]) => `
+        <tr>
+          <th>${escapeDocumentHtml(label)}</th>
+          <td>${escapeDocumentHtml(formatReadableValue(value))}</td>
+        </tr>
+      `).join('')}
+    </tbody>
+  </table>
+`;
+
+const buildRowsTable = (items, headers, mapRow) => {
+  if (!items.length) {
+    return '<p class="muted">Chưa có dữ liệu.</p>';
+  }
+
+  return `
+    <table>
+      <thead>
+        <tr>${headers.map((header) => `<th>${escapeDocumentHtml(header)}</th>`).join('')}</tr>
+      </thead>
+      <tbody>
+        ${items.map((item) => `
+          <tr>
+            ${mapRow(item).map((value) => `<td>${escapeDocumentHtml(formatReadableValue(value))}</td>`).join('')}
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+};
+
+const formatReadableDate = (value) => (value ? formatDate(value, 'Chưa có dữ liệu') : 'Chưa có dữ liệu');
+
+const formatReadableValue = (value) => {
+  if (value == null || value === '') {
+    return 'Chưa có dữ liệu';
+  }
+  if (typeof value === 'boolean') {
+    return value ? 'Có' : 'Không';
+  }
+  return String(value);
+};
+
+const formatPaymentAmount = (value) => {
+  if (value == null || value === '') {
+    return 'Chưa có dữ liệu';
+  }
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) {
+    return String(value);
+  }
+  return `${numericValue.toLocaleString('vi-VN')}đ`;
+};
+
+const escapeDocumentHtml = (value) => String(value ?? '')
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+  .replace(/'/g, '&#039;');
 
 const formatPlanPrice = (plan) => {
   if (plan.code === 'ENTERPRISE') {
