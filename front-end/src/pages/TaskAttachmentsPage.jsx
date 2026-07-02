@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
+import DeleteConfirmModal from '../components/DeleteConfirmModal';
 import eventApi from '../api/eventApi';
 import taskApi from '../api/taskApi';
 import { formatDate } from '../utils/dateUtils';
@@ -17,6 +18,7 @@ const TaskAttachmentsPage = ({ user, onLogout }) => {
   const [editingAttachmentId, setEditingAttachmentId] = useState(null);
   const [editForm, setEditForm] = useState({ originalName: '', externalUrl: '', visibility: 'TASK_ONLY' });
   const [localError, setLocalError] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const eventQuery = useQuery({ queryKey: ['event', eventId], queryFn: () => eventApi.getEvent(eventId), enabled: Boolean(eventId) });
   const taskQuery = useQuery({ queryKey: ['task', taskId], queryFn: () => taskApi.getTask(taskId), enabled: Boolean(taskId) });
@@ -46,6 +48,7 @@ const TaskAttachmentsPage = ({ user, onLogout }) => {
   const deleteAttachmentMutation = useMutation({
     mutationFn: taskApi.deleteTaskAttachment,
     onSuccess: () => {
+      setDeleteTarget(null);
       queryClient.invalidateQueries({ queryKey: ['taskAttachments', taskId] });
     },
   });
@@ -112,10 +115,14 @@ const TaskAttachmentsPage = ({ user, onLogout }) => {
   };
 
   const handleDeleteAttachment = (attachment) => {
-    if (!window.confirm(`Xóa attachment "${attachment.originalName}"?`)) {
+    setDeleteTarget(attachment);
+  };
+
+  const confirmDeleteAttachment = () => {
+    if (!deleteTarget) {
       return;
     }
-    deleteAttachmentMutation.mutate(attachment.id);
+    deleteAttachmentMutation.mutate(deleteTarget.id);
   };
 
   return (
@@ -352,6 +359,14 @@ const TaskAttachmentsPage = ({ user, onLogout }) => {
           </div>
         </section>
       </div>
+      <DeleteConfirmModal
+        isOpen={Boolean(deleteTarget)}
+        title="Xóa tài liệu đính kèm"
+        message={`Bạn có chắc chắn muốn xóa "${deleteTarget?.originalName || 'tài liệu này'}"? File/link này sẽ không còn hiển thị trong task.`}
+        isLoading={deleteAttachmentMutation.isPending}
+        onConfirm={confirmDeleteAttachment}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </AppLayout>
   );
 };

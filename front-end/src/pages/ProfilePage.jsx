@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowRight,
   Bot,
   CalendarDays,
   Camera,
+  CheckCircle2,
   CreditCard,
   Edit3,
   HardDrive,
@@ -23,8 +24,10 @@ import {
   X,
 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
+import DeleteConfirmModal from '../components/DeleteConfirmModal';
 import { Button } from '../components/ui';
 import { TELEGRAM_REOPEN_EVENT } from '../components/TelegramOnboarding';
+import eventApi from '../api/eventApi';
 import subscriptionApi from '../api/subscriptionApi';
 import userApi from '../api/userApi';
 import { formatDate } from '../utils/dateUtils';
@@ -34,6 +37,7 @@ const ProfilePage = ({ user, onLogout, onUserUpdate }) => {
   const [selectedFileName, setSelectedFileName] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [form, setForm] = useState({ name: '', phoneNumber: '' });
+  const [disconnectConfirmOpen, setDisconnectConfirmOpen] = useState(false);
 
   const profileQuery = useQuery({
     queryKey: ['profile', user.userId],
@@ -57,6 +61,31 @@ const ProfilePage = ({ user, onLogout, onUserUpdate }) => {
     refetchOnMount: 'always',
     refetchOnWindowFocus: true,
   });
+
+  const eventsQuery = useQuery({
+    queryKey: ['profileEvents', user.userId],
+    queryFn: eventApi.getMyEvents,
+    enabled: Boolean(user?.userId),
+    staleTime: 60_000,
+  });
+
+  const profileEvents = useMemo(() => eventsQuery.data || [], [eventsQuery.data]);
+  const eventEntitlementQueries = useQueries({
+    queries: profileEvents.map((event) => ({
+      queryKey: ['eventEntitlement', String(event.id)],
+      queryFn: () => subscriptionApi.getEventEntitlement(event.id),
+      enabled: Boolean(user?.userId && event.id),
+      staleTime: 60_000,
+      retry: false,
+    })),
+  });
+
+  const eventEntitlements = useMemo(() => profileEvents.map((event, index) => ({
+    event,
+    entitlement: eventEntitlementQueries[index]?.data,
+    isLoading: eventEntitlementQueries[index]?.isLoading,
+    error: eventEntitlementQueries[index]?.error,
+  })), [eventEntitlementQueries, profileEvents]);
 
   const avatarPreviewUrl = useMemo(
     () => (avatarQuery.data ? URL.createObjectURL(avatarQuery.data) : ''),
@@ -94,6 +123,7 @@ const ProfilePage = ({ user, onLogout, onUserUpdate }) => {
     mutationFn: () => userApi.disconnectTelegram(user.userId),
     onSuccess: () => {
       const nextProfile = { ...profile, telegramChatId: null, telegram_chat_id: null };
+      setDisconnectConfirmOpen(false);
       queryClient.setQueryData(['profile', user.userId], nextProfile);
       queryClient.invalidateQueries({ queryKey: ['userProfile', user.userId] });
       onUserUpdate?.({ ...user, telegramChatId: null, telegram_chat_id: null });
@@ -111,10 +141,7 @@ const ProfilePage = ({ user, onLogout, onUserUpdate }) => {
   };
 
   const handleDisconnectTelegram = () => {
-    const confirmed = window.confirm('Ngắt kết nối Telegram khỏi tài khoản EventFlow này?');
-    if (confirmed) {
-      disconnectTelegramMutation.mutate();
-    }
+    setDisconnectConfirmOpen(true);
   };
 
   const handleConnectTelegram = () => {
@@ -151,7 +178,8 @@ const ProfilePage = ({ user, onLogout, onUserUpdate }) => {
     uploadMutation.error ||
     avatarQuery.error ||
     disconnectTelegramMutation.error ||
-    subscriptionQuery.error;
+    subscriptionQuery.error ||
+    eventsQuery.error;
 
   return (
     <AppLayout
@@ -268,6 +296,12 @@ const ProfilePage = ({ user, onLogout, onUserUpdate }) => {
         <SubscriptionPanel
           overview={subscriptionQuery.data}
           isLoading={subscriptionQuery.isLoading}
+        />
+
+        <EventEntitlementsPanel
+          events={eventEntitlements}
+          isLoading={eventsQuery.isLoading || eventEntitlementQueries.some((query) => query.isLoading)}
+          error={eventsQuery.error || eventEntitlementQueries.find((query) => query.error)?.error}
         />
 
         <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
@@ -412,9 +446,213 @@ const ProfilePage = ({ user, onLogout, onUserUpdate }) => {
             tone="sky"
           />
         </section>
+        <DeleteConfirmModal
+          isOpen={disconnectConfirmOpen}
+          title="Ngắt kết nối Telegram"
+          message="Bạn có chắc chắn muốn ngắt kết nối Telegram khỏi tài khoản EventFlow này? Bạn sẽ không còn nhận nhắc deadline và thông báo task qua Telegram."
+          confirmLabel="Ngắt kết nối"
+          isLoading={disconnectTelegramMutation.isPending}
+          onConfirm={() => disconnectTelegramMutation.mutate()}
+          onCancel={() => setDisconnectConfirmOpen(false)}
+        />
       </div>
     </AppLayout>
   );
+};
+
+const EventEntitlementsPanel = ({ events, isLoading, error }) => {
+  const visibleEvents = events.filter(({ event }) => event?.id);
+
+  return (
+    <section className="overflow-hidden rounded-[2rem] border border-sky-100 bg-white shadow-xl shadow-sky-100/70">
+      <div className="flex flex-col gap-4 border-b border-sky-100 bg-gradient-to-r from-sky-50 via-white to-emerald-50 px-5 py-5 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex items-start gap-3">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-400 text-white shadow-lg shadow-cyan-100">
+            <Layers3 className="h-6 w-6" strokeWidth={1.8} />
+          </div>
+
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-600">
+              Quyền lợi theo event
+            </p>
+            <h2 className="mt-1 text-2xl font-black tracking-tight text-slate-950">
+              Event Pass, quota và tính năng đã kích hoạt
+            </h2>
+            <p className="mt-1 text-sm font-semibold text-slate-500">
+              Event có Event Pass sẽ dùng quota riêng. Event chưa mua pass sẽ kế thừa subscription của leader.
+            </p>
+          </div>
+        </div>
+
+        <Button as={Link} to="/pricing" variant="secondary" className="shrink-0 rounded-2xl">
+          Mua Event Pass
+          <ArrowRight size={16} />
+        </Button>
+      </div>
+
+      {isLoading && visibleEvents.length === 0 && (
+        <div className="flex items-center gap-3 p-5 text-sm font-black text-slate-500">
+          <Loader2 size={18} className="animate-spin text-sky-600" />
+          Đang tải quyền lợi theo event...
+        </div>
+      )}
+
+      {error && (
+        <div className="mx-5 mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold leading-6 text-red-700">
+          {error.userMessage || error.message || 'Chưa tải được quyền lợi theo event.'}
+        </div>
+      )}
+
+      {!isLoading && !error && visibleEvents.length === 0 && (
+        <div className="p-5 text-sm font-semibold text-slate-500">
+          Bạn chưa tham gia event nào để hiển thị quota Event Pass.
+        </div>
+      )}
+
+      {visibleEvents.length > 0 && (
+        <div className="grid gap-4 p-5 xl:grid-cols-2">
+          {visibleEvents.map(({ event, entitlement, isLoading: loadingItem, error: itemError }) => (
+            <EventEntitlementCard
+              key={event.id}
+              event={event}
+              entitlement={entitlement}
+              isLoading={loadingItem}
+              error={itemError}
+            />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+};
+
+const EventEntitlementCard = ({ event, entitlement, isLoading, error }) => {
+  const plan = entitlement?.plan;
+  const features = resolveActivatedFeatures(plan);
+  const sourceLabel = {
+    EVENT_PASS: 'Event Pass đã kích hoạt',
+    LEADER_SUBSCRIPTION: 'Kế thừa subscription leader',
+    DEFAULT_FREE: 'Gói Free mặc định',
+  }[entitlement?.source] || 'Đang xác định quyền lợi';
+
+  return (
+    <article className="rounded-2xl border border-sky-100 bg-sky-50/40 p-4 shadow-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <p className="truncate text-lg font-black text-slate-950">{event.name}</p>
+          <p className="mt-1 text-xs font-black uppercase tracking-[0.14em] text-slate-400">
+            {event.role || 'MEMBER'} · {event.status || 'UNKNOWN'}
+          </p>
+        </div>
+
+        <span className={`inline-flex w-fit rounded-full border px-3 py-1.5 text-xs font-black shadow-sm ${
+          entitlement?.source === 'EVENT_PASS'
+            ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+            : 'border-sky-200 bg-white text-sky-700'
+        }`}>
+          {sourceLabel}
+        </span>
+      </div>
+
+      {isLoading && !entitlement && (
+        <div className="mt-4 flex items-center gap-2 text-sm font-black text-slate-500">
+          <Loader2 size={16} className="animate-spin text-sky-600" />
+          Đang kiểm tra gói event...
+        </div>
+      )}
+
+      {error && (
+        <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-3 text-xs font-bold leading-5 text-red-700">
+          {error.userMessage || error.message || 'Chưa tải được quyền lợi của event này.'}
+        </div>
+      )}
+
+      {plan && (
+        <>
+          <div className="mt-4 rounded-2xl border border-white bg-white p-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">Gói áp dụng</p>
+                <p className="mt-1 text-xl font-black text-slate-950">{plan.displayName}</p>
+              </div>
+              <p className="text-sm font-black text-sky-700">{formatPlanPrice(plan)}</p>
+            </div>
+
+            {entitlement.expiresAt && (
+              <p className="mt-3 rounded-2xl bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700">
+                Event Pass hết hạn: {formatDate(entitlement.expiresAt)}
+              </p>
+            )}
+          </div>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <CompactQuota
+              label="Members"
+              value={formatQuota(entitlement.membersUsed, plan.maxUsersPerEvent, plan.unlimitedUsers)}
+              exceeded={isQuotaExceeded(entitlement.membersUsed, plan.maxUsersPerEvent, plan.unlimitedUsers)}
+            />
+            <CompactQuota
+              label="Storage"
+              value={formatBytesQuota(entitlement.storageBytesUsed, plan.storageLimitBytes, plan.unlimitedStorage)}
+              exceeded={isQuotaExceeded(entitlement.storageBytesUsed, plan.storageLimitBytes, plan.unlimitedStorage)}
+            />
+            <CompactQuota
+              label="AI credits"
+              value={formatEventAiQuota(entitlement, plan)}
+              exceeded={isEventAiExceeded(entitlement, plan)}
+            />
+          </div>
+
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            {features.map((feature) => (
+              <span
+                key={feature.label}
+                className={`inline-flex items-center gap-2 rounded-2xl border px-3 py-2 text-xs font-black ${
+                  feature.active
+                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                    : 'border-slate-200 bg-white text-slate-400'
+                }`}
+              >
+                <CheckCircle2 size={14} />
+                {feature.label}
+              </span>
+            ))}
+          </div>
+        </>
+      )}
+    </article>
+  );
+};
+
+const CompactQuota = ({ label, value, exceeded }) => (
+  <div className={`rounded-2xl border p-3 ${exceeded ? 'border-red-200 bg-red-50' : 'border-white bg-white'}`}>
+    <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-400">{label}</p>
+    <p className={`mt-1 text-sm font-black ${exceeded ? 'text-red-700' : 'text-slate-950'}`}>{value}</p>
+  </div>
+);
+
+const resolveActivatedFeatures = (plan) => {
+  const code = plan?.code;
+  return [
+    { label: 'Calendar', active: ['CLUB', 'PRO_AGENCY', 'ENTERPRISE', 'EVENT_PREMIUM'].includes(code) },
+    { label: 'Documents', active: ['CLUB', 'PRO_AGENCY', 'ENTERPRISE', 'EVENT_STANDARD', 'EVENT_PREMIUM'].includes(code) },
+    { label: 'Reports', active: ['CLUB', 'PRO_AGENCY', 'ENTERPRISE', 'EVENT_STANDARD', 'EVENT_PREMIUM'].includes(code) },
+    { label: 'QR Check-in', active: ['PRO_AGENCY', 'ENTERPRISE', 'EVENT_PREMIUM'].includes(code) },
+  ];
+};
+
+const formatEventAiQuota = (entitlement, plan) => {
+  const used = entitlement?.aiCreditsUsed || 0;
+  const limit = plan.planType === 'EVENT_PASS' ? plan.aiCreditsPerEvent : plan.aiCreditsPerMonth;
+  if (plan.unlimitedAi || limit == null) {
+    return `${used} / ∞`;
+  }
+  return `${used} / ${limit}`;
+};
+
+const isEventAiExceeded = (entitlement, plan) => {
+  const limit = plan.planType === 'EVENT_PASS' ? plan.aiCreditsPerEvent : plan.aiCreditsPerMonth;
+  return isQuotaExceeded(entitlement?.aiCreditsUsed, limit, plan.unlimitedAi);
 };
 
 const ProfilePill = ({ tone = 'slate', children }) => {

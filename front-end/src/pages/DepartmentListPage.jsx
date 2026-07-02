@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 import AppLayout from '../components/AppLayout';
 import AiSuggestionDetailModal from '../components/AiSuggestionDetailModal';
+import DeleteConfirmModal from '../components/DeleteConfirmModal';
 import { Button, ErrorState, LoadingState, Panel } from '../components/ui';
 import aiSuggestionApi from '../api/aiSuggestionApi';
 import departmentApi from '../api/departmentApi';
@@ -23,6 +24,7 @@ const DepartmentListPage = ({ user, onLogout }) => {
   const [isCreatingInline, setIsCreatingInline] = useState(false);
   const [createForm, setCreateForm] = useState({ name: '', description: '', leaderUserId: '' });
   const [createError, setCreateError] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const eventQuery = useQuery({
     queryKey: ['event', eventId],
@@ -75,6 +77,7 @@ const DepartmentListPage = ({ user, onLogout }) => {
   const deleteDepartmentMutation = useMutation({
     mutationFn: departmentApi.deleteDepartment,
     onSuccess: () => {
+      setDeleteTarget(null);
       queryClient.invalidateQueries({ queryKey: ['eventDepartments', eventId] });
     },
   });
@@ -207,12 +210,15 @@ const DepartmentListPage = ({ user, onLogout }) => {
   };
 
   const handleDelete = (department) => {
-    const confirmed = window.confirm(`Xóa ban "${department.name}"?`);
-    if (!confirmed) {
+    setDeleteTarget(department);
+  };
+
+  const confirmDeleteDepartment = () => {
+    if (!deleteTarget) {
       return;
     }
 
-    deleteDepartmentMutation.mutate({ eventId, departmentId: department.id });
+    deleteDepartmentMutation.mutate({ eventId, departmentId: deleteTarget.id });
   };
 
   const openDepartment = (departmentId) => {
@@ -368,6 +374,14 @@ const DepartmentListPage = ({ user, onLogout }) => {
           </>
         )}
       </div>
+      <DeleteConfirmModal
+        isOpen={Boolean(deleteTarget)}
+        title="Xóa ban tổ chức"
+        message={`Bạn có chắc chắn muốn xóa ban "${deleteTarget?.name || 'này'}"? Các phân công thành viên trong ban sẽ không còn hiển thị.`}
+        isLoading={deleteDepartmentMutation.isPending}
+        onConfirm={confirmDeleteDepartment}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </AppLayout>
   );
 };
@@ -770,10 +784,4 @@ const inputClassName = 'w-full rounded-2xl border border-sky-100 bg-white px-4 p
 export default DepartmentListPage;
 
 const normalizeName = (value) => String(value || '').trim().toLowerCase();
-
-
-
-
-
-
 

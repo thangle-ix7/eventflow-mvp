@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft,
   ArrowRight,
@@ -120,6 +120,7 @@ const CHECKOUT_GUARDS = [
 
 const PricingPage = ({ user }) => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const [manualCheckoutMessage, setManualCheckoutMessage] = useState(null);
   const [selectedPlan, setSelectedPlan] = useState(null);
@@ -142,7 +143,7 @@ const PricingPage = ({ user }) => {
     }
     if (payOsStatus) {
       return payOsStatus === 'PAID'
-        ? 'payOS đã ghi nhận thanh toán. Gói sẽ được cập nhật sau khi webhook xác nhận.'
+        ? 'payOS đã ghi nhận thanh toán. Subscription hoặc Event Pass sẽ được kích hoạt sau khi webhook xác nhận đúng đơn.'
         : 'Thanh toán chưa hoàn tất. Gói hiện tại chưa thay đổi.';
     }
     return (
@@ -163,6 +164,8 @@ const PricingPage = ({ user }) => {
   const checkoutMutation = useMutation({
     mutationFn: subscriptionApi.createCheckout,
     onSuccess: (response) => {
+      queryClient.invalidateQueries({ queryKey: ['subscriptionOverview'] });
+      queryClient.invalidateQueries({ queryKey: ['eventEntitlement'] });
       setCheckoutResult(response);
       setCopiedOrder(false);
       if (response?.checkoutUrl) {
@@ -208,6 +211,14 @@ const PricingPage = ({ user }) => {
       && !['DONE', 'CANCELLED', 'CANCELED'].includes(String(event.status || '').toUpperCase())
     ));
   }, [eventsQuery.data]);
+
+  const selectedEventEntitlementQuery = useQuery({
+    queryKey: ['eventEntitlement', selectedEventId],
+    queryFn: () => subscriptionApi.getEventEntitlement(selectedEventId),
+    enabled: Boolean(user?.userId && eventPassSelected && selectedEventId),
+    staleTime: 30 * 1000,
+    retry: false,
+  });
 
   const buildCheckoutPayload = () => ({
     planCode: selectedPlan.code,
@@ -398,6 +409,9 @@ const PricingPage = ({ user }) => {
           leaderEvents={leaderEvents}
           eventsLoading={eventsQuery.isLoading}
           eventsError={eventsQuery.error}
+          eventEntitlement={selectedEventEntitlementQuery.data}
+          eventEntitlementLoading={selectedEventEntitlementQuery.isLoading}
+          eventEntitlementError={selectedEventEntitlementQuery.error}
           checkoutError={checkoutMutation.error}
           previewError={previewMutation.error}
           loading={checkoutMutation.isPending}
@@ -427,6 +441,9 @@ const CheckoutDialog = ({
   leaderEvents,
   eventsLoading,
   eventsError,
+  eventEntitlement,
+  eventEntitlementLoading,
+  eventEntitlementError,
   checkoutError,
   previewError,
   loading,
@@ -447,6 +464,7 @@ const CheckoutDialog = ({
   const orderCode = getOrderCode(checkoutResult);
   const eventPassBlocked = eventPass && !selectedEventId;
   const canApplyDiscount = paidPlan && discountCode.trim() && !eventPassBlocked && !previewLoading && !loading;
+  const activeEventPass = eventPass && eventEntitlement?.source === 'EVENT_PASS';
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/55 px-4 py-6 backdrop-blur-sm">
@@ -568,6 +586,27 @@ const CheckoutDialog = ({
                       Bạn cần là leader của một event đang hoạt động/draft để mua Event Pass.
                     </div>
                   )}
+                  {selectedEventId && eventEntitlementLoading && (
+                    <p className="mt-2 text-xs font-bold text-sky-700">Đang kiểm tra gói đang áp dụng cho event...</p>
+                  )}
+                  {selectedEventId && eventEntitlementError && (
+                    <p className="mt-2 text-xs font-bold text-rose-700">Chưa kiểm tra được gói hiện tại của event.</p>
+                  )}
+                  {selectedEventId && eventEntitlement && (
+                    <div className={`mt-3 rounded-2xl border p-3 text-xs font-bold leading-5 ${
+                      activeEventPass
+                        ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                        : 'border-sky-200 bg-sky-50 text-sky-800'
+                    }`}>
+                      <p>
+                        Event này đang dùng {eventEntitlement.plan?.displayName || 'gói hiện tại'}
+                        {eventEntitlement.source === 'EVENT_PASS' ? ' qua Event Pass đã kích hoạt' : ' từ subscription của leader'}.
+                      </p>
+                      {eventEntitlement.expiresAt && (
+                        <p className="mt-1">Hết hạn Event Pass: {formatDateTime(eventEntitlement.expiresAt)}</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -678,7 +717,7 @@ const CheckoutDialog = ({
                 )}
                 {checkoutStep === 'payment' && checkoutResult?.checkoutUrl && (
                   <p className="text-center text-xs font-bold leading-5 text-slate-500">
-                    Sau khi thanh toán, quay lại EventFlow. Webhook payOS sẽ kích hoạt gói khi tiền khớp với mã đơn.
+                    Sau khi thanh toán, quay lại EventFlow. Webhook payOS sẽ kích hoạt {eventPass ? 'Event Pass cho event đã chọn' : 'subscription hiện tại'} khi tiền khớp với mã đơn.
                   </p>
                 )}
               </div>
@@ -864,6 +903,21 @@ const getOrderCode = (checkoutResult) => {
 };
 
 const formatMoney = (value) => `${Number(value || 0).toLocaleString('vi-VN')}đ`;
+
+const formatDateTime = (value) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return 'không rõ';
+  }
+
+  return date.toLocaleString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
 
 const formatPrice = (plan) => {
   if (plan.code === 'ENTERPRISE') {

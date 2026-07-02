@@ -17,6 +17,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
+import DeleteConfirmModal from '../components/DeleteConfirmModal';
 import UserAvatar from '../components/UserAvatar';
 import {
   EmptyState,
@@ -45,6 +46,7 @@ const EventMembersPage = ({ user, onLogout }) => {
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('');
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   const eventQuery = useQuery({
     queryKey: ['event', eventId],
@@ -101,7 +103,10 @@ const EventMembersPage = ({ user, onLogout }) => {
 
   const removeMemberMutation = useMutation({
     mutationFn: eventMemberApi.removeMember,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['eventMembers', eventId] }),
+    onSuccess: () => {
+      setDeleteConfirm(null);
+      queryClient.invalidateQueries({ queryKey: ['eventMembers', eventId] });
+    },
   });
 
   const members = membersQuery.data || EMPTY_MEMBERS;
@@ -189,6 +194,39 @@ const EventMembersPage = ({ user, onLogout }) => {
         role: inviteForm.role,
       },
     });
+  };
+
+  const requestCancelInvitation = (invitation) => {
+    setDeleteConfirm({
+      type: 'invitation',
+      title: 'Hủy lời mời thành viên',
+      message: `Bạn có chắc chắn muốn hủy lời mời tới "${invitation.email}"? Người này sẽ không thể dùng link mời hiện tại để tham gia event.`,
+      payload: { eventId, invitationId: invitation.id },
+    });
+  };
+
+  const requestRemoveMember = (member) => {
+    setDeleteConfirm({
+      type: 'member',
+      title: 'Xóa thành viên khỏi event',
+      message: `Bạn có chắc chắn muốn xóa "${member.name || member.email}" khỏi event? Thành viên này sẽ mất quyền truy cập các công việc và dữ liệu nội bộ của event.`,
+      payload: { eventId, userId: member.userId },
+    });
+  };
+
+  const confirmDeleteAction = () => {
+    if (!deleteConfirm) {
+      return;
+    }
+
+    if (deleteConfirm.type === 'invitation') {
+      cancelInvitationMutation.mutate(deleteConfirm.payload, {
+        onSuccess: () => setDeleteConfirm(null),
+      });
+      return;
+    }
+
+    removeMemberMutation.mutate(deleteConfirm.payload);
   };
 
   return (
@@ -287,8 +325,8 @@ const EventMembersPage = ({ user, onLogout }) => {
             isLoading={invitationsQuery.isLoading}
             error={invitationsQuery.error || cancelInvitationMutation.error}
             cancelInvitationMutation={cancelInvitationMutation}
-            eventId={eventId}
             disabled={eventClosed}
+            onRequestCancel={requestCancelInvitation}
           />
         )}
 
@@ -409,6 +447,7 @@ const EventMembersPage = ({ user, onLogout }) => {
                       updateRoleMutation={updateRoleMutation}
                       removeMemberMutation={removeMemberMutation}
                       disabledActions={eventClosed}
+                      onRequestRemove={requestRemoveMember}
                     />
                   ))}
                 </tbody>
@@ -417,6 +456,14 @@ const EventMembersPage = ({ user, onLogout }) => {
           )}
         </Panel>
       </div>
+      <DeleteConfirmModal
+        isOpen={Boolean(deleteConfirm)}
+        title={deleteConfirm?.title}
+        message={deleteConfirm?.message}
+        isLoading={cancelInvitationMutation.isPending || removeMemberMutation.isPending}
+        onConfirm={confirmDeleteAction}
+        onCancel={() => setDeleteConfirm(null)}
+      />
     </AppLayout>
   );
 };
@@ -461,7 +508,7 @@ const BulkInviteResult = ({ result }) => {
   );
 };
 
-const InvitationPanel = ({ invitations, isLoading, error, cancelInvitationMutation, eventId, disabled = false }) => (
+const InvitationPanel = ({ invitations, isLoading, error, cancelInvitationMutation, disabled = false, onRequestCancel }) => (
   <Panel className="overflow-hidden">
     <div className="flex items-center gap-3 border-b border-sky-100 bg-gradient-to-r from-sky-50 via-white to-emerald-50 px-5 py-5">
       <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-400 text-white shadow-lg shadow-cyan-100">
@@ -517,7 +564,7 @@ const InvitationPanel = ({ invitations, isLoading, error, cancelInvitationMutati
                     {invitation.status === 'PENDING' && !disabled && (
                       <button
                         type="button"
-                        onClick={() => cancelInvitationMutation.mutate({ eventId, invitationId: invitation.id })}
+                        onClick={() => onRequestCancel(invitation)}
                         disabled={cancelling}
                         className="inline-flex items-center justify-center gap-2 rounded-2xl border border-red-100 bg-red-50 px-3 py-2 text-sm font-black text-red-600 shadow-sm transition hover:-translate-y-0.5 hover:border-red-200 hover:bg-red-100 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
                       >
@@ -561,6 +608,7 @@ const MemberRow = ({
   updateRoleMutation,
   removeMemberMutation,
   disabledActions = false,
+  onRequestRemove,
 }) => {
   const isCurrentUser = member.userId === currentUserId;
   const removingThisMember = removeMemberMutation.isPending && removeMemberMutation.variables?.userId === member.userId;
@@ -642,7 +690,7 @@ const MemberRow = ({
           {!isCurrentUser && !disabledActions && (
             <button
               type="button"
-              onClick={() => removeMemberMutation.mutate({ eventId, userId: member.userId })}
+              onClick={() => onRequestRemove(member)}
               disabled={removingThisMember}
               className="inline-flex items-center justify-center gap-2 rounded-2xl border border-red-100 bg-red-50 px-3 py-2 text-sm font-black text-red-600 shadow-sm transition hover:-translate-y-0.5 hover:border-red-200 hover:bg-red-100 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
             >

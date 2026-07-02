@@ -263,24 +263,24 @@ const LoginPage = ({ onLoginSuccess }) => {
           <div className="absolute bottom-[-220px] left-1/2 h-[560px] w-[560px] -translate-x-1/2 rounded-full bg-cyan-300/25 blur-3xl" />
         </div>
 
-        <div className="relative mx-auto grid w-full max-w-7xl items-center gap-10 px-5 py-12 sm:py-16 lg:grid-cols-[1.05fr_0.95fr] lg:px-8 lg:py-20">
+        <div className="relative mx-auto grid w-full max-w-7xl items-center gap-6 px-4 py-6 sm:px-5 sm:py-8 lg:grid-cols-[0.95fr_0.85fr] lg:px-8 lg:py-8 xl:gap-10 xl:py-10">
           <section className="hidden lg:block">
             <div className="max-w-xl">
-              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-cyan-200 bg-white/80 px-4 py-2 text-sm font-black text-sky-600 shadow-lg shadow-sky-100/80 backdrop-blur">
+              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-cyan-200 bg-white/80 px-4 py-2 text-sm font-black text-sky-600 shadow-lg shadow-sky-100/80 backdrop-blur">
                 <Sparkles className="h-4 w-4 text-emerald-500" />
                 Event operations workspace
               </div>
 
-              <h1 className="text-5xl font-black leading-tight tracking-tight text-slate-950">
+              <h1 className="text-4xl font-black leading-tight tracking-tight text-slate-950 xl:text-5xl">
                 Điều phối sự kiện rõ việc, rõ người, rõ tiến độ.
               </h1>
 
-              <p className="mt-6 max-w-lg text-lg font-medium leading-8 text-slate-600">
+              <p className="mt-4 max-w-lg text-base font-medium leading-7 text-slate-600 xl:mt-6 xl:text-lg xl:leading-8">
                 Theo dõi ban tổ chức, deadline và báo cáo công việc trong một giao diện tập trung,
                 giúp đội nhóm vận hành sự kiện mượt hơn.
               </p>
 
-              <div className="mt-9 grid max-w-lg grid-cols-3 gap-4">
+              <div className="mt-6 grid max-w-lg grid-cols-3 gap-3 xl:mt-9 xl:gap-4">
                 <InfoCard
                   icon={<CalendarDays className="h-5 w-5" />}
                   title="Sự kiện"
@@ -298,7 +298,7 @@ const LoginPage = ({ onLoginSuccess }) => {
                 />
               </div>
 
-              <div className="mt-8 rounded-[2rem] border border-sky-100 bg-white/80 p-5 shadow-2xl shadow-sky-100/70 backdrop-blur">
+              <div className="mt-6 rounded-[2rem] border border-sky-100 bg-white/80 p-4 shadow-2xl shadow-sky-100/70 backdrop-blur xl:mt-8 xl:p-5">
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <p className="text-sm font-black text-slate-950">
@@ -313,7 +313,7 @@ const LoginPage = ({ onLoginSuccess }) => {
                   </span>
                 </div>
 
-                <div className="mt-5 h-3 overflow-hidden rounded-full bg-sky-100">
+                <div className="mt-4 h-3 overflow-hidden rounded-full bg-sky-100 xl:mt-5">
                   <div className="h-full w-[78%] rounded-full bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400" />
                 </div>
               </div>
@@ -325,13 +325,13 @@ const LoginPage = ({ onLoginSuccess }) => {
               <div className="absolute inset-0 rounded-[2.5rem] bg-gradient-to-br from-sky-300/70 via-cyan-200/50 to-emerald-300/60 blur-3xl" />
 
               <div className="relative rounded-[2.5rem] border border-white bg-white/75 p-3 shadow-[0_30px_90px_rgba(14,165,233,0.22)] backdrop-blur-2xl">
-                <div className="rounded-[2rem] border border-sky-100 bg-white p-6 shadow-xl shadow-sky-100/60 sm:p-8">
-                  <div className="mb-7">
-                    <div className="mb-5 flex h-16 w-16 items-center justify-center overflow-hidden rounded-3xl border border-sky-100 bg-white shadow-lg shadow-sky-100">
+                <div className="rounded-[2rem] border border-sky-100 bg-white p-5 shadow-xl shadow-sky-100/60 sm:p-6 xl:p-8">
+                  <div className="mb-5 xl:mb-7">
+                    <div className="mb-4 flex h-14 w-14 items-center justify-center overflow-hidden rounded-3xl border border-sky-100 bg-white shadow-lg shadow-sky-100 xl:mb-5 xl:h-16 xl:w-16">
                       <img
                         src="/event-flow-logo-mark.png"
                         alt="EventFlow logo"
-                        className="h-12 w-12 object-contain"
+                        className="h-11 w-11 object-contain xl:h-12 xl:w-12"
                       />
                     </div>
 
@@ -339,7 +339,7 @@ const LoginPage = ({ onLoginSuccess }) => {
                       EventFlow
                     </p>
 
-                    <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950">
+                    <h1 className="mt-2 text-2xl font-black tracking-tight text-slate-950 xl:text-3xl">
                       {title}
                     </h1>
 
@@ -380,7 +380,7 @@ const LoginPage = ({ onLoginSuccess }) => {
                     </div>
                   )}
 
-                  <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+                  <form onSubmit={handleSubmit} className="space-y-3 xl:space-y-4" noValidate>
                     {mode === 'signup' && (
                       <div>
                         <label htmlFor="name" className="mb-2 block text-sm font-bold text-slate-700">
