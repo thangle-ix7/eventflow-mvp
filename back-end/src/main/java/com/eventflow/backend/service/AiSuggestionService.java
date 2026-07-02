@@ -305,17 +305,16 @@ public class AiSuggestionService {
                 %s
                 Dựa trên event, department hiện có, task hiện có, milestone hiện có, gợi ý tối đa %d milestone.
                 Milestone là chặng kiểm soát tiến độ hoặc điểm nghiệm thu quan trọng của event, khác với task.
-                Dùng các trường có thể lưu bằng API Milestone hiện tại: name, description, expectedDeadline, expectedResult, priority, status.
+                Dùng các trường có thể lưu bằng API Milestone hiện tại: name, description, expectedDeadline.
                 Không tạo task, không dùng departmentId, assigneeId hoặc trường ngoài API Milestone CRUD hiện tại.
                 expectedDeadline là ISO local datetime, nằm trong khoảng event.startTime đến event.endTime nếu có.
                 Tránh trùng hoặc gần trùng name với existingMilestones.
                 Nếu userContext.hasExplicitContext=true, milestone phải được suy ra từ mốc nghiệm thu thật trong context user đưa và task hiện có.
                 Không mặc định dùng các mốc setup/rehearsal/tổng kết nếu event hoặc userContext không nhắc tới.
-                Description phải giải thích milestone này kiểm soát điều gì; expectedResult phải là kết quả nghiệm thu cụ thể.
+                Description phải giải thích milestone này kiểm soát điều gì bằng ngôn ngữ ngắn, rõ.
                 JSON phải có dạng:
-                {"milestones":[{"name":"...", "description":"...", "expectedDeadline":"2026-07-09T17:00:00", "expectedResult":"...", "priority":"HIGH", "status":"TODO"}]}
-                name tối đa 255 ký tự. description và expectedResult tối đa 2000 ký tự.
-                priority chỉ được là LOW, MEDIUM, HIGH hoặc URGENT. status chỉ được là TODO, IN_PROGRESS, DONE hoặc CANCELLED.
+                {"milestones":[{"name":"...", "description":"...", "expectedDeadline":"2026-07-09T17:00:00"}]}
+                name tối đa 255 ký tự. description tối đa 2000 ký tự.
                 """.formatted(contextualSuggestionRules(), count);
     }
 
@@ -391,10 +390,7 @@ public class AiSuggestionService {
                 .map(item -> new MilestoneRequestDTO(
                         limitText(item.path("name").asText(""), 255),
                         limitText(item.path("description").asText(null), 2000),
-                        resolveMilestoneDeadline(item.path("expectedDeadline").asText(null), event),
-                        limitText(item.path("expectedResult").asText(null), 2000),
-                        resolvePriority(item.path("priority").asText(null)),
-                        resolveMilestoneStatus(item.path("status").asText(null))))
+                        resolveMilestoneDeadline(item.path("expectedDeadline").asText(null), event)))
                 .filter(item -> item.getName() != null && !item.getName().isBlank())
                 .filter(item -> usedNames.add(normalizeName(item.getName())))
                 .limit(count)
@@ -478,17 +474,6 @@ public class AiSuggestionService {
         } catch (IllegalArgumentException e) {
             return TaskPriority.MEDIUM.name();
         }
-    }
-
-    private String resolveMilestoneStatus(String status) {
-        if (status == null || status.isBlank()) {
-            return "TODO";
-        }
-        String normalized = status.trim().toUpperCase();
-        return switch (normalized) {
-            case "TODO", "IN_PROGRESS", "DONE", "CANCELLED" -> normalized;
-            default -> "TODO";
-        };
     }
 
     private Integer resolveOrderIndex(JsonNode orderIndexNode) {
@@ -649,38 +634,27 @@ public class AiSuggestionService {
 
         List<MilestoneRequestDTO> suggestions = List.of(
                 milestone(
-                        "Chốt phạm vi và kế hoạch vận hành",
-                        "Xác nhận mục tiêu, phạm vi, timeline tổng thể, các ban phụ trách và tiêu chí hoàn thành của event.",
-                        start.plusDays(Math.max(totalDays / 4, 1)),
-                        "Scope, timeline, owner chính và tiêu chí thành công được thống nhất.",
-                        "HIGH"),
+                        "Chốt phạm vi vận hành",
+                        "Thống nhất timeline, phạm vi công việc chính và các nhóm phụ trách.",
+                        start.plusDays(Math.max(1, totalDays / 4))),
                 milestone(
-                        "Hoàn tất chuẩn bị nguồn lực",
-                        "Kiểm tra nội dung, nhân sự, vật tư, địa điểm, truyền thông và các checklist chuẩn bị quan trọng.",
-                        start.plusDays(Math.max(totalDays / 2, 2)),
-                        "Các hạng mục chuẩn bị chính sẵn sàng để chuyển sang chạy thử hoặc vận hành.",
-                        "HIGH"),
+                        "Sẵn sàng nội dung và truyền thông",
+                        "Hoàn tất nội dung chương trình, tài liệu truyền thông và kế hoạch công bố.",
+                        start.plusDays(Math.max(2, totalDays / 2))),
                 milestone(
-                        "Rehearsal và kiểm tra vận hành",
-                        "Chạy thử agenda, setup kỹ thuật, luồng check-in, phân công trực và phương án xử lý phát sinh.",
-                        finalDeadline.minusDays(1),
-                        "Kịch bản vận hành được kiểm chứng, các rủi ro chính có phương án xử lý.",
-                        "URGENT"),
+                        "Hoàn tất chuẩn bị trước sự kiện",
+                        "Rà soát địa điểm, thiết bị, nhân sự, khách mời và checklist vận hành.",
+                        start.plusDays(Math.max(3, (totalDays * 3) / 4))),
                 milestone(
-                        "Vận hành và tổng kết sự kiện",
-                        "Theo dõi ngày diễn ra event, ghi nhận kết quả, vấn đề phát sinh, feedback và bài học sau sự kiện.",
-                        finalDeadline,
-                        "Event hoàn tất, dữ liệu tổng kết và feedback được thu thập.",
-                        "MEDIUM"));
+                        "Nghiệm thu sau sự kiện",
+                        "Tổng hợp báo cáo, phản hồi và các đầu việc cần bàn giao sau chương trình.",
+                        finalDeadline));
 
         return suggestions.stream()
                 .map(item -> new MilestoneRequestDTO(
                         item.getName(),
                         item.getDescription(),
-                        resolveMilestoneDeadline(item.getExpectedDeadline() != null ? item.getExpectedDeadline().toString() : null, event),
-                        item.getExpectedResult(),
-                        item.getPriority(),
-                        item.getStatus()))
+                        resolveMilestoneDeadline(item.getExpectedDeadline() != null ? item.getExpectedDeadline().toString() : null, event)))
                 .filter(item -> usedNames.add(normalizeName(item.getName())))
                 .limit(count)
                 .toList();
@@ -725,14 +699,8 @@ public class AiSuggestionService {
         return task;
     }
 
-    private MilestoneRequestDTO milestone(String name, String description, LocalDateTime expectedDeadline, String expectedResult, String priority) {
-        return new MilestoneRequestDTO(
-                name,
-                description,
-                expectedDeadline,
-                expectedResult,
-                priority,
-                "TODO");
+    private MilestoneRequestDTO milestone(String name, String description, LocalDateTime expectedDeadline) {
+        return new MilestoneRequestDTO(name, description, expectedDeadline);
     }
 
     private EventCalendarItemRequest calendarItem(String title, String description, String location, String type, Long departmentId,
@@ -787,7 +755,7 @@ public class AiSuggestionService {
 
     private List<Map<String, Object>> loadMilestoneInputs(Long eventId) {
         return jdbcTemplate.queryForList("""
-                SELECT name, description, expected_deadline, expected_result, priority, status
+                SELECT name, description, expected_deadline
                 FROM milestones
                 WHERE event_id = ?
                 ORDER BY expected_deadline ASC NULLS LAST, created_at ASC, id ASC
@@ -826,3 +794,4 @@ public class AiSuggestionService {
         return StreamSupport.stream(array.spliterator(), false);
     }
 }
+

@@ -1,7 +1,5 @@
 package com.eventflow.backend.dto;
 
-import com.eventflow.backend.entity.MilestoneStatus;
-import com.eventflow.backend.entity.TaskPriority;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -19,9 +17,6 @@ public class MilestoneResponseDTO {
     private String name;
     private String description;
     private LocalDateTime expectedDeadline;
-    private String expectedResult;
-    private TaskPriority priority;
-    private MilestoneStatus status;
     private Long totalTasks;
     private Long completedTasks;
     private Integer progressPercentage;

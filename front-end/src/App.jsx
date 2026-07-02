@@ -4,7 +4,6 @@ import { useQuery } from '@tanstack/react-query';
 import AppLayout from './components/AppLayout';
 import LoginPage from './components/LoginPage';
 import ProtectedRoute from './components/ProtectedRoute';
-import DepartmentCreatePage from './pages/DepartmentCreatePage';
 import DepartmentDetailPage from './pages/DepartmentDetailPage';
 import DepartmentListPage from './pages/DepartmentListPage';
 import DepartmentMembersPage from './pages/DepartmentMembersPage';
@@ -17,7 +16,6 @@ import EventEditPage from './pages/EventEditPage';
 import EventListPage from './pages/EventListPage';
 import EventMembersPage from './pages/EventMembersPage';
 import EventMilestonePage from './pages/EventMilestonePage';
-import EventMilestoneCreatePage from './pages/EventMilestoneCreatePage';
 import EventUtilityPage from './pages/EventUtilityPage';
 import ErrorPage from './pages/ErrorPage';
 import InvitationConfirmPage from './pages/InvitationConfirmPage';
@@ -286,10 +284,6 @@ function App() {
             path="/events/:eventId/milestones"
             element={<EventMilestonePage {...protectedProps} />}
           />
-          <Route
-            path="/events/:eventId/milestones/new"
-            element={<EventMilestoneCreatePage {...protectedProps} />}
-          />
 
           <Route
             path="/events/:eventId/members/:userId"
@@ -357,10 +351,6 @@ function App() {
             element={<DepartmentListPage {...protectedProps} />}
           />
 
-          <Route
-            path="/events/:eventId/departments/new"
-            element={<DepartmentCreatePage {...protectedProps} />}
-          />
 
           <Route
             path="/events/:eventId/departments/:departmentId"
@@ -534,6 +524,8 @@ const resolveErrorTitle = (status) => {
 };
 
 export default App;
+
+
 
 
 

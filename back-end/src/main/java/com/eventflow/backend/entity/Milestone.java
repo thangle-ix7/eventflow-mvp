@@ -29,19 +29,6 @@ public class Milestone {
     @Column(name = "expected_deadline")
     private LocalDateTime expectedDeadline;
 
-    @Column(name = "expected_result", columnDefinition = "TEXT")
-    private String expectedResult;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    @Builder.Default
-    private TaskPriority priority = TaskPriority.MEDIUM;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 50)
-    @Builder.Default
-    private MilestoneStatus status = MilestoneStatus.TODO;
-
     @Column(name = "created_at", updatable = false)
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();

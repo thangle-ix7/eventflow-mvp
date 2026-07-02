@@ -210,7 +210,7 @@ const AppLayoutFrame = ({
       { label: t('utility.calendar'), description: '', to: `/events/${selectedEvent.id}/calendar` },
       { label: t('utility.documents'), description: '', to: `/events/${selectedEvent.id}/documents` },
       { label: t('utility.reports'), description: '', to: `/events/${selectedEvent.id}/reports` },
-      ...(permissions.canManageEvent ? [{ label: 'Tạo cột mốc', description: '', to: `/events/${selectedEvent.id}/milestones/new` }] : []),
+      ...(permissions.canManageEvent ? [{ label: 'Tạo cột mốc', description: 'Thêm dòng tại danh sách', to: `/events/${selectedEvent.id}/milestones` }] : []),
       { label: 'Check-in', description: '', to: `/events/${selectedEvent.id}/check-in` },
       { label: permissions.canManageEvent ? t('utility.settings') : t('common.view'), description: '', to: `/events/${selectedEvent.id}/settings` },
     );
@@ -922,6 +922,9 @@ const formatNotificationTime = (value, lang) => {
 };
 
 export default AppLayout;
+
+
+
 
 
 
