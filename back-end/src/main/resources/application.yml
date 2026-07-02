@@ -80,6 +80,7 @@ eventflow:
   security:
     audit:
       enabled: ${AUDIT_LOGGING_ENABLED:true}
+    public-ops-endpoints: ${PUBLIC_OPS_ENDPOINTS:true}
     rate-limit:
       enabled: ${RATE_LIMIT_ENABLED:true}
       window-seconds: ${RATE_LIMIT_WINDOW_SECONDS:60}
@@ -100,6 +101,13 @@ eventflow:
     max-failed-login-attempts: ${AUTH_MAX_FAILED_LOGIN_ATTEMPTS:5}
     lockout-minutes: ${AUTH_LOCKOUT_MINUTES:15}
     require-email-delivery: ${AUTH_REQUIRE_EMAIL_DELIVERY:false}
+    cookie:
+      secure: ${AUTH_COOKIE_SECURE:false}
+  retention:
+    enabled: ${DATA_RETENTION_ENABLED:true}
+    audit-log-days: ${AUDIT_LOG_RETENTION_DAYS:180}
+    revoked-refresh-token-days: ${REVOKED_REFRESH_TOKEN_RETENTION_DAYS:30}
+    cleanup-cron: ${DATA_RETENTION_CLEANUP_CRON:0 20 3 * * *}
   invitation:
     token-ttl-minutes: ${EVENT_INVITATION_TOKEN_TTL_MINUTES:10080}
   upload:

@@ -5,6 +5,9 @@ export const saveAuthSession = (authData) => {
 
   const { token, refreshToken, ...user } = authData;
 
+  localStorage.removeItem('token');
+  localStorage.removeItem('refreshToken');
+
   if (token) {
     localStorage.setItem('token', token);
   }

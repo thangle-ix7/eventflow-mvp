@@ -8,6 +8,7 @@ import {
   Camera,
   CheckCircle2,
   CreditCard,
+  Download,
   Edit3,
   HardDrive,
   Layers3,
@@ -18,6 +19,7 @@ import {
   Send,
   ShieldCheck,
   Sparkles,
+  Trash2,
   Unlink,
   User,
   UsersRound,
@@ -38,6 +40,7 @@ const ProfilePage = ({ user, onLogout, onUserUpdate }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [form, setForm] = useState({ name: '', phoneNumber: '' });
   const [disconnectConfirmOpen, setDisconnectConfirmOpen] = useState(false);
+  const [eraseConfirmOpen, setEraseConfirmOpen] = useState(false);
 
   const profileQuery = useQuery({
     queryKey: ['profile', user.userId],
@@ -130,6 +133,29 @@ const ProfilePage = ({ user, onLogout, onUserUpdate }) => {
     },
   });
 
+  const exportDataMutation = useMutation({
+    mutationFn: () => userApi.exportPersonalData(user.userId),
+    onSuccess: (data) => {
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `eventflow-user-data-${user.userId}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    },
+  });
+
+  const eraseDataMutation = useMutation({
+    mutationFn: () => userApi.erasePersonalData(user.userId),
+    onSuccess: () => {
+      setEraseConfirmOpen(false);
+      onLogout?.();
+    },
+  });
+
   const handleFileChange = (event) => {
     const file = event.target.files?.[0];
     if (!file) {
@@ -178,6 +204,8 @@ const ProfilePage = ({ user, onLogout, onUserUpdate }) => {
     uploadMutation.error ||
     avatarQuery.error ||
     disconnectTelegramMutation.error ||
+    exportDataMutation.error ||
+    eraseDataMutation.error ||
     subscriptionQuery.error ||
     eventsQuery.error;
 
@@ -446,6 +474,47 @@ const ProfilePage = ({ user, onLogout, onUserUpdate }) => {
             tone="sky"
           />
         </section>
+
+        <section className="overflow-hidden rounded-[2rem] border border-sky-100 bg-white shadow-xl shadow-sky-100/70">
+          <div className="border-b border-sky-100 bg-gradient-to-r from-sky-50 via-white to-emerald-50 px-5 py-5">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-400 text-white shadow-lg shadow-cyan-100">
+                <ShieldCheck className="h-5 w-5" strokeWidth={1.8} />
+              </div>
+
+              <div>
+                <h2 className="text-lg font-black text-slate-950">
+                  Quyền kiểm soát dữ liệu
+                </h2>
+                <p className="mt-1 text-sm font-semibold text-slate-500">
+                  Xuất dữ liệu cá nhân hoặc yêu cầu xóa định danh khỏi tài khoản EventFlow.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-4 p-5 md:grid-cols-2">
+            <DataControlAction
+              icon={<Download size={20} />}
+              title="Xuất dữ liệu của tôi"
+              description="Tải xuống JSON gồm profile, consent, membership và lịch sử thanh toán tối thiểu."
+              actionLabel="Tải dữ liệu"
+              isLoading={exportDataMutation.isPending}
+              onClick={() => exportDataMutation.mutate()}
+            />
+
+            <DataControlAction
+              icon={<Trash2 size={20} />}
+              tone="danger"
+              title="Xóa dữ liệu cá nhân"
+              description="Ẩn danh tài khoản, xóa email, số điện thoại, Telegram, avatar và token. Lịch sử nghiệp vụ được giữ ở dạng không định danh."
+              actionLabel="Yêu cầu xóa"
+              isLoading={eraseDataMutation.isPending}
+              onClick={() => setEraseConfirmOpen(true)}
+            />
+          </div>
+        </section>
+
         <DeleteConfirmModal
           isOpen={disconnectConfirmOpen}
           title="Ngắt kết nối Telegram"
@@ -455,8 +524,50 @@ const ProfilePage = ({ user, onLogout, onUserUpdate }) => {
           onConfirm={() => disconnectTelegramMutation.mutate()}
           onCancel={() => setDisconnectConfirmOpen(false)}
         />
+
+        <DeleteConfirmModal
+          isOpen={eraseConfirmOpen}
+          title="Xóa dữ liệu cá nhân"
+          message="Thao tác này sẽ ẩn danh tài khoản, xóa thông tin liên hệ, avatar, token và đăng xuất bạn khỏi EventFlow. Lịch sử sự kiện/task/thanh toán được giữ lại ở dạng không định danh để bảo toàn dữ liệu vận hành."
+          confirmLabel="Xóa dữ liệu"
+          isLoading={eraseDataMutation.isPending}
+          onConfirm={() => eraseDataMutation.mutate()}
+          onCancel={() => setEraseConfirmOpen(false)}
+        />
       </div>
     </AppLayout>
+  );
+};
+
+const DataControlAction = ({ icon, title, description, actionLabel, isLoading, onClick, tone = 'default' }) => {
+  const danger = tone === 'danger';
+  return (
+    <article className={`rounded-2xl border p-4 ${
+      danger ? 'border-red-100 bg-red-50/60' : 'border-sky-100 bg-sky-50/50'
+    }`}>
+      <div className="flex items-start gap-3">
+        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${
+          danger ? 'bg-red-100 text-red-600' : 'bg-white text-sky-600'
+        }`}>
+          {icon}
+        </div>
+        <div className="min-w-0">
+          <h3 className="text-sm font-black text-slate-950">{title}</h3>
+          <p className="mt-1 text-sm font-semibold leading-6 text-slate-500">{description}</p>
+          <button
+            type="button"
+            onClick={onClick}
+            disabled={isLoading}
+            className={`mt-4 inline-flex min-h-10 items-center justify-center gap-2 rounded-2xl px-4 py-2 text-sm font-black text-white shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60 ${
+              danger ? 'bg-red-600 hover:bg-red-700' : 'bg-sky-600 hover:bg-sky-700'
+            }`}
+          >
+            {isLoading ? <Loader2 size={16} className="animate-spin" /> : icon}
+            {actionLabel}
+          </button>
+        </div>
+      </div>
+    </article>
   );
 };
 

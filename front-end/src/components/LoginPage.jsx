@@ -30,7 +30,7 @@ const LoginPage = ({ onLoginSuccess }) => {
   const redirectAfterLogin = location.state?.from?.pathname || '/';
 
   const [mode, setMode] = useState(initialMode); // login | signup | forgot | reset
-  const [form, setForm] = useState({ name: '', email: '', password: '' });
+  const [form, setForm] = useState({ name: '', email: '', password: '', consentAccepted: false });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(() => {
@@ -92,7 +92,8 @@ const LoginPage = ({ onLoginSuccess }) => {
   }, [location.pathname, navigate, onLoginSuccess, token]);
 
   const handleChange = (e) => {
-    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    const { name, type, checked, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
     setError('');
     setMessage('');
   };
@@ -133,6 +134,7 @@ const LoginPage = ({ onLoginSuccess }) => {
           name: form.name.trim(),
           email: normalizedEmail,
           password: form.password,
+          consentAccepted: form.consentAccepted,
         });
         setMessage(data.message || 'Tài khoản đã được tạo. Email đăng ký hợp lệ, vui lòng mở hộp thư và bấm link xác thực để đăng nhập.');
         setMode('login');
@@ -469,6 +471,29 @@ const LoginPage = ({ onLoginSuccess }) => {
                       </div>
                     )}
 
+                    {mode === 'signup' && (
+                      <label className="flex items-start gap-3 rounded-2xl border border-sky-100 bg-sky-50/60 p-3 text-xs font-semibold leading-5 text-slate-600">
+                        <input
+                          type="checkbox"
+                          name="consentAccepted"
+                          checked={form.consentAccepted}
+                          onChange={handleChange}
+                          className="mt-1 h-4 w-4 shrink-0 rounded border-sky-200 text-sky-600 focus:ring-sky-200"
+                        />
+                        <span>
+                          Tôi đồng ý với{' '}
+                          <a href="/privacy" className="font-black text-sky-600 hover:text-sky-700">
+                            Chính sách quyền riêng tư
+                          </a>{' '}
+                          và{' '}
+                          <a href="/terms" className="font-black text-sky-600 hover:text-sky-700">
+                            Điều khoản dịch vụ
+                          </a>{' '}
+                          của EventFlow.
+                        </span>
+                      </label>
+                    )}
+
                     {error && (
                       <div className="whitespace-pre-line rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold leading-6 text-red-700">
                         {error}
@@ -535,6 +560,10 @@ const LoginPage = ({ onLoginSuccess }) => {
 const validateAuthForm = (mode, form, normalizedEmail) => {
   if (mode === "signup" && !form.name.trim()) {
     return "Tên không được để trống";
+  }
+
+  if (mode === "signup" && !form.consentAccepted) {
+    return "Bạn cần đồng ý với Chính sách quyền riêng tư và Điều khoản dịch vụ";
   }
 
   if (mode !== "reset") {

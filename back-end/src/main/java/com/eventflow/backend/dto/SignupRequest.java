@@ -2,6 +2,8 @@ package com.eventflow.backend.dto;
 
 import com.eventflow.backend.util.EmailFormat;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.AssertTrue;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
@@ -25,4 +27,8 @@ public class SignupRequest {
     @NotBlank(message = "Mật khẩu không được để trống")
     @Size(min = 6, max = 72, message = "Mật khẩu phải từ 6 đến 72 ký tự")
     private String password;
+
+    @NotNull(message = "Bạn cần xác nhận đồng ý với Chính sách quyền riêng tư và Điều khoản dịch vụ")
+    @AssertTrue(message = "Bạn cần đồng ý với Chính sách quyền riêng tư và Điều khoản dịch vụ")
+    private Boolean consentAccepted;
 }

@@ -108,7 +108,7 @@ public class PayOsPaymentService {
                 throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "payOS không trả checkoutUrl");
             }
 
-            return new PayOsCheckout(checkoutUrl, stringValue(data.get("paymentLinkId")), response.body());
+            return new PayOsCheckout(checkoutUrl, stringValue(data.get("paymentLinkId")), sanitizedPayload(json));
         } catch (ResponseStatusException ex) {
             throw ex;
         } catch (Exception ex) {
@@ -178,6 +178,33 @@ public class PayOsPaymentService {
             return objectMapper.writeValueAsString(payload);
         } catch (JsonProcessingException ex) {
             return String.valueOf(payload);
+        }
+    }
+
+    private String sanitizedPayload(Map<?, ?> json) {
+        Map<String, Object> sanitized = new LinkedHashMap<>();
+        sanitized.put("code", json.get("code"));
+        sanitized.put("desc", json.get("desc"));
+
+        Object dataValue = json.get("data");
+        if (dataValue instanceof Map<?, ?> data) {
+            Map<String, Object> safeData = new LinkedHashMap<>();
+            copyIfPresent(data, safeData, "orderCode");
+            copyIfPresent(data, safeData, "amount");
+            copyIfPresent(data, safeData, "status");
+            copyIfPresent(data, safeData, "paymentLinkId");
+            copyIfPresent(data, safeData, "checkoutUrl");
+            copyIfPresent(data, safeData, "qrCode");
+            copyIfPresent(data, safeData, "expiredAt");
+            sanitized.put("data", safeData);
+        }
+
+        return toJson(sanitized);
+    }
+
+    private void copyIfPresent(Map<?, ?> source, Map<String, Object> target, String key) {
+        if (source.containsKey(key)) {
+            target.put(key, source.get(key));
         }
     }
 

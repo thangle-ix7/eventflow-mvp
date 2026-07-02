@@ -3,6 +3,7 @@ package com.eventflow.backend.controller;
 import com.eventflow.backend.dto.NotificationCountResponse;
 import com.eventflow.backend.dto.NotificationResponse;
 import com.eventflow.backend.dto.TelegramLinkTokenResponse;
+import com.eventflow.backend.dto.UserDataExportResponse;
 import com.eventflow.backend.dto.UserProfileDTO;
 import com.eventflow.backend.dto.UserProfileUpdateRequest;
 import com.eventflow.backend.dto.UserPreferencesRequest;
@@ -195,6 +196,33 @@ public class UserController {
         }
 
         telegramBotService.disconnectTelegramAccount(userId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{userId}/data-export")
+    public ResponseEntity<UserDataExportResponse> exportPersonalData(
+            @PathVariable Long userId,
+            Authentication authentication) {
+
+        Long authenticatedUserId = (Long) authentication.getPrincipal();
+        if (!authenticatedUserId.equals(userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        return ResponseEntity.ok(userProfileService.exportPersonalData(userId));
+    }
+
+    @DeleteMapping("/{userId}/personal-data")
+    public ResponseEntity<Void> erasePersonalData(
+            @PathVariable Long userId,
+            Authentication authentication) {
+
+        Long authenticatedUserId = (Long) authentication.getPrincipal();
+        if (!authenticatedUserId.equals(userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        userProfileService.erasePersonalData(userId);
         return ResponseEntity.noContent().build();
     }
 

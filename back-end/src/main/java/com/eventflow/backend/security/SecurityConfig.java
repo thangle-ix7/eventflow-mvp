@@ -34,6 +34,9 @@ public class SecurityConfig {
     @Value("${eventflow.security.cors.allowed-origin-patterns:https://*.ngrok-free.app,https://*.ngrok.app}")
     private String allowedOriginPatterns;
 
+    @Value("${eventflow.security.public-ops-endpoints:true}")
+    private boolean publicOpsEndpoints;
+
     public SecurityConfig(JwtAuthFilter jwtAuthFilter, ApiSecurityResponseWriter responseWriter) {
         this.jwtAuthFilter = jwtAuthFilter;
         this.responseWriter = responseWriter;
@@ -55,20 +58,25 @@ public class SecurityConfig {
                                 responseWriter.writeError(request, response, HttpStatus.UNAUTHORIZED, "Bạn cần đăng nhập để thực hiện thao tác này"))
                         .accessDeniedHandler((request, response, accessDeniedException) ->
                                 responseWriter.writeError(request, response, HttpStatus.FORBIDDEN, "Bạn không có quyền thực hiện thao tác này")))
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/api/v1/auth/**").permitAll()
-                        .requestMatchers("/api/event-invitations/confirm").permitAll()
-                        .requestMatchers("/api/v1/event-invitations/confirm").permitAll()
-                        .requestMatchers("/api/subscriptions/plans").permitAll()
-                        .requestMatchers("/api/v1/subscriptions/plans").permitAll()
-                        .requestMatchers("/api/subscriptions/payments/payos/**").permitAll()
-                        .requestMatchers("/api/v1/subscriptions/payments/payos/**").permitAll()
-                        .requestMatchers("/api/webhooks/**").permitAll()
-                        .requestMatchers("/api/telegram/webhook/**").permitAll()
-                        .requestMatchers("/api-docs/**", "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll()
-                        .requestMatchers("/actuator/**").permitAll()
-                        .anyRequest().authenticated())
+                .authorizeHttpRequests(auth -> {
+                    auth
+                            .requestMatchers("/api/auth/**").permitAll()
+                            .requestMatchers("/api/v1/auth/**").permitAll()
+                            .requestMatchers("/api/event-invitations/confirm").permitAll()
+                            .requestMatchers("/api/v1/event-invitations/confirm").permitAll()
+                            .requestMatchers("/api/subscriptions/plans").permitAll()
+                            .requestMatchers("/api/v1/subscriptions/plans").permitAll()
+                            .requestMatchers("/api/subscriptions/payments/payos/**").permitAll()
+                            .requestMatchers("/api/v1/subscriptions/payments/payos/**").permitAll()
+                            .requestMatchers("/api/webhooks/**").permitAll()
+                            .requestMatchers("/api/telegram/webhook/**").permitAll();
+                    if (publicOpsEndpoints) {
+                        auth
+                                .requestMatchers("/api-docs/**", "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll()
+                                .requestMatchers("/actuator/**").permitAll();
+                    }
+                    auth.anyRequest().authenticated();
+                })
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

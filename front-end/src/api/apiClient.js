@@ -7,6 +7,7 @@ const API_BASE_URL =
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: 10000,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -35,10 +36,12 @@ apiClient.interceptors.response.use(
       try {
         originalRequest._retry = true;
         const token = await refreshAccessToken();
-        originalRequest.headers = {
-          ...originalRequest.headers,
-          Authorization: `Bearer ${token}`,
-        };
+        if (token) {
+          originalRequest.headers = {
+            ...originalRequest.headers,
+            Authorization: `Bearer ${token}`,
+          };
+        }
         return apiClient(originalRequest);
       } catch {
         expireSession();
@@ -68,16 +71,14 @@ apiClient.interceptors.response.use(
 const refreshAccessToken = async () => {
   if (!refreshRequest) {
     const refreshToken = getRefreshToken();
-    if (!refreshToken) {
-      throw new Error('NO_REFRESH_TOKEN');
-    }
 
     refreshRequest = axios
       .post(
         `${API_BASE_URL}/auth/refresh`,
-        { token: refreshToken },
+        refreshToken ? { token: refreshToken } : {},
         {
           timeout: 10000,
+          withCredentials: true,
           headers: { 'Content-Type': 'application/json' },
         }
       )

@@ -83,6 +83,15 @@ public class User {
     @Builder.Default
     private Integer taskPageSize = 10;
 
+    @Column(name = "consent_version", length = 40)
+    private String consentVersion;
+
+    @Column(name = "consent_accepted_at")
+    private LocalDateTime consentAcceptedAt;
+
+    @Column(name = "personal_data_deleted_at")
+    private LocalDateTime personalDataDeletedAt;
+
     @Column(name = "created_at", updatable = false)
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();

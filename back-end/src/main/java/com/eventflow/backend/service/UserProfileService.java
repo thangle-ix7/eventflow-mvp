@@ -1,21 +1,28 @@
 package com.eventflow.backend.service;
 
 import com.eventflow.backend.dto.PageResponse;
+import com.eventflow.backend.dto.UserDataExportResponse;
 import com.eventflow.backend.dto.UserProfileDTO;
 import com.eventflow.backend.dto.UserProfileUpdateRequest;
 import com.eventflow.backend.dto.UserPreferencesRequest;
 import com.eventflow.backend.entity.User;
+import com.eventflow.backend.repository.RefreshTokenRepository;
 import com.eventflow.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +36,9 @@ public class UserProfileService {
 
     private final UserRepository userRepository;
     private final FileStorageService fileStorageService;
+    private final PasswordEncoder passwordEncoder;
+    private final JdbcTemplate jdbcTemplate;
+    private final RefreshTokenRepository refreshTokenRepository;
 
     @Transactional(readOnly = true)
     public UserProfileDTO getProfile(Long userId) {
@@ -75,6 +85,92 @@ public class UserProfileService {
         }
 
         return mapToProfile(userRepository.save(user));
+    }
+
+    @Transactional(readOnly = true)
+    public UserDataExportResponse exportPersonalData(Long userId) {
+        User user = findUser(userId);
+        UserProfileDTO profile = mapToProfile(user);
+        var consent = new UserDataExportResponse.ConsentSnapshot(
+                user.getConsentVersion(),
+                user.getConsentAcceptedAt(),
+                user.getPersonalDataDeletedAt());
+        List<UserDataExportResponse.EventMembershipSnapshot> eventMemberships = jdbcTemplate.query("""
+                        SELECT e.id AS event_id,
+                               e.name AS event_name,
+                               em.role,
+                               em.joined_at
+                        FROM event_members em
+                        JOIN events e ON e.id = em.event_id
+                        WHERE em.user_id = ?
+                        ORDER BY em.joined_at DESC, e.id DESC
+                        """,
+                (rs, rowNum) -> new UserDataExportResponse.EventMembershipSnapshot(
+                        rs.getLong("event_id"),
+                        rs.getString("event_name"),
+                        rs.getString("role"),
+                        rs.getTimestamp("joined_at") != null ? rs.getTimestamp("joined_at").toLocalDateTime() : null),
+                userId);
+        List<UserDataExportResponse.PaymentSnapshot> payments = jdbcTemplate.query("""
+                        SELECT pt.id,
+                               pt.provider,
+                               pt.provider_order_id,
+                               pt.plan_code,
+                               pt.amount_vnd,
+                               pt.status,
+                               pt.created_at,
+                               pt.paid_at
+                        FROM payment_transactions pt
+                        WHERE pt.user_id = ?
+                        ORDER BY pt.created_at DESC, pt.id DESC
+                        """,
+                (rs, rowNum) -> new UserDataExportResponse.PaymentSnapshot(
+                        rs.getLong("id"),
+                        rs.getString("provider"),
+                        rs.getString("provider_order_id"),
+                        rs.getString("plan_code"),
+                        rs.getLong("amount_vnd"),
+                        rs.getString("status"),
+                        rs.getTimestamp("created_at") != null ? rs.getTimestamp("created_at").toLocalDateTime() : null,
+                        rs.getTimestamp("paid_at") != null ? rs.getTimestamp("paid_at").toLocalDateTime() : null),
+                userId);
+
+        return new UserDataExportResponse(LocalDateTime.now(), profile, consent, eventMemberships, payments);
+    }
+
+    @Transactional
+    public void erasePersonalData(Long userId) {
+        User user = findUser(userId);
+        if (user.getPersonalDataDeletedAt() != null) {
+            return;
+        }
+
+        StoredFile oldAvatar = currentAvatar(user);
+        user.setName("Deleted user " + userId);
+        user.setEmail("deleted-user-" + userId + "@eventflow.local");
+        user.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
+        user.setPhoneNumber(null);
+        user.setTelegramChatId(null);
+        user.setTelegramLinkTokenHash(null);
+        user.setTelegramLinkTokenExpiresAt(null);
+        user.setEmailVerificationTokenHash(null);
+        user.setEmailVerificationTokenExpiresAt(null);
+        user.setPasswordResetTokenHash(null);
+        user.setPasswordResetTokenExpiresAt(null);
+        user.setAvatarOriginalName(null);
+        user.setAvatarContentType(null);
+        user.setAvatarSizeBytes(null);
+        user.setAvatarStorageProvider(null);
+        user.setAvatarStoragePath(null);
+        user.setConsentVersion(null);
+        user.setConsentAcceptedAt(null);
+        user.setPersonalDataDeletedAt(LocalDateTime.now());
+        userRepository.save(user);
+        refreshTokenRepository.deleteByUserId(userId);
+
+        if (oldAvatar != null) {
+            fileStorageService.delete(oldAvatar.storageProvider(), oldAvatar.storagePath());
+        }
     }
 
     @Transactional

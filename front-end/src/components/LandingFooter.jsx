@@ -38,7 +38,7 @@ const LandingFooter = () => {
             </div>
           </div>
 
-          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-5">
             <FooterColumn title="Sản phẩm">
               <FooterLink href="#features">Tính năng</FooterLink>
               <FooterLink href="#workflow">Quy trình</FooterLink>
@@ -78,6 +78,11 @@ const LandingFooter = () => {
                 </div>
               </div>
             </FooterColumn>
+
+            <FooterColumn title="Pháp lý">
+              <FooterRouterLink to="/privacy">Quyền riêng tư</FooterRouterLink>
+              <FooterRouterLink to="/terms">Điều khoản</FooterRouterLink>
+            </FooterColumn>
           </div>
         </div>
 
@@ -115,6 +120,12 @@ const LandingFooter = () => {
             <a href="#value" className="transition hover:text-cyan-300">
               Get started
             </a>
+            <Link to="/privacy" className="transition hover:text-cyan-300">
+              Privacy
+            </Link>
+            <Link to="/terms" className="transition hover:text-cyan-300">
+              Terms
+            </Link>
           </div>
         </div>
       </div>
@@ -167,6 +178,15 @@ const FooterLink = ({ href, children }) => (
   >
     {children}
   </a>
+);
+
+const FooterRouterLink = ({ to, children }) => (
+  <Link
+    to={to}
+    className="block text-sm font-semibold text-slate-400 transition hover:translate-x-1 hover:text-cyan-300"
+  >
+    {children}
+  </Link>
 );
 
 const FooterBadge = ({ icon, label }) => (

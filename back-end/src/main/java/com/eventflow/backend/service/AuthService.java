@@ -30,6 +30,8 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class AuthService {
 
+    private static final String DATA_PROTECTION_CONSENT_VERSION = "eventflow-data-protection-v1";
+
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthEmailService authEmailService;
@@ -70,6 +72,8 @@ public class AuthService {
                 .email(email)
                 .password(passwordEncoder.encode(request.getPassword()))
                 .emailVerified(false)
+                .consentVersion(DATA_PROTECTION_CONSENT_VERSION)
+                .consentAcceptedAt(LocalDateTime.now())
                 .build();
 
         User saved = userRepository.save(user);

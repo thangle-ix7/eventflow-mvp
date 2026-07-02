@@ -20,6 +20,7 @@ import EventUtilityPage from './pages/EventUtilityPage';
 import ErrorPage from './pages/ErrorPage';
 import InvitationConfirmPage from './pages/InvitationConfirmPage';
 import LandingPage from './pages/LandingPage';
+import LegalPage from './pages/LegalPage';
 import MemberDetailPage from './pages/MemberDetailPage';
 import ProfilePage from './pages/ProfilePage';
 import PricingPage from './pages/PricingPage';
@@ -76,9 +77,7 @@ function App() {
     trackEvent('User Logged Out', { user_id: user?.userId ? String(user.userId) : undefined });
     const refreshToken = getRefreshToken();
 
-    if (refreshToken) {
-      authApi.logout(refreshToken).catch(() => {});
-    }
+    authApi.logout(refreshToken).catch(() => {});
 
     clearAuthSession();
     setUser(null);
@@ -197,6 +196,8 @@ function App() {
     <Routes>
       <Route path="/" element={<LandingPage />} />
       <Route path="/pricing" element={<PricingPage user={user} />} />
+      <Route path="/privacy" element={<LegalPage type="privacy" />} />
+      <Route path="/terms" element={<LegalPage type="terms" />} />
 
       <Route
         path="/error"

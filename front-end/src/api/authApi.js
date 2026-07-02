@@ -6,8 +6,8 @@ const authApi = {
     return response.data; // { token, userId, name, email }
   },
 
-  signup: async ({ name, email, password }) => {
-    const response = await apiClient.post('/auth/signup', { name, email, password });
+  signup: async ({ name, email, password, consentAccepted }) => {
+    const response = await apiClient.post('/auth/signup', { name, email, password, consentAccepted });
     return response.data;
   },
 
@@ -27,7 +27,7 @@ const authApi = {
   },
 
   logout: async (refreshToken) => {
-    const response = await apiClient.post('/auth/logout', { token: refreshToken });
+    const response = await apiClient.post('/auth/logout', refreshToken ? { token: refreshToken } : {});
     return response.data;
   },
 

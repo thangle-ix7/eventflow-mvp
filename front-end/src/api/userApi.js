@@ -52,6 +52,23 @@ const userApi = {
     await apiClient.delete(`/users/${userId}/telegram-connection`);
   },
 
+  exportPersonalData: async (userId) => {
+    if (!userId) {
+      throw new Error('userId không hợp lệ');
+    }
+
+    const response = await apiClient.get(`/users/${userId}/data-export`);
+    return response.data;
+  },
+
+  erasePersonalData: async (userId) => {
+    if (!userId) {
+      throw new Error('userId không hợp lệ');
+    }
+
+    await apiClient.delete(`/users/${userId}/personal-data`);
+  },
+
   getPendingNotificationCount: async (userId) => {
     if (!userId) {
       throw new Error('userId không hợp lệ');

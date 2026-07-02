@@ -54,7 +54,7 @@ class AuthServiceTest {
     @ParameterizedTest
     @ValueSource(strings = {"plain-email", "abc@xyz", "abc@", "@example.com"})
     void signupRejectsInvalidEmailFormatBeforePersisting(String email) {
-        SignupRequest request = new SignupRequest("Nguyen Van A", email, "secret123");
+        SignupRequest request = new SignupRequest("Nguyen Van A", email, "secret123", true);
 
         assertThatThrownBy(() -> authService.signup(request))
                 .isInstanceOf(ResponseStatusException.class)
