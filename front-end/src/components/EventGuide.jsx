@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { HelpCircle, X } from 'lucide-react';
 import { EVENT_GUIDE_STORAGE_PREFIX, createEventFlowGuide } from '../config/eventGuideContent';
+import { getDepartmentHomePath, getEventPermissions } from '../utils/permissionUtils';
 
 const getStorageKey = ({ userId, eventId, guideId }) =>
   `${EVENT_GUIDE_STORAGE_PREFIX}:${userId || 'guest'}:${eventId || 'global'}:${guideId}`;
@@ -15,8 +16,16 @@ const getGuideTargetElement = (selector) => {
   return document.querySelector(selector);
 };
 
-
 const EVENT_GUIDE_OPENED_EVENT = 'eventflow:guide-opened';
+
+const createGuideForEvent = (selectedEvent) => {
+  const permissions = getEventPermissions(selectedEvent);
+  return createEventFlowGuide(selectedEvent?.id, {
+    permissions,
+    departmentHomePath: getDepartmentHomePath(selectedEvent),
+    role: selectedEvent?.role,
+  });
+};
 
 const isSeen = ({ userId, eventId, guideId }) => {
   try {
@@ -56,7 +65,7 @@ export const EventGuideLauncher = ({ selectedEvent, user, className = '' }) => {
       </button>
 
       <EventGuideTour
-        guide={createEventFlowGuide(eventId)}
+        guide={createGuideForEvent(selectedEvent)}
         eventId={eventId}
         userId={user?.userId}
         open={open}
@@ -76,7 +85,7 @@ export const EventGuideAutoStart = ({ selectedEvent, user }) => {
 
   return (
     <EventGuideTour
-      guide={createEventFlowGuide(eventId)}
+      guide={createGuideForEvent(selectedEvent)}
       eventId={eventId}
       userId={user?.userId}
       autoStart
@@ -110,6 +119,12 @@ const EventGuideTour = ({
   }, [eventId, guide.id, onClose, userId]);
 
   useEffect(() => {
+    if (stepIndex >= guide.steps.length) {
+      setStepIndex(Math.max(guide.steps.length - 1, 0));
+    }
+  }, [guide.steps.length, stepIndex]);
+
+  useEffect(() => {
     if (!autoStart || !eventId || isSeen({ userId, eventId, guideId: guide.id })) {
       return;
     }
@@ -121,6 +136,7 @@ const EventGuideTour = ({
 
     return () => window.clearTimeout(timer);
   }, [autoStart, eventId, guide.id, userId]);
+
   useEffect(() => {
     if (!open) {
       return undefined;
@@ -144,6 +160,7 @@ const EventGuideTour = ({
 
     return () => window.removeEventListener(EVENT_GUIDE_OPENED_EVENT, handleGuideOpened);
   }, [guide.id, onClose, open]);
+
   useEffect(() => {
     if (!open || !currentStep?.path || location.pathname === currentStep.path) {
       return;
@@ -220,7 +237,6 @@ const EventGuideTour = ({
     return () => document.removeEventListener('keydown', handleKeyDown);
   });
 
-
   const goPrevious = () => {
     setTargetRect(null);
     setStepIndex((index) => Math.max(index - 1, 0));
@@ -234,13 +250,8 @@ const EventGuideTour = ({
       return;
     }
 
-    if (currentStep?.completionPath && !isCurrentStepComplete) {
-      navigate(currentStep.completionPath);
-    }
-
     setStepIndex((index) => Math.min(index + 1, guide.steps.length - 1));
   };
-
 
   if (!open || !currentStep) {
     return null;
@@ -261,7 +272,8 @@ const EventGuideTour = ({
         onPrevious={goPrevious}
         onNext={goNext}
         targetRect={targetRect}
-        nextLabel={!isCurrentStepComplete ? currentStep.actionLabel || 'Mở mục này' : undefined}
+        canProceed={isCurrentStepComplete}
+        nextLabel={!isCurrentStepComplete ? currentStep.waitingLabel || 'Đang chờ thao tác trên vùng sáng' : undefined}
       />
     </div>,
     document.body,
@@ -269,7 +281,7 @@ const EventGuideTour = ({
 };
 
 const GuideBackdrop = ({ rect }) => {
-  const shadeClass = "pointer-events-none fixed z-[90] bg-slate-950/62 backdrop-blur-sm";
+  const shadeClass = "pointer-events-auto fixed z-[90] bg-slate-950/62 backdrop-blur-sm";
 
   if (!rect) {
     return <div className={`${shadeClass} inset-0`} />;
@@ -289,6 +301,7 @@ const GuideBackdrop = ({ rect }) => {
     </>
   );
 };
+
 const Spotlight = ({ rect }) => (
   <div
     className="pointer-events-none fixed z-[94] rounded-[1.35rem] border-2 border-emerald-300/90 bg-white/5 shadow-[0_0_0_3px_rgba(255,255,255,0.88),0_0_0_6px_rgba(52,211,153,0.26),0_12px_28px_rgba(15,23,42,0.16)]"
@@ -369,7 +382,7 @@ const GuideCard = ({
           <div className="min-w-0">
             {step.completionPath && (
               <span className="mb-2 inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-black text-emerald-700">
-                → Mục cần mở
+                → Thao tác trên vùng đang sáng
               </span>
             )}
             <h3 id="event-guide-title" className="text-base font-black text-slate-950">
@@ -438,8 +451,6 @@ const GuideCard = ({
   );
 };
 
-
-
 export const MetricGuideButton = ({ guide }) => {
   const [open, setOpen] = useState(false);
 
@@ -482,48 +493,3 @@ export const MetricGuideButton = ({ guide }) => {
     </span>
   );
 };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
