@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { HelpCircle, X } from 'lucide-react';
 import { EVENT_GUIDE_STORAGE_PREFIX, createEventFlowGuide } from '../config/eventGuideContent';
+import { getDepartmentHomePath, getEventPermissions } from '../utils/permissionUtils';
 
 const getStorageKey = ({ userId, eventId, guideId }) =>
   `${EVENT_GUIDE_STORAGE_PREFIX}:${userId || 'guest'}:${eventId || 'global'}:${guideId}`;
@@ -37,6 +38,8 @@ const markSeen = ({ userId, eventId, guideId }) => {
 export const EventGuideLauncher = ({ selectedEvent, user, className = '' }) => {
   const [open, setOpen] = useState(false);
   const eventId = selectedEvent?.id;
+  const permissions = getEventPermissions(selectedEvent);
+  const departmentHomePath = getDepartmentHomePath(selectedEvent);
 
   if (!eventId) {
     return null;
@@ -56,7 +59,7 @@ export const EventGuideLauncher = ({ selectedEvent, user, className = '' }) => {
       </button>
 
       <EventGuideTour
-        guide={createEventFlowGuide(eventId)}
+        guide={createEventFlowGuide(eventId, { permissions, departmentHomePath })}
         eventId={eventId}
         userId={user?.userId}
         open={open}
@@ -69,6 +72,8 @@ export const EventGuideLauncher = ({ selectedEvent, user, className = '' }) => {
 
 export const EventGuideAutoStart = ({ selectedEvent, user }) => {
   const eventId = selectedEvent?.id;
+  const permissions = getEventPermissions(selectedEvent);
+  const departmentHomePath = getDepartmentHomePath(selectedEvent);
 
   if (!eventId) {
     return null;
@@ -76,7 +81,7 @@ export const EventGuideAutoStart = ({ selectedEvent, user }) => {
 
   return (
     <EventGuideTour
-      guide={createEventFlowGuide(eventId)}
+      guide={createEventFlowGuide(eventId, { permissions, departmentHomePath })}
       eventId={eventId}
       userId={user?.userId}
       autoStart
@@ -234,10 +239,6 @@ const EventGuideTour = ({
       return;
     }
 
-    if (currentStep?.completionPath && !isCurrentStepComplete) {
-      navigate(currentStep.completionPath);
-    }
-
     setStepIndex((index) => Math.min(index + 1, guide.steps.length - 1));
   };
 
@@ -261,7 +262,8 @@ const EventGuideTour = ({
         onPrevious={goPrevious}
         onNext={goNext}
         targetRect={targetRect}
-        nextLabel={!isCurrentStepComplete ? currentStep.actionLabel || 'Mở mục này' : undefined}
+        canProceed={isCurrentStepComplete}
+        nextLabel={!isCurrentStepComplete ? currentStep.waitingLabel || 'Đang chờ thao tác trên vùng sáng' : undefined}
       />
     </div>,
     document.body,
@@ -269,7 +271,7 @@ const EventGuideTour = ({
 };
 
 const GuideBackdrop = ({ rect }) => {
-  const shadeClass = "pointer-events-none fixed z-[90] bg-slate-950/62 backdrop-blur-sm";
+  const shadeClass = "pointer-events-auto fixed z-[90] bg-slate-950/62 backdrop-blur-sm";
 
   if (!rect) {
     return <div className={`${shadeClass} inset-0`} />;
@@ -482,6 +484,7 @@ export const MetricGuideButton = ({ guide }) => {
     </span>
   );
 };
+
 
 
 
