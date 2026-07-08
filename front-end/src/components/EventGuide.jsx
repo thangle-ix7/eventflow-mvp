@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { HelpCircle, X } from 'lucide-react';
@@ -15,6 +15,8 @@ const getGuideTargetElement = (selector) => {
   return document.querySelector(selector);
 };
 
+
+const EVENT_GUIDE_OPENED_EVENT = 'eventflow:guide-opened';
 
 const isSeen = ({ userId, eventId, guideId }) => {
   try {
@@ -93,6 +95,7 @@ const EventGuideTour = ({
   const [internalOpen, setInternalOpen] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
   const [targetRect, setTargetRect] = useState(null);
+  const instanceIdRef = useRef(`${guide.id}-${Math.random().toString(36).slice(2)}`);
   const navigate = useNavigate();
   const location = useLocation();
   const open = controlledOpen ?? internalOpen;
@@ -118,8 +121,29 @@ const EventGuideTour = ({
 
     return () => window.clearTimeout(timer);
   }, [autoStart, eventId, guide.id, userId]);
+  useEffect(() => {
+    if (!open) {
+      return undefined;
+    }
 
+    const handleGuideOpened = (event) => {
+      const detail = event.detail || {};
+      if (detail.guideId === guide.id && detail.instanceId !== instanceIdRef.current) {
+        setInternalOpen(false);
+        onClose?.();
+      }
+    };
 
+    window.addEventListener(EVENT_GUIDE_OPENED_EVENT, handleGuideOpened);
+    window.dispatchEvent(new CustomEvent(EVENT_GUIDE_OPENED_EVENT, {
+      detail: {
+        guideId: guide.id,
+        instanceId: instanceIdRef.current,
+      },
+    }));
+
+    return () => window.removeEventListener(EVENT_GUIDE_OPENED_EVENT, handleGuideOpened);
+  }, [guide.id, onClose, open]);
   useEffect(() => {
     if (!open || !currentStep?.path || location.pathname === currentStep.path) {
       return;
@@ -210,6 +234,10 @@ const EventGuideTour = ({
       return;
     }
 
+    if (currentStep?.completionPath && !isCurrentStepComplete) {
+      navigate(currentStep.completionPath);
+    }
+
     setStepIndex((index) => Math.min(index + 1, guide.steps.length - 1));
   };
 
@@ -233,8 +261,7 @@ const EventGuideTour = ({
         onPrevious={goPrevious}
         onNext={goNext}
         targetRect={targetRect}
-        canProceed={isCurrentStepComplete}
-        nextLabel={!isCurrentStepComplete ? currentStep.waitingLabel || 'Đang chờ thao tác' : undefined}
+        nextLabel={!isCurrentStepComplete ? currentStep.actionLabel || 'Mở mục này' : undefined}
       />
     </div>,
     document.body,
@@ -342,7 +369,7 @@ const GuideCard = ({
           <div className="min-w-0">
             {step.completionPath && (
               <span className="mb-2 inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-black text-emerald-700">
-                → Thao tác trên vùng đang sáng
+                → Mục cần mở
               </span>
             )}
             <h3 id="event-guide-title" className="text-base font-black text-slate-950">
@@ -389,7 +416,7 @@ const GuideCard = ({
               onClick={onSkip}
               className="rounded-2xl px-3 py-2 text-sm font-black text-slate-500 transition hover:bg-white hover:text-slate-700"
             >
-              Bỏ qua guide
+              Bỏ qua hướng dẫn
             </button>
             <button
               type="button"
@@ -415,6 +442,12 @@ const GuideCard = ({
 
 export const MetricGuideButton = ({ guide }) => {
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    const closeMetricGuide = () => setOpen(false);
+    window.addEventListener(EVENT_GUIDE_OPENED_EVENT, closeMetricGuide);
+    return () => window.removeEventListener(EVENT_GUIDE_OPENED_EVENT, closeMetricGuide);
+  }, []);
 
   if (!guide) {
     return null;
@@ -449,6 +482,8 @@ export const MetricGuideButton = ({ guide }) => {
     </span>
   );
 };
+
+
 
 
 
