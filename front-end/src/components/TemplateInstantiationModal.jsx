@@ -1,12 +1,18 @@
 import { useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { AlertTriangle, FileText, Loader2, MapPin, Tag, Target, UsersRound, X } from 'lucide-react';
+import DateTimeInput from './DateTimeInput';
 import { Button, Panel, TextInput } from './ui';
 import templateApi from '../api/templateApi';
 import departmentApi from '../api/departmentApi';
 import taskApi from '../api/taskApi';
 import { EVENT_TYPE_OPTIONS, getEventTypeLabel } from '../utils/eventTypeUtils';
 import { formatDateOnly, formatDateTimeInput, nowDateTimeLocalValue } from '../utils/dateUtils';
+import {
+  isBeforeDateTimeValue,
+  isSameOrBeforeDateTimeValue,
+  normalizeDateTimeLocalValue,
+} from '../utils/dateTimeInputUtils';
 
 const TemplateInstantiationModal = ({
   isOpen,
@@ -55,7 +61,7 @@ const TemplateInstantiationModal = ({
     mutationFn: () => {
       const formatDateTime = (dateTimeStr) => {
         if (!dateTimeStr) return null;
-        return dateTimeStr;
+        return normalizeDateTimeLocalValue(dateTimeStr);
       };
 
       return templateApi.instantiateTemplate(template.id, {
@@ -121,10 +127,10 @@ const TemplateInstantiationModal = ({
     }
     if (!formData.startTime) {
       newErrors.startTime = 'Ngày bắt đầu không được để trống';
-    } else if (formData.startTime < minEventDateTime) {
+    } else if (isBeforeDateTimeValue(formData.startTime, minEventDateTime)) {
       newErrors.startTime = `Thời gian bắt đầu không được trước hiện tại (${formatDateTimeInput(minEventDateTime)})`;
     }
-    if (formData.endTime && formData.endTime <= formData.startTime) {
+    if (formData.endTime && isSameOrBeforeDateTimeValue(formData.endTime, formData.startTime)) {
       newErrors[lastTimeField === 'startTime' ? 'startTime' : 'endTime'] = 'Thời gian kết thúc phải sau thời gian bắt đầu';
     }
     setErrors(newErrors);
@@ -304,16 +310,15 @@ const TemplateInstantiationModal = ({
             <label htmlFor="startTime" className="text-sm font-semibold text-slate-700">
               Ngày bắt đầu *
             </label>
-            <TextInput
-              id="startTime"
+            <DateTimeInput
               name="startTime"
-              type="datetime-local"
               value={formData.startTime}
               onChange={handleChange}
               disabled={instantiateMutation.isPending}
-              min={minEventDateTime}
-              required
-              className={displayErrors.startTime ? invalidInputClassName : ''}
+              error={displayErrors.startTime}
+              inputClassName={dateTimeInputClassName(displayErrors.startTime)}
+              dateAriaLabel="Ngày bắt đầu sự kiện theo định dạng dd/mm/yyyy"
+              timeAriaLabel="Giờ bắt đầu sự kiện"
             />
             {displayErrors.startTime && (
               <FieldError>{displayErrors.startTime}</FieldError>
@@ -325,15 +330,15 @@ const TemplateInstantiationModal = ({
             <label htmlFor="endTime" className="text-sm font-semibold text-slate-700">
               Ngày kết thúc
             </label>
-            <TextInput
-              id="endTime"
+            <DateTimeInput
               name="endTime"
-              type="datetime-local"
               value={formData.endTime}
               onChange={handleChange}
               disabled={instantiateMutation.isPending}
-              min={formData.startTime || minEventDateTime}
-              className={displayErrors.endTime ? invalidInputClassName : ''}
+              error={displayErrors.endTime}
+              inputClassName={dateTimeInputClassName(displayErrors.endTime)}
+              dateAriaLabel="Ngày kết thúc sự kiện theo định dạng dd/mm/yyyy"
+              timeAriaLabel="Giờ kết thúc sự kiện"
             />
             {displayErrors.endTime && (
               <FieldError>{displayErrors.endTime}</FieldError>
@@ -409,6 +414,12 @@ const getTaskCount = (rawTasks, fallback = 0) => {
 const getArrayCount = (data, fallback = 0) => data?.content?.length || data?.length || fallback || 0;
 
 const invalidInputClassName = 'border-red-500 focus:border-red-500 focus:ring-red-100';
+
+const dateTimeInputBaseClassName = 'h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400';
+
+const dateTimeInputClassName = (error) => (
+  error ? `${dateTimeInputBaseClassName} ${invalidInputClassName}` : dateTimeInputBaseClassName
+);
 
 const FieldError = ({ children }) => (
   <p className="text-xs font-semibold text-red-600">{children}</p>

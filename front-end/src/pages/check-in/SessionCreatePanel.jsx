@@ -1,10 +1,17 @@
 import { useState } from 'react';
+import DateTimeInput from '../../components/DateTimeInput';
 import { Button, ErrorState, Panel, TextInput } from '../../components/ui';
 import {
   buildEventTimeRangeError,
   formatDateTimeInputRange,
   getEventTimeBounds,
 } from '../../utils/dateUtils';
+import {
+  isAfterDateTimeValue,
+  isBeforeDateTimeValue,
+  isSameOrBeforeDateTimeValue,
+  normalizeDateTimeLocalValue,
+} from '../../utils/dateTimeInputUtils';
 
 const SessionCreatePanel = ({ canManage, event, eventId, sessionForm, setSessionForm, createSessionMutation }) => {
   const [fieldErrors, setFieldErrors] = useState({});
@@ -26,7 +33,14 @@ const SessionCreatePanel = ({ canManage, event, eventId, sessionForm, setSession
       setFieldErrors(validationErrors);
       return;
     }
-    createSessionMutation.mutate({ eventId, payload: sessionForm });
+    createSessionMutation.mutate({
+      eventId,
+      payload: {
+        ...sessionForm,
+        startsAt: normalizeDateTimeLocalValue(sessionForm.startsAt),
+        endsAt: normalizeDateTimeLocalValue(sessionForm.endsAt),
+      },
+    });
   };
 
   const apiFieldErrors = mapSessionApiErrorToFieldErrors(createSessionMutation.error);
@@ -62,15 +76,15 @@ const SessionCreatePanel = ({ canManage, event, eventId, sessionForm, setSession
         />
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
-            <TextInput
-              icon={null}
-              type="datetime-local"
+            <DateTimeInput
+              name="startsAt"
               value={sessionForm.startsAt}
-              aria-label="Bắt đầu"
-              min={eventStartInput}
-              max={eventEndInput}
               onChange={(eventChange) => updateSessionForm('startsAt', eventChange.target.value)}
-              className={displayFieldErrors.startsAt ? invalidInputClassName : ''}
+              error={displayFieldErrors.startsAt}
+              inputClassName={sessionDateTimeInputClassName(displayFieldErrors.startsAt)}
+              layout="stacked"
+              dateAriaLabel="Ngày bắt đầu session theo định dạng dd/mm/yyyy"
+              timeAriaLabel="Giờ bắt đầu session"
             />
             <p className="mt-1 text-xs font-semibold text-slate-500">
               Sự kiện: {eventTimeRangeLabel}
@@ -78,15 +92,15 @@ const SessionCreatePanel = ({ canManage, event, eventId, sessionForm, setSession
             <FieldError message={displayFieldErrors.startsAt} />
           </div>
           <div>
-            <TextInput
-              icon={null}
-              type="datetime-local"
+            <DateTimeInput
+              name="endsAt"
               value={sessionForm.endsAt}
-              aria-label="Kết thúc"
-              min={sessionForm.startsAt || eventStartInput}
-              max={eventEndInput}
               onChange={(eventChange) => updateSessionForm('endsAt', eventChange.target.value)}
-              className={displayFieldErrors.endsAt ? invalidInputClassName : ''}
+              error={displayFieldErrors.endsAt}
+              inputClassName={sessionDateTimeInputClassName(displayFieldErrors.endsAt)}
+              layout="stacked"
+              dateAriaLabel="Ngày kết thúc session theo định dạng dd/mm/yyyy"
+              timeAriaLabel="Giờ kết thúc session"
             />
             <FieldError message={displayFieldErrors.endsAt} />
           </div>
@@ -126,13 +140,13 @@ const validateSessionForm = (form, eventStartInput, eventEndInput) => {
     }
     return errors;
   }
-  if (form.endsAt <= form.startsAt) {
+  if (isSameOrBeforeDateTimeValue(form.endsAt, form.startsAt)) {
     errors.endsAt = 'Thời gian kết thúc session phải sau thời gian bắt đầu.';
   }
-  if (eventStartInput && form.startsAt < eventStartInput) {
+  if (isBeforeDateTimeValue(form.startsAt, eventStartInput)) {
     errors.startsAt = buildEventTimeRangeError('Thời gian bắt đầu session', eventStartInput, eventEndInput);
   }
-  if (eventEndInput && form.endsAt > eventEndInput) {
+  if (isAfterDateTimeValue(form.endsAt, eventEndInput)) {
     errors.endsAt = buildEventTimeRangeError('Thời gian kết thúc session', eventStartInput, eventEndInput);
   }
   return errors;
@@ -162,6 +176,12 @@ const mapSessionApiErrorToFieldErrors = (error) => {
 };
 
 const invalidInputClassName = 'border-red-300 bg-red-50/70 focus:border-red-400 focus:ring-red-100';
+
+const sessionDateTimeInputBaseClassName = 'w-full rounded-2xl border border-sky-100 bg-white px-3 py-2 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400';
+
+const sessionDateTimeInputClassName = (error) => (
+  error ? `${sessionDateTimeInputBaseClassName} ${invalidInputClassName}` : sessionDateTimeInputBaseClassName
+);
 
 const FieldError = ({ message }) => (
   message ? <p className="mt-1 text-xs font-semibold text-red-600">{message}</p> : null

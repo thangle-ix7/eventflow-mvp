@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import AiSuggestionDetailModal from '../components/AiSuggestionDetailModal';
+import DateTimeInput from '../components/DateTimeInput';
 import {
   Button,
   EmptyState,
@@ -45,6 +46,12 @@ import {
   getEventTimeBounds,
   getVietnamDateTimeParts,
 } from '../utils/dateUtils';
+import {
+  isAfterDateTimeValue,
+  isBeforeDateTimeValue,
+  isSameOrBeforeDateTimeValue,
+  normalizeDateTimeLocalValue,
+} from '../utils/dateTimeInputUtils';
 import { getEventPermissions } from '../utils/permissionUtils';
 import {
   buildDashboardReport,
@@ -564,14 +571,14 @@ const CalendarContent = ({ eventId, event, departments, members, calendar, calen
 
               <label className="space-y-1">
                 <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Bắt đầu</span>
-                <input
-                  type="datetime-local"
+                <DateTimeInput
+                  name="startTime"
                   value={form.startTime}
                   onChange={(event) => updateForm('startTime', event.target.value)}
-                  min={eventStartInput}
-                  max={eventEndInput}
-                  required
-                  className={calendarInputClassName(displayCalendarFormErrors.startTime)}
+                  error={displayCalendarFormErrors.startTime}
+                  inputClassName={calendarInputClassName(displayCalendarFormErrors.startTime)}
+                  dateAriaLabel="Ngày bắt đầu lịch theo định dạng dd/mm/yyyy"
+                  timeAriaLabel="Giờ bắt đầu lịch"
                 />
                 <p className="text-xs font-semibold text-slate-500">
                   Sự kiện: {eventTimeRangeLabel}
@@ -581,14 +588,14 @@ const CalendarContent = ({ eventId, event, departments, members, calendar, calen
 
               <label className="space-y-1">
                 <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Kết thúc</span>
-                <input
-                  type="datetime-local"
+                <DateTimeInput
+                  name="endTime"
                   value={form.endTime}
                   onChange={(event) => updateForm('endTime', event.target.value)}
-                  min={form.startTime || eventStartInput}
-                  max={eventEndInput}
-                  required
-                  className={calendarInputClassName(displayCalendarFormErrors.endTime)}
+                  error={displayCalendarFormErrors.endTime}
+                  inputClassName={calendarInputClassName(displayCalendarFormErrors.endTime)}
+                  dateAriaLabel="Ngày kết thúc lịch theo định dạng dd/mm/yyyy"
+                  timeAriaLabel="Giờ kết thúc lịch"
                 />
                 <FieldError message={displayCalendarFormErrors.endTime} />
               </label>
@@ -947,8 +954,8 @@ const buildCalendarPayload = (form) => ({
   title: form.title,
   type: form.type,
   departmentId: form.departmentId ? Number(form.departmentId) : null,
-  startTime: form.startTime,
-  endTime: form.endTime,
+  startTime: normalizeDateTimeLocalValue(form.startTime),
+  endTime: normalizeDateTimeLocalValue(form.endTime),
   allDay: form.allDay,
   status: form.status || 'SCHEDULED',
   location: form.location,
@@ -971,15 +978,15 @@ const validateCalendarForm = (form, eventStartInput, eventEndInput, lastTimeFiel
     }
     return errors;
   }
-  if ((eventStartInput && form.startTime < eventStartInput) || (eventEndInput && form.endTime > eventEndInput)) {
-    if (eventStartInput && form.startTime < eventStartInput) {
+  if (isBeforeDateTimeValue(form.startTime, eventStartInput) || isAfterDateTimeValue(form.endTime, eventEndInput)) {
+    if (isBeforeDateTimeValue(form.startTime, eventStartInput)) {
       errors.startTime = buildEventTimeRangeError('Thời gian bắt đầu lịch', eventStartInput, eventEndInput);
     }
-    if (eventEndInput && form.endTime > eventEndInput) {
+    if (isAfterDateTimeValue(form.endTime, eventEndInput)) {
       errors.endTime = buildEventTimeRangeError('Thời gian kết thúc lịch', eventStartInput, eventEndInput);
     }
   }
-  if (form.endTime <= form.startTime) {
+  if (isSameOrBeforeDateTimeValue(form.endTime, form.startTime)) {
     errors[lastTimeField === 'startTime' ? 'startTime' : 'endTime'] = 'Thời gian kết thúc lịch phải sau thời gian bắt đầu.';
   }
   return errors;
@@ -1348,14 +1355,14 @@ const CalendarEditModal = ({ eventId, item, departments, members, eventStartInpu
 
             <label className="space-y-1">
               <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Bắt đầu</span>
-              <input
-                type="datetime-local"
+              <DateTimeInput
+                name="startTime"
                 value={form.startTime}
                 onChange={(event) => updateForm('startTime', event.target.value)}
-                min={eventStartInput}
-                max={eventEndInput}
-                required
-                className={calendarInputClassName(displayFieldErrors.startTime)}
+                error={displayFieldErrors.startTime}
+                inputClassName={calendarInputClassName(displayFieldErrors.startTime)}
+                dateAriaLabel="Ngày bắt đầu lịch theo định dạng dd/mm/yyyy"
+                timeAriaLabel="Giờ bắt đầu lịch"
               />
               <p className="text-xs font-semibold text-slate-500">
                 Sự kiện: {eventTimeRangeLabel}
@@ -1365,14 +1372,14 @@ const CalendarEditModal = ({ eventId, item, departments, members, eventStartInpu
 
             <label className="space-y-1">
               <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Kết thúc</span>
-              <input
-                type="datetime-local"
+              <DateTimeInput
+                name="endTime"
                 value={form.endTime}
                 onChange={(event) => updateForm('endTime', event.target.value)}
-                min={form.startTime || eventStartInput}
-                max={eventEndInput}
-                required
-                className={calendarInputClassName(displayFieldErrors.endTime)}
+                error={displayFieldErrors.endTime}
+                inputClassName={calendarInputClassName(displayFieldErrors.endTime)}
+                dateAriaLabel="Ngày kết thúc lịch theo định dạng dd/mm/yyyy"
+                timeAriaLabel="Giờ kết thúc lịch"
               />
               <FieldError message={displayFieldErrors.endTime} />
             </label>

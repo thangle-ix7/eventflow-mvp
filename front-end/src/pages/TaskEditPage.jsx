@@ -8,6 +8,7 @@ import eventMemberApi from '../api/eventMemberApi';
 import milestoneApi from '../api/milestoneApi';
 import taskApi from '../api/taskApi';
 import workloadApi from '../api/workloadApi';
+import DateTimeInput from '../components/DateTimeInput';
 import MilestoneCreateModal from '../components/MilestoneCreateModal';
 import { Button, ErrorState, LoadingState, PageHeader, Panel, PriorityBadge, StatusBadge } from '../components/ui';
 import { invalidateDashboardQueries } from '../utils/dashboardQueryUtils';
@@ -19,6 +20,12 @@ import {
   nowDateTimeLocalValue,
   toDateTimeLocalValue,
 } from '../utils/dateUtils';
+import {
+  isAfterDateTimeValue,
+  isBeforeDateTimeValue,
+  isSameDateTimeValue,
+  normalizeDateTimeLocalValue,
+} from '../utils/dateTimeInputUtils';
 
 const autoResizeTextarea = (element) => {
   element.style.height = 'auto';
@@ -34,11 +41,11 @@ const validateTaskDeadline = (deadline, minDeadlineInput, eventEndInput, previou
   if (!deadline) {
     return 'Vui lòng chọn deadline công việc.';
   }
-  const unchangedExistingDeadline = previousDeadline && deadline === previousDeadline;
-  if (!unchangedExistingDeadline && minDeadlineInput && deadline < minDeadlineInput) {
+  const unchangedExistingDeadline = previousDeadline && isSameDateTimeValue(deadline, previousDeadline);
+  if (!unchangedExistingDeadline && isBeforeDateTimeValue(deadline, minDeadlineInput)) {
     return buildEventTimeRangeError('Deadline công việc', minDeadlineInput, eventEndInput);
   }
-  if (eventEndInput && deadline > eventEndInput) {
+  if (isAfterDateTimeValue(deadline, eventEndInput)) {
     return buildEventTimeRangeError('Deadline công việc', minDeadlineInput, eventEndInput);
   }
   return '';
@@ -207,6 +214,7 @@ const TaskEditForm = ({ task, event, departments, members, mutation, taskId, eve
       setFieldErrors((old) => ({ ...old, deadline: validationMessage }));
       return;
     }
+    const normalizedDeadline = normalizeDateTimeLocalValue(form.deadline);
     mutation.mutate({
       taskId,
       payload: {
@@ -215,7 +223,7 @@ const TaskEditForm = ({ task, event, departments, members, mutation, taskId, eve
         departmentId: form.departmentId ? Number(form.departmentId) : null,
         assigneeId: form.assigneeId ? Number(form.assigneeId) : null,
         milestoneId: form.milestoneId ? Number(form.milestoneId) : null,
-        deadline: form.deadline,
+        deadline: normalizedDeadline,
         reminderOffsetMinutes: Math.round(Number(form.reminderOffsetHours || 0) * 60),
         status: form.status,
         priority: form.priority,
@@ -353,15 +361,15 @@ const TaskEditForm = ({ task, event, departments, members, mutation, taskId, eve
               </Field>
 
               <Field label="Hạn">
-                <input
+                <DateTimeInput
                   name="deadline"
-                  type="datetime-local"
                   value={form.deadline}
                   onChange={handleChange}
-                  min={form.deadline === toDateTimeLocalValue(task.deadline) ? undefined : (minDeadline || undefined)}
-                  max={maxDeadline || undefined}
                   required
-                  className={inputClassNameWithError(displayFieldErrors.deadline)}
+                  error={displayFieldErrors.deadline}
+                  inputClassName={inputClassNameWithError(displayFieldErrors.deadline)}
+                  dateAriaLabel="Ngày hạn công việc theo định dạng dd/mm/yyyy"
+                  timeAriaLabel="Giờ hạn công việc"
                 />
                 <p className="mt-2 text-xs font-semibold text-slate-500">
                   Khoảng hợp lệ: {deadlineRangeLabel}

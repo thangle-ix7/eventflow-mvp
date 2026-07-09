@@ -15,10 +15,17 @@ import {
   UsersRound,
 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
+import DateTimeInput from '../components/DateTimeInput';
 import { Button, ErrorState, LoadingState, Panel } from '../components/ui';
 import eventApi from '../api/eventApi';
 import { EVENT_TYPE_OPTIONS } from '../utils/eventTypeUtils';
 import { formatDateTimeInput, nowDateTimeLocalValue, toDateTimeLocalValue } from '../utils/dateUtils';
+import {
+  isBeforeDateTimeValue,
+  isSameDateTimeValue,
+  isSameOrBeforeDateTimeValue,
+  normalizeDateTimeLocalValue,
+} from '../utils/dateTimeInputUtils';
 
 const EventEditPage = ({ user, onLogout }) => {
   const { eventId } = useParams();
@@ -161,8 +168,8 @@ const EventEditForm = ({ event, eventId, mutation }) => {
         expectedAttendees: form.expectedAttendees ? Number(form.expectedAttendees) : null,
         scale: form.scale,
         contextDescription: form.contextDescription || form.description,
-        startTime: form.startTime,
-        endTime: form.endTime || null,
+        startTime: normalizeDateTimeLocalValue(form.startTime),
+        endTime: normalizeDateTimeLocalValue(form.endTime) || null,
         status: form.status,
       },
     });
@@ -311,13 +318,14 @@ const EventEditForm = ({ event, eventId, mutation }) => {
           label="Thời gian bắt đầu"
           icon={<Clock3 className="h-4 w-4" strokeWidth={1.8} />}
         >
-          <input
+          <DateTimeInput
             name="startTime"
-            type="datetime-local"
             value={form.startTime}
             onChange={handleChange}
-            min={form.startTime === initialStartTime ? undefined : minEventDateTime}
-            className={inputClassNameWithError(displayFieldErrors.startTime)}
+            error={displayFieldErrors.startTime}
+            inputClassName={inputClassNameWithError(displayFieldErrors.startTime)}
+            dateAriaLabel="Ngày bắt đầu sự kiện theo định dạng dd/mm/yyyy"
+            timeAriaLabel="Giờ bắt đầu sự kiện"
           />
           <FieldError message={displayFieldErrors.startTime} />
         </Field>
@@ -326,13 +334,14 @@ const EventEditForm = ({ event, eventId, mutation }) => {
           label="Thời gian kết thúc"
           icon={<Clock3 className="h-4 w-4" strokeWidth={1.8} />}
         >
-          <input
+          <DateTimeInput
             name="endTime"
-            type="datetime-local"
             value={form.endTime}
             onChange={handleChange}
-            min={form.endTime === initialEndTime ? undefined : (form.startTime || minEventDateTime)}
-            className={inputClassNameWithError(displayFieldErrors.endTime)}
+            error={displayFieldErrors.endTime}
+            inputClassName={inputClassNameWithError(displayFieldErrors.endTime)}
+            dateAriaLabel="Ngày kết thúc sự kiện theo định dạng dd/mm/yyyy"
+            timeAriaLabel="Giờ kết thúc sự kiện"
           />
           <FieldError message={displayFieldErrors.endTime} />
         </Field>
@@ -383,21 +392,21 @@ const EventEditForm = ({ event, eventId, mutation }) => {
 
 const validateEventForm = (form, lastTimeField = 'endTime', minEventDateTime = nowDateTimeLocalValue(), initialValues = {}) => {
   const errors = {};
-  const unchangedStartTime = form.startTime === initialValues.initialStartTime;
-  const unchangedEndTime = form.endTime === initialValues.initialEndTime;
+  const unchangedStartTime = isSameDateTimeValue(form.startTime, initialValues.initialStartTime);
+  const unchangedEndTime = isSameDateTimeValue(form.endTime, initialValues.initialEndTime);
   if (!form.name.trim()) {
     errors.name = 'Vui lòng nhập tên sự kiện.';
   }
 
   if (!form.startTime) {
     errors.startTime = 'Vui lòng chọn thời gian bắt đầu.';
-  } else if (!unchangedStartTime && form.startTime < minEventDateTime) {
+  } else if (!unchangedStartTime && isBeforeDateTimeValue(form.startTime, minEventDateTime)) {
     errors.startTime = `Thời gian bắt đầu không được trước hiện tại (${formatDateTimeInput(minEventDateTime)}).`;
   }
 
-  if (form.endTime && form.endTime <= form.startTime) {
+  if (form.endTime && isSameOrBeforeDateTimeValue(form.endTime, form.startTime)) {
     errors[lastTimeField === 'startTime' ? 'startTime' : 'endTime'] = 'Thời gian kết thúc phải sau thời gian bắt đầu.';
-  } else if (form.endTime && !unchangedEndTime && form.endTime < minEventDateTime) {
+  } else if (form.endTime && !unchangedEndTime && isBeforeDateTimeValue(form.endTime, minEventDateTime)) {
     errors.endTime = `Thời gian kết thúc không được trước hiện tại (${formatDateTimeInput(minEventDateTime)}).`;
   }
 

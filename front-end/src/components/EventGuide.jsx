@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { HelpCircle, X } from 'lucide-react';
@@ -104,12 +104,15 @@ const EventGuideTour = ({
   const [internalOpen, setInternalOpen] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
   const [targetRect, setTargetRect] = useState(null);
-  const instanceIdRef = useRef(`${guide.id}-${Math.random().toString(36).slice(2)}`);
+  const reactId = useId();
+  const instanceIdRef = useRef(`${guide.id}-${reactId}`);
   const navigate = useNavigate();
   const location = useLocation();
   const open = controlledOpen ?? internalOpen;
-  const currentStep = guide.steps[stepIndex];
-  const isLastStep = stepIndex === guide.steps.length - 1;
+  const lastStepIndex = Math.max(guide.steps.length - 1, 0);
+  const safeStepIndex = Math.min(stepIndex, lastStepIndex);
+  const currentStep = guide.steps[safeStepIndex];
+  const isLastStep = safeStepIndex === lastStepIndex;
   const isCurrentStepComplete = !currentStep?.completionPath || location.pathname === currentStep.completionPath;
 
   const closeTour = useCallback(() => {
@@ -117,12 +120,6 @@ const EventGuideTour = ({
     setInternalOpen(false);
     onClose?.();
   }, [eventId, guide.id, onClose, userId]);
-
-  useEffect(() => {
-    if (stepIndex >= guide.steps.length) {
-      setStepIndex(Math.max(guide.steps.length - 1, 0));
-    }
-  }, [guide.steps.length, stepIndex]);
 
   useEffect(() => {
     if (!autoStart || !eventId || isSeen({ userId, eventId, guideId: guide.id })) {
@@ -264,7 +261,7 @@ const EventGuideTour = ({
 
       <GuideCard
         step={currentStep}
-        stepIndex={stepIndex}
+        stepIndex={safeStepIndex}
         totalSteps={guide.steps.length}
         isLastStep={isLastStep}
         onClose={closeTour}

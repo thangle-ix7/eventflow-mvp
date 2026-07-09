@@ -10,7 +10,9 @@ import {
 } from 'lucide-react';
 import departmentApi from '../api/departmentApi';
 import taskApi from '../api/taskApi';
+import DateTimeInput from './DateTimeInput';
 import { formatDate } from '../utils/dateUtils';
+import { normalizeDateTimeLocalValue } from '../utils/dateTimeInputUtils';
 import { Button, EmptyState, ErrorState, LoadingState, PriorityBadge, ProgressBar } from './ui';
 import { invalidateDashboardQueries } from '../utils/dashboardQueryUtils';
 
@@ -135,7 +137,7 @@ const TaskBoard = ({ eventId, canManage = false }) => {
         assigneeId: null,
         status: 'TODO',
         priority: taskForm.priority,
-        deadline: taskForm.deadline,
+        deadline: normalizeDateTimeLocalValue(taskForm.deadline),
         progressPercentage: Number(taskForm.progressPercentage),
       },
     });
@@ -262,13 +264,14 @@ const TaskBoard = ({ eventId, canManage = false }) => {
                   ))}
                 </select>
 
-                <input
+                <DateTimeInput
                   name="deadline"
-                  type="datetime-local"
                   value={taskForm.deadline}
-                  onChange={(event) => setTaskForm((old) => ({ ...old, deadline: event.target.value }))}
-                  required
-                  className={inputClassName}
+                  onValueChange={(value) => setTaskForm((old) => ({ ...old, deadline: value }))}
+                  inputClassName={inputClassName}
+                  className="sm:col-span-2 xl:col-span-2"
+                  dateAriaLabel="Ngày hạn công việc theo định dạng dd/mm/yyyy"
+                  timeAriaLabel="Giờ hạn công việc"
                 />
 
                 <select

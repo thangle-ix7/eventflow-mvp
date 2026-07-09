@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import AiSuggestionDetailModal from '../components/AiSuggestionDetailModal';
+import DateTimeInput from '../components/DateTimeInput';
 import aiSuggestionApi from '../api/aiSuggestionApi';
 import departmentApi from '../api/departmentApi';
 import eventApi from '../api/eventApi';
@@ -35,6 +36,11 @@ import {
   nowDateTimeLocalValue,
   toDateTimeLocalValue,
 } from '../utils/dateUtils';
+import {
+  isAfterDateTimeValue,
+  isBeforeDateTimeValue,
+  normalizeDateTimeLocalValue,
+} from '../utils/dateTimeInputUtils';
 
 const normalizeSuggestedDeadline = (value) => (value ? toDateTimeLocalValue(value) || String(value).slice(0, 16) : '');
 
@@ -49,10 +55,10 @@ const validateTaskDeadline = (deadline, minDeadlineInput, eventEndInput) => {
   if (!deadline) {
     return 'Vui lòng chọn deadline công việc.';
   }
-  if (minDeadlineInput && deadline < minDeadlineInput) {
+  if (isBeforeDateTimeValue(deadline, minDeadlineInput)) {
     return buildEventTimeRangeError('Deadline công việc', minDeadlineInput, eventEndInput);
   }
-  if (eventEndInput && deadline > eventEndInput) {
+  if (isAfterDateTimeValue(deadline, eventEndInput)) {
     return buildEventTimeRangeError('Deadline công việc', minDeadlineInput, eventEndInput);
   }
   return '';
@@ -71,6 +77,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const initialDepartmentId = searchParams.get('departmentId') || '';
+  const initialMilestoneId = searchParams.get('milestoneId') || '';
   const isDepartmentLocked = Boolean(initialDepartmentId);
 
   const [form, setForm] = useState({
@@ -78,7 +85,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
     description: '',
     departmentId: initialDepartmentId,
     assigneeId: '',
-    milestoneId: '',
+    milestoneId: initialMilestoneId,
     deadline: '',
     reminderOffsetHours: 24,
     status: 'TODO',
@@ -207,13 +214,14 @@ const TaskCreatePage = ({ user, onLogout }) => {
       setFieldErrors((old) => ({ ...old, deadline: validationMessage }));
       return;
     }
+    const normalizedDeadline = normalizeDateTimeLocalValue(form.deadline);
     const taskPayload = {
       title: form.title,
       description: form.description,
       departmentId: form.departmentId ? Number(form.departmentId) : null,
       assigneeId: form.assigneeId ? Number(form.assigneeId) : null,
       milestoneId: form.milestoneId ? Number(form.milestoneId) : null,
-      deadline: form.deadline,
+      deadline: normalizedDeadline,
       reminderOffsetMinutes: Math.round(Number(form.reminderOffsetHours || 0) * 60),
       status: form.status,
       priority: form.priority,
@@ -468,15 +476,15 @@ const TaskCreatePage = ({ user, onLogout }) => {
                   label="Hạn"
                   icon={<CalendarDays className="h-4 w-4" strokeWidth={1.8} />}
                 >
-                  <input
+                  <DateTimeInput
                     name="deadline"
-                    type="datetime-local"
                     value={form.deadline}
                     onChange={handleChange}
-                    min={minDeadline || undefined}
-                    max={maxDeadline || undefined}
                     required
-                    className={inputClassNameWithError(displayFieldErrors.deadline)}
+                    error={displayFieldErrors.deadline}
+                    inputClassName={inputClassNameWithError(displayFieldErrors.deadline)}
+                    dateAriaLabel="Ngày hạn công việc theo định dạng dd/mm/yyyy"
+                    timeAriaLabel="Giờ hạn công việc"
                   />
                   <p className="mt-2 text-xs font-semibold text-slate-500">
                     Khoảng hợp lệ: {deadlineRangeLabel}

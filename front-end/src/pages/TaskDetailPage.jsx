@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import DateTimeInput from '../components/DateTimeInput';
 import { Button, ErrorState, LoadingState, PageHeader, Panel, PriorityBadge, StatusBadge } from '../components/ui';
 import departmentApi from '../api/departmentApi';
 import eventApi from '../api/eventApi';
@@ -17,6 +18,12 @@ import {
   toDateTimeLocalValue,
 } from '../utils/dateUtils';
 import { invalidateDashboardQueries } from '../utils/dashboardQueryUtils';
+import {
+  isAfterDateTimeValue,
+  isBeforeDateTimeValue,
+  isSameDateTimeValue,
+  normalizeDateTimeLocalValue,
+} from '../utils/dateTimeInputUtils';
 
 
 const STATUS_OPTIONS = [
@@ -37,11 +44,11 @@ const validateTaskDeadline = (deadline, minDeadlineInput, eventEndInput, previou
   if (!deadline) {
     return 'Vui lòng chọn deadline công việc.';
   }
-  const unchangedExistingDeadline = previousDeadline && deadline === previousDeadline;
-  if (!unchangedExistingDeadline && minDeadlineInput && deadline < minDeadlineInput) {
+  const unchangedExistingDeadline = previousDeadline && isSameDateTimeValue(deadline, previousDeadline);
+  if (!unchangedExistingDeadline && isBeforeDateTimeValue(deadline, minDeadlineInput)) {
     return buildEventTimeRangeError('Deadline công việc', minDeadlineInput, eventEndInput);
   }
-  if (eventEndInput && deadline > eventEndInput) {
+  if (isAfterDateTimeValue(deadline, eventEndInput)) {
     return buildEventTimeRangeError('Deadline công việc', minDeadlineInput, eventEndInput);
   }
   return '';
@@ -179,7 +186,7 @@ const TaskDetailPage = ({ user }) => {
     departmentId: currentForm.departmentId ? Number(currentForm.departmentId) : null,
     assigneeId: currentForm.assigneeId ? Number(currentForm.assigneeId) : null,
     milestoneId: currentForm.milestoneId ? Number(currentForm.milestoneId) : null,
-    deadline: currentForm.deadline,
+    deadline: normalizeDateTimeLocalValue(currentForm.deadline),
     reminderOffsetMinutes: Math.round(Number(currentForm.reminderOffsetHours || 0) * 60),
     status: currentForm.status,
     priority: currentForm.priority,
@@ -324,14 +331,14 @@ const TaskDetailPage = ({ user }) => {
             </EditableRow>
 
             <EditableRow label="Deadline" field="deadline" value={formatDate(task.deadline)} editingField={editingField} setEditingField={setEditingField} canEdit={canEditTask} onSave={saveField} onCancel={cancelEditing} isSaving={updateTaskMutation.isPending}>
-              <input
-                type="datetime-local"
+              <DateTimeInput
+                name="deadline"
                 value={currentForm.deadline}
                 onChange={(event) => handleFieldChange('deadline', event.target.value)}
-                min={currentForm.deadline === toDateTimeLocalValue(task.deadline) ? undefined : (minDeadline || undefined)}
-                max={maxDeadline || undefined}
-                className={inputClassNameWithError(displayFieldErrors.deadline)}
-                autoFocus
+                error={displayFieldErrors.deadline}
+                inputClassName={inputClassNameWithError(displayFieldErrors.deadline)}
+                dateAriaLabel="Ngày deadline theo định dạng dd/mm/yyyy"
+                timeAriaLabel="Giờ deadline"
               />
               <p className="text-xs font-semibold text-slate-500">
                 Khoảng hợp lệ: {deadlineRangeLabel}

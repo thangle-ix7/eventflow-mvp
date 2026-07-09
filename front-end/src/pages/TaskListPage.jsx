@@ -394,7 +394,9 @@ const TaskListPage = ({ user, onLogout }) => {
               event={event}
               departments={departments}
               departmentId={departmentId}
+              milestoneId={milestoneId}
               lockedDepartment={Boolean(departmentId)}
+              lockedMilestone={Boolean(milestoneId)}
               initialStatus={quickCreateStatus}
               defaultOpen
               departmentWorkload={departmentWorkloadQuery.data}

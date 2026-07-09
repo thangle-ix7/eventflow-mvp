@@ -14,9 +14,15 @@ import {
   UsersRound,
 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
+import DateTimeInput from '../components/DateTimeInput';
 import eventApi from '../api/eventApi';
 import { EVENT_TYPE_OPTIONS } from '../utils/eventTypeUtils';
 import { formatDateTimeInput, nowDateTimeLocalValue } from '../utils/dateUtils';
+import {
+  isBeforeDateTimeValue,
+  isSameOrBeforeDateTimeValue,
+  normalizeDateTimeLocalValue,
+} from '../utils/dateTimeInputUtils';
 
 const EventCreatePage = ({ user, onLogout }) => {
   const navigate = useNavigate();
@@ -82,8 +88,8 @@ const EventCreatePage = ({ user, onLogout }) => {
       expectedAttendees: form.expectedAttendees ? Number(form.expectedAttendees) : null,
       scale: form.scale,
       contextDescription: form.contextDescription || form.description,
-      startTime: form.startTime,
-      endTime: form.endTime,
+      startTime: normalizeDateTimeLocalValue(form.startTime),
+      endTime: normalizeDateTimeLocalValue(form.endTime),
       status: form.status,
     });
   };
@@ -292,13 +298,14 @@ const EventCreatePage = ({ user, onLogout }) => {
                   label="Thời gian bắt đầu"
                   icon={<Clock3 className="h-4 w-4" strokeWidth={1.8} />}
                 >
-                  <input
+                  <DateTimeInput
                     name="startTime"
-                    type="datetime-local"
                     value={form.startTime}
                     onChange={handleChange}
-                    min={minEventDateTime}
-                    className={inputClassNameWithError(displayFieldErrors.startTime)}
+                    error={displayFieldErrors.startTime}
+                    inputClassName={inputClassNameWithError(displayFieldErrors.startTime)}
+                    dateAriaLabel="Ngày bắt đầu sự kiện theo định dạng dd/mm/yyyy"
+                    timeAriaLabel="Giờ bắt đầu sự kiện"
                   />
                   <FieldError message={displayFieldErrors.startTime} />
                 </Field>
@@ -307,13 +314,14 @@ const EventCreatePage = ({ user, onLogout }) => {
                   label="Thời gian kết thúc"
                   icon={<Clock3 className="h-4 w-4" strokeWidth={1.8} />}
                 >
-                  <input
+                  <DateTimeInput
                     name="endTime"
-                    type="datetime-local"
                     value={form.endTime}
                     onChange={handleChange}
-                    min={form.startTime || minEventDateTime}
-                    className={inputClassNameWithError(displayFieldErrors.endTime)}
+                    error={displayFieldErrors.endTime}
+                    inputClassName={inputClassNameWithError(displayFieldErrors.endTime)}
+                    dateAriaLabel="Ngày kết thúc sự kiện theo định dạng dd/mm/yyyy"
+                    timeAriaLabel="Giờ kết thúc sự kiện"
                   />
                   <FieldError message={displayFieldErrors.endTime} />
                 </Field>
@@ -370,11 +378,11 @@ const validateEventForm = (form, minEventDateTime = nowDateTimeLocalValue(), las
 
   if (!form.startTime) {
     errors.startTime = 'Vui lòng chọn thời gian bắt đầu.';
-  } else if (form.startTime < minEventDateTime) {
+  } else if (isBeforeDateTimeValue(form.startTime, minEventDateTime)) {
     errors.startTime = `Thời gian bắt đầu không được trước hiện tại (${formatDateTimeInput(minEventDateTime)}).`;
   }
 
-  if (form.endTime && form.endTime <= form.startTime) {
+  if (form.endTime && isSameOrBeforeDateTimeValue(form.endTime, form.startTime)) {
     errors[lastTimeField === 'startTime' ? 'startTime' : 'endTime'] = 'Thời gian kết thúc phải sau thời gian bắt đầu.';
   }
 

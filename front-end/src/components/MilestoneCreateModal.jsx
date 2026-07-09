@@ -4,6 +4,7 @@ import { Loader2, X } from 'lucide-react';
 import aiSuggestionApi from '../api/aiSuggestionApi';
 import milestoneApi from '../api/milestoneApi';
 import AiSuggestionDetailModal from './AiSuggestionDetailModal';
+import DateTimeInput from './DateTimeInput';
 import { stripHiddenSuggestionKeys } from '../utils/aiSuggestionUtils';
 import {
   buildEventTimeRangeError,
@@ -12,6 +13,11 @@ import {
   getEventTimeBounds,
   toDateTimeLocalValue,
 } from '../utils/dateUtils';
+import {
+  isAfterDateTimeValue,
+  isBeforeDateTimeValue,
+  normalizeDateTimeLocalValue,
+} from '../utils/dateTimeInputUtils';
 
 const initialForm = {
   name: '',
@@ -96,7 +102,7 @@ const MilestoneCreateModal = ({ eventId, event, isOpen, onCancel, onCreated }) =
       payload: {
         name: form.name,
         description: form.description || null,
-        expectedDeadline: form.expectedDeadline || null,
+        expectedDeadline: normalizeDateTimeLocalValue(form.expectedDeadline) || null,
       },
     });
   };
@@ -274,14 +280,13 @@ const MilestoneCreateModal = ({ eventId, event, isOpen, onCancel, onCreated }) =
 
                 <label className="block max-w-md">
                   <span className="text-sm font-black text-slate-700">Hạn kỳ vọng</span>
-                  <input
+                  <DateTimeInput
                     name="expectedDeadline"
-                    type="datetime-local"
                     value={form.expectedDeadline}
                     onChange={handleChange}
-                    min={eventStartInput || undefined}
-                    max={eventEndInput || undefined}
-                    className={inputClassName}
+                    inputClassName={inputClassName}
+                    dateAriaLabel="Ngày hạn kỳ vọng theo định dạng dd/mm/yyyy"
+                    timeAriaLabel="Giờ hạn kỳ vọng"
                   />
                   <p className="mt-2 text-xs font-semibold text-slate-500">
                     Khoảng hợp lệ: {eventTimeRangeLabel}
@@ -335,10 +340,10 @@ const getSuggestionKey = (milestone, index) => `${milestone.name || 'milestone'}
 
 const validateMilestoneForm = (form, eventStartInput, eventEndInput) => {
   const errors = {};
-  if (form.expectedDeadline && eventStartInput && form.expectedDeadline < eventStartInput) {
+  if (isBeforeDateTimeValue(form.expectedDeadline, eventStartInput)) {
     errors.expectedDeadline = buildEventTimeRangeError('Hạn kỳ vọng', eventStartInput, eventEndInput);
   }
-  if (form.expectedDeadline && eventEndInput && form.expectedDeadline > eventEndInput) {
+  if (isAfterDateTimeValue(form.expectedDeadline, eventEndInput)) {
     errors.expectedDeadline = buildEventTimeRangeError('Hạn kỳ vọng', eventStartInput, eventEndInput);
   }
   return errors;

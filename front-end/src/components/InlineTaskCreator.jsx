@@ -4,9 +4,15 @@ import { Loader2, Paperclip, Plus, Save, Sparkles, X } from 'lucide-react';
 import aiSuggestionApi from '../api/aiSuggestionApi';
 import milestoneApi from '../api/milestoneApi';
 import AiSuggestionDetailModal from './AiSuggestionDetailModal';
+import DateTimeInput from './DateTimeInput';
 import eventMemberApi from '../api/eventMemberApi';
 import taskApi from '../api/taskApi';
 import workloadApi from '../api/workloadApi';
+import {
+  isAfterDateTimeValue,
+  isBeforeDateTimeValue,
+  normalizeDateTimeLocalValue,
+} from '../utils/dateTimeInputUtils';
 import { ErrorState } from './ui';
 import { invalidateDashboardQueries } from '../utils/dashboardQueryUtils';
 import { stripHiddenSuggestionKeys } from '../utils/aiSuggestionUtils';
@@ -26,13 +32,13 @@ const createEmptyAttachmentDraft = () => ({
   visibility: 'TASK_ONLY',
 });
 
-const createEmptyRow = (departmentId = '', assigneeId = '', status = 'TODO') => ({
+const createEmptyRow = (departmentId = '', assigneeId = '', status = 'TODO', milestoneId = '') => ({
   id: crypto.randomUUID(),
   title: '',
   description: '',
   departmentId: departmentId ? String(departmentId) : '',
   assigneeId: assigneeId ? String(assigneeId) : '',
-  milestoneId: '',
+  milestoneId: milestoneId ? String(milestoneId) : '',
   deadline: '',
   reminderOffsetHours: 24,
   status,
@@ -40,71 +46,9 @@ const createEmptyRow = (departmentId = '', assigneeId = '', status = 'TODO') => 
   attachmentDraft: createEmptyAttachmentDraft(),
 });
 
-const normalizeSuggestedDeadline = (value) => (value ? toDateTimeLocalValue(value) || String(value).slice(0, 16) : '');
-
-const DATE_DISPLAY_PATTERN = /^(\d{2})\/(\d{2})\/(\d{4})$/;
-const TIME_INPUT_PATTERN = /^(\d{2}):(\d{2})$/;
-
-const splitDateTimeInput = (value) => {
-  const normalized = String(value || '');
-  const [datePart = '', timePart = ''] = normalized.split('T');
-  return {
-    datePart,
-    timePart: timePart.slice(0, 5) || '00:00',
-  };
-};
-
-const formatDateForDisplayInput = (value) => {
-  const { datePart } = splitDateTimeInput(value);
-  const [year, month, day] = datePart.split('-');
-  if (!year || !month || !day) {
-    return '';
-  }
-  return `${day}/${month}/${year}`;
-};
-
-const parseDisplayDate = (value) => {
-  const match = String(value || '').trim().match(DATE_DISPLAY_PATTERN);
-  if (!match) {
-    return null;
-  }
-
-  const [, day, month, year] = match;
-  const parsed = new Date(`${year}-${month}-${day}T00:00:00`);
-  if (
-    Number.isNaN(parsed.getTime())
-    || parsed.getFullYear() !== Number(year)
-    || parsed.getMonth() + 1 !== Number(month)
-    || parsed.getDate() !== Number(day)
-  ) {
-    return null;
-  }
-
-  return { day, month, year };
-};
-
-const normalizeTimeInput = (value) => {
-  const match = String(value || '').match(TIME_INPUT_PATTERN);
-  if (!match) {
-    return null;
-  }
-
-  const [, hour, minute] = match;
-  if (Number(hour) > 23 || Number(minute) > 59) {
-    return null;
-  }
-  return `${hour}:${minute}`;
-};
-
-const buildDateTimeInputValue = (dateDisplay, timeValue) => {
-  const dateParts = parseDisplayDate(dateDisplay);
-  const timePart = normalizeTimeInput(timeValue) || '00:00';
-  if (!dateParts) {
-    return '';
-  }
-
-  return `${dateParts.year}-${dateParts.month}-${dateParts.day}T${timePart}`;
-};
+const normalizeSuggestedDeadline = (value) => (
+  value ? toDateTimeLocalValue(value) || normalizeDateTimeLocalValue(value) || String(value).slice(0, 16) : ''
+);
 
 const autoResizeTextarea = (element) => {
   element.style.height = 'auto';
@@ -145,8 +89,10 @@ const InlineTaskCreator = ({
   departments = [],
   departmentId = '',
   assigneeId = '',
+  milestoneId = '',
   lockedDepartment = false,
   lockedAssignee = false,
+  lockedMilestone = false,
   invalidateKeys = [],
   initialStatus = 'TODO',
   defaultOpen = false,
@@ -167,7 +113,7 @@ const InlineTaskCreator = ({
     [event]
   );
   const deadlineRangeLabel = formatDateTimeInputRange(minDeadline, maxDeadline);
-  const [rows, setRows] = useState([createEmptyRow(departmentId, assigneeId, initialStatus)]);
+  const [rows, setRows] = useState([createEmptyRow(departmentId, assigneeId, initialStatus, milestoneId)]);
   const [rowErrors, setRowErrors] = useState({});
   const [localError, setLocalError] = useState('');
   const [isOpen, setIsOpen] = useState(defaultOpen);
@@ -195,6 +141,11 @@ const InlineTaskCreator = ({
   const getEffectiveAssigneeId = useCallback(
     (row) => (lockedAssignee ? String(assigneeId || '') : row.assigneeId),
     [lockedAssignee, assigneeId]
+  );
+
+  const getEffectiveMilestoneId = useCallback(
+    (row) => (lockedMilestone ? String(milestoneId || '') : row.milestoneId),
+    [lockedMilestone, milestoneId]
   );
 
   /*
@@ -296,7 +247,7 @@ const InlineTaskCreator = ({
       return createdItems.map(({ task }) => task);
     },
     onSuccess: () => {
-      setRows([createEmptyRow(departmentId, assigneeId, initialStatus)]);
+      setRows([createEmptyRow(departmentId, assigneeId, initialStatus, milestoneId)]);
       setRowErrors({});
       setLocalError('');
       setIsOpen(false);
@@ -331,7 +282,7 @@ const InlineTaskCreator = ({
         description: task.description || '',
         departmentId: task.departmentId ? String(task.departmentId) : String(departmentId || ''),
         assigneeId: task.assigneeId ? String(task.assigneeId) : String(assigneeId || ''),
-        milestoneId: task.milestoneId ? String(task.milestoneId) : '',
+        milestoneId: task.milestoneId ? String(task.milestoneId) : String(milestoneId || ''),
         deadline: normalizeSuggestedDeadline(task.deadline),
         status: task.status || initialStatus,
         reminderOffsetHours: 24,
@@ -384,19 +335,19 @@ const InlineTaskCreator = ({
   };
 
   const addRow = () => {
-    setRows((old) => [...old, createEmptyRow(departmentId, assigneeId, initialStatus)]);
+    setRows((old) => [...old, createEmptyRow(departmentId, assigneeId, initialStatus, milestoneId)]);
   };
 
   const removeRow = (rowId) => {
     setRows((old) => (
       old.length === 1
-        ? [createEmptyRow(departmentId, assigneeId, initialStatus)]
+        ? [createEmptyRow(departmentId, assigneeId, initialStatus, milestoneId)]
         : old.filter((row) => row.id !== rowId)
     ));
   };
 
   const handleClose = () => {
-    setRows([createEmptyRow(departmentId, assigneeId, initialStatus)]);
+    setRows([createEmptyRow(departmentId, assigneeId, initialStatus, milestoneId)]);
     setRowErrors({});
     setLocalError('');
     setIsOpen(false);
@@ -412,7 +363,7 @@ const InlineTaskCreator = ({
 
     const invalidDeadlineRow = filledRows.find((row) => {
       const deadline = row.deadline || minDeadline;
-      return deadline && ((minDeadline && deadline < minDeadline) || (maxDeadline && deadline > maxDeadline));
+      return deadline && (isBeforeDateTimeValue(deadline, minDeadline) || isAfterDateTimeValue(deadline, maxDeadline));
     });
     if (invalidDeadlineRow) {
       setRowErrors({
@@ -426,6 +377,8 @@ const InlineTaskCreator = ({
     mutation.mutate(filledRows.map((row) => {
       const effectiveDepartmentId = getEffectiveDepartmentId(row);
       const effectiveAssigneeId = getEffectiveAssigneeId(row);
+      const effectiveMilestoneId = getEffectiveMilestoneId(row);
+      const effectiveDeadline = normalizeDateTimeLocalValue(row.deadline || minDeadline);
 
       return {
         payload: {
@@ -433,10 +386,10 @@ const InlineTaskCreator = ({
           description: row.description,
           departmentId: effectiveDepartmentId ? Number(effectiveDepartmentId) : null,
           assigneeId: effectiveAssigneeId ? Number(effectiveAssigneeId) : null,
-          milestoneId: !parentTaskId && row.milestoneId ? Number(row.milestoneId) : null,
+          milestoneId: !parentTaskId && effectiveMilestoneId ? Number(effectiveMilestoneId) : null,
           status: row.status,
           priority: row.priority,
-          deadline: row.deadline || minDeadline,
+          deadline: effectiveDeadline,
           reminderOffsetMinutes: Math.round(Number(row.reminderOffsetHours || 0) * 60),
         },
         attachmentDraft: row.attachmentDraft,
@@ -563,6 +516,7 @@ const InlineTaskCreator = ({
                 {rows.map((row, index) => {
                   const effectiveDepartmentId = getEffectiveDepartmentId(row);
                   const effectiveAssigneeId = getEffectiveAssigneeId(row);
+                  const effectiveMilestoneId = getEffectiveMilestoneId(row);
                   const assignableMembers = getAssignableMembers(row);
                   const selectedWorkload = effectiveAssigneeId
                     ? getMemberWorkload(effectiveDepartmentId, effectiveAssigneeId)
@@ -652,9 +606,9 @@ const InlineTaskCreator = ({
                       </div>
 
                       <select
-                        value={row.milestoneId}
+                        value={effectiveMilestoneId}
                         onChange={(event) => updateRow(row.id, 'milestoneId', event.target.value)}
-                        disabled={parentTaskId || mutation.isPending || milestonesQuery.isLoading}
+                        disabled={parentTaskId || lockedMilestone || mutation.isPending || milestonesQuery.isLoading}
                         aria-label="Cột mốc"
                         className={taskInputClassName}
                       >
@@ -666,11 +620,14 @@ const InlineTaskCreator = ({
                         ))}
                       </select>
                       <div className="min-w-0">
-                        <DeadlineDateTimeInput
+                        <DateTimeInput
                           value={row.deadline || minDeadline}
-                          onChange={(value) => updateRow(row.id, 'deadline', value)}
+                          onValueChange={(value) => updateRow(row.id, 'deadline', value)}
                           disabled={mutation.isPending}
                           error={deadlineError}
+                          inputClassName={taskInputClassNameWithError(deadlineError)}
+                          dateAriaLabel="Ngày hạn theo định dạng dd/mm/yyyy"
+                          timeAriaLabel="Giờ hạn"
                         />
                         <p className="mt-1 text-[10px] font-bold text-slate-500">
                           {deadlineRangeLabel}
@@ -807,7 +764,9 @@ const InlineTaskCreator = ({
                 description: cleaned.description || '',
                 departmentId: cleaned.departmentId ? String(cleaned.departmentId) : row.departmentId,
                 assigneeId: cleaned.assigneeId ? String(cleaned.assigneeId) : row.assigneeId,
-                milestoneId: cleaned.milestoneId ? String(cleaned.milestoneId) : row.milestoneId,
+                milestoneId: lockedMilestone
+                  ? String(milestoneId || '')
+                  : (cleaned.milestoneId ? String(cleaned.milestoneId) : row.milestoneId),
                 deadline: normalizeSuggestedDeadline(cleaned.deadline) || row.deadline,
                 reminderOffsetHours: row.reminderOffsetHours || 24,
                 status: cleaned.status || row.status,
@@ -820,68 +779,6 @@ const InlineTaskCreator = ({
         onClose={() => setDetailSuggestion(null)}
       />
     </>
-  );
-};
-
-const DeadlineDateTimeInput = ({ value, onChange, disabled, error }) => {
-  const [dateDraft, setDateDraft] = useState('');
-  const { timePart } = splitDateTimeInput(value);
-  const committedDate = formatDateForDisplayInput(value);
-  const displayDate = dateDraft || committedDate;
-
-  const commitDate = (nextDisplayDate, nextTime = timePart) => {
-    const nextValue = buildDateTimeInputValue(nextDisplayDate, nextTime);
-    if (!nextValue) {
-      return false;
-    }
-
-    onChange(nextValue);
-    return true;
-  };
-
-  const handleDateChange = (event) => {
-    const nextDisplayDate = event.target.value;
-    setDateDraft(nextDisplayDate);
-
-    if (commitDate(nextDisplayDate)) {
-      setDateDraft('');
-    }
-  };
-
-  const handleDateBlur = () => {
-    if (!dateDraft || commitDate(dateDraft)) {
-      setDateDraft('');
-    }
-  };
-
-  const handleTimeChange = (event) => {
-    commitDate(displayDate, event.target.value);
-  };
-
-  return (
-    <div className="grid grid-cols-[minmax(0,1.25fr)_88px] gap-2">
-      <input
-        type="text"
-        inputMode="numeric"
-        value={displayDate}
-        onChange={handleDateChange}
-        onBlur={handleDateBlur}
-        disabled={disabled}
-        placeholder="dd/mm/yyyy"
-        aria-label="Ngày hạn theo định dạng dd/mm/yyyy"
-        aria-invalid={Boolean(error)}
-        className={taskInputClassNameWithError(error)}
-      />
-      <input
-        type="time"
-        value={timePart}
-        onChange={handleTimeChange}
-        disabled={disabled}
-        aria-label="Giờ hạn"
-        aria-invalid={Boolean(error)}
-        className={taskInputClassNameWithError(error)}
-      />
-    </div>
   );
 };
 
@@ -957,9 +854,9 @@ const RowAttachmentDraft = ({ row, onChange, onFilesChange, hasDepartment, disab
   );
 };
 
-const taskCreatorGridColumns = 'grid-cols-[36px_minmax(240px,1.05fr)_minmax(320px,1.2fr)_170px_250px_190px_260px_112px_120px_118px_170px_82px]';
-const taskCreatorGridHeaderClassName = `grid min-w-[2120px] ${taskCreatorGridColumns} items-center gap-2 border-b border-sky-100 bg-sky-50/80 px-5 py-2.5 text-[10px] font-black uppercase tracking-[0.18em] text-slate-500`;
-const taskCreatorGridRowClassName = `grid min-w-[2120px] ${taskCreatorGridColumns} items-stretch gap-2 border-b border-sky-100/70 bg-white/80 px-5 py-2 transition hover:bg-sky-50/70 last:border-b-0`;
+const taskCreatorGridColumns = 'grid-cols-[36px_minmax(240px,1.05fr)_minmax(320px,1.2fr)_170px_250px_190px_360px_112px_120px_118px_170px_82px]';
+const taskCreatorGridHeaderClassName = `grid min-w-[2220px] ${taskCreatorGridColumns} items-center gap-2 border-b border-sky-100 bg-sky-50/80 px-5 py-2.5 text-[10px] font-black uppercase tracking-[0.18em] text-slate-500`;
+const taskCreatorGridRowClassName = `grid min-w-[2220px] ${taskCreatorGridColumns} items-stretch gap-2 border-b border-sky-100/70 bg-white/80 px-5 py-2 transition hover:bg-sky-50/70 last:border-b-0`;
 const taskInputClassName = 'h-full min-h-8 w-full min-w-0 rounded-lg border border-sky-100 bg-white px-2.5 text-xs font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:ring-2 focus:ring-cyan-100 disabled:bg-slate-50 disabled:text-slate-500';
 const taskInputClassNameWithError = (error) => (
   error ? `${taskInputClassName} border-red-300 bg-red-50/70 focus:border-red-400 focus:ring-red-100` : taskInputClassName
