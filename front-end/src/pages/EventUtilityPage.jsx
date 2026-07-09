@@ -577,6 +577,7 @@ const CalendarContent = ({ eventId, event, departments, members, calendar, calen
                   onChange={(event) => updateForm('startTime', event.target.value)}
                   error={displayCalendarFormErrors.startTime}
                   inputClassName={calendarInputClassName(displayCalendarFormErrors.startTime)}
+                  layout="stacked"
                   dateAriaLabel="Ngày bắt đầu lịch theo định dạng dd/mm/yyyy"
                   timeAriaLabel="Giờ bắt đầu lịch"
                 />
@@ -594,6 +595,7 @@ const CalendarContent = ({ eventId, event, departments, members, calendar, calen
                   onChange={(event) => updateForm('endTime', event.target.value)}
                   error={displayCalendarFormErrors.endTime}
                   inputClassName={calendarInputClassName(displayCalendarFormErrors.endTime)}
+                  layout="stacked"
                   dateAriaLabel="Ngày kết thúc lịch theo định dạng dd/mm/yyyy"
                   timeAriaLabel="Giờ kết thúc lịch"
                 />
@@ -1361,6 +1363,7 @@ const CalendarEditModal = ({ eventId, item, departments, members, eventStartInpu
                 onChange={(event) => updateForm('startTime', event.target.value)}
                 error={displayFieldErrors.startTime}
                 inputClassName={calendarInputClassName(displayFieldErrors.startTime)}
+                layout="stacked"
                 dateAriaLabel="Ngày bắt đầu lịch theo định dạng dd/mm/yyyy"
                 timeAriaLabel="Giờ bắt đầu lịch"
               />
@@ -1378,6 +1381,7 @@ const CalendarEditModal = ({ eventId, item, departments, members, eventStartInpu
                 onChange={(event) => updateForm('endTime', event.target.value)}
                 error={displayFieldErrors.endTime}
                 inputClassName={calendarInputClassName(displayFieldErrors.endTime)}
+                layout="stacked"
                 dateAriaLabel="Ngày kết thúc lịch theo định dạng dd/mm/yyyy"
                 timeAriaLabel="Giờ kết thúc lịch"
               />
