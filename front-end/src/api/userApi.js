@@ -154,6 +154,11 @@ const userApi = {
     return response.data;
   },
 
+  getAdminUserMetrics: async () => {
+    const response = await apiClient.get('/admin/users/metrics');
+    return response.data;
+  },
+
   getAdminUser: async (userId) => {
     if (!userId) {
       throw new Error('userId không hợp lệ');
@@ -170,5 +175,6 @@ const userApi = {
 };
 
 export default userApi;
+
 
 

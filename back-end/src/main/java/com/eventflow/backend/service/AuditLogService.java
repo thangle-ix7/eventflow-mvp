@@ -68,6 +68,7 @@ public class AuditLogService {
 
         String method = request.getMethod();
         return status >= 400
+                || resolveActorUserId(request) != null
                 || isAuthPath(path)
                 || !("GET".equalsIgnoreCase(method)
                 || "HEAD".equalsIgnoreCase(method)
@@ -147,3 +148,4 @@ public class AuditLogService {
         return value.substring(0, maxLength);
     }
 }
+

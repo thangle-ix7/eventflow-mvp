@@ -2,10 +2,12 @@ package com.eventflow.backend.controller;
 
 import com.eventflow.backend.dto.AdminUserEmailRequest;
 import com.eventflow.backend.dto.AdminUserEmailResponse;
+import com.eventflow.backend.dto.AdminUserMetricsDTO;
 import com.eventflow.backend.dto.PageResponse;
 import com.eventflow.backend.dto.UserProfileDTO;
 import com.eventflow.backend.security.AdminSecurityService;
 import com.eventflow.backend.service.AdminUserEmailService;
+import com.eventflow.backend.service.AdminUserMetricsService;
 import com.eventflow.backend.service.UserProfileService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +29,7 @@ public class AdminUserController {
 
     private final UserProfileService userProfileService;
     private final AdminUserEmailService adminUserEmailService;
+    private final AdminUserMetricsService adminUserMetricsService;
     private final AdminSecurityService adminSecurityService;
 
     @GetMapping
@@ -43,6 +46,15 @@ public class AdminUserController {
         }
 
         return ResponseEntity.ok(userProfileService.getUsersForAdmin(page, size, sort, direction, search));
+    }
+
+    @GetMapping("/metrics")
+    public ResponseEntity<AdminUserMetricsDTO> getMetrics(Authentication authentication) {
+        if (!adminSecurityService.canViewUsers(currentUserId(authentication))) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        return ResponseEntity.ok(adminUserMetricsService.getMetrics());
     }
 
     @PostMapping("/email")
@@ -73,3 +85,4 @@ public class AdminUserController {
         return (Long) authentication.getPrincipal();
     }
 }
+
