@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import {
+  Bell,
+  BellOff,
   CheckSquare,
   ChevronLeft,
   ChevronRight,
@@ -57,6 +59,7 @@ const AdminUserEmailPage = () => {
   const [selectedUserIds, setSelectedUserIds] = useState(() => new Set());
   const [emailForm, setEmailForm] = useState(DEFAULT_EMAIL_FORM);
   const [sendResult, setSendResult] = useState(null);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -72,6 +75,19 @@ const AdminUserEmailPage = () => {
     queryFn: () => userApi.getAdminUsers({ page, size: PAGE_SIZE, search }),
   });
 
+  const emailSettingsQuery = useQuery({
+    queryKey: ['adminEmailSettings'],
+    queryFn: userApi.getAdminEmailSettings,
+  });
+
+  const updateEmailSettingsMutation = useMutation({
+    mutationFn: userApi.updateAdminEmailSettings,
+    onSuccess: (result) => {
+      queryClient.setQueryData(['adminEmailSettings'], result);
+      setSendResult(null);
+    },
+  });
+
   const sendEmailMutation = useMutation({
     mutationFn: userApi.sendAdminEmail,
     onSuccess: (result) => {
@@ -82,14 +98,17 @@ const AdminUserEmailPage = () => {
   });
 
   const users = usersQuery.data?.content || EMPTY_USERS;
+  const emailNotificationsEnabled = emailSettingsQuery.data?.userEmailNotificationsEnabled !== false;
   const selectedIds = useMemo(() => Array.from(selectedUserIds), [selectedUserIds]);
   const pageUserIds = users.map((item) => item.userId);
   const allPageSelected = pageUserIds.length > 0 && pageUserIds.every((id) => selectedUserIds.has(id));
   const isLastPage = usersQuery.data?.last !== false;
   const canSendSelected = emailForm.recipientMode === 'all' || selectedIds.length > 0;
-  const canSubmitEmail = canSendSelected && emailForm.subject.trim() && emailForm.message.trim() && !sendEmailMutation.isPending;
+  const canSubmitEmail = emailNotificationsEnabled && canSendSelected && emailForm.subject.trim() && emailForm.message.trim() && !sendEmailMutation.isPending;
 
   const toggleUser = (userId) => {
+    if (!emailNotificationsEnabled) return;
+
     setSelectedUserIds((current) => {
       const next = new Set(current);
       if (next.has(userId)) {
@@ -102,6 +121,8 @@ const AdminUserEmailPage = () => {
   };
 
   const toggleCurrentPage = () => {
+    if (!emailNotificationsEnabled) return;
+
     setSelectedUserIds((current) => {
       const next = new Set(current);
       if (allPageSelected) {
@@ -134,6 +155,12 @@ const AdminUserEmailPage = () => {
     });
   };
 
+  const toggleEmailNotifications = () => {
+    updateEmailSettingsMutation.mutate({
+      userEmailNotificationsEnabled: !emailNotificationsEnabled,
+    });
+  };
+
   return (
     <div className="mx-auto max-w-7xl space-y-5">
       <PageHeader
@@ -147,6 +174,52 @@ const AdminUserEmailPage = () => {
           </Button>
         }
       />
+
+      <section className={`flex flex-col gap-4 rounded-[2rem] border p-4 shadow-xl md:flex-row md:items-center md:justify-between ${emailNotificationsEnabled ? 'border-emerald-100 bg-emerald-50/70 shadow-emerald-100/50' : 'border-amber-100 bg-amber-50/80 shadow-amber-100/60'}`}>
+        <div className="flex min-w-0 items-start gap-3">
+          <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white shadow-sm ${emailNotificationsEnabled ? 'text-emerald-600' : 'text-amber-600'}`}>
+            {emailNotificationsEnabled ? <Bell className="h-5 w-5" /> : <BellOff className="h-5 w-5" />}
+          </span>
+          <div className="min-w-0">
+            <p className="font-black text-slate-950">
+              {emailNotificationsEnabled ? 'Email notification đang bật' : 'Email notification đang tắt'}
+            </p>
+            <p className="mt-1 text-sm font-semibold leading-6 text-slate-600">
+              {emailNotificationsEnabled
+                ? 'Hệ thống được phép gửi email thông báo và admin email cho user.'
+                : 'Hệ thống sẽ không gửi email thông báo hoặc email hàng loạt cho user. Email xác thực tài khoản và đặt lại mật khẩu vẫn hoạt động.'}
+            </p>
+          </div>
+        </div>
+        <Button
+          type="button"
+          variant={emailNotificationsEnabled ? 'danger' : 'primary'}
+          onClick={toggleEmailNotifications}
+          disabled={emailSettingsQuery.isLoading || updateEmailSettingsMutation.isPending}
+          className="w-full md:w-auto"
+        >
+          {emailNotificationsEnabled ? <BellOff className="h-4 w-4" /> : <Bell className="h-4 w-4" />}
+          {updateEmailSettingsMutation.isPending
+            ? 'Đang cập nhật...'
+            : emailNotificationsEnabled ? 'Tắt email user' : 'Bật lại email user'}
+        </Button>
+      </section>
+
+      {emailSettingsQuery.error && (
+        <ErrorState
+          error={emailSettingsQuery.error}
+          title="Không tải được cấu hình email"
+          onDismiss={() => emailSettingsQuery.refetch()}
+        />
+      )}
+
+      {updateEmailSettingsMutation.error && (
+        <ErrorState
+          error={updateEmailSettingsMutation.error}
+          title="Không cập nhật được cấu hình email"
+          onDismiss={() => updateEmailSettingsMutation.reset()}
+        />
+      )}
 
       <section className="grid gap-5 lg:grid-cols-[minmax(0,0.95fr)_minmax(360px,1.05fr)]">
         <div className="space-y-4 rounded-[2rem] border border-sky-100 bg-white p-4 shadow-xl shadow-sky-100/70">
@@ -202,8 +275,9 @@ const AdminUserEmailPage = () => {
                   type="checkbox"
                   checked={allPageSelected}
                   onChange={toggleCurrentPage}
+                  disabled={!emailNotificationsEnabled}
                   aria-label="Chọn tất cả user trong trang"
-                  className="h-4 w-4 rounded border-sky-200 accent-sky-500"
+                  className="h-4 w-4 rounded border-sky-200 accent-sky-500 disabled:opacity-50"
                 />
                 User trong trang này
               </div>
@@ -212,14 +286,15 @@ const AdminUserEmailPage = () => {
                 {users.map((item) => (
                   <label
                     key={item.userId}
-                    className="flex cursor-pointer items-center gap-3 px-4 py-3 transition hover:bg-sky-50/70"
+                    className={`flex items-center gap-3 px-4 py-3 transition ${emailNotificationsEnabled ? 'cursor-pointer hover:bg-sky-50/70' : 'cursor-not-allowed opacity-70'}`}
                   >
                     <input
                       type="checkbox"
                       checked={selectedUserIds.has(item.userId)}
                       onChange={() => toggleUser(item.userId)}
+                      disabled={!emailNotificationsEnabled}
                       aria-label={`Chọn ${item.name || item.email}`}
-                      className="h-4 w-4 rounded border-sky-200 accent-sky-500"
+                      className="h-4 w-4 rounded border-sky-200 accent-sky-500 disabled:opacity-50"
                     />
                     <UserAvatar
                       userId={item.userId}
@@ -283,7 +358,8 @@ const AdminUserEmailPage = () => {
                 value="selected"
                 checked={emailForm.recipientMode === 'selected'}
                 onChange={handleEmailFieldChange('recipientMode')}
-                className="h-4 w-4 accent-sky-500"
+                disabled={!emailNotificationsEnabled}
+                className="h-4 w-4 accent-sky-500 disabled:opacity-50"
               />
               User được tick
             </label>
@@ -294,7 +370,8 @@ const AdminUserEmailPage = () => {
                 value="all"
                 checked={emailForm.recipientMode === 'all'}
                 onChange={handleEmailFieldChange('recipientMode')}
-                className="h-4 w-4 accent-sky-500"
+                disabled={!emailNotificationsEnabled}
+                className="h-4 w-4 accent-sky-500 disabled:opacity-50"
               />
               Hàng loạt
             </label>
@@ -303,9 +380,10 @@ const AdminUserEmailPage = () => {
           <input
             value={emailForm.subject}
             onChange={handleEmailFieldChange('subject')}
+            disabled={!emailNotificationsEnabled}
             placeholder="Tiêu đề email"
             maxLength={160}
-            className="h-11 w-full rounded-2xl border border-sky-100 bg-white px-3 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100"
+            className="h-11 w-full rounded-2xl border border-sky-100 bg-white px-3 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
           />
 
           <div className="grid gap-2 sm:grid-cols-2">
@@ -316,7 +394,8 @@ const AdminUserEmailPage = () => {
                 value="TEXT"
                 checked={emailForm.contentType === 'TEXT'}
                 onChange={handleEmailFieldChange('contentType')}
-                className="h-4 w-4 accent-sky-500"
+                disabled={!emailNotificationsEnabled}
+                className="h-4 w-4 accent-sky-500 disabled:opacity-50"
               />
               Text
             </label>
@@ -327,7 +406,8 @@ const AdminUserEmailPage = () => {
                 value="HTML"
                 checked={emailForm.contentType === 'HTML'}
                 onChange={handleEmailFieldChange('contentType')}
-                className="h-4 w-4 accent-sky-500"
+                disabled={!emailNotificationsEnabled}
+                className="h-4 w-4 accent-sky-500 disabled:opacity-50"
               />
               HTML
             </label>
@@ -336,10 +416,11 @@ const AdminUserEmailPage = () => {
           <textarea
             value={emailForm.message}
             onChange={handleEmailFieldChange('message')}
+            disabled={!emailNotificationsEnabled}
             placeholder={emailForm.contentType === 'HTML' ? '<div style="...">Nội dung email HTML</div>' : 'Nội dung email'}
             rows={emailForm.contentType === 'HTML' ? 10 : 8}
             maxLength={50000}
-            className="w-full rounded-2xl border border-sky-100 bg-white px-3 py-3 font-mono text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100"
+            className="w-full rounded-2xl border border-sky-100 bg-white px-3 py-3 font-mono text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
           />
 
           {emailForm.contentType === 'HTML' && (
@@ -348,11 +429,12 @@ const AdminUserEmailPage = () => {
                 <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">Preview HTML</p>
                 <button
                   type="button"
+                  disabled={!emailNotificationsEnabled}
                   onClick={() => {
                     setSendResult(null);
                     setEmailForm((current) => ({ ...current, message: HTML_EMAIL_SAMPLE }));
                   }}
-                  className="rounded-xl border border-sky-100 bg-sky-50 px-3 py-1.5 text-xs font-black text-sky-700 transition hover:bg-sky-100"
+                  className="rounded-xl border border-sky-100 bg-sky-50 px-3 py-1.5 text-xs font-black text-sky-700 transition hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Dùng mẫu EventFlow
                 </button>
@@ -363,6 +445,12 @@ const AdminUserEmailPage = () => {
                 srcDoc={emailForm.message || '<div style="font-family: Arial, sans-serif; color: #64748b; padding: 16px;">Nhập HTML để xem trước.</div>'}
                 className="h-64 w-full rounded-xl border border-slate-200 bg-white"
               />
+            </div>
+          )}
+
+          {!emailNotificationsEnabled && (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-700">
+              Email user đang tắt. Bật lại công tắc phía trên để gửi email.
             </div>
           )}
 

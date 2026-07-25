@@ -36,6 +36,7 @@ public class NotificationSenderService {
     private final NotificationRepository notificationRepository;
     private final RestTemplate restTemplate = new RestTemplate();
     private final JavaMailSender javaMailSender;
+    private final SystemSettingsService systemSettingsService;
 
     @Value("${telegram.bot.token}")
     private String botToken;
@@ -57,6 +58,10 @@ public class NotificationSenderService {
 
         if (channel == NotiChannel.TELEGRAM && user.getTelegramChatId() != null) {
             sent = sendTelegram(user.getTelegramChatId(), message);
+        } else if (!systemSettingsService.isUserEmailNotificationsEnabled()) {
+            notificationRepository.markAsSent(notification.getId());
+            log.info("Notification [id={}] email delivery skipped because user email notifications are disabled", notification.getId());
+            return;
         } else {
             sent = sendEmail(user.getEmail(), notification, user, task, message);
         }
@@ -450,3 +455,4 @@ public class NotificationSenderService {
         return new HttpEntity<>(body, headers);
     }
 }
+

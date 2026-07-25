@@ -33,6 +33,7 @@ public class AdminUserEmailService {
 
     private final UserRepository userRepository;
     private final JavaMailSender javaMailSender;
+    private final SystemSettingsService systemSettingsService;
 
     @Value("${spring.mail.host:}")
     private String mailHost;
@@ -50,6 +51,9 @@ public class AdminUserEmailService {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "Không được gửi quá " + MAX_RECIPIENTS_PER_REQUEST + " user mỗi lần");
+        }
+        if (!systemSettingsService.isUserEmailNotificationsEnabled()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Admin đang tắt gửi email thông báo cho user");
         }
         if (isBlank(mailHost) || isBlank(fromEmail)) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "SMTP chưa được cấu hình đầy đủ");
@@ -190,3 +194,4 @@ public class AdminUserEmailService {
         return value == null || value.isBlank();
     }
 }
+

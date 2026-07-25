@@ -1,5 +1,7 @@
 package com.eventflow.backend.controller;
 
+import com.eventflow.backend.dto.AdminEmailSettingsRequest;
+import com.eventflow.backend.dto.AdminEmailSettingsResponse;
 import com.eventflow.backend.dto.AdminUserEmailRequest;
 import com.eventflow.backend.dto.AdminUserEmailResponse;
 import com.eventflow.backend.dto.AdminUserMetricsDTO;
@@ -8,6 +10,7 @@ import com.eventflow.backend.dto.UserProfileDTO;
 import com.eventflow.backend.security.AdminSecurityService;
 import com.eventflow.backend.service.AdminUserEmailService;
 import com.eventflow.backend.service.AdminUserMetricsService;
+import com.eventflow.backend.service.SystemSettingsService;
 import com.eventflow.backend.service.UserProfileService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +20,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -30,6 +34,7 @@ public class AdminUserController {
     private final UserProfileService userProfileService;
     private final AdminUserEmailService adminUserEmailService;
     private final AdminUserMetricsService adminUserMetricsService;
+    private final SystemSettingsService systemSettingsService;
     private final AdminSecurityService adminSecurityService;
 
     @GetMapping
@@ -55,6 +60,28 @@ public class AdminUserController {
         }
 
         return ResponseEntity.ok(adminUserMetricsService.getMetrics());
+    }
+
+    @GetMapping("/email-settings")
+    public ResponseEntity<AdminEmailSettingsResponse> getEmailSettings(Authentication authentication) {
+        if (!adminSecurityService.canSendUserEmails(currentUserId(authentication))) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        return ResponseEntity.ok(systemSettingsService.getEmailSettings());
+    }
+
+    @PutMapping("/email-settings")
+    public ResponseEntity<AdminEmailSettingsResponse> updateEmailSettings(
+            @Valid @RequestBody AdminEmailSettingsRequest request,
+            Authentication authentication) {
+
+        if (!adminSecurityService.canSendUserEmails(currentUserId(authentication))) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        return ResponseEntity.ok(systemSettingsService.updateEmailSettings(
+                Boolean.TRUE.equals(request.getUserEmailNotificationsEnabled())));
     }
 
     @PostMapping("/email")
@@ -85,4 +112,7 @@ public class AdminUserController {
         return (Long) authentication.getPrincipal();
     }
 }
+
+
+
 

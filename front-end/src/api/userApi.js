@@ -159,6 +159,16 @@ const userApi = {
     return response.data;
   },
 
+  getAdminEmailSettings: async () => {
+    const response = await apiClient.get('/admin/users/email-settings');
+    return response.data;
+  },
+
+  updateAdminEmailSettings: async (payload) => {
+    const response = await apiClient.put('/admin/users/email-settings', payload);
+    return response.data;
+  },
+
   getAdminUser: async (userId) => {
     if (!userId) {
       throw new Error('userId không hợp lệ');
@@ -175,6 +185,7 @@ const userApi = {
 };
 
 export default userApi;
+
 
 
 

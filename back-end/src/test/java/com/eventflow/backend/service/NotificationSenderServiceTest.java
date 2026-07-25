@@ -16,7 +16,9 @@ import org.springframework.web.client.RestTemplate;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
@@ -26,9 +28,12 @@ class NotificationSenderServiceTest {
     @Test
     void telegramNotificationDecodesLegacyUrlEncodedMessageAndSendsJson() {
         NotificationRepository notificationRepository = mock(NotificationRepository.class);
+        SystemSettingsService systemSettingsService = mock(SystemSettingsService.class);
+        when(systemSettingsService.isUserEmailNotificationsEnabled()).thenReturn(true);
         NotificationSenderService service = new NotificationSenderService(
                 notificationRepository,
-                mock(JavaMailSender.class));
+                mock(JavaMailSender.class),
+                systemSettingsService);
         ReflectionTestUtils.setField(service, "botToken", "test-bot-token");
 
         RestTemplate restTemplate = (RestTemplate) ReflectionTestUtils.getField(service, "restTemplate");
@@ -59,5 +64,37 @@ class NotificationSenderServiceTest {
 
         server.verify();
         verify(notificationRepository).markAsSent(99L);
+    }
+
+    @Test
+    void emailNotificationIsSkippedWhenAdminDisablesUserEmailNotifications() {
+        NotificationRepository notificationRepository = mock(NotificationRepository.class);
+        JavaMailSender javaMailSender = mock(JavaMailSender.class);
+        SystemSettingsService systemSettingsService = mock(SystemSettingsService.class);
+        when(systemSettingsService.isUserEmailNotificationsEnabled()).thenReturn(false);
+        NotificationSenderService service = new NotificationSenderService(
+                notificationRepository,
+                javaMailSender,
+                systemSettingsService);
+
+        User user = User.builder()
+                .id(8L)
+                .name("Nguyen Van A")
+                .email("user@example.com")
+                .password("password")
+                .build();
+        Notification notification = Notification.builder()
+                .id(100L)
+                .user(user)
+                .channel(NotiChannel.EMAIL)
+                .type(NotiType.TASK_UPDATED)
+                .status(NotiStatus.PENDING)
+                .title("Task vừa được cập nhật")
+                .build();
+
+        service.processNotification(notification);
+
+        verify(notificationRepository).markAsSent(100L);
+        verify(javaMailSender, never()).createMimeMessage();
     }
 }
