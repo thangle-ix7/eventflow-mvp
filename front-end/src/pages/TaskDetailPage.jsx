@@ -13,8 +13,6 @@ import {
   formatDate,
   formatDateTimeInputRange,
   getEventTimeBounds,
-  getLaterDateTimeLocal,
-  nowDateTimeLocalValue,
   toDateTimeLocalValue,
 } from '../utils/dateUtils';
 import { invalidateDashboardQueries } from '../utils/dashboardQueryUtils';
@@ -129,11 +127,7 @@ const TaskDetailPage = ({ user }) => {
   const canEditTask = Boolean(task && (isEventLeader || isTeamLeader));
   const isAssignee = String(task?.assigneeId || '') === String(user?.userId || '');
   const currentForm = form || createFormFromTask(task);
-  const minDeadline = getLaterDateTimeLocal(
-    nowDateTimeLocalValue(),
-    toDateTimeLocalValue(event?.startTime || event?.eventDate)
-  );
-  const { endInput: maxDeadline } = getEventTimeBounds(event);
+  const { startInput: minDeadline, endInput: maxDeadline } = getEventTimeBounds(event);
   const deadlineRangeLabel = formatDateTimeInputRange(minDeadline, maxDeadline);
 
   const assignableMembers = useMemo(() => {
@@ -432,3 +426,5 @@ const FieldError = ({ message }) => (
 );
 
 export default TaskDetailPage;
+
+

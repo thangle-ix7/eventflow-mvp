@@ -570,20 +570,13 @@ public class TaskService {
         boolean unchangedExistingDeadline = previousDeadline != null && previousDeadline.equals(deadline);
         LocalDateTime eventStartTime = event.getEventDate();
         LocalDateTime eventEndTime = effectiveEventEndTime(event);
-        LocalDateTime minAllowedDeadline = laterDateTime(LocalDateTime.now(), eventStartTime);
-        LocalDateTime displayRangeStart = eventEndTime != null && minAllowedDeadline != null && minAllowedDeadline.isAfter(eventEndTime)
-                ? eventStartTime
-                : minAllowedDeadline;
-        if (!unchangedExistingDeadline && deadline.isBefore(minAllowedDeadline)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, buildTaskDeadlineRangeMessage(displayRangeStart, eventEndTime));
-        }
 
-        if (eventStartTime != null && deadline.isBefore(eventStartTime)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, buildTaskDeadlineRangeMessage(displayRangeStart, eventEndTime));
+        if (!unchangedExistingDeadline && eventStartTime != null && deadline.isBefore(eventStartTime)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, buildTaskDeadlineRangeMessage(eventStartTime, eventEndTime));
         }
 
         if (eventEndTime != null && deadline.isAfter(eventEndTime)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, buildTaskDeadlineRangeMessage(displayRangeStart, eventEndTime));
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, buildTaskDeadlineRangeMessage(eventStartTime, eventEndTime));
         }
     }
 
@@ -594,15 +587,6 @@ public class TaskService {
                 + formatDateTime(eventEndTime);
     }
 
-    private LocalDateTime laterDateTime(LocalDateTime first, LocalDateTime second) {
-        if (first == null) {
-            return second;
-        }
-        if (second == null) {
-            return first;
-        }
-        return first.isAfter(second) ? first : second;
-    }
 
     private String formatDateTime(LocalDateTime value) {
         return value != null ? value.format(VIETNAM_DATE_TIME_FORMATTER) : "chưa xác định";
@@ -903,5 +887,7 @@ public class TaskService {
                 task.getStatus().name());
     }
 }
+
+
 
 

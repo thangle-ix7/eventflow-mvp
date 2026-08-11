@@ -1,6 +1,6 @@
 # Frontend UX Rules
 
-Ngay cap nhat: 2026-06-20
+Ngay cap nhat: 2026-08-11
 
 Tai lieu nay la checklist bat buoc khi sua hoac tao UI trong EventFlow. Muc tieu la giu giao dien gon, ro, dung chuan san pham quoc te va tranh lap lai tinh trang qua nhieu huong dan, icon, placeholder dai, contextual help du thua.
 
@@ -9,8 +9,9 @@ Tai lieu nay la checklist bat buoc khi sua hoac tao UI trong EventFlow. Muc tieu
 - UI phai uu tien hanh dong chinh cua man hinh, khong bien form thanh tai lieu huong dan.
 - Moi dong chu tren UI phai co ly do: giup nguoi dung quyet dinh, nhap du lieu, sua loi, hoac xac nhan trang thai.
 - Khong them panel huong dan rieng neu label, trang thai rong, validation hoac navigation da giai thich du.
-- Khong tao hero/card trang tri cho man hinh van hanh noi bo. Trang CRUD nen gon, scan nhanh, it lop nen/gradient.
+- Khong tao hero/card trang tri cho man hinh van hanh noi bo. Trang CRUD nen gon, scan nhanh, nen phang va it lop nen.
 - Giữ copy ngan, trung tinh, theo ngu canh san pham. Tranh giai thich tinh nang bang cau dai.
+- Khong dung radiant/gradient/radial gradient de lam giao dien. Dung nen phang, border, shadow nhe va mau trang thai ro rang thay cho `bg-gradient-*`, `linear-gradient`, `radial-gradient`, `bg-clip-text text-transparent`.
 
 ## 2. Placeholder
 
@@ -81,5 +82,6 @@ Khong nen:
 - Bat loi cac panel chi mang tinh instruction.
 - Bat loi placeholder dai hoac giong tai lieu training.
 - Bat loi icon trang tri lap lai.
-- Bat loi card long card, card chi chua text, gradient/blur trang tri trong trang CRUD.
+- Bat loi card long card, card chi chua text, radiant/gradient/blur trang tri trong trang CRUD.
 - Chap nhan copy dai hon chi khi do la noi dung nguoi dung tao, loi he thong, canh bao bao mat/quyen, hoac yeu cau phap ly/nghiep vu.
+

@@ -16,8 +16,6 @@ import {
   buildEventTimeRangeError,
   formatDateTimeInputRange,
   getEventTimeBounds,
-  getLaterDateTimeLocal,
-  nowDateTimeLocalValue,
   toDateTimeLocalValue,
 } from '../utils/dateUtils';
 import {
@@ -145,11 +143,7 @@ const TaskEditPage = () => {
 };
 
 const TaskEditForm = ({ task, event, departments, members, mutation, taskId, eventId }) => {
-  const minDeadline = getLaterDateTimeLocal(
-    nowDateTimeLocalValue(),
-    toDateTimeLocalValue(event?.startTime || event?.eventDate)
-  );
-  const { endInput: maxDeadline } = getEventTimeBounds(event);
+  const { startInput: minDeadline, endInput: maxDeadline } = getEventTimeBounds(event);
   const deadlineRangeLabel = formatDateTimeInputRange(minDeadline, maxDeadline);
   const isSubtask = Boolean(task.parentId);
   const [isMilestoneModalOpen, setIsMilestoneModalOpen] = useState(false);
@@ -486,5 +480,7 @@ const FieldError = ({ message }) => (
 );
 
 export default TaskEditPage;
+
+
 
 

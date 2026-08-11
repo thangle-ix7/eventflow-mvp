@@ -20,8 +20,6 @@ import {
   buildEventTimeRangeError,
   formatDateTimeInputRange,
   getEventTimeBounds,
-  getLaterDateTimeLocal,
-  nowDateTimeLocalValue,
   toDateTimeLocalValue,
 } from '../utils/dateUtils';
 
@@ -101,15 +99,8 @@ const InlineTaskCreator = ({
   openLabel,
 }) => {
   const queryClient = useQueryClient();
-  const minDeadline = useMemo(
-    () => getLaterDateTimeLocal(
-      nowDateTimeLocalValue(),
-      toDateTimeLocalValue(event?.startTime || event?.eventDate)
-    ),
-    [event?.eventDate, event?.startTime]
-  );
-  const maxDeadline = useMemo(
-    () => getEventTimeBounds(event).endInput,
+  const { startInput: minDeadline, endInput: maxDeadline } = useMemo(
+    () => getEventTimeBounds(event),
     [event]
   );
   const deadlineRangeLabel = formatDateTimeInputRange(minDeadline, maxDeadline);
@@ -423,13 +414,13 @@ const InlineTaskCreator = ({
 
   return (
     <>
-      <div className="border-b border-sky-100 bg-gradient-to-r from-white via-sky-50/60 to-emerald-50/60 px-4 py-4">
+      <div className="border-b border-sky-100 bg-white px-4 py-4">
         <button
           type="button"
           onClick={() => setIsOpen(true)}
           className="group inline-flex items-center gap-2 rounded-2xl border border-sky-100 bg-white px-4 py-2.5 text-sm font-black text-sky-600 shadow-sm shadow-sky-100 transition hover:-translate-y-0.5 hover:border-cyan-200 hover:bg-sky-50 hover:text-sky-700 hover:shadow-lg hover:shadow-cyan-100 active:translate-y-px"
         >
-          <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-emerald-400 text-white shadow-md shadow-cyan-100">
+          <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-sky-600 text-white shadow-md shadow-cyan-100">
             <Plus size={16} />
           </span>
           {addButtonLabel}
@@ -496,7 +487,7 @@ const InlineTaskCreator = ({
               </button>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-auto bg-gradient-to-br from-white via-sky-50/25 to-emerald-50/30">
+            <div className="min-h-0 flex-1 overflow-auto bg-slate-50">
               <div className="min-w-[2120px]">
                 <div className={taskCreatorGridHeaderClassName}>
                   <span>#</span>
@@ -529,7 +520,7 @@ const InlineTaskCreator = ({
                       key={row.id}
                       className={taskCreatorGridRowClassName}
                     >
-                      <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-emerald-400 text-xs font-black text-white shadow-md shadow-cyan-100">
+                      <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-sky-600 text-xs font-black text-white shadow-md shadow-cyan-100">
                         {index + 1}
                       </span>
 
@@ -739,7 +730,7 @@ const InlineTaskCreator = ({
                   type="button"
                   onClick={handleSave}
                   disabled={mutation.isPending}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 px-4 py-2 text-sm font-black text-white shadow-lg shadow-cyan-100 transition hover:shadow-xl hover:shadow-cyan-200 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-sky-600 px-4 py-2 text-sm font-black text-white shadow-lg shadow-cyan-100 transition hover:shadow-xl hover:shadow-cyan-200 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {mutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                   {mutation.isPending && rows.some((row) => row.attachmentDraft.files.length > 0 || row.attachmentDraft.linkUrl.trim()) ? 'Đang lưu và tải tài liệu...' : saveLabel}
@@ -865,6 +856,8 @@ const taskCompactInputClassName = 'min-h-7 w-full min-w-0 rounded-lg border bord
 const taskTextareaClassName = 'min-h-8 w-full min-w-0 resize-none overflow-hidden rounded-lg border border-sky-100 bg-white px-2.5 py-1.5 text-xs font-semibold leading-5 text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:ring-2 focus:ring-cyan-100 disabled:bg-slate-50 disabled:text-slate-500';
 
 export default InlineTaskCreator;
+
+
 
 
 

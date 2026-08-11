@@ -32,8 +32,6 @@ import {
   buildEventTimeRangeError,
   formatDateTimeInputRange,
   getEventTimeBounds,
-  getLaterDateTimeLocal,
-  nowDateTimeLocalValue,
   toDateTimeLocalValue,
 } from '../utils/dateUtils';
 import {
@@ -132,11 +130,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
     enabled: Boolean(eventId && form.departmentId),
   });
 
-  const minDeadline = getLaterDateTimeLocal(
-    nowDateTimeLocalValue(),
-    toDateTimeLocalValue(eventQuery.data?.startTime || eventQuery.data?.eventDate)
-  );
-  const { endInput: maxDeadline } = getEventTimeBounds(eventQuery.data);
+  const { startInput: minDeadline, endInput: maxDeadline } = getEventTimeBounds(eventQuery.data);
   const deadlineRangeLabel = formatDateTimeInputRange(minDeadline, maxDeadline);
   const eventClosed = isEventClosed(eventQuery.data);
 
@@ -316,9 +310,9 @@ const TaskCreatePage = ({ user, onLogout }) => {
             onSubmit={handleSubmit}
             className="overflow-hidden rounded-[2rem] border border-sky-100 bg-white shadow-xl shadow-sky-100/70"
           >
-            <div className="border-b border-sky-100 bg-gradient-to-r from-sky-50 via-white to-emerald-50 px-5 py-5">
+            <div className="border-b border-sky-100 bg-sky-50 px-5 py-5">
               <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-400 text-white shadow-lg shadow-cyan-100">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-600 text-white shadow-lg shadow-cyan-100">
                   <Save className="h-5 w-5" strokeWidth={1.8} />
                 </div>
 
@@ -562,7 +556,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
               <button
                 type="submit"
                 disabled={mutation.isPending}
-                className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 px-4 py-2 text-sm font-black text-white shadow-xl shadow-cyan-100 transition hover:-translate-y-0.5 hover:shadow-2xl hover:shadow-cyan-200 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-sky-600 px-4 py-2 text-sm font-black text-white shadow-xl shadow-cyan-100 transition hover:-translate-y-0.5 hover:shadow-2xl hover:shadow-cyan-200 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {mutation.isPending ? (
                   <Loader2 size={18} className="animate-spin" />
@@ -580,7 +574,7 @@ const TaskCreatePage = ({ user, onLogout }) => {
               <div className="pointer-events-none absolute -bottom-28 left-1/3 h-64 w-64 rounded-full bg-emerald-100/70 blur-3xl" />
 
               <div className="relative flex items-start gap-3">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-400 text-white shadow-lg shadow-cyan-100">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-sky-600 text-white shadow-lg shadow-cyan-100">
                   <Sparkles size={22} strokeWidth={1.8} />
                 </div>
 
@@ -841,4 +835,6 @@ const FieldError = ({ message }) => (
 );
 
 export default TaskCreatePage;
+
+
 
