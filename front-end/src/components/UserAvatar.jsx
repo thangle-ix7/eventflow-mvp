@@ -52,11 +52,11 @@ const UserAvatar = ({ userId, avatarUrl, name, size = 'md' }) => {
 
   return (
     <div
-      className={`relative shrink-0 rounded-full bg-gradient-to-br from-sky-500 via-cyan-400 to-emerald-400 shadow-md shadow-cyan-100 ${RING_CLASSES[size] || RING_CLASSES.md}`}
+      className={`relative shrink-0 rounded-full bg-sky-600 shadow-md shadow-sky-100 ${RING_CLASSES[size] || RING_CLASSES.md}`}
       title={name}
     >
       <div
-        className={`${SIZE_CLASSES[size] || SIZE_CLASSES.md} flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-white bg-gradient-to-br from-sky-50 via-white to-emerald-50 font-black text-sky-600`}
+        className={`${SIZE_CLASSES[size] || SIZE_CLASSES.md} flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-white bg-white font-black text-sky-600`}
       >
         {objectUrl ? (
           <img
@@ -65,7 +65,7 @@ const UserAvatar = ({ userId, avatarUrl, name, size = 'md' }) => {
             className="h-full w-full object-cover"
           />
         ) : initials ? (
-          <span className="bg-gradient-to-r from-sky-600 to-emerald-500 bg-clip-text text-transparent">
+          <span className="text-sky-600 ">
             {initials}
           </span>
         ) : (
@@ -85,3 +85,4 @@ const UserAvatar = ({ userId, avatarUrl, name, size = 'md' }) => {
 };
 
 export default UserAvatar;
+

@@ -167,13 +167,12 @@ const TaskBoard = ({ eventId, canManage = false }) => {
         <div className="grid gap-5 lg:grid-cols-[0.85fr_1.15fr]">
           <form
             onSubmit={handleCreateDepartment}
-            className="group relative overflow-hidden rounded-[2rem] border border-sky-100 bg-white p-6 shadow-xl shadow-sky-100/70 transition hover:-translate-y-1 hover:shadow-2xl hover:shadow-cyan-100"
+            className="group relative overflow-hidden rounded-[2rem] border border-sky-100 bg-white p-6 shadow-xl shadow-sky-100/70 transition hover:-translate-y-1 hover:shadow-2xl hover:shadow-sky-100"
           >
-            <div className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-sky-100 blur-3xl transition group-hover:bg-cyan-100" />
 
             <div className="relative">
               <div className="mb-5 flex items-start gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-400 text-white shadow-lg shadow-cyan-100">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-sky-600 text-white shadow-lg shadow-sky-100">
                   <FolderPlus className="h-6 w-6" strokeWidth={1.8} />
                 </div>
 
@@ -205,7 +204,7 @@ const TaskBoard = ({ eventId, canManage = false }) => {
                 <Button
                   type="submit"
                   disabled={createDepartmentMutation.isPending}
-                  className="shrink-0 rounded-2xl bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 px-5 font-black text-white shadow-lg shadow-cyan-100 transition hover:-translate-y-0.5 hover:shadow-xl hover:shadow-cyan-200"
+                  className="shrink-0 rounded-2xl bg-sky-600 px-5 font-black text-white shadow-lg shadow-sky-100 transition hover:-translate-y-0.5 hover:shadow-xl hover:shadow-sky-100"
                 >
                   {createDepartmentMutation.isPending ? 'Đang tạo...' : 'Tạo'}
                 </Button>
@@ -215,13 +214,12 @@ const TaskBoard = ({ eventId, canManage = false }) => {
 
           <form
             onSubmit={handleCreateTask}
-            className="group relative overflow-hidden rounded-[2rem] border border-sky-100 bg-white p-6 shadow-xl shadow-sky-100/70 transition hover:-translate-y-1 hover:shadow-2xl hover:shadow-cyan-100"
+            className="group relative overflow-hidden rounded-[2rem] border border-sky-100 bg-white p-6 shadow-xl shadow-sky-100/70 transition hover:-translate-y-1 hover:shadow-2xl hover:shadow-sky-100"
           >
-            <div className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-emerald-100 blur-3xl transition group-hover:bg-cyan-100" />
 
             <div className="relative">
               <div className="mb-5 flex items-start gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-400 text-white shadow-lg shadow-cyan-100">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-sky-600 text-white shadow-lg shadow-sky-100">
                   <PlusCircle className="h-6 w-6" strokeWidth={1.8} />
                 </div>
 
@@ -328,10 +326,10 @@ const TaskBoard = ({ eventId, canManage = false }) => {
               key={dept.departmentId || 'unassigned'}
               className="overflow-hidden rounded-[2rem] border border-sky-100 bg-white shadow-xl shadow-sky-100/70"
             >
-              <div className="border-b border-sky-100 bg-gradient-to-r from-sky-50 via-white to-emerald-50 px-6 py-5">
+              <div className="border-b border-sky-100 bg-sky-50 px-6 py-5">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-400 text-white shadow-lg shadow-cyan-100">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-600 text-white shadow-lg shadow-sky-100">
                       <ClipboardList className="h-5 w-5" strokeWidth={1.8} />
                     </div>
 
@@ -439,3 +437,5 @@ const TaskBoard = ({ eventId, canManage = false }) => {
 const inputClassName = 'min-h-11 w-full min-w-0 rounded-2xl border border-sky-100 bg-sky-50/60 px-3 py-2 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:bg-white focus:ring-4 focus:ring-cyan-100';
 
 export default TaskBoard;
+
+

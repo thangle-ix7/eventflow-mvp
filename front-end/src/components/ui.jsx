@@ -69,7 +69,7 @@ export const PageHeader = ({ eyebrow, title, description, actions, meta }) => (
 
 export const Button = ({ as: Component = 'button', variant = 'primary', className = '', children, ...props }) => {
   const variants = {
-    primary: 'bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 text-white shadow-lg shadow-cyan-100 hover:shadow-xl hover:shadow-cyan-200',
+    primary: 'bg-sky-600 text-white shadow-lg shadow-sky-100 hover:shadow-xl hover:shadow-sky-100',
     secondary: 'border border-sky-100 bg-white text-slate-700 shadow-sm hover:bg-sky-50 hover:text-sky-700',
     subtle: 'text-sky-700 hover:bg-sky-50',
     danger: 'border border-red-200 bg-red-50 text-red-700 hover:bg-red-100',
@@ -178,10 +178,9 @@ export const MetricCard = ({ icon: Icon, label, value, hint, tone = 'indigo', gu
 
   return (
     <Panel
-      className="group relative overflow-visible p-5 transition hover:-translate-y-1 hover:shadow-2xl hover:shadow-cyan-100"
+      className="group relative overflow-visible p-5 transition hover:-translate-y-1 hover:shadow-2xl hover:shadow-sky-100"
       {...(guideTarget ? { 'data-guide-target': guideTarget } : {})}
     >
-      <div className="pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full bg-sky-100/80 opacity-0 blur-2xl transition group-hover:opacity-100" />
 
       <div className="relative flex items-start justify-between gap-3">
         <div>
@@ -212,7 +211,6 @@ export const LoadingState = ({ message }) => {
 
   return (
     <Panel className="relative flex items-center justify-center gap-3 overflow-hidden p-8 text-sm font-bold text-slate-500">
-      <div className="pointer-events-none absolute -left-16 -top-16 h-40 w-40 rounded-full bg-sky-100 blur-3xl" />
       <div className="relative flex h-10 w-10 items-center justify-center rounded-2xl bg-sky-50 text-sky-600">
         <Loader2 className="h-5 w-5 animate-spin" strokeWidth={1.8} />
       </div>
@@ -223,10 +221,9 @@ export const LoadingState = ({ message }) => {
 
 export const EmptyState = ({ icon: Icon = CheckCircle2, title, description, actions }) => (
   <Panel className="relative overflow-hidden p-6 text-center sm:p-9">
-    <div className="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full bg-sky-100 blur-3xl" />
-    <div className="pointer-events-none absolute -bottom-20 left-1/2 h-44 w-44 -translate-x-1/2 rounded-full bg-emerald-100/70 blur-3xl" />
 
-    <div className="relative mx-auto flex h-14 w-14 items-center justify-center rounded-3xl bg-gradient-to-br from-sky-500 to-emerald-400 text-white shadow-lg shadow-cyan-100">
+
+    <div className="relative mx-auto flex h-14 w-14 items-center justify-center rounded-3xl bg-sky-600 text-white shadow-lg shadow-sky-100">
       <Icon className="h-7 w-7" strokeWidth={1.8} />
     </div>
 
@@ -279,8 +276,8 @@ export const ErrorState = ({ error, title, onDismiss }) => {
 
 export const ProgressBar = ({ value = 0, tone = 'indigo' }) => {
   const colors = {
-    indigo: 'bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400',
-    sky: 'bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400',
+    indigo: 'bg-sky-600',
+    sky: 'bg-sky-600',
     emerald: 'bg-emerald-500',
     amber: 'bg-amber-500',
     red: 'bg-red-600',
@@ -298,6 +295,8 @@ export const ProgressBar = ({ value = 0, tone = 'indigo' }) => {
     </div>
   );
 };
+
+
 
 
 

@@ -13,11 +13,10 @@ const Header = ({
   const sectionHref = (id) => (isLandingPage ? `#${id}` : `/#${id}`);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-sky-100/80 bg-white/80 backdrop-blur-2xl">
+    <header className="sticky top-0 z-50 border-b border-sky-100/80 bg-white/80 ">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-3 py-4 sm:px-5 lg:px-8">
         <Link to="/" className="group flex min-w-0 items-center gap-3">
           <div className="relative shrink-0">
-            <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-sky-400 to-emerald-400 opacity-35 blur-md transition group-hover:opacity-70" />
             <div className="relative flex h-12 w-12 items-center justify-center rounded-2xl border border-sky-100 bg-white shadow-lg shadow-sky-200/60">
               <img
                 src="/event-flow-logo-mark.png"
@@ -30,7 +29,7 @@ const Header = ({
           <div className="min-w-0 max-[380px]:hidden">
             <p className="text-xl font-black leading-none tracking-tight text-slate-950">
               <span>Event</span>
-              <span className="bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 bg-clip-text text-transparent">
+              <span className="bg-sky-600 ">
                 Flow
               </span>
             </p>
@@ -77,7 +76,7 @@ const Header = ({
 
           <Link
             to={ctaTo}
-            className="group inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 px-4 py-2.5 text-sm font-black text-white shadow-xl shadow-cyan-300/40 transition hover:-translate-y-0.5 hover:shadow-2xl hover:shadow-cyan-300/60 sm:px-5"
+            className="group inline-flex items-center justify-center gap-2 rounded-full bg-sky-600 px-4 py-2.5 text-sm font-black text-white shadow-xl shadow-sky-100 transition hover:-translate-y-0.5 hover:shadow-2xl hover:shadow-sky-100 sm:px-5"
           >
             {ctaLabel}
             <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
@@ -89,3 +88,5 @@ const Header = ({
 };
 
 export default Header;
+
+

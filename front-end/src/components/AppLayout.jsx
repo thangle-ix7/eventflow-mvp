@@ -336,9 +336,7 @@ const AppLayoutFrame = ({
   const renderEventNavigation = () => (
     <div className="space-y-5 p-4">
       {selectedEvent?.name && (
-        <div className="relative overflow-hidden rounded-[2rem] border border-sky-100 bg-gradient-to-br from-sky-50 via-white to-emerald-50 p-4 shadow-lg shadow-sky-100/60" data-guide-target="event-created-entry">
-          <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-sky-100 blur-2xl" />
-          <div className="pointer-events-none absolute -bottom-12 left-1/2 h-32 w-32 rounded-full bg-emerald-100/70 blur-2xl" />
+        <div className="relative overflow-hidden rounded-[2rem] border border-sky-100 bg-white p-4 shadow-lg shadow-sky-100/60" data-guide-target="event-created-entry">
 
           <div className="relative">
             <p className="text-xs font-black uppercase tracking-[0.22em] text-sky-500">
@@ -369,7 +367,7 @@ const AppLayoutFrame = ({
               className={[
                 'group relative flex min-h-14 items-center gap-3 overflow-hidden rounded-[1.35rem] border px-3.5 py-3 text-sm font-black transition-all',
                 active
-                  ? 'border-sky-200 bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 text-white shadow-xl shadow-cyan-100'
+                  ? 'border-sky-200 bg-sky-600 text-white shadow-xl shadow-sky-100'
                   : 'border-transparent bg-white/70 text-slate-600 hover:-translate-y-0.5 hover:border-sky-100 hover:bg-sky-50 hover:text-sky-600 hover:shadow-lg hover:shadow-sky-100/70',
               ].join(' ')}
             >
@@ -421,14 +419,13 @@ const AppLayoutFrame = ({
                 className={[
                   'group relative flex min-h-16 items-center gap-3 overflow-hidden rounded-[1.35rem] border px-3.5 py-3 text-sm font-black transition-all',
                   active
-                    ? 'border-sky-200 bg-gradient-to-r from-sky-50 via-white to-emerald-50 text-sky-700 shadow-xl shadow-sky-100/80 ring-1 ring-sky-100'
+                    ? 'border-sky-200 bg-sky-50 text-sky-700 shadow-xl shadow-sky-100/80 ring-1 ring-sky-100'
                     : 'border-transparent bg-white/70 text-slate-500 hover:-translate-y-0.5 hover:border-sky-100 hover:bg-sky-50 hover:text-sky-600 hover:shadow-lg hover:shadow-sky-100/70',
                 ].join(' ')}
               >
                 {active && (
                   <>
-                    <span className="absolute inset-y-3 left-0 w-1 rounded-r-full bg-gradient-to-b from-sky-500 to-emerald-400" />
-                    <span className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-sky-100 blur-2xl" />
+                    <span className="absolute inset-y-3 left-0 w-1 rounded-r-full bg-sky-600" />
                   </>
                 )}
 
@@ -436,7 +433,7 @@ const AppLayoutFrame = ({
                   className={[
                     'relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl transition',
                     active
-                      ? 'bg-gradient-to-br from-sky-500 to-emerald-400 text-white shadow-lg shadow-cyan-100'
+                      ? 'bg-sky-600 text-white shadow-lg shadow-sky-100'
                       : 'bg-white text-slate-400 shadow-sm group-hover:text-sky-500',
                   ].join(' ')}
                 >
@@ -453,7 +450,7 @@ const AppLayoutFrame = ({
                 </span>
 
                 {active && (
-                  <span className="relative h-2.5 w-2.5 shrink-0 rounded-full bg-gradient-to-r from-sky-500 to-emerald-400 shadow-sm shadow-cyan-100" />
+                  <span className="relative h-2.5 w-2.5 shrink-0 rounded-full bg-sky-600 shadow-sm shadow-sky-100" />
                 )}
               </Link>
             );
@@ -468,7 +465,7 @@ const AppLayoutFrame = ({
       <div className="min-h-screen bg-[#F8FCFF] text-slate-950">
         {showTelegramOnboarding && <TelegramOnboarding userId={user.userId} />}
 
-        <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-xl">
+        <header className="sticky top-0 z-50 bg-white/95 ">
           <div className="mx-auto flex min-h-[4.75rem] min-w-0 max-w-[1600px] flex-nowrap items-center gap-2 px-4 py-3 sm:gap-5 sm:px-7 lg:gap-10 lg:px-10 lg:py-0">
             <div className="flex min-w-0 flex-1 items-center gap-3 lg:flex-none">
               {eventNav.length > 0 && (
@@ -485,7 +482,6 @@ const AppLayoutFrame = ({
 
               <Link to="/events" className="group flex min-w-0 items-center gap-2.5 sm:gap-3">
                 <span className="relative flex h-10 w-10 shrink-0 items-center justify-center sm:h-11 sm:w-11">
-                  <span className="absolute inset-0 rounded-full bg-gradient-to-br from-lime-300 to-emerald-300 opacity-30 blur-md transition group-hover:opacity-60" />
                   <span className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-white sm:h-11 sm:w-11">
                     <img src="/event-flow-logo-mark.png" alt="" className="h-7 w-7 object-contain sm:h-8 sm:w-8" />
                   </span>
@@ -494,7 +490,7 @@ const AppLayoutFrame = ({
                 <span className="hidden min-w-0 sm:block">
                   <span className="block truncate text-xl font-black leading-tight tracking-tight text-slate-950">
                     <span>Event</span>
-                    <span className="bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 bg-clip-text text-transparent">
+                    <span className="bg-sky-600 ">
                       Flow
                     </span>
                   </span>
@@ -556,7 +552,7 @@ const AppLayoutFrame = ({
 
                 <button
                   type="button"
-                  className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-lime-400 to-emerald-400 px-4 py-2 text-sm font-black text-white shadow-lg shadow-emerald-100 transition hover:-translate-y-0.5 hover:shadow-emerald-200"
+                  className="inline-flex items-center gap-2 rounded-full bg-emerald-600 px-4 py-2 text-sm font-black text-white shadow-lg shadow-slate-100 transition hover:-translate-y-0.5 hover:shadow-slate-100"
                   aria-label="Gửi góp ý cho EventFlow"
                   title="Gửi góp ý cho EventFlow"
                   onClick={() => setFeedbackOpen(true)}
@@ -578,7 +574,7 @@ const AppLayoutFrame = ({
                   >
                     <Bell className="h-5 w-5" strokeWidth={1.8} />
                     {pendingNotificationCount > 0 && (
-                      <span className="absolute -right-1 -top-1 min-w-5 rounded-full bg-gradient-to-r from-rose-500 to-red-500 px-1.5 py-0.5 text-center text-[10px] font-black leading-none text-white shadow-lg shadow-red-200">
+                      <span className="absolute -right-1 -top-1 min-w-5 rounded-full bg-rose-600 px-1.5 py-0.5 text-center text-[10px] font-black leading-none text-white shadow-lg shadow-red-200">
                         {pendingNotificationCount > 99 ? '99+' : pendingNotificationCount}
                       </span>
                     )}
@@ -586,7 +582,7 @@ const AppLayoutFrame = ({
 
                   {notificationOpen && (
                     <div className="fixed left-3 right-3 top-[4.75rem] z-50 max-h-[min(28rem,calc(100vh-5.5rem))] overflow-hidden rounded-3xl border border-sky-100 bg-white text-slate-900 shadow-2xl shadow-sky-100 sm:absolute sm:left-auto sm:right-0 sm:top-12 sm:max-h-none sm:w-[min(380px,calc(100vw-2rem))]">
-                      <div className="flex items-center justify-between gap-3 border-b border-sky-100 bg-gradient-to-r from-sky-50 to-emerald-50 px-4 py-3">
+                      <div className="flex items-center justify-between gap-3 border-b border-sky-100 bg-sky-50 px-4 py-3">
                         <div>
                           <p className="text-sm font-black text-slate-950">{t('notification.title')}</p>
                           <p className="text-xs font-bold text-slate-500">
@@ -674,7 +670,7 @@ const AppLayoutFrame = ({
 
                                 {unread && (
                                   <span
-                                    className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-gradient-to-r from-sky-500 to-emerald-400"
+                                    className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-sky-600"
                                     aria-label="Chưa đọc"
                                   />
                                 )}
@@ -717,13 +713,13 @@ const AppLayoutFrame = ({
             <button
               type="button"
               aria-label="Đóng thanh điều hướng"
-              className="fixed inset-x-0 bottom-0 top-16 z-30 bg-slate-950/25 backdrop-blur-sm lg:hidden"
+              className="fixed inset-x-0 bottom-0 top-16 z-30 bg-slate-950/25  lg:hidden"
               onClick={() => setSidebarState({ eventId: selectedEventId, open: false })}
             />
           )}
 
           {eventNav.length > 0 && sidebarOpen && (
-            <aside className="fixed left-3 right-3 top-[4.75rem] z-40 max-h-[calc(100dvh-5.5rem)] overflow-y-auto overscroll-contain rounded-[2rem] border border-sky-100 bg-white/95 shadow-2xl shadow-sky-200/70 backdrop-blur-2xl [scrollbar-width:thin] [scrollbar-color:#bae6fd_transparent] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-sky-200 [&::-webkit-scrollbar-track]:bg-transparent lg:sticky lg:left-auto lg:right-auto lg:top-16 lg:z-20 lg:h-[calc(100dvh-4rem)] lg:max-h-[calc(100dvh-4rem)] lg:rounded-none lg:border-b-0 lg:border-l-0 lg:border-r lg:border-t-0 lg:bg-white/85 lg:shadow-sm lg:shadow-sky-100/60">
+            <aside className="fixed left-3 right-3 top-[4.75rem] z-40 max-h-[calc(100dvh-5.5rem)] overflow-y-auto overscroll-contain rounded-[2rem] border border-sky-100 bg-white/95 shadow-2xl shadow-sky-200/70  [scrollbar-width:thin] [scrollbar-color:#bae6fd_transparent] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-sky-200 [&::-webkit-scrollbar-track]:bg-transparent lg:sticky lg:left-auto lg:right-auto lg:top-16 lg:z-20 lg:h-[calc(100dvh-4rem)] lg:max-h-[calc(100dvh-4rem)] lg:rounded-none lg:border-b-0 lg:border-l-0 lg:border-r lg:border-t-0 lg:bg-white/85 lg:shadow-sm lg:shadow-sky-100/60">
               {renderEventNavigation()}
             </aside>
           )}
@@ -736,9 +732,6 @@ const AppLayoutFrame = ({
         {eventNav.length === 0 && (
           <footer className="relative overflow-hidden border-t border-sky-100 bg-slate-950 text-white">
             <div className="pointer-events-none absolute inset-0">
-              <div className="absolute -left-32 top-0 h-80 w-80 rounded-full bg-sky-400/20 blur-3xl" />
-              <div className="absolute bottom-[-140px] right-[-80px] h-96 w-96 rounded-full bg-emerald-400/20 blur-3xl" />
-              <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[size:48px_48px]" />
             </div>
 
             <div className="relative mx-auto grid max-w-7xl gap-8 px-5 py-10 text-sm md:grid-cols-[1.35fr_0.95fr_0.85fr] lg:px-8">
@@ -750,7 +743,7 @@ const AppLayoutFrame = ({
                   <div>
                     <p className="text-xl font-black text-white">
                       <span>Event</span>
-                      <span className="bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 bg-clip-text text-transparent">
+                      <span className="bg-sky-600 ">
                         Flow
                       </span>
                     </p>
@@ -858,9 +851,9 @@ const UpgradePromptModal = ({ prompt, onClose }) => {
   }
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/55 px-4 py-6 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/55 px-4 py-6 ">
       <section className="w-full max-w-md overflow-hidden rounded-3xl border border-sky-100 bg-white shadow-2xl shadow-slate-950/20">
-        <div className="flex items-start justify-between gap-4 border-b border-sky-100 bg-gradient-to-r from-sky-50 via-white to-emerald-50 p-5">
+        <div className="flex items-start justify-between gap-4 border-b border-sky-100 bg-sky-50 p-5">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.16em] text-sky-600">Cần nâng cấp gói</p>
             <h2 className="mt-2 text-xl font-black text-slate-950">{prompt.label}</h2>
@@ -892,7 +885,7 @@ const UpgradePromptModal = ({ prompt, onClose }) => {
             <Link
               to="/pricing"
               onClick={onClose}
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 px-4 py-2 text-sm font-black text-white shadow-xl shadow-cyan-100 transition hover:-translate-y-0.5"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-sky-600 px-4 py-2 text-sm font-black text-white shadow-xl shadow-sky-100 transition hover:-translate-y-0.5"
             >
               Xem gói phù hợp
               <ArrowRight className="h-4 w-4" />
@@ -918,6 +911,8 @@ const formatNotificationTime = (value, lang) => {
 };
 
 export default AppLayout;
+
+
 
 
 
